@@ -1,0 +1,4 @@
+{
+  "subject": "Refund diproses · {{bookingNo}}",
+  "body": "Refund Rp {{refundAmountFormatted}} untuk booking {{bookingNo}} telah diproses. Alasan: {{reason}}. {{tail}}"
+}

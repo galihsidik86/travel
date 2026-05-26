@@ -1,0 +1,501 @@
+import { z } from 'zod';
+import { db } from '../lib/db.js';
+import { audit } from '../lib/audit.js';
+import { HttpError } from '../middleware/error.js';
+import { JemaahSchema, updateJemaah } from './jemaahAdmin.js';
+import { DOC_TYPES } from './jemaahDocs.js';
+import { notifyCancelRequested } from './notifications.js';
+
+const normalizePhone = (s) => String(s).replace(/[\s\-()]/g, '');
+
+export const ClaimSchema = z.object({
+  bookingNo: z.string().min(1).max(50),
+  phone: z.string().min(8).max(30),
+});
+
+/**
+ * Personal dashboard for a logged-in JEMAAH user.
+ *   - profile: the JemaahProfile linked via JemaahProfile.userId (1:1; may be null
+ *     if the account was just registered without a booking yet).
+ *   - bookings: every Booking where jemaahUserId = this user (claimed bookings).
+ *     Includes paket + payments-summary for quick at-a-glance display.
+ */
+export async function getMyDashboard(userId) {
+  const [profile, bookings] = await Promise.all([
+    db.jemaahProfile.findFirst({
+      where: { userId },
+      include: {
+        documents: { orderBy: { type: 'asc' } },
+      },
+    }),
+    db.booking.findMany({
+      where: { jemaahUserId: userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        paket: { select: { slug: true, title: true, departureDate: true } },
+        jemaah: { select: { fullName: true, phone: true } },
+        agent: { select: { displayName: true, slug: true } },
+      },
+    }),
+  ]);
+  return { profile, bookings };
+}
+
+/**
+ * Soft-merge the source JemaahProfile into the target:
+ *   - Fills missing fields on target from source (target's data wins on conflict)
+ *   - Re-points all JemaahDocument rows from source → target, skipping types the
+ *     target already has (target's docs win)
+ *   - Returns { fieldsCopied, docsTransferred, sourceDeletable }
+ *
+ * Does NOT touch Booking.jemaahId — caller already re-pointed the relevant booking.
+ * Does NOT delete the source profile here (caller decides based on remaining
+ * bookings — see claimBooking).
+ */
+async function mergeProfileInto(tx, targetId, sourceId, { sourceWillBeDeleted = false } = {}) {
+  if (targetId === sourceId) return { fieldsCopied: [], docsTransferred: 0 };
+
+  const [target, source] = await Promise.all([
+    tx.jemaahProfile.findUnique({ where: { id: targetId } }),
+    tx.jemaahProfile.findUnique({
+      where: { id: sourceId },
+      include: { documents: true },
+    }),
+  ]);
+  if (!target || !source) return { fieldsCopied: [], docsTransferred: 0 };
+
+  const MERGEABLE = ['nik', 'passportNo', 'passportExpiry', 'birthDate', 'gender', 'address', 'emergencyContact', 'notes'];
+  const UNIQUE_FIELDS = new Set(['nik', 'passportNo']);
+  const patch = {};
+  const fieldsCopied = [];
+  // Track @unique values we need to free on source first so the patch on
+  // target doesn't trip the DB-level @unique constraint.
+  const sourceUniqueNullOuts = {};
+
+  for (const f of MERGEABLE) {
+    if ((target[f] == null || target[f] === '') && source[f] != null && source[f] !== '') {
+      if (UNIQUE_FIELDS.has(f)) {
+        // Defensive: don't copy if a THIRD profile (not target, not source)
+        // already owns this value — that's a real collision worth refusing.
+        const clash = await tx.jemaahProfile.findFirst({
+          where: { [f]: source[f], id: { notIn: [targetId, sourceId] } },
+        });
+        if (clash) continue;
+        // If source is about to be deleted anyway, transfer the value: NULL
+        // source's copy first (frees the @unique), then queue the patch.
+        // If source survives (still has other bookings referencing it), we
+        // can't take its @unique away — skip the copy, value stays on source.
+        if (!sourceWillBeDeleted) continue;
+        sourceUniqueNullOuts[f] = null;
+      }
+      patch[f] = source[f];
+      fieldsCopied.push(f);
+    }
+  }
+
+  // Free @unique on source BEFORE patching target (otherwise constraint trips).
+  if (Object.keys(sourceUniqueNullOuts).length > 0) {
+    await tx.jemaahProfile.update({ where: { id: sourceId }, data: sourceUniqueNullOuts });
+  }
+  if (Object.keys(patch).length > 0) {
+    await tx.jemaahProfile.update({ where: { id: targetId }, data: patch });
+  }
+
+  // Transfer docs: target wins on type collision (source dup gets deleted)
+  const targetTypes = new Set(
+    (await tx.jemaahDocument.findMany({ where: { jemaahId: targetId }, select: { type: true } }))
+      .map((d) => d.type),
+  );
+  let docsTransferred = 0;
+  for (const doc of source.documents) {
+    if (targetTypes.has(doc.type)) {
+      await tx.jemaahDocument.delete({ where: { id: doc.id } });
+    } else {
+      await tx.jemaahDocument.update({ where: { id: doc.id }, data: { jemaahId: targetId } });
+      docsTransferred += 1;
+    }
+  }
+
+  return { fieldsCopied, docsTransferred };
+}
+
+/**
+ * Claim an anonymous booking by matching (bookingNo, phone) and linking it to
+ * this user account.
+ *
+ * Two-phase write inside one transaction:
+ *   1. Set `Booking.jemaahUserId = userId`
+ *   2. If the user has their own JemaahProfile (created at register-time), soft-merge:
+ *      re-point `Booking.jemaahId` → user's profile, copy missing fields, transfer
+ *      docs, delete the now-orphan booking-profile IF no other booking references it.
+ *
+ * Match rules:
+ *   - bookingNo exact
+ *   - phone compared after stripping spaces/dashes/parens
+ *   - booking must not already be claimed by ANOTHER user (idempotent if same user)
+ *
+ * Generic 404 on mismatch — never reveal whether the booking exists.
+ */
+export async function claimBooking({ req, actor, userId, bookingNo, phone }) {
+  const booking = await db.booking.findUnique({
+    where: { bookingNo },
+    include: { jemaah: { select: { id: true, phone: true, fullName: true } } },
+  });
+
+  const fail = () => { throw new HttpError(404, 'Booking tidak ditemukan atau telepon tidak cocok', 'CLAIM_MISMATCH'); };
+  if (!booking) return fail();
+  if (normalizePhone(booking.jemaah.phone) !== normalizePhone(phone)) return fail();
+
+  if (booking.jemaahUserId === userId) {
+    return { booking, alreadyClaimed: true };
+  }
+  if (booking.jemaahUserId && booking.jemaahUserId !== userId) {
+    throw new HttpError(409, 'Booking ini sudah ter-claim oleh akun lain', 'CLAIM_TAKEN');
+  }
+
+  // Find user's own profile (the one created at register-time)
+  const userProfile = await db.jemaahProfile.findFirst({ where: { userId } });
+
+  const { updated, mergeInfo, oldProfileDeleted } = await db.$transaction(async (tx) => {
+    // Phase 1: claim
+    let updated = await tx.booking.update({
+      where: { id: booking.id },
+      data: { jemaahUserId: userId },
+    });
+
+    let mergeInfo = null;
+    let oldProfileDeleted = false;
+
+    // Phase 2: dedup — only if user has own profile AND booking points elsewhere.
+    // Order is load-bearing: re-point booking FIRST, then count remaining, then
+    // call merge with `sourceWillBeDeleted` so it can safely transfer @unique
+    // fields (nik/passportNo) by nulling them on source before patching target.
+    if (userProfile && booking.jemaah.id !== userProfile.id) {
+      updated = await tx.booking.update({
+        where: { id: booking.id },
+        data: { jemaahId: userProfile.id },
+      });
+
+      const remaining = await tx.booking.count({ where: { jemaahId: booking.jemaah.id } });
+      const sourceWillBeDeleted = remaining === 0;
+
+      mergeInfo = await mergeProfileInto(tx, userProfile.id, booking.jemaah.id, { sourceWillBeDeleted });
+
+      if (sourceWillBeDeleted) {
+        await tx.jemaahProfile.delete({ where: { id: booking.jemaah.id } });
+        oldProfileDeleted = true;
+      }
+    }
+
+    return { updated, mergeInfo, oldProfileDeleted };
+  });
+
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'Booking', entityId: booking.id,
+    before: { jemaahUserId: null, jemaahId: booking.jemaah.id },
+    after: {
+      jemaahUserId: userId, bookingNo, claimedBy: actor.email, claim: true,
+      ...(mergeInfo ? {
+        merged: true,
+        targetJemaahId: userProfile.id,
+        fieldsCopied: mergeInfo.fieldsCopied,
+        docsTransferred: mergeInfo.docsTransferred,
+        oldProfileDeleted,
+      } : {}),
+    },
+  });
+
+  return { booking: updated, alreadyClaimed: false, merged: !!mergeInfo, mergeInfo };
+}
+
+async function loadOwnProfile(userId) {
+  const profile = await db.jemaahProfile.findFirst({ where: { userId } });
+  if (!profile) {
+    throw new HttpError(404, 'Profil belum dibuat untuk akun ini', 'PROFILE_NOT_FOUND');
+  }
+  return profile;
+}
+
+/**
+ * Self-service profile update. Same validation as admin's `updateJemaah`,
+ * but scoped to the caller's own profile (no arbitrary jemaahId target).
+ */
+export async function updateMyProfile({ req, actor, userId, input }) {
+  const profile = await loadOwnProfile(userId);
+  const validated = JemaahSchema.parse(input);
+  // Defer to the admin update — same uniqueness checks, same audit shape.
+  // We just override the audit trail to label this as a self-edit.
+  const updated = await updateJemaah({
+    req,
+    actor: actor,
+    jemaahId: profile.id,
+    input: validated,
+  });
+  return updated;
+}
+
+const SelfDocSchema = z.object({
+  type: z.enum(DOC_TYPES),
+  refNumber: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.string().max(190).optional()),
+  expiresAt: z.preprocess(
+    (v) => (v === '' || v == null ? null : new Date(String(v))),
+    z.date().nullable().optional(),
+  ),
+  notes: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.string().max(2000).optional()),
+});
+
+/**
+ * Self-submit a document. Jemaah can never set status to VERIFIED/REJECTED
+ * (those are staff-only verdicts) — we infer status from input:
+ *   - refNumber filled → SUBMITTED (jemaah claims it's ready for review)
+ *   - refNumber empty  → PENDING (jemaah is tracking the slot but hasn't submitted yet)
+ * If the doc already exists in a VERIFIED/REJECTED state, jemaah re-submitting
+ * resets it to SUBMITTED (re-submission for re-review).
+ */
+export async function submitMyDoc({ req, actor, userId, input }) {
+  const profile = await loadOwnProfile(userId);
+  const data = SelfDocSchema.parse(input);
+  const status = data.refNumber ? 'SUBMITTED' : 'PENDING';
+
+  const existing = await db.jemaahDocument.findUnique({
+    where: { jemaahId_type: { jemaahId: profile.id, type: data.type } },
+  });
+
+  const setStamps = (status === 'SUBMITTED' && (!existing || existing.status !== 'SUBMITTED'))
+    ? { submittedAt: new Date() }
+    : {};
+
+  const doc = await db.jemaahDocument.upsert({
+    where: { jemaahId_type: { jemaahId: profile.id, type: data.type } },
+    update: {
+      status,
+      refNumber: data.refNumber ?? null,
+      expiresAt: data.expiresAt ?? null,
+      notes: data.notes ?? null,
+      ...(status !== 'SUBMITTED' ? { /* don't reset submittedAt on PENDING save */ } : setStamps),
+      // Clear admin verdict timestamps if re-submitting
+      ...(existing && existing.status === 'VERIFIED' ? { verifiedAt: null, verifiedById: null } : {}),
+    },
+    create: {
+      jemaahId: profile.id,
+      type: data.type,
+      status,
+      refNumber: data.refNumber ?? null,
+      expiresAt: data.expiresAt ?? null,
+      notes: data.notes ?? null,
+      ...setStamps,
+    },
+  });
+
+  await audit({
+    req, actor: actor,
+    action: existing ? 'UPDATE' : 'CREATE',
+    entity: 'JemaahDocument', entityId: doc.id,
+    before: existing ? { status: existing.status, refNumber: existing.refNumber } : null,
+    after: { jemaahId: profile.id, type: doc.type, status: doc.status, refNumber: doc.refNumber, selfSubmit: true },
+  });
+
+  return doc;
+}
+
+/**
+ * Jemaah deletes their own doc tracking. Refuses to delete VERIFIED docs
+ * (those represent staff sign-off — only staff can remove them).
+ */
+export async function deleteMyDoc({ req, actor, userId, docId }) {
+  const profile = await loadOwnProfile(userId);
+  const doc = await db.jemaahDocument.findUnique({ where: { id: docId } });
+  if (!doc || doc.jemaahId !== profile.id) {
+    throw new HttpError(404, 'Dokumen tidak ditemukan', 'DOC_NOT_FOUND');
+  }
+  if (doc.status === 'VERIFIED') {
+    throw new HttpError(409, 'Dokumen sudah VERIFIED — hubungi admin untuk perubahan', 'DOC_LOCKED');
+  }
+  await db.jemaahDocument.delete({ where: { id: docId } });
+  // 5mm: clean up attached file on disk too
+  if (doc.filePath) {
+    const { deleteStoredFile } = await import('../lib/docStorage.js');
+    await deleteStoredFile(doc.filePath);
+  }
+  await audit({
+    req, actor: actor,
+    action: 'DELETE', entity: 'JemaahDocument', entityId: docId,
+    before: { jemaahId: profile.id, type: doc.type, status: doc.status, hasFile: !!doc.filePath },
+  });
+}
+
+/**
+ * List ACTIVE paket available to book + flag whether THIS user has an
+ * active (non-CANCELLED/REFUNDED) booking on it. Used by /saya/paket browser.
+ */
+export async function listAvailablePaket(userId) {
+  const paket = await db.paket.findMany({
+    where: { status: 'ACTIVE', deletedAt: null },
+    select: {
+      id: true, slug: true, title: true, subtitle: true,
+      departureDate: true, returnDate: true, durationDays: true,
+      kursiTotal: true, kursiTerisi: true,
+      prices: { select: { kelas: true, priceIdr: true, isFeatured: true } },
+    },
+    orderBy: { departureDate: 'asc' },
+  });
+
+  // Single query for the user's bookings, then map per paket. Faster than N
+  // separate findMany calls when paket count grows.
+  const myBookings = userId
+    ? await db.booking.findMany({
+        where: { jemaahUserId: userId, status: { notIn: ['CANCELLED', 'REFUNDED'] } },
+        select: { paketId: true, bookingNo: true },
+      })
+    : [];
+  const bookedByPaket = new Map();
+  for (const b of myBookings) {
+    if (!bookedByPaket.has(b.paketId)) bookedByPaket.set(b.paketId, []);
+    bookedByPaket.get(b.paketId).push(b.bookingNo);
+  }
+
+  return paket.map((p) => {
+    const fillPct = p.kursiTotal === 0 ? 0 : Math.round((p.kursiTerisi / p.kursiTotal) * 100);
+    const sortedPrices = [...p.prices].sort((a, b) =>
+      Number(a.priceIdr.toString?.() ?? a.priceIdr) - Number(b.priceIdr.toString?.() ?? b.priceIdr),
+    );
+    const minPrice = sortedPrices[0] ?? null;
+    return {
+      ...p,
+      fillPct,
+      slotsLeft: p.kursiTotal - p.kursiTerisi,
+      minPrice,
+      myBookings: bookedByPaket.get(p.id) || [],
+    };
+  });
+}
+
+/**
+ * Jemaah submits a cancel request — admin still has to approve via
+ * `cancelBooking`. This sets `Booking.cancelRequested` + reason + timestamp
+ * and writes an audit row, but does NOT change `status`.
+ *
+ * Refuses if:
+ *   - booking isn't owned by this user (404 generic — anti-enumeration)
+ *   - booking is already CANCELLED or REFUNDED (409 — nothing to request)
+ *   - a request is already pending (409 — admin needs to approve/decline existing)
+ */
+export async function requestCancelByJemaah({ req, actor, userId, bookingId, reason }) {
+  if (!reason || reason.trim().length < 3) {
+    throw new HttpError(400, 'Alasan pembatalan wajib (min. 3 karakter)', 'CANCEL_REASON_REQUIRED');
+  }
+  const booking = await db.booking.findFirst({
+    where: { id: bookingId, jemaahUserId: userId },
+    select: { id: true, bookingNo: true, status: true, cancelRequested: true },
+  });
+  if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+  if (booking.status === 'CANCELLED' || booking.status === 'REFUNDED') {
+    throw new HttpError(409, 'Booking sudah cancelled/refunded', 'ALREADY_CLOSED');
+  }
+  if (booking.cancelRequested) {
+    throw new HttpError(409, 'Permintaan pembatalan sebelumnya masih diproses admin', 'ALREADY_REQUESTED');
+  }
+  const updated = await db.booking.update({
+    where: { id: bookingId },
+    data: {
+      cancelRequested: true,
+      cancelRequestedAt: new Date(),
+      cancelRequestReason: reason.trim(),
+    },
+  });
+  await audit({
+    req, actor,
+    action: 'STATUS_CHANGE', entity: 'Booking', entityId: bookingId,
+    before: { cancelRequested: false },
+    after: {
+      cancelRequested: true,
+      cancelRequestReason: reason.trim(),
+      bookingNo: booking.bookingNo,
+      requestedBy: actor.email,
+    },
+  });
+
+  // Notif admin (non-blocking — request must succeed even if email fails)
+  try {
+    const bookingForNotif = await db.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true, bookingNo: true, kelas: true, paxCount: true, paidAmount: true,
+        jemaah: { select: { fullName: true, phone: true } },
+        paket: { select: { title: true } },
+      },
+    });
+    if (bookingForNotif) {
+      await notifyCancelRequested({
+        booking: bookingForNotif,
+        reason: reason.trim(),
+        requestedByEmail: actor.email,
+      });
+    }
+  } catch (err) {
+    console.error('[cancel-request] notif failed:', err.message);
+  }
+
+  return updated;
+}
+
+/**
+ * Read-only notif inbox for a jemaah (5ll). Filters strictly on
+ * `Notification.recipientUserId = userId` so admin/system rows never leak in.
+ * Caps at 50 — UI is a "recent activity" feed, not a full archive.
+ */
+export async function listMyNotifications(userId, { limit = 50 } = {}) {
+  return db.notification.findMany({
+    where: { recipientUserId: userId },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    select: {
+      id: true, type: true, channel: true, status: true,
+      subject: true, body: true,
+      relatedEntity: true, relatedEntityId: true,
+      sentAt: true, createdAt: true, error: true,
+      readAt: true,
+    },
+  });
+}
+
+/**
+ * 5rr: count of unread notifs for the unread badge in the jemaah sidebar.
+ * Cheap query (composite index `[recipientUserId, readAt]`).
+ */
+export async function countUnreadForUser(userId) {
+  return db.notification.count({
+    where: { recipientUserId: userId, readAt: null },
+  });
+}
+
+/**
+ * 5rr: stamp all currently-unread notifs for the user as read. Called when
+ * the jemaah opens their inbox — by the next page render the badge clears.
+ * Returns the count that were marked.
+ */
+export async function markAllReadForUser(userId) {
+  const r = await db.notification.updateMany({
+    where: { recipientUserId: userId, readAt: null },
+    data: { readAt: new Date() },
+  });
+  return r.count;
+}
+
+/**
+ * Read-only booking detail scoped to this user. 404 if not owned.
+ */
+export async function getMyBooking(userId, bookingId) {
+  const booking = await db.booking.findFirst({
+    where: { id: bookingId, jemaahUserId: userId },
+    include: {
+      paket: { select: { slug: true, title: true, departureDate: true, returnDate: true, durationDays: true } },
+      jemaah: { include: { documents: { orderBy: { type: 'asc' } } } },
+      agent: { select: { slug: true, displayName: true, whatsapp: true } },
+      room: { select: { roomNo: true, floor: true, wing: true } },
+      payments: { orderBy: { createdAt: 'desc' } },
+    },
+  });
+  return booking;
+}

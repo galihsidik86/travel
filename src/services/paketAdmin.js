@@ -1,0 +1,516 @@
+import { z } from 'zod';
+import { db } from '../lib/db.js';
+import { audit } from '../lib/audit.js';
+import { HttpError } from '../middleware/error.js';
+
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const STATUSES = ['DRAFT', 'ACTIVE', 'CLOSED', 'ARCHIVED'];
+const KELAS = ['QUAD', 'TRIPLE', 'DOUBLE', 'VVIP'];
+const HOTEL_CITIES = ['MADINAH', 'MEKKAH', 'JEDDAH', 'AQSA', 'PETRA', 'AMMAN', 'ISTANBUL', 'CAIRO', 'DUBAI', 'JAKARTA'];
+
+// Coerce blank strings to undefined
+const blank = (v) => (v === '' || v == null ? undefined : v);
+const optStr = z.preprocess(blank, z.string().max(2000).optional());
+const optStrLong = z.preprocess(blank, z.string().max(65535).optional());
+const optInt = z.preprocess((v) => (blank(v) === undefined ? undefined : Number(v)), z.number().int().optional());
+const optMoney = z.preprocess((v) => (blank(v) === undefined ? undefined : Number(v)), z.number().nonnegative().optional());
+const reqDate = z.preprocess((v) => new Date(String(v)), z.date());
+
+// Convert multiline textarea → string[]
+function linesToArr(input) {
+  if (input == null || input === '') return [];
+  return String(input).split('\n').map((s) => s.trim()).filter(Boolean);
+}
+
+export const PaketSchema = z.object({
+  slug: z.string().regex(SLUG_RE, 'Slug harus huruf kecil, angka, dan strip (mis. paket-ramadhan-2027)').max(190),
+  title: z.string().min(3, 'Judul minimal 3 karakter').max(190),
+  subtitle: optStr,
+  heroTitleHtml: optStrLong,
+  arabicTagline: optStrLong,
+  translitTagline: optStrLong,
+  departureDate: reqDate,
+  returnDate: reqDate,
+  durationDays: z.preprocess((v) => Number(v), z.number().int().min(1).max(60)),
+  airline: optStr,
+  airlineCode: optStr,
+  routeFrom: optStr,
+  routeTo: optStr,
+  heroDescription: optStrLong,
+  // textareas — each line = one item
+  inclusionsText: optStrLong,
+  exclusionsText: optStrLong,
+  kursiTotal: z.preprocess((v) => Number(v), z.number().int().min(1).max(500)),
+  manifestClosesAt: z.preprocess((v) => (blank(v) === undefined ? null : new Date(String(v))), z.date().nullable().optional()),
+  status: z.enum(STATUSES).default('DRAFT'),
+  // Form input is a percentage (e.g. "6.5" for 6.5%); store as decimal fraction (0.0650).
+  komisiRatePct: z.preprocess(
+    (v) => (blank(v) === undefined ? undefined : Number(v)),
+    z.number().min(0, 'Min 0%').max(50, 'Max 50% — sanity cap').optional(),
+  ),
+}).refine((d) => d.returnDate >= d.departureDate, {
+  message: 'Tanggal pulang tidak boleh sebelum tanggal berangkat',
+  path: ['returnDate'],
+});
+
+const PriceRowSchema = z.object({
+  kelas: z.enum(KELAS),
+  label: optStr,
+  caption: optStr,
+  priceIdr: z.preprocess((v) => Number(v), z.number().nonnegative()),
+  cicilanIdr: optMoney,
+  cicilanMonths: optInt,
+  isFeatured: z.preprocess((v) => v === 'on' || v === true || v === 'true', z.boolean()),
+});
+
+// `pricesRaw` is shaped like { QUAD: {...}, TRIPLE: {...}, ... } from the form
+export function parsePrices(pricesRaw) {
+  const out = [];
+  for (const kelas of KELAS) {
+    const row = pricesRaw?.[kelas];
+    if (!row) continue;
+    // Skip empty rows (no price filled)
+    if (blank(row.priceIdr) === undefined) continue;
+    out.push(PriceRowSchema.parse({ kelas, ...row }));
+  }
+  return out;
+}
+
+function toPaketData(parsed, userId) {
+  return {
+    slug: parsed.slug,
+    title: parsed.title,
+    subtitle: parsed.subtitle ?? null,
+    heroTitleHtml: parsed.heroTitleHtml ?? null,
+    arabicTagline: parsed.arabicTagline ?? null,
+    translitTagline: parsed.translitTagline ?? null,
+    departureDate: parsed.departureDate,
+    returnDate: parsed.returnDate,
+    durationDays: parsed.durationDays,
+    airline: parsed.airline ?? null,
+    airlineCode: parsed.airlineCode ?? null,
+    routeFrom: parsed.routeFrom ?? null,
+    routeTo: parsed.routeTo ?? null,
+    heroDescription: parsed.heroDescription ?? null,
+    inclusions: linesToArr(parsed.inclusionsText),
+    exclusions: linesToArr(parsed.exclusionsText),
+    kursiTotal: parsed.kursiTotal,
+    manifestClosesAt: parsed.manifestClosesAt ?? null,
+    status: parsed.status,
+    publishedAt: parsed.status === 'ACTIVE' ? new Date() : null,
+    ...(parsed.komisiRatePct != null ? { komisiRate: (parsed.komisiRatePct / 100).toFixed(4) } : {}),
+    ...(userId ? { createdById: userId } : {}),
+  };
+}
+
+export async function createPaket({ req, actor, input, prices }) {
+  const existing = await db.paket.findUnique({ where: { slug: input.slug } });
+  if (existing) {
+    throw new HttpError(409, `Slug "${input.slug}" sudah dipakai`, 'SLUG_TAKEN');
+  }
+
+  const paket = await db.$transaction(async (tx) => {
+    const created = await tx.paket.create({ data: toPaketData(input, actor.id) });
+    if (prices.length > 0) {
+      await tx.paketHarga.createMany({
+        data: prices.map((p) => ({
+          paketId: created.id,
+          kelas: p.kelas,
+          label: p.label ?? null,
+          caption: p.caption ?? null,
+          priceIdr: p.priceIdr.toFixed(2),
+          cicilanIdr: p.cicilanIdr != null ? p.cicilanIdr.toFixed(2) : null,
+          cicilanMonths: p.cicilanMonths ?? null,
+          isFeatured: p.isFeatured,
+        })),
+      });
+    }
+    return created;
+  });
+
+  await audit({
+    req, actor,
+    action: 'CREATE', entity: 'Paket', entityId: paket.id,
+    after: { slug: paket.slug, title: paket.title, status: paket.status, prices: prices.length },
+  });
+
+  return paket;
+}
+
+export async function updatePaket({ req, actor, slug, input, prices }) {
+  const before = await db.paket.findUnique({ where: { slug } });
+  if (!before || before.deletedAt) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+
+  // If slug is changing, make sure new slug isn't taken
+  if (input.slug !== before.slug) {
+    const clash = await db.paket.findUnique({ where: { slug: input.slug } });
+    if (clash) throw new HttpError(409, `Slug "${input.slug}" sudah dipakai`, 'SLUG_TAKEN');
+  }
+
+  const data = toPaketData(input, null);
+  // Don't overwrite publishedAt if it was already set
+  if (before.publishedAt && input.status === 'ACTIVE') data.publishedAt = before.publishedAt;
+
+  const updated = await db.$transaction(async (tx) => {
+    const u = await tx.paket.update({ where: { id: before.id }, data });
+    // Upsert each price row provided. Don't delete others (preserves history).
+    for (const p of prices) {
+      await tx.paketHarga.upsert({
+        where: { paketId_kelas: { paketId: before.id, kelas: p.kelas } },
+        update: {
+          label: p.label ?? null,
+          caption: p.caption ?? null,
+          priceIdr: p.priceIdr.toFixed(2),
+          cicilanIdr: p.cicilanIdr != null ? p.cicilanIdr.toFixed(2) : null,
+          cicilanMonths: p.cicilanMonths ?? null,
+          isFeatured: p.isFeatured,
+        },
+        create: {
+          paketId: before.id,
+          kelas: p.kelas,
+          label: p.label ?? null,
+          caption: p.caption ?? null,
+          priceIdr: p.priceIdr.toFixed(2),
+          cicilanIdr: p.cicilanIdr != null ? p.cicilanIdr.toFixed(2) : null,
+          cicilanMonths: p.cicilanMonths ?? null,
+          isFeatured: p.isFeatured,
+        },
+      });
+    }
+    return u;
+  });
+
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'Paket', entityId: updated.id,
+    before: { slug: before.slug, status: before.status, title: before.title },
+    after: { slug: updated.slug, status: updated.status, title: updated.title, prices: prices.length },
+  });
+
+  return updated;
+}
+
+// ─── PaketHotel CRUD ─────────────────────────────────────────
+
+export const HotelSchema = z.object({
+  city: z.enum(HOTEL_CITIES),
+  name: z.string().min(2).max(190),
+  stars: z.preprocess((v) => Number(v), z.number().int().min(1).max(5)),
+  distance: optStr,
+  description: optStrLong,
+  nights: z.preprocess((v) => Number(v), z.number().int().min(1).max(60)),
+  order: z.preprocess((v) => (blank(v) === undefined ? 0 : Number(v)), z.number().int().min(0).max(99)).default(0),
+});
+
+async function loadPaketBySlug(slug) {
+  const paket = await db.paket.findUnique({ where: { slug } });
+  if (!paket || paket.deletedAt) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+  return paket;
+}
+
+async function loadOwnedHotel(paketId, hotelId) {
+  const hotel = await db.paketHotel.findUnique({ where: { id: hotelId } });
+  if (!hotel) throw new HttpError(404, 'Hotel tidak ditemukan', 'HOTEL_NOT_FOUND');
+  if (hotel.paketId !== paketId) throw new HttpError(403, 'Hotel ini bukan milik paket tersebut', 'FORBIDDEN');
+  return hotel;
+}
+
+export async function addHotel({ req, actor, paketSlug, input }) {
+  const paket = await loadPaketBySlug(paketSlug);
+  const data = HotelSchema.parse(input);
+  const hotel = await db.paketHotel.create({
+    data: {
+      paketId: paket.id,
+      city: data.city,
+      name: data.name,
+      stars: data.stars,
+      distance: data.distance ?? null,
+      description: data.description ?? null,
+      nights: data.nights,
+      order: data.order,
+    },
+  });
+  await audit({
+    req, actor,
+    action: 'CREATE', entity: 'PaketHotel', entityId: hotel.id,
+    after: { paketId: paket.id, paketSlug, city: hotel.city, name: hotel.name },
+  });
+  return hotel;
+}
+
+export async function updateHotel({ req, actor, paketSlug, hotelId, input }) {
+  const paket = await loadPaketBySlug(paketSlug);
+  const before = await loadOwnedHotel(paket.id, hotelId);
+  const data = HotelSchema.parse(input);
+  const hotel = await db.paketHotel.update({
+    where: { id: before.id },
+    data: {
+      city: data.city,
+      name: data.name,
+      stars: data.stars,
+      distance: data.distance ?? null,
+      description: data.description ?? null,
+      nights: data.nights,
+      order: data.order,
+    },
+  });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'PaketHotel', entityId: hotel.id,
+    before: { city: before.city, name: before.name, nights: before.nights },
+    after: { city: hotel.city, name: hotel.name, nights: hotel.nights },
+  });
+  return hotel;
+}
+
+export async function deleteHotel({ req, actor, paketSlug, hotelId }) {
+  const paket = await loadPaketBySlug(paketSlug);
+  const before = await loadOwnedHotel(paket.id, hotelId);
+  await db.paketHotel.delete({ where: { id: before.id } });
+  await audit({
+    req, actor,
+    action: 'DELETE', entity: 'PaketHotel', entityId: before.id,
+    before: { city: before.city, name: before.name },
+  });
+}
+
+// ─── PaketDay CRUD ───────────────────────────────────────────
+
+export const DaySchema = z.object({
+  dayNumber: z.preprocess((v) => Number(v), z.number().int().min(1).max(60)),
+  dayRange: optStr,
+  dateLabel: optStr,
+  monthLabel: optStr,
+  title: z.string().min(2).max(190),
+  description: optStrLong.pipe(z.string().min(1, 'Deskripsi wajib diisi')),
+  tagsText: optStr, // textarea, comma-separated → JSON array
+  highlight: z.preprocess((v) => v === 'on' || v === true || v === 'true', z.boolean()).default(false),
+  pembimbingTitle: optStr,
+  pembimbingNote: optStrLong,
+});
+
+async function loadOwnedDay(paketId, dayId) {
+  const day = await db.paketDay.findUnique({ where: { id: dayId } });
+  if (!day) throw new HttpError(404, 'Hari itinerary tidak ditemukan', 'DAY_NOT_FOUND');
+  if (day.paketId !== paketId) throw new HttpError(403, 'Hari itinerary ini bukan milik paket tersebut', 'FORBIDDEN');
+  return day;
+}
+
+function tagsArr(text) {
+  if (!text) return [];
+  return String(text).split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+function dayDataFrom(data) {
+  return {
+    dayNumber: data.dayNumber,
+    dayRange: data.dayRange ?? null,
+    dateLabel: data.dateLabel ?? null,
+    monthLabel: data.monthLabel ?? null,
+    title: data.title,
+    description: data.description,
+    tags: tagsArr(data.tagsText),
+    highlight: data.highlight,
+    pembimbingTitle: data.pembimbingTitle ?? null,
+    pembimbingNote: data.pembimbingNote ?? null,
+  };
+}
+
+export async function addDay({ req, actor, paketSlug, input }) {
+  const paket = await loadPaketBySlug(paketSlug);
+  const data = DaySchema.parse(input);
+  const exists = await db.paketDay.findUnique({
+    where: { paketId_dayNumber: { paketId: paket.id, dayNumber: data.dayNumber } },
+  });
+  if (exists) throw new HttpError(409, `Hari ${data.dayNumber} sudah ada untuk paket ini`, 'DAY_NUMBER_TAKEN');
+
+  const day = await db.paketDay.create({
+    data: { paketId: paket.id, ...dayDataFrom(data) },
+  });
+  await audit({
+    req, actor,
+    action: 'CREATE', entity: 'PaketDay', entityId: day.id,
+    after: { paketSlug, dayNumber: day.dayNumber, title: day.title },
+  });
+  return day;
+}
+
+export async function updateDay({ req, actor, paketSlug, dayId, input }) {
+  const paket = await loadPaketBySlug(paketSlug);
+  const before = await loadOwnedDay(paket.id, dayId);
+  const data = DaySchema.parse(input);
+  if (data.dayNumber !== before.dayNumber) {
+    const clash = await db.paketDay.findUnique({
+      where: { paketId_dayNumber: { paketId: paket.id, dayNumber: data.dayNumber } },
+    });
+    if (clash) throw new HttpError(409, `Hari ${data.dayNumber} sudah ada untuk paket ini`, 'DAY_NUMBER_TAKEN');
+  }
+  const day = await db.paketDay.update({
+    where: { id: before.id },
+    data: dayDataFrom(data),
+  });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'PaketDay', entityId: day.id,
+    before: { dayNumber: before.dayNumber, title: before.title },
+    after: { dayNumber: day.dayNumber, title: day.title },
+  });
+  return day;
+}
+
+export async function deleteDay({ req, actor, paketSlug, dayId }) {
+  const paket = await loadPaketBySlug(paketSlug);
+  const before = await loadOwnedDay(paket.id, dayId);
+  await db.paketDay.delete({ where: { id: before.id } });
+  await audit({
+    req, actor,
+    action: 'DELETE', entity: 'PaketDay', entityId: before.id,
+    before: { dayNumber: before.dayNumber, title: before.title },
+  });
+}
+
+// ─── Room CRUD (Bunking schema) ──────────────────────────────
+
+const KELAS_DEFAULT_CAP = { QUAD: 4, TRIPLE: 3, DOUBLE: 2, VVIP: 1 };
+
+export const RoomSchema = z.object({
+  roomNo: z.string().min(1, 'Nomor kamar wajib').max(50),
+  floor: z.preprocess((v) => (blank(v) === undefined ? null : Number(v)), z.number().int().min(0).max(99).nullable().optional()),
+  wing: optStr,
+  kelas: z.enum(KELAS),
+  capacity: z.preprocess((v) => (blank(v) === undefined ? undefined : Number(v)), z.number().int().min(1).max(20).optional()),
+  notes: optStrLong,
+});
+
+async function loadOwnedRoom(paketId, roomId) {
+  const room = await db.room.findUnique({ where: { id: roomId } });
+  if (!room) throw new HttpError(404, 'Kamar tidak ditemukan', 'ROOM_NOT_FOUND');
+  if (room.paketId !== paketId) throw new HttpError(403, 'Kamar ini bukan milik paket tersebut', 'FORBIDDEN');
+  return room;
+}
+
+export async function addRoom({ req, actor, paketSlug, input }) {
+  const paket = await loadPaketBySlug(paketSlug);
+  const data = RoomSchema.parse(input);
+  const capacity = data.capacity ?? KELAS_DEFAULT_CAP[data.kelas];
+
+  // composite unique check
+  const clash = await db.room.findUnique({
+    where: { paketId_roomNo: { paketId: paket.id, roomNo: data.roomNo } },
+  });
+  if (clash) throw new HttpError(409, `Nomor kamar "${data.roomNo}" sudah dipakai`, 'ROOM_NO_TAKEN');
+
+  const room = await db.room.create({
+    data: {
+      paketId: paket.id,
+      roomNo: data.roomNo,
+      floor: data.floor ?? null,
+      wing: data.wing ?? null,
+      kelas: data.kelas,
+      capacity,
+      notes: data.notes ?? null,
+    },
+  });
+  await audit({
+    req, actor,
+    action: 'CREATE', entity: 'Room', entityId: room.id,
+    after: { paketSlug, roomNo: room.roomNo, kelas: room.kelas, capacity: room.capacity },
+  });
+  return room;
+}
+
+export async function updateRoom({ req, actor, paketSlug, roomId, input }) {
+  const paket = await loadPaketBySlug(paketSlug);
+  const before = await loadOwnedRoom(paket.id, roomId);
+  const data = RoomSchema.parse(input);
+  const capacity = data.capacity ?? KELAS_DEFAULT_CAP[data.kelas];
+
+  if (data.roomNo !== before.roomNo) {
+    const clash = await db.room.findUnique({
+      where: { paketId_roomNo: { paketId: paket.id, roomNo: data.roomNo } },
+    });
+    if (clash) throw new HttpError(409, `Nomor kamar "${data.roomNo}" sudah dipakai`, 'ROOM_NO_TAKEN');
+  }
+
+  // If reducing capacity, make sure current occupancy still fits
+  if (capacity < before.capacity) {
+    const occ = await db.booking.aggregate({
+      where: { roomId: before.id, status: { notIn: ['CANCELLED', 'REFUNDED'] } },
+      _sum: { paxCount: true },
+    });
+    const occupied = occ._sum.paxCount ?? 0;
+    if (occupied > capacity) {
+      throw new HttpError(409,
+        `Tidak bisa kurangi kapasitas ke ${capacity}: kamar sudah terisi ${occupied} pax`,
+        'CAPACITY_BELOW_OCCUPANCY');
+    }
+  }
+
+  const room = await db.room.update({
+    where: { id: before.id },
+    data: {
+      roomNo: data.roomNo,
+      floor: data.floor ?? null,
+      wing: data.wing ?? null,
+      kelas: data.kelas,
+      capacity,
+      notes: data.notes ?? null,
+    },
+  });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'Room', entityId: room.id,
+    before: { roomNo: before.roomNo, kelas: before.kelas, capacity: before.capacity },
+    after: { roomNo: room.roomNo, kelas: room.kelas, capacity: room.capacity },
+  });
+  return room;
+}
+
+export async function deleteRoom({ req, actor, paketSlug, roomId }) {
+  const paket = await loadPaketBySlug(paketSlug);
+  const before = await loadOwnedRoom(paket.id, roomId);
+
+  // Refuse if any active booking still assigned
+  const assigned = await db.booking.count({
+    where: { roomId: before.id, status: { notIn: ['CANCELLED', 'REFUNDED'] } },
+  });
+  if (assigned > 0) {
+    throw new HttpError(409,
+      `Kamar ${before.roomNo} masih punya ${assigned} booking aktif — lepas (unassign) dulu sebelum hapus`,
+      'ROOM_HAS_BOOKINGS');
+  }
+
+  await db.room.delete({ where: { id: before.id } });
+  await audit({
+    req, actor,
+    action: 'DELETE', entity: 'Room', entityId: before.id,
+    before: { roomNo: before.roomNo, kelas: before.kelas, capacity: before.capacity },
+  });
+}
+
+export async function softDeletePaket({ req, actor, slug }) {
+  const before = await db.paket.findUnique({ where: { slug } });
+  if (!before || before.deletedAt) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+
+  // Refuse if any active bookings exist (safety net)
+  const liveBookings = await db.booking.count({
+    where: { paketId: before.id, status: { notIn: ['CANCELLED', 'REFUNDED'] } },
+  });
+  if (liveBookings > 0) {
+    throw new HttpError(409,
+      `Paket masih memiliki ${liveBookings} booking aktif — batalkan/refund dulu sebelum mengarsipkan`,
+      'PAKET_HAS_BOOKINGS');
+  }
+
+  const archived = await db.paket.update({
+    where: { id: before.id },
+    data: { deletedAt: new Date(), status: 'ARCHIVED' },
+  });
+  await audit({
+    req, actor,
+    action: 'DELETE', entity: 'Paket', entityId: archived.id,
+    before: { slug: before.slug, status: before.status },
+    after: { deletedAt: archived.deletedAt },
+  });
+  return archived;
+}

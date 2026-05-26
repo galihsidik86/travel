@@ -1,0 +1,4 @@
+{
+  "subject": "Permintaan pembatalan booking {{bookingNo}}",
+  "body": "Halo tim Religio Pro,\n\nJemaah {{jemaahName}} ({{jemaahPhone}}) mengirim permintaan pembatalan untuk booking {{bookingNo}}.\n\nAlasan:\n{{reason}}\n\nPaket: {{paketTitle}}\nKelas: {{kelas}} · {{paxCount}} PAX\nTotal dibayar: Rp {{paidAmountFormatted}}\n\nMohon hubungi jemaah via WhatsApp untuk konfirmasi sebelum memproses pembatalan di {{adminLink}}.\n\nDikirim oleh: {{requestedByEmail}}"
+}

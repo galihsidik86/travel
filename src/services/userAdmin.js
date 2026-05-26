@@ -1,0 +1,330 @@
+import { z } from 'zod';
+import { db } from '../lib/db.js';
+import { hashPassword } from '../lib/auth.js';
+import { audit } from '../lib/audit.js';
+import { HttpError } from '../middleware/error.js';
+
+const ROLES = ['OWNER', 'SUPERADMIN', 'MANAJER_OPS', 'KASIR', 'SALES', 'AGEN', 'MUTHAWWIF', 'JEMAAH'];
+const STATUSES = ['ACTIVE', 'SUSPENDED', 'PENDING_VERIFICATION'];
+const STAFF_ROLES = new Set(['OWNER', 'SUPERADMIN', 'MANAJER_OPS', 'KASIR', 'SALES']);
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+const blank = (v) => (v === '' || v == null ? undefined : v);
+const optStr = z.preprocess(blank, z.string().max(2000).optional());
+
+export const UserBaseSchema = z.object({
+  email: z.string().email('Email tidak valid').max(190).toLowerCase(),
+  fullName: z.string().min(2, 'Nama lengkap minimal 2 karakter').max(190),
+  phone: optStr,
+  role: z.enum(ROLES),
+  status: z.enum(STATUSES).default('ACTIVE'),
+});
+
+// Komisi rate override for AGEN profiles (5v) — input as %, stored as decimal fraction.
+// Distinguishes 3 states:
+//   undefined → field not sent at all → don't change DB
+//   null      → empty string sent → explicit clear (set DB to null)
+//   number    → set DB to (value / 100) as Decimal(5,4)
+const komisiOverridePct = z.preprocess(
+  (v) => {
+    if (v === undefined) return undefined;     // field not in body
+    if (v === '' || v === null) return null;   // explicit clear
+    return Number(v);
+  },
+  z.union([z.number().min(0, 'Min 0%').max(50, 'Max 50% — sanity cap'), z.null()]).optional(),
+);
+
+export const CreateUserSchema = UserBaseSchema.extend({
+  password: z.string().min(8, 'Password minimal 8 karakter').max(200),
+  // Profile fields (per role) — validated per-role downstream, all optional in schema
+  slug: optStr,
+  displayName: optStr,
+  whatsapp: optStr,
+  bio: optStr,
+  tier: optStr,
+  komisiRateOverridePct: komisiOverridePct,
+  department: optStr,
+  position: optStr,
+  languages: optStr,
+  experience: z.preprocess((v) => (blank(v) === undefined ? undefined : Number(v)), z.number().int().min(0).max(80).optional()),
+});
+
+export const UpdateUserSchema = UserBaseSchema.extend({
+  // Profile fields optional for update too
+  slug: optStr,
+  displayName: optStr,
+  whatsapp: optStr,
+  bio: optStr,
+  tier: optStr,
+  komisiRateOverridePct: komisiOverridePct,
+  department: optStr,
+  position: optStr,
+  languages: optStr,
+  experience: z.preprocess((v) => (blank(v) === undefined ? undefined : Number(v)), z.number().int().min(0).max(80).optional()),
+});
+
+export const PasswordSchema = z.object({
+  password: z.string().min(8, 'Password minimal 8 karakter').max(200),
+});
+
+/**
+ * Anti-escalation guard. SUPERADMIN can manage anyone EXCEPT OWNER.
+ * OWNER can manage anyone.
+ */
+function guardEscalation(actor, targetRole) {
+  if (actor.role === 'OWNER') return;
+  if (actor.role === 'SUPERADMIN' && targetRole !== 'OWNER') return;
+  throw new HttpError(403,
+    `Peran ${actor.role} tidak boleh membuat/mengubah user dengan peran ${targetRole}`,
+    'ROLE_ESCALATION_BLOCKED');
+}
+
+export async function listUsers({ search, role, status } = {}) {
+  const where = { deletedAt: null };
+  if (role && role !== 'ALL') where.role = role;
+  if (status && status !== 'ALL') where.status = status;
+  if (search) {
+    where.OR = [
+      { email: { contains: search } },
+      { fullName: { contains: search } },
+    ];
+  }
+  return db.user.findMany({
+    where,
+    take: 200,
+    orderBy: [{ role: 'asc' }, { fullName: 'asc' }],
+    include: {
+      agent: { select: { slug: true, tier: true, isVerified: true, komisiRateOverride: true } },
+      staff: { select: { department: true, position: true } },
+      crew:  { select: { languages: true, experience: true } },
+    },
+  });
+}
+
+export async function getUserById(userId) {
+  return db.user.findUnique({
+    where: { id: userId },
+    include: { agent: true, staff: true, crew: true, jemaah: true },
+  });
+}
+
+async function createProfileFor(tx, user, input) {
+  const role = user.role;
+  if (role === 'AGEN') {
+    if (!input.slug || !SLUG_RE.test(input.slug)) {
+      throw new HttpError(400, 'Slug agen wajib (format: huruf kecil + strip)', 'BAD_AGENT_SLUG');
+    }
+    const clash = await tx.agentProfile.findUnique({ where: { slug: input.slug } });
+    if (clash) throw new HttpError(409, `Slug "${input.slug}" sudah dipakai agen lain`, 'AGENT_SLUG_TAKEN');
+    await tx.agentProfile.create({
+      data: {
+        userId: user.id,
+        slug: input.slug,
+        displayName: input.displayName || user.fullName,
+        whatsapp: input.whatsapp || user.phone || '',
+        bio: input.bio || null,
+        tier: input.tier || null,
+        komisiRateOverride: input.komisiRateOverridePct != null
+          ? (input.komisiRateOverridePct / 100).toFixed(4)
+          : null,
+      },
+    });
+  } else if (STAFF_ROLES.has(role)) {
+    await tx.staffProfile.create({
+      data: {
+        userId: user.id,
+        department: input.department || null,
+        position: input.position || null,
+      },
+    });
+  } else if (role === 'MUTHAWWIF') {
+    await tx.crewProfile.create({
+      data: {
+        userId: user.id,
+        languages: input.languages || null,
+        experience: input.experience ?? null,
+      },
+    });
+  } else if (role === 'JEMAAH') {
+    await tx.jemaahProfile.create({
+      data: {
+        userId: user.id,
+        fullName: user.fullName,
+        phone: user.phone || '',
+      },
+    });
+  }
+}
+
+export async function createUser({ req, actor, input }) {
+  guardEscalation(actor, input.role);
+
+  const existing = await db.user.findUnique({ where: { email: input.email } });
+  if (existing) throw new HttpError(409, 'Email sudah terdaftar', 'EMAIL_TAKEN');
+
+  const passwordHash = await hashPassword(input.password);
+
+  const user = await db.$transaction(async (tx) => {
+    const u = await tx.user.create({
+      data: {
+        email: input.email,
+        passwordHash,
+        role: input.role,
+        status: input.status,
+        fullName: input.fullName,
+        phone: input.phone ?? null,
+      },
+    });
+    await createProfileFor(tx, u, input);
+    return u;
+  });
+
+  await audit({
+    req, actor,
+    action: 'CREATE', entity: 'User', entityId: user.id,
+    after: { email: user.email, role: user.role, fullName: user.fullName, status: user.status },
+  });
+  return user;
+}
+
+export async function updateUser({ req, actor, userId, input }) {
+  const before = await db.user.findUnique({
+    where: { id: userId },
+    include: { agent: true, staff: true, crew: true },
+  });
+  if (!before || before.deletedAt) throw new HttpError(404, 'User tidak ditemukan', 'USER_NOT_FOUND');
+
+  // Anti-escalation: both source AND target roles must be allowed
+  guardEscalation(actor, before.role);
+  guardEscalation(actor, input.role);
+
+  // Email change → check uniqueness
+  if (input.email !== before.email) {
+    const clash = await db.user.findUnique({ where: { email: input.email } });
+    if (clash) throw new HttpError(409, 'Email sudah dipakai user lain', 'EMAIL_TAKEN');
+  }
+
+  const updated = await db.$transaction(async (tx) => {
+    const u = await tx.user.update({
+      where: { id: userId },
+      data: {
+        email: input.email,
+        fullName: input.fullName,
+        phone: input.phone ?? null,
+        role: input.role,
+        status: input.status,
+      },
+    });
+
+    // Sync linked profile (only for the CURRENT role).
+    // Role change: leave old profile intact (audit trail), create new one if missing.
+    if (u.role === 'AGEN') {
+      const existingAgent = await tx.agentProfile.findUnique({ where: { userId: u.id } });
+      if (existingAgent) {
+        // 3-state semantics: undefined = no change, null = clear, number = set
+        const overridePatch = input.komisiRateOverridePct === undefined
+          ? {}
+          : { komisiRateOverride: input.komisiRateOverridePct === null
+              ? null
+              : (input.komisiRateOverridePct / 100).toFixed(4) };
+        await tx.agentProfile.update({
+          where: { userId: u.id },
+          data: {
+            slug: input.slug || existingAgent.slug,
+            displayName: input.displayName || u.fullName,
+            whatsapp: input.whatsapp || existingAgent.whatsapp,
+            bio: input.bio ?? existingAgent.bio,
+            tier: input.tier ?? existingAgent.tier,
+            ...overridePatch,
+          },
+        });
+      } else {
+        await createProfileFor(tx, u, input);
+      }
+    } else if (STAFF_ROLES.has(u.role)) {
+      const existingStaff = await tx.staffProfile.findUnique({ where: { userId: u.id } });
+      if (existingStaff) {
+        await tx.staffProfile.update({
+          where: { userId: u.id },
+          data: {
+            department: input.department ?? existingStaff.department,
+            position: input.position ?? existingStaff.position,
+          },
+        });
+      } else {
+        await createProfileFor(tx, u, input);
+      }
+    } else if (u.role === 'MUTHAWWIF') {
+      const existingCrew = await tx.crewProfile.findUnique({ where: { userId: u.id } });
+      if (existingCrew) {
+        await tx.crewProfile.update({
+          where: { userId: u.id },
+          data: {
+            languages: input.languages ?? existingCrew.languages,
+            experience: input.experience ?? existingCrew.experience,
+          },
+        });
+      } else {
+        await createProfileFor(tx, u, input);
+      }
+    }
+    return u;
+  });
+
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'User', entityId: updated.id,
+    before: { email: before.email, role: before.role, status: before.status, fullName: before.fullName },
+    after: { email: updated.email, role: updated.role, status: updated.status, fullName: updated.fullName },
+  });
+  return updated;
+}
+
+export async function setPassword({ req, actor, userId, password }) {
+  const before = await db.user.findUnique({ where: { id: userId } });
+  if (!before || before.deletedAt) throw new HttpError(404, 'User tidak ditemukan', 'USER_NOT_FOUND');
+  guardEscalation(actor, before.role);
+
+  const passwordHash = await hashPassword(password);
+  await db.user.update({ where: { id: userId }, data: { passwordHash } });
+  await audit({
+    req, actor,
+    action: 'PASSWORD_CHANGE', entity: 'User', entityId: userId,
+    after: { resetByAdmin: true, actorEmail: actor.email },
+  });
+}
+
+export async function suspendUser({ req, actor, userId }) {
+  const before = await db.user.findUnique({ where: { id: userId } });
+  if (!before || before.deletedAt) throw new HttpError(404, 'User tidak ditemukan', 'USER_NOT_FOUND');
+  guardEscalation(actor, before.role);
+  if (before.id === actor.id) {
+    throw new HttpError(409, 'Tidak bisa men-suspend diri sendiri', 'SELF_SUSPEND_BLOCKED');
+  }
+  const updated = await db.user.update({
+    where: { id: userId }, data: { status: 'SUSPENDED' },
+  });
+  await audit({
+    req, actor,
+    action: 'STATUS_CHANGE', entity: 'User', entityId: userId,
+    before: { status: before.status }, after: { status: 'SUSPENDED' },
+  });
+  return updated;
+}
+
+export async function reactivateUser({ req, actor, userId }) {
+  const before = await db.user.findUnique({ where: { id: userId } });
+  if (!before || before.deletedAt) throw new HttpError(404, 'User tidak ditemukan', 'USER_NOT_FOUND');
+  guardEscalation(actor, before.role);
+  const updated = await db.user.update({
+    where: { id: userId }, data: { status: 'ACTIVE' },
+  });
+  await audit({
+    req, actor,
+    action: 'STATUS_CHANGE', entity: 'User', entityId: userId,
+    before: { status: before.status }, after: { status: 'ACTIVE' },
+  });
+  return updated;
+}
+
+export const META = { ROLES, STATUSES, STAFF_ROLES };

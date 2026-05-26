@@ -1,0 +1,392 @@
+import { db } from '../lib/db.js';
+import { renderTemplate } from './notifTemplates.js';
+
+// Indonesian-style thousand separator. Centralised so all templates use the
+// same formatting; future i18n can swap this per locale.
+const fmtRp = (n) => Math.round(Number(n) || 0).toLocaleString('id-ID');
+
+// Pluggable sender map. Real providers (SMTP, Twilio, Fonnte) hook in here
+// later by replacing the SENDERS table. Each sender returns:
+//   { ok: true }                       → status SENT
+//   { ok: false, error: string }       → status FAILED
+//   { skip: true, reason: string }     → status SKIPPED (e.g. recipient missing)
+//
+// Default impl just logs to stdout — safe for dev + smoke tests. Production
+// must override at boot (e.g. `setSender('EMAIL', mailgunSend)`).
+const SENDERS = {
+  CONSOLE: defaultConsoleSender,
+  EMAIL: defaultConsoleSender,   // TODO swap to nodemailer/Mailgun adapter
+  WA: defaultConsoleSender,      // TODO swap to Twilio/Fonnte adapter
+};
+
+export function setSender(channel, fn) {
+  SENDERS[channel] = fn;
+}
+
+function defaultConsoleSender(n) {
+  const recipient = n.recipientEmail || n.recipientPhone || '(no recipient)';
+  console.log(`[notif:${n.channel}] → ${recipient} · ${n.type}`);
+  if (n.subject) console.log(`  subject: ${n.subject}`);
+  console.log(`  body: ${n.body.slice(0, 200)}${n.body.length > 200 ? '…' : ''}`);
+  return { ok: true };
+}
+
+/**
+ * Insert a notification in PENDING state. Never throws — callers can wrap
+ * service writes without worrying about the notif insert breaking them.
+ *
+ * Optional `recipientUserId` triggers a preferences lookup (5jj): if that user
+ * has a JemaahProfile and has opted out of this channel, the row is created
+ * with status=SKIPPED (visible in admin viewer, not silently dropped).
+ *
+ * Returns the created row or null on failure (logged to console).
+ */
+export async function enqueueNotification({
+  type, channel,
+  recipientEmail, recipientPhone, recipientUserId,
+  subject, body, payload,
+  relatedEntity, relatedEntityId,
+}) {
+  try {
+    // 5jj: jemaah opt-out check
+    let optOutReason = null;
+    if (recipientUserId) {
+      const profile = await db.jemaahProfile.findFirst({
+        where: { userId: recipientUserId },
+        select: { notifEmail: true, notifWa: true },
+      });
+      if (profile) {
+        if (channel === 'EMAIL' && !profile.notifEmail) optOutReason = 'recipient opted out of EMAIL notifications';
+        if (channel === 'WA' && !profile.notifWa) optOutReason = 'recipient opted out of WA notifications';
+      }
+    }
+
+    // Skip-on-no-recipient
+    const hasRecipient = (channel === 'EMAIL' && recipientEmail)
+      || (channel === 'WA' && recipientPhone)
+      || channel === 'CONSOLE';
+    const skipped = !hasRecipient || optOutReason !== null;
+    const skipReason = optOutReason || (!hasRecipient ? `no recipient configured for channel ${channel}` : null);
+
+    return await db.notification.create({
+      data: {
+        type, channel,
+        status: skipped ? 'SKIPPED' : 'PENDING',
+        recipientEmail: recipientEmail || null,
+        recipientPhone: recipientPhone || null,
+        recipientUserId: recipientUserId || null,
+        subject: subject || null,
+        body: body || '',
+        payload: payload ?? undefined,
+        relatedEntity: relatedEntity || null,
+        relatedEntityId: relatedEntityId || null,
+        sentAt: skipped ? new Date() : null,
+        error: skipReason,
+      },
+    });
+  } catch (err) {
+    console.error('[notif] enqueue failed:', err.message);
+    return null;
+  }
+}
+
+// 5nn: backoff schedule (delay between attempts). attemptCount before
+// failure → wait. After MAX_ATTEMPTS, the row is terminal (no nextRetryAt).
+const BACKOFF_MS = [
+  60_000,        // 1 min     → after 1st failure
+  5 * 60_000,    // 5 min     → after 2nd
+  30 * 60_000,   // 30 min    → after 3rd
+  2 * 60 * 60_000,  // 2 h    → after 4th
+  12 * 60 * 60_000, // 12 h   → after 5th
+];
+export const MAX_ATTEMPTS = BACKOFF_MS.length;
+
+function nextDelayMs(failedAttemptCount) {
+  // failedAttemptCount is the count *after* the just-failed attempt.
+  // index = failedAttemptCount - 1 (1st failure → BACKOFF_MS[0])
+  return BACKOFF_MS[failedAttemptCount - 1] ?? null;
+}
+
+/**
+ * Dispatch a single notification: call sender, persist result.
+ * On FAILED, schedules the next retry per BACKOFF_MS until MAX_ATTEMPTS,
+ * then leaves the row terminal (nextRetryAt = null) — the queue worker will
+ * stop picking it up.
+ */
+export async function dispatchNotification(notif) {
+  const now = new Date();
+  const send = SENDERS[notif.channel];
+
+  // Helper to compute the FAILED-state patch with retry scheduling.
+  const failPatch = (errorMsg) => {
+    const newCount = (notif.attemptCount ?? 0) + 1;
+    const delayMs = newCount < MAX_ATTEMPTS ? nextDelayMs(newCount) : null;
+    return {
+      status: 'FAILED',
+      error: errorMsg,
+      attemptCount: newCount,
+      lastAttemptAt: now,
+      nextRetryAt: delayMs != null ? new Date(now.getTime() + delayMs) : null,
+      sentAt: now,
+    };
+  };
+
+  if (!send) {
+    return db.notification.update({
+      where: { id: notif.id },
+      data: failPatch(`no sender for channel ${notif.channel}`),
+    });
+  }
+
+  let result;
+  try {
+    result = await send(notif);
+  } catch (err) {
+    result = { ok: false, error: err.message };
+  }
+
+  if (result.skip) {
+    // SKIPPED is terminal — clear any pending retry so it never re-runs.
+    return db.notification.update({
+      where: { id: notif.id },
+      data: {
+        status: 'SKIPPED', error: result.reason || null,
+        sentAt: now, lastAttemptAt: now, nextRetryAt: null,
+        attemptCount: (notif.attemptCount ?? 0) + 1,
+      },
+    });
+  }
+  if (result.ok) {
+    return db.notification.update({
+      where: { id: notif.id },
+      data: {
+        status: 'SENT', sentAt: now, lastAttemptAt: now,
+        error: null, nextRetryAt: null,
+        attemptCount: (notif.attemptCount ?? 0) + 1,
+      },
+    });
+  }
+  return db.notification.update({
+    where: { id: notif.id },
+    data: failPatch(result.error || 'unknown sender error'),
+  });
+}
+
+/**
+ * Process notifications ready for dispatch: any PENDING row, plus FAILED rows
+ * whose backoff window has elapsed AND haven't hit MAX_ATTEMPTS yet (5nn).
+ * Terminal FAILED (max attempts reached, nextRetryAt=null) are skipped.
+ *
+ * Used by cron + manual HTTP trigger + in-process worker.
+ * Returns { processed, sent, failed, skipped }.
+ */
+export async function processPendingNotifications({ limit = 100 } = {}) {
+  const now = new Date();
+  const pending = await db.notification.findMany({
+    where: {
+      OR: [
+        { status: 'PENDING' },
+        { status: 'FAILED', nextRetryAt: { lte: now }, attemptCount: { lt: MAX_ATTEMPTS } },
+      ],
+    },
+    take: limit,
+    orderBy: { createdAt: 'asc' },
+  });
+  let sent = 0, failed = 0, skipped = 0;
+  for (const n of pending) {
+    const updated = await dispatchNotification(n);
+    if (updated.status === 'SENT') sent += 1;
+    else if (updated.status === 'FAILED') failed += 1;
+    else if (updated.status === 'SKIPPED') skipped += 1;
+  }
+  return { processed: pending.length, sent, failed, skipped };
+}
+
+// ─── Event helpers (call from services after the main write) ────
+
+export async function notifyBookingCreated(booking) {
+  const vars = {
+    fullName: booking.jemaah?.fullName ?? 'jemaah',
+    bookingNo: booking.bookingNo,
+    paketTitle: booking.paket?.title ?? '-',
+    kelas: booking.kelas,
+    paxCount: booking.paxCount,
+    totalAmountFormatted: fmtRp(booking.totalAmount),
+  };
+  const payload = { bookingId: booking.id, bookingNo: booking.bookingNo };
+  // userId of the linked jemaah profile (when present) drives the 5jj opt-out check
+  const recipientUserId = booking.jemaah?.userId ?? booking.jemaahUserId ?? null;
+
+  const email = renderTemplate('BOOKING_CREATED', 'EMAIL', vars);
+  const wa = renderTemplate('BOOKING_CREATED', 'WA', vars);
+
+  await Promise.all([
+    enqueueNotification({
+      type: 'BOOKING_CREATED', channel: 'EMAIL',
+      recipientEmail: booking.jemaah?.email, recipientUserId,
+      subject: email.subject, body: email.body, payload,
+      relatedEntity: 'Booking', relatedEntityId: booking.id,
+    }),
+    enqueueNotification({
+      type: 'BOOKING_CREATED', channel: 'WA',
+      recipientPhone: booking.jemaah?.phone, recipientUserId,
+      subject: wa.subject || null, body: wa.body, payload,
+      relatedEntity: 'Booking', relatedEntityId: booking.id,
+    }),
+  ]);
+}
+
+export async function notifyPaymentReceived({ booking, payment }) {
+  const amt = Number(payment.amount?.toString?.() ?? payment.amount) || 0;
+  const vars = {
+    bookingNo: booking.bookingNo,
+    method: payment.method,
+    amountFormatted: fmtRp(amt),
+  };
+  const { subject, body } = renderTemplate('PAYMENT_RECEIVED', 'WA', vars);
+  await enqueueNotification({
+    type: 'PAYMENT_RECEIVED', channel: 'WA',
+    recipientPhone: booking.jemaah?.phone,
+    recipientUserId: booking.jemaah?.userId ?? booking.jemaahUserId ?? null,
+    subject, body,
+    payload: { bookingNo: booking.bookingNo, paymentId: payment.id, amount: amt },
+    relatedEntity: 'Payment', relatedEntityId: payment.id,
+  });
+}
+
+export async function notifyRefundIssued({ booking, refundAmount, fullRefund, reason }) {
+  const amt = Number(refundAmount) || 0;
+  const tail = fullRefund
+    ? `Total dibayar booking ini sudah 0 — status booking jadi REFUNDED.`
+    : `Sisa pembayaran booking masih ada — status tetap CANCELLED.`;
+  const vars = {
+    bookingNo: booking.bookingNo,
+    refundAmountFormatted: fmtRp(amt),
+    reason: reason ?? '-',
+    tail,
+  };
+  const { subject, body } = renderTemplate('REFUND_ISSUED', 'WA', vars);
+  await enqueueNotification({
+    type: 'REFUND_ISSUED', channel: 'WA',
+    recipientPhone: booking.jemaah?.phone,
+    recipientUserId: booking.jemaah?.userId ?? booking.jemaahUserId ?? null,
+    subject, body,
+    payload: { bookingNo: booking.bookingNo, refundAmount: amt, fullRefund: !!fullRefund },
+    relatedEntity: 'Booking', relatedEntityId: booking.id,
+  });
+}
+
+/**
+ * 5yy: fan-out an email to every ACTIVE admin (OWNER/SUPERADMIN/MANAJER_OPS)
+ * when a gateway PaymentIntent settles (real money arrived). Lets ops know
+ * without having to poll /admin/payment-intents.
+ *
+ * Like other admin fan-outs, deliberately omits `recipientUserId` — these
+ * are admin-targeted, must never appear in any jemaah inbox (5ll invariant).
+ */
+export async function notifyPaymentSettledAdmin({ booking, payment, intent, paymentTypeRaw }) {
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return;
+
+  const amt = Number(payment.amount?.toString?.() ?? payment.amount) || 0;
+  const methodNote = paymentTypeRaw && paymentTypeRaw !== payment.method
+    ? ` (gateway: ${paymentTypeRaw})`
+    : '';
+  const lunasNote = booking.status === 'LUNAS' ? '  ← LUNAS' : '';
+  const vars = {
+    bookingNo: booking.bookingNo,
+    jemaahName: booking.jemaah?.fullName ?? '-',
+    jemaahPhone: booking.jemaah?.phone ?? '-',
+    paketTitle: booking.paket?.title ?? '-',
+    kelas: booking.kelas,
+    paxCount: booking.paxCount,
+    amountFormatted: fmtRp(amt),
+    method: payment.method,
+    methodNote,
+    orderId: intent?.orderId ?? '-',
+    bookingStatus: booking.status,
+    lunasNote,
+    adminLink: `/admin/bookings/${booking.id}`,
+  };
+  const { subject, body } = renderTemplate('PAYMENT_SETTLED_ADMIN', 'EMAIL', vars);
+
+  await Promise.all(admins.map((a) =>
+    enqueueNotification({
+      type: 'PAYMENT_SETTLED_ADMIN', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject, body,
+      payload: { bookingNo: booking.bookingNo, paymentId: payment.id, intentId: intent?.id, amount: amt },
+      relatedEntity: 'PaymentIntent', relatedEntityId: intent?.id ?? null,
+    }),
+  ));
+}
+
+/**
+ * Notify all ACTIVE admin users (OWNER/SUPERADMIN/MANAJER_OPS) when a jemaah
+ * submits a cancel request (5ii). One EMAIL row per admin so each can be
+ * tracked + retried independently in the queue.
+ */
+export async function notifyCancelRequested({ booking, reason, requestedByEmail }) {
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return;
+
+  const paidAmt = Number(booking.paidAmount?.toString?.() ?? booking.paidAmount) || 0;
+  const vars = {
+    bookingNo: booking.bookingNo,
+    jemaahName: booking.jemaah?.fullName ?? '-',
+    jemaahPhone: booking.jemaah?.phone ?? '-',
+    paketTitle: booking.paket?.title ?? '-',
+    kelas: booking.kelas,
+    paxCount: booking.paxCount,
+    paidAmountFormatted: fmtRp(paidAmt),
+    reason: reason ?? '-',
+    requestedByEmail: requestedByEmail ?? '-',
+    adminLink: `/admin/bookings/${booking.id}`,
+  };
+  const { subject, body } = renderTemplate('CANCEL_REQUESTED', 'EMAIL', vars);
+
+  // Enqueue one per admin; failures handled per row by the dispatcher
+  await Promise.all(admins.map((a) =>
+    enqueueNotification({
+      type: 'CANCEL_REQUESTED', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject, body,
+      payload: { bookingNo: booking.bookingNo, requestedByEmail },
+      relatedEntity: 'Booking', relatedEntityId: booking.id,
+    }),
+  ));
+}
+
+export async function notifyPayoutCreated({ payout, agent }) {
+  const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
+  const vars = {
+    payoutNo: payout.payoutNo,
+    amountFormatted: fmtRp(amt),
+    method: payout.method,
+    reference: payout.reference ?? '-',
+  };
+  const { subject, body } = renderTemplate('PAYOUT_CREATED', 'WA', vars);
+  await enqueueNotification({
+    type: 'PAYOUT_CREATED', channel: 'WA',
+    recipientPhone: agent?.whatsapp,
+    subject, body,
+    payload: { payoutId: payout.id, payoutNo: payout.payoutNo, amount: amt },
+    relatedEntity: 'KomisiPayout', relatedEntityId: payout.id,
+  });
+}

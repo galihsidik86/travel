@@ -1,0 +1,4 @@
+{
+  "subject": "Konfirmasi booking {{bookingNo}}",
+  "body": "Assalamu'alaikum {{fullName}},\n\nBooking Anda telah kami terima:\n  - No: {{bookingNo}}\n  - Paket: {{paketTitle}}\n  - Kelas: {{kelas}} · {{paxCount}} PAX\n  - Total: Rp {{totalAmountFormatted}}\n\nSilakan tunggu konfirmasi pembayaran dari tim kami.\n\nWassalamu'alaikum,\nTim Religio Pro"
+}

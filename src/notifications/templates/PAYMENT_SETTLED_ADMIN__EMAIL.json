@@ -1,0 +1,4 @@
+{
+  "subject": "Pembayaran masuk: {{bookingNo}} · Rp {{amountFormatted}}",
+  "body": "Halo tim Religio Pro,\n\nPembayaran online via gateway baru saja settle:\n\nBooking: {{bookingNo}}\nJemaah: {{jemaahName}} ({{jemaahPhone}})\nPaket: {{paketTitle}}\nKelas: {{kelas}} · {{paxCount}} PAX\n\nJumlah: Rp {{amountFormatted}}\nMetode: {{method}}{{methodNote}}\nOrder ID: {{orderId}}\nStatus booking sekarang: {{bookingStatus}}{{lunasNote}}\n\nDetail: {{adminLink}}\n\n— sistem Religio Pro"
+}

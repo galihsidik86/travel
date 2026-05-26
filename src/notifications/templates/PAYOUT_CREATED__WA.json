@@ -1,0 +1,4 @@
+{
+  "subject": "Komisi telah ditransfer · {{payoutNo}}",
+  "body": "Payout komisi sebesar Rp {{amountFormatted}} ({{payoutNo}}) telah diproses via {{method}}. Ref: {{reference}}."
+}

@@ -1,0 +1,4 @@
+{
+  "subject": "Kuitansi pembayaran · {{bookingNo}}",
+  "body": "Pembayaran Rp {{amountFormatted}} via {{method}} untuk booking {{bookingNo}} telah kami terima. Terima kasih."
+}
