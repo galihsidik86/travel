@@ -93,7 +93,7 @@
 
   <div class="topbar">
     <div>MUTHAWWIF · <span class="who"><%= user.email %></span></div>
-    <form method="POST" action="/logout"><button type="submit">Keluar</button></form>
+    <form method="POST" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Keluar</button></form>
   </div>
 
   <div class="hero">

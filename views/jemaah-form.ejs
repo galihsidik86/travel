@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Edit Jemaah · <%= target.fullName %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
@@ -183,6 +184,7 @@
   </script>
 
   <form method="POST" action="/admin/jemaah/<%= target.id %>" autocomplete="off">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <!-- ====== Identitas ====== -->
     <div class="panel">

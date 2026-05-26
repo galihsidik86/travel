@@ -118,6 +118,7 @@
       <a href="/saya">← Dashboard</a>
       <a href="/saya/profile">Profil &amp; dokumen</a>
       <form method="POST" action="/logout" style="display:inline;margin:0;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <button type="submit">Keluar</button>
       </form>
     </div>

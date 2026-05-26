@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — <%= mode === 'new' ? 'Paket Baru' : 'Edit Paket' %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 40px 80px; }
@@ -290,6 +291,7 @@
   </script>
 
   <form method="POST" action="<%= mode === 'new' ? '/admin/paket' : '/admin/paket/' + (paket.originalSlug || paket.slug) %>" autocomplete="off">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <!-- ====== Identitas ====== -->
     <div class="panel">
@@ -670,7 +672,7 @@
   </form>
 
   <% if (mode === 'edit') { %>
-    <form id="archive-form" method="POST" action="/admin/paket/<%= paket.slug %>/delete" style="display:none;"></form>
+    <form id="archive-form" method="POST" action="/admin/paket/<%= paket.slug %>/delete" style="display:none;"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
   <% } %>
 </div>
 

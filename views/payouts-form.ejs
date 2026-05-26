@@ -83,6 +83,7 @@
   <% } %>
 
   <form method="POST" action="/admin/payouts" autocomplete="off" id="payout-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="panel">
       <h3>Pilih agen</h3>
 

@@ -168,6 +168,7 @@
   </script>
 
   <form method="POST" action="<%= mode === 'new' ? '/admin/users' : '/admin/users/' + target.id %>" autocomplete="off">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <!-- ====== Identitas ====== -->
     <div class="panel">
@@ -319,11 +320,13 @@
         <% if (mode === 'edit' && target.id !== user.id) { %>
           <% if (target.status === 'SUSPENDED') { %>
             <form method="POST" action="/admin/users/<%= target.id %>/reactivate" style="display:inline;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button type="submit" class="btn-warn">Reaktifkan</button>
             </form>
           <% } else { %>
             <form method="POST" action="/admin/users/<%= target.id %>/suspend" style="display:inline;"
                   onsubmit="return confirm('Suspend user ini? Mereka tidak bisa login sampai diaktifkan kembali.');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button type="submit" class="btn-danger">Suspend</button>
             </form>
           <% } %>
@@ -345,6 +348,7 @@
       <p class="sub">Set password baru. Setelah ini user wajib login ulang.</p>
       <form method="POST" action="/admin/users/<%= target.id %>/reset-password"
             onsubmit="return confirm('Reset password user ini?');">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div class="grid-2">
           <div class="field">
             <div class="label-row"><label class="label" for="f-new-pwd">Password baru *</label></div>

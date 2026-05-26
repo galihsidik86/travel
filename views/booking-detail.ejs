@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — <%= b.bookingNo %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
@@ -345,6 +346,7 @@
             <div class="l">Catatan</div>
             <% if (canEditNotes) { %>
               <form method="POST" action="/admin/bookings/<%= b.id %>/notes" class="notes-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <textarea name="notes" class="input" maxlength="2000" rows="2"
                           placeholder="Catatan internal — mis. preferensi makanan, kontak alternatif, dst."><%= b.notes || '' %></textarea>
                 <div class="notes-form__actions">
@@ -468,6 +470,7 @@
                       <form method="POST" action="/admin/bookings/<%= b.id %>/intents/<%= it.id %>/cancel"
                             style="display:inline;margin:0;"
                             onsubmit="return confirm('Cancel intent ini? (Hanya gunakan kalau Snap session dead + Midtrans tidak kirim webhook)');">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                         <button type="submit" style="background:transparent;border:1px solid rgba(181,86,74,0.5);color:var(--ruby);padding:4px 10px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;cursor:pointer;text-transform:uppercase;">CANCEL</button>
                       </form>
                     <% } %>
@@ -591,6 +594,7 @@
     </div>
 
     <form method="POST" action="/admin/bookings/<%= b.id %>/transfer-agent">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div class="field">
         <label class="label" for="tf-to">Pindahkan ke *</label>
         <select class="input" name="toAgentId" id="tf-to" required>
@@ -696,6 +700,7 @@
     </div>
 
     <form id="cancel-form" method="POST" action="/admin/bookings/<%= b.id %>/cancel">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div class="field">
         <label class="label" for="cf-reason">Alasan pembatalan *</label>
         <textarea class="input" id="cf-reason" name="reason" required minlength="3" maxlength="2000" rows="3" placeholder="Mis. permintaan jemaah, masalah dokumen, dll."></textarea>

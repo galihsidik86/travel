@@ -94,6 +94,7 @@
   <% } %>
 
   <form method="POST" action="/admin/bookings" autocomplete="off">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <!-- Paket + agent -->
     <div class="panel">
       <h3>Paket &amp; agen</h3>

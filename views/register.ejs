@@ -63,6 +63,7 @@
       <% } %>
 
       <form method="POST" action="/register" autocomplete="on">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div class="field">
           <label class="label" for="r-name">Nama lengkap *</label>
           <input class="input" type="text" name="fullName" id="r-name" required

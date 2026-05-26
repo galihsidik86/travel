@@ -108,6 +108,7 @@
             <td><%= b.room?.roomNo || '—' %></td>
             <td>
               <form class="row-form" method="POST" action="/crew/paket/<%= paket.slug %>/attendance/<%= day.id %>/<%= b.id %>">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <label class="toggle-wrap">
                   <input type="checkbox" name="present" value="on" <%= b.mark?.present ? 'checked' : '' %>>
                   <span><%= b.mark?.present ? 'Hadir' : (b.mark ? 'Tidak hadir' : 'Belum ditandai') %></span>

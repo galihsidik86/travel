@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Portal Jemaah · <%= user.fullName %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
@@ -164,6 +165,7 @@
       </a>
       <a href="/saya/profile" style="background:transparent;border:var(--hairline-soft);color:var(--ink-100);text-decoration:none;padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;">Profil &amp; dokumen</a>
       <form method="POST" action="/logout">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <button type="submit">Keluar</button>
       </form>
     </div>

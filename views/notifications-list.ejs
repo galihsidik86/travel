@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Notifikasi</title>
 <link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
@@ -90,6 +91,7 @@
       <div class="sub"><%= rows.length %> entri · max 200 · cron via <code>npm run job:send-notifications</code></div>
     </div>
     <form method="POST" action="/api/admin/jobs/send-notifications" id="proc-form" onsubmit="return processQueue(event);">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <button type="submit" class="btn btn--primary">Proses Queue Sekarang</button>
     </form>
   </div>
@@ -183,6 +185,7 @@
           <td style="text-align:right;">
             <% if (n.status === 'PENDING' || n.status === 'FAILED') { %>
               <form method="POST" action="/admin/notifications/<%= n.id %>/send" class="act-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button type="submit"><%= n.attemptCount > 0 ? 'RETRY' : 'SEND NOW' %></button>
               </form>
             <% } %>

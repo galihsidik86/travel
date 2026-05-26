@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 
 import { env, isDev } from './env.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
+import { csrfProtection } from './middleware/csrf.js';
 import { fmt } from './lib/format.js';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
@@ -78,6 +79,9 @@ export function createApp() {
   app.use(cookieParser());
   app.use(requestLog);
   app.use(blockSensitive);
+  // CSRF protection (double-submit cookie). After cookieParser + body parsers
+  // so it can read the cookie + form body. Skips GET + webhooks + health.
+  app.use(csrfProtection({ cookieSecure: env.COOKIE_SECURE }));
 
   // API
   app.use('/api/health', healthRouter);
