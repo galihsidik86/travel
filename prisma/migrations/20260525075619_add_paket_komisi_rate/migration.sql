@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `paket` ADD COLUMN `komisiRate` DECIMAL(5, 4) NOT NULL DEFAULT 0.06;

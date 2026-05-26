@@ -1,0 +1,38 @@
+{
+  "name": "religio-pro",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Religio Pro — End-to-End Sistem Travel Umroh & Haji",
+  "type": "module",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "db:migrate": "prisma migrate dev",
+    "db:reset": "prisma migrate reset",
+    "db:seed": "node --env-file-if-exists=.env prisma/seed.js",
+    "db:studio": "prisma studio",
+    "test": "node --test --test-concurrency=1 --env-file-if-exists=.env tests/*.test.js",
+    "test:watch": "node --test --test-concurrency=1 --watch --env-file-if-exists=.env tests/*.test.js",
+    "job:expire-docs": "node --env-file-if-exists=.env src/jobs/expire-docs.js",
+    "job:expire-intents": "node --env-file-if-exists=.env src/jobs/expire-intents.js",
+    "job:send-notifications": "node --env-file-if-exists=.env src/jobs/send-notifications.js"
+  },
+  "prisma": {
+    "seed": "node --env-file-if-exists=.env prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "ejs": "^5.0.2",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.8",
+    "prisma": "^6.19.3",
+    "zod": "^3.23.8"
+  }
+}
