@@ -1,0 +1,15 @@
+[Unit]
+Description=Religio Pro — daily expire-docs sweep
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+# Run daily at 00:30 local time.
+OnCalendar=*-*-* 00:30:00
+# If the host was down at trigger time, run on next boot.
+Persistent=true
+# Add up to 5 min jitter so a fleet of hosts doesn't hammer the DB at once.
+RandomizedDelaySec=5min
+Unit=religio-expire-docs.service
+
+[Install]
+WantedBy=timers.target

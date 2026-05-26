@@ -1,0 +1,12 @@
+# Install to /etc/logrotate.d/religio-pro on the production host.
+# Daily rotation, 14 days kept, gzipped, only rotated when non-empty.
+/var/log/religio/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 religio religio
+    sharedscripts
+}

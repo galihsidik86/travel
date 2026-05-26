@@ -1,0 +1,14 @@
+[Unit]
+Description=Religio Pro — every-10-min stale PaymentIntent sweep
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+# First run 2 min after boot, then every 10 min after the previous one
+# FINISHED — prevents overlap if a single run takes longer than expected.
+OnBootSec=2min
+OnUnitInactiveSec=10min
+Persistent=true
+Unit=religio-expire-intents.service
+
+[Install]
+WantedBy=timers.target

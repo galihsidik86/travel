@@ -335,12 +335,12 @@ Three ops jobs, all sharing the same pattern: pure service in `src/services/`, t
 
 All three are **idempotent** — re-running on an empty queue is a no-op. Terminal statuses are always skipped (e.g. `expire-intents` never touches SETTLED/CANCELLED/FAILED — the 5pp "terminal frozen" invariant).
 
-Production cron examples (`/etc/cron.d/religio-pro`):
-```cron
-30 0  * * * cd /path/to/travel && npm run job:expire-docs    >> /var/log/religio/expire-docs.log    2>&1
-*/10 * * * * cd /path/to/travel && npm run job:expire-intents >> /var/log/religio/expire-intents.log 2>&1
-*/2  * * * * cd /path/to/travel && npm run job:send-notifications >> /var/log/religio/notif.log     2>&1
-```
+Production deployment artifacts live in `deploy/` (see `deploy/DEPLOYMENT.md`):
+- `deploy/crontab.example` — drop into `/etc/cron.d/religio-pro`
+- `deploy/systemd/religio-{expire-docs,expire-intents,send-notifications}.{service,timer}` — systemd alternative (preferred on modern hosts; uses `OnUnitInactiveSec` to prevent overlap, sandboxing flags for least-privilege)
+- `deploy/logrotate.example` — `/etc/logrotate.d/religio-pro`
+
+**Set `NOTIF_WORKER_DISABLED=true` in production `.env` when cron/systemd drives the notif queue** — otherwise the in-process worker AND the scheduler both dispatch, doubling delivery.
 
 Daily for docs (expiry granularity is days), 10-min for intents (Snap sessions ~1h, "stuck for a few min" is fine), 2-min for notifs (near-real-time delivery). The in-process notif worker (5cc) handles notif dispatch automatically when the dev server is running — system cron is only needed for production deploys with `NOTIF_WORKER_DISABLED=true`.
 

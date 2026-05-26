@@ -1,0 +1,32 @@
+# Religio Pro — system cron schedule.
+#
+# Install to /etc/cron.d/religio-pro on the production host. Replace
+# `/srv/religio-pro` with the actual deploy path and `religio` with the
+# Unix user that owns the deployment.
+#
+# Cadence rationale:
+#   - expire-docs:        daily (document expiry is day-granularity)
+#   - expire-intents:     every 10m (Snap sessions ~1h; "stuck for a few
+#                         minutes past expiry" is fine)
+#   - send-notifications: every 2m (near-real-time delivery; the
+#                         in-process worker handles this when the server
+#                         runs, but production deploys set
+#                         NOTIF_WORKER_DISABLED=true and let cron drive)
+#
+# Environment: each row uses the absolute Node binary path so PATH need
+# not be set. The job scripts use --env-file-if-exists=.env which reads
+# the .env in the working directory.
+#
+# Format: m  h  dom  mon  dow  user  command
+
+SHELL=/bin/bash
+MAILTO=""
+
+# Daily 00:30 — sweep overdue JemaahDocument rows → EXPIRED
+30 0  * * *   religio  cd /srv/religio-pro && npm run job:expire-docs        >> /var/log/religio/expire-docs.log    2>&1
+
+# Every 10 minutes — sweep abandoned PaymentIntent rows → EXPIRED
+*/10 * * * *  religio  cd /srv/religio-pro && npm run job:expire-intents     >> /var/log/religio/expire-intents.log 2>&1
+
+# Every 2 minutes — dispatch PENDING + retry-due FAILED notifications
+*/2  * * * *  religio  cd /srv/religio-pro && npm run job:send-notifications >> /var/log/religio/notif.log          2>&1

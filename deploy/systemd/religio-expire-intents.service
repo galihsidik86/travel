@@ -1,0 +1,21 @@
+[Unit]
+Description=Religio Pro — expire stale PaymentIntent rows
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=religio
+Group=religio
+WorkingDirectory=/srv/religio-pro
+EnvironmentFile=/srv/religio-pro/.env
+ExecStart=/usr/bin/npm run job:expire-intents
+StandardOutput=append:/var/log/religio/expire-intents.log
+StandardError=append:/var/log/religio/expire-intents.log
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/religio

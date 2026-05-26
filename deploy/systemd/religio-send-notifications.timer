@@ -1,0 +1,14 @@
+[Unit]
+Description=Religio Pro — every-2-min notification dispatch
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+# Start 30s after boot, run every 2 min after the previous one finished.
+# Prevents overlap when the queue is large or a sender stalls.
+OnBootSec=30s
+OnUnitInactiveSec=2min
+Persistent=true
+Unit=religio-send-notifications.service
+
+[Install]
+WantedBy=timers.target
