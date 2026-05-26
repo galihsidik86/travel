@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — Portal Agen · <%= agent.displayName %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { min-height: 100vh; overflow-x: hidden; }
+  .app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .rail {
+    background: var(--ink-1000); border-right: var(--hairline);
+    padding: 24px 20px; display: flex; flex-direction: column; gap: 24px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  .rail__brand { padding: 4px 4px 16px; border-bottom: var(--hairline-soft); }
+  .rail__group { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-300); margin: 8px 4px 4px; }
+  .rail__nav { display: flex; flex-direction: column; gap: 1px; }
+  .rail__item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 12px; border-radius: var(--r-sm);
+    color: var(--ink-100); font-size: 13px; cursor: pointer;
+    background: none; border: 0; text-align: left; width: 100%;
+    transition: all var(--dur-fast); font-family: var(--font-sans);
+  }
+  .rail__item:hover { background: var(--ink-900); color: var(--cream-200); }
+  .rail__item.is-active { background: var(--ink-900); color: var(--gold-300); box-shadow: inset 2px 0 0 var(--gold-300); }
+  .rail__item .count { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--ink-300); background: var(--ink-800); border: var(--hairline-soft); padding: 1px 7px; border-radius: 999px; }
+  .rail__item.is-active .count { color: var(--gold-300); border-color: rgba(212,175,55,0.4); background: rgba(212,175,55,0.06); }
+  .rail__profile {
+    margin-top: auto; padding: 16px;
+    background: radial-gradient(60% 60% at 100% 0%, rgba(212,175,55,0.10), transparent 60%), var(--ink-900);
+    border: var(--hairline-gold); border-radius: var(--r-md);
+  }
+  .rail__profile .agent-id { font-family: var(--font-mono); font-size: 9.5px; color: var(--gold-300); letter-spacing: 0.14em; }
+  .rail__profile .name { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin-top: 4px; }
+  .rail__profile .meta { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-top: 8px; letter-spacing: 0.08em; }
+  .rail__profile form { margin-top: 14px; }
+  .rail__profile button {
+    width: 100%;
+    background: transparent;
+    border: var(--hairline-soft);
+    color: var(--ink-100);
+    padding: 8px;
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .rail__profile button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+
+  /* MAIN */
+  .main { background: var(--ink-950); }
+  .topbar {
+    position: sticky; top: 0; z-index: 30;
+    background: rgba(10,9,8,0.85); backdrop-filter: blur(18px);
+    border-bottom: var(--hairline-soft);
+    padding: 16px 40px;
+    display: flex; align-items: center; justify-content: space-between; gap: 32px;
+  }
+  .topbar__crumb { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; }
+  .topbar__crumb .sep { color: var(--ink-400); }
+  .topbar__crumb .leaf { color: var(--gold-300); }
+  .topbar__balance {
+    display: flex; align-items: center; gap: 24px;
+    padding: 6px 18px; background: var(--ink-900);
+    border: var(--hairline-soft); border-radius: var(--r-sm);
+  }
+  .topbar__balance .label { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.14em; }
+  .topbar__balance .val { font-family: var(--font-display); font-size: 18px; color: var(--gold-300); margin-top: 2px; }
+
+  .page { display: none; padding: 40px; max-width: 1640px; margin: 0 auto; }
+  .page.is-active { display: block; }
+  .page__head { margin-bottom: 32px; }
+  .page__head .eyebrow { color: var(--gold-300); }
+  .page__head h1 {
+    font-family: var(--font-display);
+    font-size: 52px; font-weight: 500;
+    line-height: 1.05; letter-spacing: -0.015em;
+    color: var(--cream-100); margin: 14px 0 0;
+  }
+  .page__head h1 em { font-style: italic; color: var(--gold-300); }
+  .page__head .row { display: flex; justify-content: space-between; align-items: end; }
+  .page__head .meta { text-align: right; color: var(--ink-100); font-size: 13.5px; line-height: 1.5; max-width: 340px; }
+
+  /* KPI STRIP */
+  .lk-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .lk { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 20px; }
+  .lk .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .lk .v { font-family: var(--font-display); font-size: 36px; color: var(--cream-100); margin: 8px 0 4px; line-height: 1; }
+  .lk .d { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+  .lk .v .u { font-family: var(--font-mono); font-size: 14px; color: var(--gold-300); margin-left: 6px; }
+
+  /* KANBAN */
+  .kanban { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; align-items: start; }
+  .col { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); display: flex; flex-direction: column; overflow: hidden; }
+  .col__head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 18px; border-bottom: var(--hairline-soft); background: var(--ink-1000);
+  }
+  .col__title { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-300); }
+  .col__title .count { color: var(--ink-200); margin-left: 8px; }
+  .col__sum { font-family: var(--font-mono); font-size: 11px; color: var(--cream-100); }
+  .col__body { padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 600px; max-height: 75vh; overflow-y: auto; }
+
+  .lead {
+    background: var(--ink-850); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 14px;
+    transition: all var(--dur-fast);
+  }
+  .lead:hover { border-color: var(--gold-300); }
+  .lead--hot {
+    border-color: rgba(212,175,55,0.4);
+    background: radial-gradient(80% 60% at 100% 0%, rgba(212,175,55,0.06), transparent), var(--ink-850);
+  }
+  .lead--lunas { border-left: 3px solid var(--emerald); }
+  .lead__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .lead__locked {
+    font-family: var(--font-mono); font-size: 9.5px;
+    color: var(--gold-300); letter-spacing: 0.1em;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .lead__locked::before { content: "◆"; }
+  .lead--lunas .lead__locked { color: var(--emerald); }
+  .lead--lunas .lead__locked::before { content: "✓"; }
+  .lead__name { font-family: var(--font-display); font-size: 19px; color: var(--cream-100); line-height: 1.1; font-weight: 500; }
+  .lead__sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 4px; letter-spacing: 0.06em; }
+  .lead__row {
+    display: flex; justify-content: space-between; align-items: end;
+    margin-top: 12px; padding-top: 12px; border-top: var(--hairline-soft);
+  }
+  .lead__price { font-family: var(--font-display); font-size: 18px; color: var(--gold-300); }
+  .lead--lunas .lead__price { color: var(--emerald); }
+  .lead__chips { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; max-width: 50%; }
+  .lead__chip {
+    padding: 2px 7px; font-family: var(--font-mono); font-size: 9px;
+    background: var(--ink-800); border: var(--hairline-soft);
+    color: var(--ink-100); border-radius: 3px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .lead__chip.status-pending { color: var(--amber); border-color: rgba(201,147,59,0.3); }
+  .lead__chip.status-booked  { color: #C7A0DD; border-color: rgba(155,80,200,0.3); }
+  .lead__chip.status-dp      { color: var(--gold-300); border-color: rgba(212,175,55,0.4); }
+  .lead__chip.status-partial { color: var(--sapphire); border-color: rgba(74,111,143,0.3); }
+  .lead__chip.status-lunas   { color: var(--emerald); border-color: rgba(74,143,109,0.3); }
+  .lead__fu { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.06em; margin-top: 6px; }
+
+  .empty {
+    border: 1px dashed var(--ink-500); border-radius: var(--r-sm);
+    padding: 24px 16px; text-align: center;
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.06em; line-height: 1.7;
+  }
+  .empty code { color: var(--gold-300); }
+
+  .add-lead {
+    border: 1px dashed var(--ink-500); border-radius: var(--r-sm);
+    padding: 14px; text-align: center;
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.12em;
+    cursor: pointer; background: transparent;
+    width: 100%;
+  }
+  .add-lead:hover { border-color: var(--gold-300); color: var(--gold-300); }
+
+  .lead__actions {
+    display: flex; gap: 4px; margin-top: 10px;
+  }
+  .lead__actions button {
+    flex: 1;
+    background: transparent;
+    border: var(--hairline-soft);
+    color: var(--ink-200);
+    padding: 5px 8px;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+  }
+  .lead__actions button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+  .lead__actions button.danger:hover { color: var(--ruby); border-color: var(--ruby); }
+  .lead__actions button.primary {
+    background: var(--gold-300); color: var(--ink-1000);
+    border-color: var(--gold-300); font-weight: 600;
+  }
+  .lead__actions button.primary:hover {
+    background: var(--gold-200); border-color: var(--gold-200);
+    color: var(--ink-1000);
+  }
+  .lead__progress {
+    margin-top: 10px; height: 3px;
+    background: var(--ink-700); border-radius: 2px; overflow: hidden;
+  }
+  .lead__progress > i { display: block; height: 100%; background: var(--gold-300); }
+  .lead__source {
+    padding: 2px 7px; font-family: var(--font-mono); font-size: 9px;
+    background: var(--ink-800); border: var(--hairline-soft);
+    color: var(--ink-100); border-radius: 3px;
+    letter-spacing: 0.1em;
+  }
+  .lead__source.src-wa     { color: #8FCBAA; border-color: rgba(74,143,109,0.3); }
+  .lead__source.src-ig     { color: #C7A0DD; border-color: rgba(155,80,200,0.3); }
+  .lead__source.src-fb     { color: #89B3CB; border-color: rgba(74,111,143,0.3); }
+  .lead__source.src-tiktok { color: #E89B9B; border-color: rgba(176,68,68,0.3); }
+  .lead__source.src-walk_in   { color: #E6BC75; border-color: rgba(201,147,59,0.3); }
+  .lead__source.src-referral  { color: var(--gold-300); border-color: rgba(212,175,55,0.3); }
+  .lead__source.src-ad        { color: #C7A0DD; border-color: rgba(155,80,200,0.3); }
+
+  /* Lead modal */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(10,9,8,0.75); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.is-open { display: flex; }
+  .modal {
+    background: var(--ink-900); border: var(--hairline-gold);
+    border-radius: var(--r-md); padding: 32px;
+    width: 100%; max-width: 480px;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 {
+    font-family: var(--font-display); font-size: 24px;
+    color: var(--cream-100); margin: 0 0 6px; font-weight: 500;
+  }
+  .modal .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .modal .field { margin-bottom: 14px; }
+  .modal .field-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .modal .actions {
+    display: flex; gap: 12px; justify-content: flex-end;
+    margin-top: 24px;
+  }
+  .modal select.input {
+    background-color: var(--ink-1000);
+    color: var(--cream-100);
+  }
+  .modal .err {
+    background: rgba(176,68,68,0.08);
+    border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 10px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .modal .err.is-visible { display: block; }
+
+  /* MARKETING KIT */
+  .mk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
+  .mk-card {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .mk-card__title { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 0; font-weight: 500; }
+  .mk-card__sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; }
+  .mk-link {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 12px 14px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .mk-link .url {
+    font-family: var(--font-mono); font-size: 12px; color: var(--cream-100);
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mk-link .url em { color: var(--gold-300); font-style: normal; }
+  .mk-link button {
+    background: none; border: var(--hairline-soft);
+    color: var(--ink-100); cursor: pointer;
+    padding: 6px 12px; border-radius: var(--r-xs);
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+  }
+  .mk-link button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+  .mk-card a.preview {
+    font-family: var(--font-mono); font-size: 11px; color: var(--gold-300);
+    text-decoration: none; letter-spacing: 0.08em; align-self: flex-start;
+  }
+  .mk-card a.preview:hover { text-decoration: underline; }
+
+  /* WALLET */
+  .wallet-hero {
+    background:
+      radial-gradient(80% 60% at 80% 0%, rgba(212,175,55,0.12), transparent 60%),
+      linear-gradient(180deg, var(--ink-1000), var(--ink-900));
+    border: var(--hairline-gold); border-radius: var(--r-xl);
+    padding: 48px;
+    display: grid; grid-template-columns: 1.4fr 1fr; gap: 48px;
+    align-items: center;
+    position: relative; overflow: hidden;
+  }
+  .wallet-hero__amt .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; color: var(--gold-300); text-transform: uppercase; }
+  .wallet-hero__amt .num {
+    font-family: var(--font-display); font-size: 76px; line-height: 1;
+    color: var(--cream-100); margin: 14px 0 12px;
+    font-weight: 500; letter-spacing: -0.02em;
+  }
+  .wallet-hero__amt .num .u { font-family: var(--font-mono); font-size: 16px; color: var(--gold-300); margin-left: 6px; }
+  .wallet-hero__amt .sub { font-family: var(--font-mono); font-size: 12px; color: var(--ink-100); letter-spacing: 0.08em; }
+  .wallet-hero__stats { display: flex; flex-direction: column; gap: 16px; }
+  .wallet-stat { display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid rgba(212,175,55,0.2); }
+  .wallet-stat:last-child { border: 0; padding: 0; }
+  .wallet-stat .l { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink-200); text-transform: uppercase; }
+  .wallet-stat .v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); font-weight: 500; }
+  .wallet-stat .v.gold { color: var(--gold-300); }
+
+  /* ANALYTICS */
+  .panel-an {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px 28px;
+    margin-bottom: 16px;
+  }
+  .panel-an__head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 18px; padding-bottom: 14px;
+    border-bottom: var(--hairline-soft);
+  }
+  .panel-an__head h3 {
+    font-family: var(--font-display); font-size: 22px;
+    color: var(--cream-100); margin: 0; font-weight: 500;
+  }
+  .panel-an__head .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; }
+
+  .grid-2-an { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .funnel { display: flex; flex-direction: column; gap: 12px; }
+  .funnel__stage { display: grid; grid-template-columns: 120px 1fr 48px; gap: 12px; align-items: center; }
+  .funnel__lbl { font-family: var(--font-mono); font-size: 11px; color: var(--ink-100); letter-spacing: 0.08em; text-transform: uppercase; }
+  .funnel__bar-wrap { background: var(--ink-1000); border-radius: 4px; height: 28px; position: relative; overflow: hidden; }
+  .funnel__bar { height: 100%; border-radius: 4px; transition: width var(--dur-fast); }
+  .funnel__val { font-family: var(--font-mono); font-size: 14px; color: var(--cream-100); text-align: right; }
+  .funnel__notes { margin-top: 16px; padding-top: 14px; border-top: var(--hairline-soft); font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+  .funnel__notes strong { color: var(--ruby); }
+
+  .src-row { margin-bottom: 16px; }
+  .src-row:last-child { margin-bottom: 0; }
+  .src-row__head { display: flex; align-items: center; gap: 10px; }
+  .src-row__total { font-family: var(--font-display); font-size: 20px; color: var(--cream-100); margin-left: auto; }
+  .src-row__pct { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .src-row__bar { background: var(--ink-1000); height: 6px; border-radius: 3px; margin: 8px 0 4px; overflow: hidden; }
+  .src-row__bar > i { display: block; height: 100%; background: var(--gold-300); }
+  .src-row__sx { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.04em; }
+  .src-row__sx strong { color: var(--cream-100); }
+  .src-tag {
+    padding: 3px 8px; font-family: var(--font-mono); font-size: 10px;
+    background: var(--ink-800); border: var(--hairline-soft);
+    color: var(--ink-100); border-radius: 3px;
+    letter-spacing: 0.1em;
+  }
+  .src-tag.src-wa     { color: #8FCBAA; border-color: rgba(74,143,109,0.3); }
+  .src-tag.src-ig     { color: #C7A0DD; border-color: rgba(155,80,200,0.3); }
+  .src-tag.src-fb     { color: #89B3CB; border-color: rgba(74,111,143,0.3); }
+  .src-tag.src-tiktok { color: #E89B9B; border-color: rgba(176,68,68,0.3); }
+  .src-tag.src-walk_in   { color: #E6BC75; border-color: rgba(201,147,59,0.3); }
+  .src-tag.src-referral  { color: var(--gold-300); border-color: rgba(212,175,55,0.3); }
+  .src-tag.src-ad        { color: #C7A0DD; border-color: rgba(155,80,200,0.3); }
+
+  .spark-totals {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px; margin-bottom: 16px;
+    padding-bottom: 14px; border-bottom: var(--hairline-soft);
+  }
+  .spark-totals .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .spark-totals .v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin-top: 4px; font-weight: 500; }
+  .spark { width: 100%; height: 140px; display: block; }
+  .spark-legend {
+    display: flex; gap: 16px; margin-top: 8px;
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--cream-100);
+  }
+  .spark-legend i { display: inline-block; width: 14px; height: 2px; margin-right: 6px; vertical-align: middle; }
+
+  @media (max-width: 1100px) {
+    .kanban { grid-template-columns: repeat(2, 1fr); }
+    .wallet-hero { grid-template-columns: 1fr; }
+    .grid-2-an { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body data-screen-label="03 Portal Agen">
+
+<%
+  function statusLabel(s) {
+    return ({
+      PENDING: 'PENDING', BOOKED: 'BOOKED', DP_PAID: 'DP', PARTIAL: 'CICILAN',
+      LUNAS: 'LUNAS', CANCELLED: 'CANCEL', REFUNDED: 'REFUND',
+    })[s] || s;
+  }
+  function statusClass(s) {
+    return ({
+      PENDING: 'status-pending', BOOKED: 'status-booked', DP_PAID: 'status-dp',
+      PARTIAL: 'status-partial', LUNAS: 'status-lunas',
+    })[s] || '';
+  }
+  function paidPct(b) {
+    const total = Number(b.totalAmount?.toString?.() ?? b.totalAmount) || 0;
+    const paid = Number(b.paidAmount?.toString?.() ?? b.paidAmount) || 0;
+    if (total === 0) return 0;
+    return Math.round((paid / total) * 100);
+  }
+%>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="rail">
+    <a href="/" class="brand-mark rail__brand">
+      <span class="brand-mark__glyph">R</span>
+      <span class="brand-mark__name">Religio <em>Pro</em></span>
+    </a>
+
+    <nav class="rail__nav">
+      <div class="rail__group">Sales</div>
+      <button class="rail__item is-active" data-page="leads">
+        Leads Pipeline
+        <span class="count"><%= kpis.hotCount + kpis.lunasCount %></span>
+      </button>
+      <button class="rail__item" data-page="kit">
+        Marketing Kit
+        <span class="count"><%= marketingPaket.length %></span>
+      </button>
+      <button class="rail__item" data-page="wallet">
+        Wallet &amp; Komisi
+      </button>
+      <button class="rail__item" data-page="analytics">
+        Analitik
+      </button>
+    </nav>
+
+    <div class="rail__profile">
+      <div class="agent-id"><%= agent.slug.toUpperCase() %></div>
+      <div class="name"><%= agent.displayName %></div>
+      <div class="meta">
+        <%= agent.tier || 'Mitra' %><br>
+        <%= kpis.lunasCount %> JEMAAH LUNAS · <%= kpis.hotCount %> AKTIF
+      </div>
+      <form method="POST" action="/logout">
+        <button type="submit">Keluar</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar__crumb">
+        <span>RELIGIO PRO</span>
+        <span class="sep">/</span>
+        <span>AGEN</span>
+        <span class="sep">/</span>
+        <span class="leaf" id="crumb-leaf">Leads Pipeline</span>
+      </div>
+      <div class="topbar__balance">
+        <div>
+          <div class="label">SALDO WALLET</div>
+          <div class="val">Rp <%= fmt.rpShort(kpis.komisiWallet) %></div>
+        </div>
+        <div style="height:32px;width:1px;background:var(--ink-500);"></div>
+        <div>
+          <div class="label">PENDING</div>
+          <div class="val" style="color:var(--amber);">Rp <%= fmt.rpShort(kpis.komisiPending) %></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== LEADS ===== -->
+    <section class="page is-active" id="page-leads">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Sales pipeline · <%= agent.displayName %></span>
+            <h1>
+              <%= kpis.hotCount %> booking aktif,<br>
+              <em><%= fmt.rpFull(kpis.hotPotential) %></em> potensi.
+            </h1>
+          </div>
+          <div class="meta">
+            <strong style="color:var(--cream-100);">Lunas: <%= kpis.lunasCount %> jemaah</strong><br>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.08em;">
+              REVENUE LUNAS: <%= fmt.rpFull(kpis.lunasRevenue) %>
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div class="lk-grid">
+        <div class="lk">
+          <div class="l">Booking bulan ini</div>
+          <div class="v"><%= kpis.bookingsThisMonth %></div>
+          <div class="d">Dari total <%= kpis.totalBookings %> all-time</div>
+        </div>
+        <div class="lk">
+          <div class="l">Konversi ke Lunas</div>
+          <div class="v"><%= kpis.conversionPct ?? '—' %><% if (kpis.conversionPct !== null) { %><span class="u">%</span><% } %></div>
+          <div class="d"><%= kpis.lunasCount %> / <%= kpis.totalBookings %> booking</div>
+        </div>
+        <div class="lk">
+          <div class="l">Potensi Hot</div>
+          <div class="v"><%= fmt.rpShort(kpis.hotPotential) %></div>
+          <div class="d">Dari <%= kpis.hotCount %> booking aktif</div>
+        </div>
+        <div class="lk">
+          <div class="l">Komisi earned</div>
+          <div class="v"><%= fmt.rpShort(kpis.komisiEarned) %></div>
+          <div class="d">+ <%= fmt.rpShort(kpis.komisiPending) %> pending</div>
+        </div>
+      </div>
+
+      <%
+        function leadCard(lead, currentStatus) {
+          const promoteTo = currentStatus === 'COLD' ? 'WARM' : null;
+          const demoteTo  = currentStatus === 'WARM' ? 'COLD' : null;
+          return { lead, promoteTo, demoteTo };
+        }
+        function sumLeadValue(arr) {
+          return arr.reduce((acc, l) => acc + (Number(l.estValueIdr?.toString?.() ?? l.estValueIdr) || 0), 0);
+        }
+      %>
+
+      <div class="kanban">
+        <!-- COLD -->
+        <div class="col">
+          <div class="col__head">
+            <span class="col__title">Cold · <span class="count"><%= pipeline.cold.length %></span></span>
+            <span class="col__sum"><%= sumLeadValue(pipeline.cold) > 0 ? fmt.rpShort(sumLeadValue(pipeline.cold)) : '—' %></span>
+          </div>
+          <div class="col__body">
+            <% pipeline.cold.forEach(function(l) { %>
+              <%- include('partials/lead-card', { lead: l, promoteTo: 'WARM', demoteTo: null }) %>
+            <% }) %>
+            <% if (pipeline.cold.length === 0) { %>
+              <div class="empty">Belum ada lead Cold.</div>
+            <% } %>
+            <button class="add-lead" data-add-lead="COLD">+ TAMBAH LEAD</button>
+          </div>
+        </div>
+
+        <!-- WARM -->
+        <div class="col">
+          <div class="col__head">
+            <span class="col__title">Warm · <span class="count"><%= pipeline.warm.length %></span></span>
+            <span class="col__sum"><%= sumLeadValue(pipeline.warm) > 0 ? fmt.rpShort(sumLeadValue(pipeline.warm)) : '—' %></span>
+          </div>
+          <div class="col__body">
+            <% pipeline.warm.forEach(function(l) { %>
+              <%- include('partials/lead-card', { lead: l, promoteTo: null, demoteTo: 'COLD' }) %>
+            <% }) %>
+            <% if (pipeline.warm.length === 0) { %>
+              <div class="empty">Belum ada lead Warm.</div>
+            <% } %>
+            <button class="add-lead" data-add-lead="WARM">+ TAMBAH LEAD</button>
+          </div>
+        </div>
+
+        <!-- HOT -->
+        <div class="col">
+          <div class="col__head">
+            <span class="col__title">Hot / DP · <span class="count"><%= pipeline.hot.length %></span></span>
+            <span class="col__sum" style="color:var(--gold-300);"><%= fmt.rpFull(kpis.hotPotential) %></span>
+          </div>
+          <div class="col__body">
+            <% if (pipeline.hot.length === 0) { %>
+              <div class="empty">
+                Belum ada booking aktif.<br>
+                Bagikan link <code>/p/&lt;slug&gt;?a=<%= agent.slug %></code><br>
+                untuk mulai menerima booking.
+              </div>
+            <% } %>
+            <% pipeline.hot.forEach(function(b) { %>
+              <div class="lead lead--hot">
+                <div class="lead__head">
+                  <span class="lead__locked"><%= b.bookingNo %></span>
+                  <div class="lead__chips">
+                    <span class="lead__chip"><%= b.kelas %></span>
+                    <span class="lead__chip <%= statusClass(b.status) %>"><%= statusLabel(b.status) %></span>
+                  </div>
+                </div>
+                <div class="lead__name"><%= b.jemaah.fullName %></div>
+                <div class="lead__sub">
+                  <%= b.paket.title.length > 36 ? b.paket.title.slice(0, 36) + '…' : b.paket.title %>
+                </div>
+                <div class="lead__sub" style="margin-top:2px;">
+                  <%= b.paxCount %> PAX · DEP <%= fmt.dateShort(b.paket.departureDate).toUpperCase() %>
+                </div>
+                <div class="lead__row">
+                  <span class="lead__price"><%= fmt.rpShort(b.totalAmount) %></span>
+                  <span class="lead__chip"><%= paidPct(b) %>% PAID</span>
+                </div>
+                <div class="lead__fu">Dibuat <%= fmt.date(b.createdAt) %></div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+
+        <!-- LUNAS -->
+        <div class="col">
+          <div class="col__head">
+            <span class="col__title" style="color:var(--emerald);">Lunas · <span class="count" style="color:var(--ink-200);"><%= pipeline.lunas.length %></span></span>
+            <span class="col__sum"><%= fmt.rpFull(kpis.lunasRevenue) %></span>
+          </div>
+          <div class="col__body">
+            <% if (pipeline.lunas.length === 0) { %>
+              <div class="empty">Belum ada booking lunas.</div>
+            <% } %>
+            <% pipeline.lunas.forEach(function(b) { %>
+              <div class="lead lead--lunas">
+                <div class="lead__head">
+                  <span class="lead__locked"><%= b.bookingNo %></span>
+                  <div class="lead__chips">
+                    <span class="lead__chip"><%= b.kelas %></span>
+                  </div>
+                </div>
+                <div class="lead__name"><%= b.jemaah.fullName %></div>
+                <div class="lead__sub">
+                  <%= b.paket.title.length > 36 ? b.paket.title.slice(0, 36) + '…' : b.paket.title %>
+                </div>
+                <div class="lead__row">
+                  <span class="lead__price"><%= fmt.rpShort(b.totalAmount) %></span>
+                  <span class="lead__chip">LUNAS</span>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== MARKETING KIT ===== -->
+    <section class="page" id="page-kit">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Marketing kit · auto-link · slug <%= agent.slug %></span>
+            <h1>Landing page-mu sendiri,<br>untuk <em>setiap paket.</em></h1>
+          </div>
+        </div>
+      </header>
+
+      <div class="mk-grid">
+        <% if (marketingPaket.length === 0) { %>
+          <div class="empty" style="grid-column: 1/-1;">Belum ada paket aktif.</div>
+        <% } %>
+        <% marketingPaket.forEach(function(p) { %>
+          <div class="mk-card">
+            <div>
+              <h3 class="mk-card__title"><%= p.title %></h3>
+              <div class="mk-card__sub">
+                DEP <%= fmt.date(p.departureDate).toUpperCase() %> ·
+                <%= p.kursiTotal - p.kursiTerisi %> / <%= p.kursiTotal %> KURSI TERSISA
+              </div>
+            </div>
+            <div class="mk-link">
+              <div class="url">/p/<%= p.slug %>?a=<em><%= agent.slug %></em></div>
+              <button type="button" data-copy="<%= '/p/' + p.slug + '?a=' + agent.slug %>">SALIN</button>
+            </div>
+            <a class="preview" href="/p/<%= p.slug %>?a=<%= agent.slug %>" target="_blank">
+              BUKA LANDING →
+            </a>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+
+    <!-- ===== WALLET ===== -->
+    <section class="page" id="page-wallet">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Wallet · komisi</span>
+            <h1>Komisi yang <em>tidak pernah</em><br>tertunda.</h1>
+          </div>
+        </div>
+      </header>
+
+      <div class="wallet-hero">
+        <div class="wallet-hero__amt">
+          <div class="label">SALDO TERSEDIA (EARNED)</div>
+          <div class="num"><%= fmt.rpShort(komisi.wallet) %><span class="u">IDR</span></div>
+          <div class="sub">Belum ditarik · siap dicairkan</div>
+        </div>
+        <div class="wallet-hero__stats">
+          <div class="wallet-stat">
+            <span class="l">Pending</span>
+            <span class="v"><%= fmt.rpFull(komisi.pending) %></span>
+          </div>
+          <div class="wallet-stat">
+            <span class="l">Earned (Wallet)</span>
+            <span class="v gold"><%= fmt.rpFull(komisi.earned) %></span>
+          </div>
+          <div class="wallet-stat">
+            <span class="l">Sudah dicairkan</span>
+            <span class="v"><%= fmt.rpFull(komisi.paid) %></span>
+          </div>
+          <div class="wallet-stat">
+            <span class="l">Total lifetime</span>
+            <span class="v"><%= fmt.rpFull(komisi.total) %></span>
+          </div>
+        </div>
+      </div>
+
+      <% if (komisi.total === 0) { %>
+        <div class="empty" style="margin-top:32px;">
+          Belum ada baris komisi.<br>
+          Komisi otomatis tercatat saat booking jemaah Anda mencapai status <code>LUNAS</code>.
+        </div>
+      <% } %>
+
+      <!-- Riwayat payout -->
+      <div class="panel-an" style="margin-top:24px;">
+        <div class="panel-an__head">
+          <h3>Riwayat payout</h3>
+          <span class="meta"><%= payouts.length %> ENTRI · last 20</span>
+        </div>
+        <% if (payouts.length === 0) { %>
+          <div class="empty">
+            Belum ada payout dari kantor pusat.<br>
+            Komisi <code>EARNED</code> menunggu untuk diproses payout.
+          </div>
+        <% } else { %>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:10px 12px;background:var(--ink-1000);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-200);border-bottom:var(--hairline);">Tanggal</th>
+                <th style="text-align:left;padding:10px 12px;background:var(--ink-1000);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-200);border-bottom:var(--hairline);">No. Payout</th>
+                <th style="text-align:left;padding:10px 12px;background:var(--ink-1000);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-200);border-bottom:var(--hairline);">Metode</th>
+                <th style="text-align:left;padding:10px 12px;background:var(--ink-1000);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-200);border-bottom:var(--hairline);">Referensi</th>
+                <th style="text-align:right;padding:10px 12px;background:var(--ink-1000);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-200);border-bottom:var(--hairline);">Komisi</th>
+                <th style="text-align:right;padding:10px 12px;background:var(--ink-1000);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-200);border-bottom:var(--hairline);">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% payouts.forEach(function(p) { %>
+                <tr style="border-bottom:var(--hairline-soft);">
+                  <td style="padding:11px 12px;">
+                    <div style="color:var(--cream-100);font-size:13px;"><%= fmt.date(p.paidAt) %></div>
+                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);"><%= new Date(p.paidAt).toISOString().slice(11,16) %></div>
+                  </td>
+                  <td style="padding:11px 12px;font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.06em;"><%= p.payoutNo %></td>
+                  <td style="padding:11px 12px;"><span class="badge"><%= p.method %></span></td>
+                  <td style="padding:11px 12px;font-family:var(--font-mono);font-size:11px;color:var(--ink-100);"><%= p.reference || '—' %></td>
+                  <td style="padding:11px 12px;text-align:right;font-family:var(--font-mono);color:var(--cream-100);"><%= p._count.komisi %></td>
+                  <td style="padding:11px 12px;text-align:right;font-family:var(--font-mono);color:var(--emerald);"><%= fmt.rpFull(p.amount) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+    </section>
+
+    <!-- ===== ANALITIK ===== -->
+    <section class="page" id="page-analytics">
+      <%
+        const r = analytics.funnel.range;
+        const rFrom = r.from.toISOString().slice(0,10);
+        const rTo   = r.to.toISOString().slice(0,10);
+      %>
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Analitik · <%= r.days %> hari (<%= fmt.dateShort(r.from) %> → <%= fmt.dateShort(r.to) %>)</span>
+            <h1>Funnel &amp; <em>insight</em>.</h1>
+          </div>
+          <div class="meta">
+            <strong style="color:var(--cream-100);">Total lead: <%= analytics.funnel.leadsTotal %></strong><br>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.08em;">
+              KONVERSI <%= analytics.funnel.convertedFromLeadPct ?? '—' %>% → LUNAS <%= analytics.funnel.lunasFromBookingPct ?? '—' %>%
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <%- include('partials/date-range', { from: rFrom, to: rTo, basePath: '/agen' }) %>
+
+      <!-- Funnel -->
+      <div class="panel-an">
+        <div class="panel-an__head">
+          <h3>Funnel konversi</h3>
+        </div>
+        <%
+          const f = analytics.funnel;
+          const stages = [
+            { label: 'Cold', value: f.lead.COLD, color: 'var(--ink-500)' },
+            { label: 'Warm', value: f.lead.WARM, color: 'var(--sapphire)' },
+            { label: 'Converted', value: f.lead.CONVERTED, color: 'var(--amber)' },
+            { label: 'Hot booking', value: f.bookingsHot, color: 'var(--gold-300)' },
+            { label: 'LUNAS', value: f.bookingsLunas, color: 'var(--emerald)' },
+          ];
+          const maxStage = Math.max(1, ...stages.map(s => s.value));
+        %>
+        <div class="funnel">
+          <% stages.forEach(function(s, i) { %>
+            <div class="funnel__stage">
+              <div class="funnel__lbl"><%= s.label %></div>
+              <div class="funnel__bar-wrap">
+                <div class="funnel__bar" style="width:<%= Math.max(8, Math.round((s.value / maxStage) * 100)) %>%;background:<%= s.color %>;"></div>
+              </div>
+              <div class="funnel__val"><%= s.value %></div>
+            </div>
+          <% }) %>
+        </div>
+        <div class="funnel__notes">
+          Hilang/LOST: <strong><%= f.lead.LOST %></strong> lead
+          <% if (f.leadLossPct != null) { %>(<%= f.leadLossPct %>% dari total)<% } %>
+        </div>
+      </div>
+
+      <div class="grid-2-an">
+        <!-- Source breakdown -->
+        <div class="panel-an">
+          <div class="panel-an__head">
+            <h3>Sumber lead</h3>
+            <span class="meta"><%= analytics.sourceBreakdown.length %> SUMBER</span>
+          </div>
+          <% if (analytics.sourceBreakdown.length === 0) { %>
+            <div class="empty">Belum ada lead.</div>
+          <% } %>
+          <%
+            const maxSrc = Math.max(1, ...analytics.sourceBreakdown.map(s => s.total));
+          %>
+          <% analytics.sourceBreakdown.forEach(function(s) { %>
+            <div class="src-row">
+              <div class="src-row__head">
+                <span class="src-tag src-<%= s.source.toLowerCase() %>"><%= s.source %></span>
+                <span class="src-row__total"><%= s.total %></span>
+                <span class="src-row__pct"><%= s.conversionPct ?? '—' %>% converted</span>
+              </div>
+              <div class="src-row__bar">
+                <i style="width:<%= Math.round((s.total / maxSrc) * 100) %>%;"></i>
+              </div>
+              <div class="src-row__sx">
+                Converted: <strong><%= s.converted %></strong> ·
+                Active: <%= s.active %> ·
+                Lost: <%= s.lost %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+
+        <!-- Daily activity sparkline -->
+        <div class="panel-an">
+          <div class="panel-an__head">
+            <h3>Aktivitas 30 hari</h3>
+            <span class="meta">LEADS · BOOKINGS</span>
+          </div>
+          <%
+            const d = analytics.daily;
+            const totalLeads = d.reduce((a, x) => a + x.leadsCreated, 0);
+            const totalBookings = d.reduce((a, x) => a + x.bookingsCreated, 0);
+            const totalRevenue = d.reduce((a, x) => a + x.revenue, 0);
+            const maxY = Math.max(1, ...d.map(x => Math.max(x.leadsCreated, x.bookingsCreated)));
+            // Build SVG paths
+            const W = 600, H = 140, PAD = 6;
+            const stepX = (W - PAD * 2) / Math.max(1, d.length - 1);
+            const pointsLeads = d.map((x, i) => `${PAD + i * stepX},${H - PAD - (x.leadsCreated / maxY) * (H - PAD * 2)}`).join(' ');
+            const pointsBookings = d.map((x, i) => `${PAD + i * stepX},${H - PAD - (x.bookingsCreated / maxY) * (H - PAD * 2)}`).join(' ');
+          %>
+          <div class="spark-totals">
+            <div><div class="l">Lead</div><div class="v"><%= totalLeads %></div></div>
+            <div><div class="l">Booking</div><div class="v" style="color:var(--gold-300);"><%= totalBookings %></div></div>
+            <div><div class="l">Revenue LUNAS</div><div class="v" style="color:var(--emerald);"><%= fmt.rpShort(totalRevenue) %></div></div>
+          </div>
+          <svg class="spark" viewBox="0 0 <%= W %> <%= H %>" preserveAspectRatio="none">
+            <polyline points="<%= pointsLeads %>" fill="none" stroke="var(--sapphire)" stroke-width="2"/>
+            <polyline points="<%= pointsBookings %>" fill="none" stroke="var(--gold-300)" stroke-width="2"/>
+          </svg>
+          <div class="spark-legend">
+            <span><i style="background:var(--sapphire);"></i>Leads</span>
+            <span><i style="background:var(--gold-300);"></i>Bookings</span>
+            <span style="margin-left:auto;color:var(--ink-200);">
+              <%= d[0].date.slice(5) %> → <%= d[d.length-1].date.slice(5) %>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Convert lead → booking modal -->
+<div class="modal-overlay" id="convert-modal" aria-hidden="true">
+  <div class="modal">
+    <h2>Promote ke Booking</h2>
+    <div class="sub" id="convert-modal-name">—</div>
+
+    <div class="err" id="convert-modal-err"></div>
+
+    <form id="convert-form">
+      <div class="field">
+        <label class="label" for="cf-paket">Paket *</label>
+        <select class="input" name="paketSlug" id="cf-paket" required>
+          <option value="">— pilih paket —</option>
+          <% marketingPaket.forEach(function(p) { %>
+            <option value="<%= p.slug %>"><%= p.title %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="field-grid">
+        <div class="field">
+          <label class="label" for="cf-kelas">Kelas *</label>
+          <select class="input" name="kelas" id="cf-kelas" required>
+            <option value="QUAD">Quad</option>
+            <option value="TRIPLE">Triple</option>
+            <option value="DOUBLE">Double</option>
+            <option value="VVIP">VVIP</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="cf-pax">PAX *</label>
+          <input class="input" type="number" min="1" max="20" name="paxCount" id="cf-pax" required value="1">
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="cf-notes">Catatan</label>
+        <input class="input" name="notes" id="cf-notes" maxlength="500">
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" id="convert-cancel">Batal</button>
+        <button type="submit" class="btn btn--primary">Buat Booking</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Lead create modal -->
+<div class="modal-overlay" id="lead-modal" aria-hidden="true">
+  <div class="modal">
+    <h2>Tambah Lead Baru</h2>
+    <div class="sub" id="lead-modal-sub">Cold</div>
+
+    <div class="err" id="lead-modal-err"></div>
+
+    <form id="lead-form">
+      <input type="hidden" name="status" value="COLD">
+
+      <div class="field">
+        <label class="label" for="lf-name">Nama lengkap *</label>
+        <input class="input" name="fullName" id="lf-name" required maxlength="190">
+      </div>
+      <div class="field-grid">
+        <div class="field">
+          <label class="label" for="lf-phone">Telepon / WA *</label>
+          <input class="input" name="phone" id="lf-phone" required maxlength="30">
+        </div>
+        <div class="field">
+          <label class="label" for="lf-source">Sumber</label>
+          <select class="input" name="source" id="lf-source">
+            <option value="WA">WhatsApp</option>
+            <option value="IG">Instagram</option>
+            <option value="FB">Facebook</option>
+            <option value="TIKTOK">TikTok</option>
+            <option value="WALK_IN">Walk-in</option>
+            <option value="REFERRAL">Referral</option>
+            <option value="AD">Iklan</option>
+            <option value="OTHER" selected>Lainnya</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="lf-email">Email</label>
+        <input class="input" type="email" name="email" id="lf-email" maxlength="190">
+      </div>
+      <div class="field-grid">
+        <div class="field">
+          <label class="label" for="lf-paket">Paket diminati (slug)</label>
+          <input class="input" name="interestedPaketSlug" id="lf-paket" placeholder="ramadhan-aqsa-2026">
+        </div>
+        <div class="field">
+          <label class="label" for="lf-kelas">Kelas</label>
+          <select class="input" name="interestedKelas" id="lf-kelas">
+            <option value="">—</option>
+            <option value="QUAD">Quad</option>
+            <option value="TRIPLE">Triple</option>
+            <option value="DOUBLE">Double</option>
+            <option value="VVIP">VVIP</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-grid">
+        <div class="field">
+          <label class="label" for="lf-pax">Est. PAX</label>
+          <input class="input" type="number" min="1" max="20" name="estPaxCount" id="lf-pax">
+        </div>
+        <div class="field">
+          <label class="label" for="lf-val">Est. nilai (Rp)</label>
+          <input class="input" type="number" min="0" step="100000" name="estValueIdr" id="lf-val">
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="lf-notes">Catatan</label>
+        <input class="input" name="notes" id="lf-notes" maxlength="500" placeholder="Mis. tertarik VVIP keluarga 4 orang">
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" id="lead-cancel">Batal</button>
+        <button type="submit" class="btn btn--primary">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Page switcher (with URL ?tab= support so reloads land on same tab)
+  const items = document.querySelectorAll('.rail__item[data-page]');
+  const pages = document.querySelectorAll('.page');
+  const leaf = document.getElementById('crumb-leaf');
+  const labels = { leads: 'Leads Pipeline', kit: 'Marketing Kit', wallet: 'Wallet & Komisi', analytics: 'Analitik' };
+
+  function activate(target) {
+    if (!labels[target]) return;
+    items.forEach((b) => b.classList.toggle('is-active', b.dataset.page === target));
+    pages.forEach((p) => p.classList.toggle('is-active', p.id === 'page-' + target));
+    if (leaf) leaf.textContent = labels[target];
+    const url = new URL(location.href);
+    url.searchParams.set('tab', target);
+    history.replaceState(null, '', url.toString());
+  }
+
+  // Activate from ?tab= on initial load (default: leads)
+  (function () {
+    const u = new URL(location.href);
+    const initial = u.searchParams.get('tab');
+    if (initial && labels[initial]) activate(initial);
+  })();
+
+  items.forEach((btn) => {
+    btn.addEventListener('click', () => activate(btn.dataset.page));
+  });
+
+  // Copy buttons
+  document.querySelectorAll('button[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const path = btn.dataset.copy;
+      const full = location.origin + path;
+      try {
+        await navigator.clipboard.writeText(full);
+        const old = btn.textContent;
+        btn.textContent = 'TERSALIN';
+        setTimeout(() => (btn.textContent = old), 1200);
+      } catch {
+        btn.textContent = 'GAGAL';
+      }
+    });
+  });
+
+  // ===== Lead modal =====
+  const modal = document.getElementById('lead-modal');
+  const modalSub = document.getElementById('lead-modal-sub');
+  const modalErr = document.getElementById('lead-modal-err');
+  const form = document.getElementById('lead-form');
+
+  function openModal(initialStatus) {
+    form.reset();
+    form.elements.status.value = initialStatus || 'COLD';
+    modalSub.textContent = initialStatus === 'WARM' ? 'Warm' : 'Cold';
+    modalErr.classList.remove('is-visible');
+    modal.classList.add('is-open');
+    setTimeout(() => form.elements.fullName.focus(), 0);
+  }
+  function closeModal() { modal.classList.remove('is-open'); }
+
+  document.querySelectorAll('[data-add-lead]').forEach((btn) => {
+    btn.addEventListener('click', () => openModal(btn.dataset.addLead));
+  });
+  document.getElementById('lead-cancel').addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    modalErr.classList.remove('is-visible');
+    const fd = new FormData(form);
+    const body = {};
+    for (const [k, v] of fd.entries()) {
+      if (v !== '') body[k] = v;
+    }
+    try {
+      const r = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        modalErr.textContent = j?.error?.message || 'Gagal menyimpan lead';
+        modalErr.classList.add('is-visible');
+        return;
+      }
+      location.reload();
+    } catch {
+      modalErr.textContent = 'Tidak dapat menghubungi server';
+      modalErr.classList.add('is-visible');
+    }
+  });
+
+  // ===== Convert modal =====
+  const cModal = document.getElementById('convert-modal');
+  const cName  = document.getElementById('convert-modal-name');
+  const cErr   = document.getElementById('convert-modal-err');
+  const cForm  = document.getElementById('convert-form');
+  let convertingId = null;
+
+  function openConvert(card) {
+    convertingId = card.dataset.leadId;
+    cName.textContent = card.dataset.leadName || '—';
+    cForm.elements.paketSlug.value = card.dataset.leadPaket || '';
+    cForm.elements.kelas.value     = card.dataset.leadKelas || 'QUAD';
+    cForm.elements.paxCount.value  = card.dataset.leadPax || 1;
+    cForm.elements.notes.value     = card.dataset.leadNotes || '';
+    cErr.classList.remove('is-visible');
+    cModal.classList.add('is-open');
+  }
+  function closeConvert() { cModal.classList.remove('is-open'); convertingId = null; }
+  document.getElementById('convert-cancel').addEventListener('click', closeConvert);
+  cModal.addEventListener('click', (e) => { if (e.target === cModal) closeConvert(); });
+
+  cForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!convertingId) return;
+    cErr.classList.remove('is-visible');
+    const fd = new FormData(cForm);
+    const body = {};
+    for (const [k, v] of fd.entries()) {
+      if (v !== '') body[k] = v;
+    }
+    try {
+      const r = await fetch('/api/leads/' + convertingId + '/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        cErr.textContent = j?.error?.message || 'Gagal membuat booking';
+        cErr.classList.add('is-visible');
+        return;
+      }
+      location.reload();
+    } catch {
+      cErr.textContent = 'Tidak dapat menghubungi server';
+      cErr.classList.add('is-visible');
+    }
+  });
+
+  // ===== Lead actions: move + delete + convert =====
+  document.querySelectorAll('.lead[data-lead-id]').forEach((card) => {
+    const id = card.dataset.leadId;
+    card.querySelectorAll('[data-move]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const r = await fetch('/api/leads/' + id, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: btn.dataset.move }),
+        });
+        if (r.ok) location.reload();
+        else btn.disabled = false;
+      });
+    });
+    const del = card.querySelector('[data-delete-lead]');
+    if (del) {
+      del.addEventListener('click', async () => {
+        if (!confirm('Hapus lead ini?')) return;
+        del.disabled = true;
+        const r = await fetch('/api/leads/' + id, { method: 'DELETE' });
+        if (r.ok) location.reload();
+        else del.disabled = false;
+      });
+    }
+    const conv = card.querySelector('[data-convert-lead]');
+    if (conv) {
+      conv.addEventListener('click', () => openConvert(card));
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeModal(); closeConvert(); }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Notifikasi</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { display: flex; justify-content: space-between; align-items: end; margin-bottom: 24px; }
+  .head h1 { font-family: var(--font-display); font-size: 36px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px; }
+
+  .ok-banner, .err-banner { padding: 12px 16px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; margin-bottom: 18px; }
+  .ok-banner { background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4); color: var(--emerald); }
+  .err-banner { background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4); color: var(--ruby); }
+
+  .filter-bar { display: flex; gap: 8px; align-items: end; margin-bottom: 18px; flex-wrap: wrap; }
+  .filter-bar select.input { padding: 6px 10px; font-size: 12px; background-color: var(--ink-1000); color: var(--cream-100); }
+  .filter-bar .lbl { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; display: block; margin-bottom: 4px; }
+
+  .tbl { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+  .tbl thead th { text-align: left; padding: 12px 14px; background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); font-weight: 500; border-bottom: var(--hairline); }
+  .tbl tbody td { padding: 11px 14px; border-bottom: var(--hairline-soft); font-size: 12.5px; color: var(--cream-200); vertical-align: top; }
+  .tbl tbody tr:hover td { background: var(--ink-850); }
+  .tbl .id { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+
+  .status-tag { padding: 3px 8px; font-family: var(--font-mono); font-size: 9.5px; border-radius: 3px; letter-spacing: 0.1em; border: 1px solid; }
+  .status-tag.pending { color: var(--amber); border-color: rgba(201,147,59,0.4); }
+  .status-tag.sent { color: var(--emerald); border-color: rgba(74,143,109,0.4); }
+  .status-tag.failed { color: var(--ruby); border-color: rgba(181,86,74,0.4); }
+  .status-tag.skipped { color: var(--ink-300); border-color: var(--ink-500); }
+
+  .channel-tag {
+    padding: 2px 7px; font-family: var(--font-mono); font-size: 10px;
+    border-radius: 3px; letter-spacing: 0.1em;
+    border: 1px solid var(--ink-500); color: var(--ink-100);
+  }
+  .channel-tag.email { color: var(--sapphire); border-color: rgba(74,111,143,0.4); }
+  .channel-tag.wa { color: #8FCBAA; border-color: rgba(74,143,109,0.4); }
+  .channel-tag.console { color: var(--ink-200); }
+
+  .body-preview { color: var(--cream-200); font-size: 12px; line-height: 1.5; max-width: 380px; }
+  .body-preview .ph { font-family: var(--font-mono); font-size: 10px; color: var(--gold-300); letter-spacing: 0.1em; }
+
+  form.act-form { display: inline; }
+  form.act-form button {
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-100); padding: 5px 12px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em;
+    cursor: pointer; text-transform: uppercase;
+  }
+  form.act-form button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+  form.act-form button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .empty { padding: 40px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Notifications">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/admin">← KEMBALI KE DASHBOARD</a>
+  </div>
+
+  <script>
+    (function () {
+      const u = new URL(location.href);
+      const ok = u.searchParams.get('ok');
+      const err = u.searchParams.get('err');
+      const banners = { sent: 'Notifikasi dispatched.' };
+      if (ok && banners[ok]) {
+        const el = document.createElement('div'); el.className = 'ok-banner'; el.textContent = banners[ok];
+        document.querySelector('.crumb').after(el);
+      }
+      if (err) {
+        const el = document.createElement('div'); el.className = 'err-banner'; el.textContent = decodeURIComponent(err);
+        document.querySelector('.crumb').after(el);
+      }
+    })();
+  </script>
+
+  <div class="head">
+    <div>
+      <h1>Notifikasi <em>queue</em></h1>
+      <div class="sub"><%= rows.length %> entri · max 200 · cron via <code>npm run job:send-notifications</code></div>
+    </div>
+    <form method="POST" action="/api/admin/jobs/send-notifications" id="proc-form" onsubmit="return processQueue(event);">
+      <button type="submit" class="btn btn--primary">Proses Queue Sekarang</button>
+    </form>
+  </div>
+
+  <form method="GET" action="/admin/notifications" class="filter-bar">
+    <div>
+      <span class="lbl">Status</span>
+      <select class="input" name="status">
+        <option value="ALL">All</option>
+        <% META.STATUSES.forEach(function(s) { %>
+          <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
+      <span class="lbl">Channel</span>
+      <select class="input" name="channel">
+        <option value="ALL">All</option>
+        <% META.CHANNELS.forEach(function(c) { %>
+          <option value="<%= c %>" <%= filters.channel === c ? 'selected' : '' %>><%= c %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
+      <span class="lbl">Type</span>
+      <select class="input" name="type">
+        <option value="ALL">All</option>
+        <% META.TYPES.forEach(function(t) { %>
+          <option value="<%= t %>" <%= filters.type === t ? 'selected' : '' %>><%= t %></option>
+        <% }) %>
+      </select>
+    </div>
+    <button type="submit" class="btn btn--ghost btn--sm">Filter</button>
+    <a href="/admin/notifications" style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);text-decoration:none;letter-spacing:0.08em;">RESET</a>
+  </form>
+
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th style="width:130px;">Waktu</th>
+        <th>Type / Channel</th>
+        <th>Penerima</th>
+        <th>Pesan</th>
+        <th style="width:100px;">Status</th>
+        <th style="width:110px;text-align:right;">Aksi</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (rows.length === 0) { %>
+        <tr><td colspan="6" class="empty">Tidak ada notifikasi yang cocok.</td></tr>
+      <% } %>
+      <% rows.forEach(function(n) { %>
+        <tr>
+          <td>
+            <div style="color:var(--cream-100);font-size:12.5px;"><%= fmt.date(n.createdAt) %></div>
+            <div class="sx"><%= new Date(n.createdAt).toISOString().slice(11,19) %></div>
+            <% if (n.sentAt) { %>
+              <div class="sx" style="color:var(--emerald);">sent <%= new Date(n.sentAt).toISOString().slice(11,19) %></div>
+            <% } %>
+          </td>
+          <td>
+            <div style="color:var(--cream-100);font-size:12.5px;"><%= n.type %></div>
+            <div style="margin-top:4px;"><span class="channel-tag <%= n.channel.toLowerCase() %>"><%= n.channel %></span></div>
+          </td>
+          <td>
+            <div class="sx" style="color:var(--cream-200);"><%= n.recipientEmail || n.recipientPhone || '—' %></div>
+            <% if (n.relatedEntity) { %>
+              <div class="sx">→ <%= n.relatedEntity %> <%= n.relatedEntityId ? n.relatedEntityId.slice(-8) : '' %></div>
+            <% } %>
+          </td>
+          <td>
+            <div class="body-preview">
+              <% if (n.subject) { %><div class="ph">SUBJ:</div><%= n.subject %><br><% } %>
+              <%= n.body.length > 200 ? n.body.slice(0, 200) + '…' : n.body %>
+            </div>
+            <% if (n.error) { %>
+              <div class="sx" style="color:var(--ruby);margin-top:6px;">! <%= n.error %></div>
+            <% } %>
+          </td>
+          <td>
+            <span class="status-tag <%= n.status.toLowerCase() %>"><%= n.status %></span>
+            <% if (n.attemptCount > 0) { %>
+              <div class="sx" style="margin-top:4px;">attempt <%= n.attemptCount %>/5</div>
+            <% } %>
+            <% if (n.status === 'FAILED' && n.nextRetryAt) { %>
+              <div class="sx" style="color:var(--amber);">retry <%= new Date(n.nextRetryAt).toISOString().slice(11,19) %></div>
+            <% } else if (n.status === 'FAILED' && n.attemptCount >= 5) { %>
+              <div class="sx" style="color:var(--ruby);">max retries</div>
+            <% } %>
+          </td>
+          <td style="text-align:right;">
+            <% if (n.status === 'PENDING' || n.status === 'FAILED') { %>
+              <form method="POST" action="/admin/notifications/<%= n.id %>/send" class="act-form">
+                <button type="submit"><%= n.attemptCount > 0 ? 'RETRY' : 'SEND NOW' %></button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  // "Proses Queue Sekarang" — POST JSON, reload
+  async function processQueue(e) {
+    e.preventDefault();
+    const btn = document.querySelector('#proc-form button');
+    btn.disabled = true;
+    btn.textContent = 'Memproses…';
+    try {
+      const r = await fetch('/api/admin/jobs/send-notifications', { method: 'POST' });
+      const j = await r.json().catch(() => ({}));
+      alert(`processed=${j.processed} sent=${j.sent} failed=${j.failed} skipped=${j.skipped}`);
+      location.reload();
+    } catch {
+      alert('Gagal proses');
+      btn.disabled = false;
+      btn.textContent = 'Proses Queue Sekarang';
+    }
+    return false;
+  }
+</script>
+</body>
+</html>

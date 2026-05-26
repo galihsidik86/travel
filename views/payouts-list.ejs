@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Payout Komisi</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+
+  .head { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: end; }
+  .head h1 { font-family: var(--font-display); font-size: 36px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px; }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px;
+    margin-bottom: 18px;
+  }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 20px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 16px;
+    padding-bottom: 12px; border-bottom: var(--hairline-soft);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .panel h3 .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; }
+
+  .tbl { width: 100%; border-collapse: collapse; }
+  .tbl thead th {
+    text-align: left; padding: 12px 14px;
+    background: var(--ink-1000);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-200); font-weight: 500;
+    border-bottom: var(--hairline);
+  }
+  .tbl tbody td {
+    padding: 12px 14px; border-bottom: var(--hairline-soft);
+    font-size: 13px; color: var(--cream-200);
+  }
+  .tbl tbody tr:hover td { background: var(--ink-850); }
+  .tbl .num { text-align: right; font-family: var(--font-mono); }
+  .tbl .amt.gold { color: var(--gold-300); }
+  .tbl .amt.emerald { color: var(--emerald); }
+  .tbl .id { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .tbl .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); }
+  .tbl a { color: inherit; text-decoration: none; }
+
+  .empty { padding: 32px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+
+  .pay-btn {
+    background: var(--gold-300); color: var(--ink-1000);
+    border: 0; padding: 6px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em;
+    font-weight: 600; text-transform: uppercase;
+    text-decoration: none; display: inline-block;
+  }
+  .pay-btn:hover { background: var(--gold-200); }
+  .pay-btn.disabled {
+    background: var(--ink-700); color: var(--ink-300); cursor: not-allowed;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body data-screen-label="02 Admin · Payouts">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/admin">← KEMBALI KE DASHBOARD</a>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1>Payout <em>komisi</em></h1>
+      <div class="sub"><%= payouts.length %> riwayat · <%= outstanding.filter(o => o.earnedTotal > 0).length %> agen punya komisi outstanding</div>
+    </div>
+    <a href="/admin/payouts/new" class="btn btn--primary">+ Payout Baru</a>
+  </div>
+
+  <!-- Outstanding panel -->
+  <div class="panel">
+    <h3>Komisi outstanding per agen
+      <span class="meta">EARNED status · belum dibayar</span>
+    </h3>
+    <% if (outstanding.length === 0) { %>
+      <div class="empty">Belum ada agen terdaftar.</div>
+    <% } else { %>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Agen</th>
+            <th class="num">Komisi EARNED</th>
+            <th class="num">Total (Rp)</th>
+            <th style="width:120px; text-align:right;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% outstanding.forEach(function(a) { %>
+            <tr>
+              <td>
+                <div class="nm"><%= a.displayName %></div>
+                <div class="sx">slug <%= a.slug %></div>
+              </td>
+              <td class="num"><%= a.earnedCount %></td>
+              <td class="num amt <%= a.earnedTotal > 0 ? 'gold' : '' %>"><%= fmt.rpFull(a.earnedTotal) %></td>
+              <td style="text-align:right;">
+                <% if (a.earnedTotal > 0) { %>
+                  <a href="/admin/payouts/new?agentId=<%= a.id %>" class="pay-btn">BAYAR</a>
+                <% } else { %>
+                  <span class="pay-btn disabled">—</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <!-- History panel -->
+  <div class="panel">
+    <h3>Riwayat payout <span class="meta"><%= payouts.length %> ENTRI</span></h3>
+    <% if (payouts.length === 0) { %>
+      <div class="empty">Belum ada payout dilakukan.</div>
+    <% } else { %>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Waktu</th>
+            <th>Payout No</th>
+            <th>Agen</th>
+            <th>Metode</th>
+            <th class="num">Komisi</th>
+            <th class="num">Jumlah</th>
+            <th>Paid by</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% payouts.forEach(function(p) { %>
+            <tr>
+              <td>
+                <div class="nm" style="font-size:13px;"><%= fmt.date(p.paidAt) %></div>
+                <div class="sx"><%= new Date(p.paidAt).toISOString().slice(11,16) %></div>
+              </td>
+              <td><a href="/admin/payouts/<%= p.id %>" class="id"><%= p.payoutNo %></a></td>
+              <td>
+                <div class="nm"><%= p.agent.displayName %></div>
+                <div class="sx">slug <%= p.agent.slug %></div>
+              </td>
+              <td><span class="badge"><%= p.method %></span></td>
+              <td class="num"><%= p._count.komisi %></td>
+              <td class="num amt emerald"><%= fmt.rpFull(p.amount) %></td>
+              <td><span class="sx" style="color:var(--cream-200);"><%= p.paidBy?.email || '—' %></span></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

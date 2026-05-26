@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Profil saya · <%= user.fullName %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { margin-bottom: 24px; }
+  .head h1 {
+    font-family: var(--font-display); font-size: 36px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+  .ok-banner, .err-banner {
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 18px; display: none;
+  }
+  .ok-banner { background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4); color: var(--emerald); }
+  .err-banner { background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4); color: var(--ruby); }
+  .ok-banner.is-visible, .err-banner.is-visible { display: block; }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px;
+    margin-bottom: 18px;
+  }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 20px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 6px;
+  }
+  .panel .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em; margin: 0 0 18px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .field { margin-bottom: 12px; }
+  .field .label-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .field .helper { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 4px; }
+  select.input { background-color: var(--ink-1000); color: var(--cream-100); }
+  textarea.input { resize: vertical; min-height: 70px; font-family: inherit; }
+  .footer-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 20px; padding-top: 20px;
+    border-top: var(--hairline-soft);
+  }
+
+  /* Docs (jemaah-side) */
+  .doc-list { display: flex; flex-direction: column; gap: 8px; }
+  .doc-row {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 14px;
+  }
+  .doc-row__head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .doc-row__lbl { color: var(--cream-100); font-size: 14px; font-weight: 500; }
+  .doc-row__verif { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-left: auto; letter-spacing: 0.06em; }
+  .doc-row__form {
+    display: grid; grid-template-columns: 1fr 140px auto auto;
+    gap: 8px; align-items: center;
+  }
+  .doc-row__form .input { padding: 7px 10px; font-size: 12px; }
+  .doc-row__form .doc-save {
+    background: var(--gold-300); color: var(--ink-1000);
+    border: 0; padding: 7px 12px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; cursor: pointer; font-weight: 600;
+  }
+  .doc-row__form .doc-save:disabled { background: var(--ink-700); color: var(--ink-300); cursor: not-allowed; }
+  .doc-row__form .doc-del {
+    background: transparent; border: 1px solid rgba(181,86,74,0.4);
+    color: var(--ruby);
+    padding: 7px 10px; border-radius: 3px;
+    cursor: pointer; font-size: 12px;
+  }
+  .doc-row__form .doc-del:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .doc-pill {
+    padding: 4px 9px; font-family: var(--font-mono); font-size: 11px;
+    border-radius: 3px; letter-spacing: 0.1em; font-weight: 600;
+    border: 1px solid; min-width: 24px; text-align: center;
+  }
+  .doc-pill.state-verified  { color: var(--emerald); border-color: rgba(74,143,109,0.5); background: rgba(74,143,109,0.08); }
+  .doc-pill.state-submitted { color: var(--amber);   border-color: rgba(201,147,59,0.5); background: rgba(201,147,59,0.08); }
+  .doc-pill.state-pending   { color: var(--ink-200); border-color: var(--ink-500); }
+  .doc-pill.state-rejected  { color: var(--ruby);    border-color: rgba(181,86,74,0.5); background: rgba(181,86,74,0.08); }
+  .doc-pill.state-expired   { color: var(--ruby);    border-color: var(--ruby);          background: rgba(181,86,74,0.15); }
+  .doc-pill.state-missing   { color: var(--ink-300); border-color: var(--ink-500); border-style: dashed; }
+
+  .doc-row__file {
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px dashed var(--ink-700);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-200);
+  }
+  .doc-row__file .filename { color: var(--cream-200); }
+  .doc-row__file .thumb {
+    display: block; width: 64px; height: 64px; object-fit: cover;
+    border: var(--hairline-soft); border-radius: 3px; background: var(--ink-1000);
+  }
+  .doc-row__file .thumb-link { line-height: 0; display: inline-block; flex-shrink: 0; }
+  .doc-row__file .thumb-link:hover .thumb { border-color: var(--gold-300); }
+  .doc-row__file .thumb-fallback {
+    display: flex; align-items: center; justify-content: center;
+    width: 64px; height: 64px; border: var(--hairline-soft); border-radius: 3px;
+    background: var(--ink-1000); font-size: 26px; flex-shrink: 0;
+  }
+  .doc-row__file a.dl {
+    color: var(--gold-300); text-decoration: none;
+    padding: 3px 10px; border: 1px solid var(--gold-300); border-radius: 3px;
+    letter-spacing: 0.1em; text-transform: uppercase; font-size: 10px;
+  }
+  .doc-row__file a.dl:hover { background: rgba(212,175,55,0.08); }
+  .doc-row__file .file-del {
+    background: transparent; border: var(--hairline-soft); color: var(--ruby);
+    padding: 3px 8px; border-radius: 3px; cursor: pointer;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+  }
+  .doc-row__file .file-del:disabled { opacity: 0.4; cursor: not-allowed; }
+  .doc-row__file input[type=file] {
+    color: var(--ink-100); font-family: var(--font-mono); font-size: 11px;
+  }
+  .doc-row__file input[type=file]::file-selector-button {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    color: var(--ink-100); padding: 4px 10px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; margin-right: 8px; cursor: pointer;
+  }
+  .doc-row__file .file-up {
+    background: var(--gold-300); color: var(--ink-1000); border: 0;
+    padding: 4px 12px; border-radius: 3px; cursor: pointer;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; font-weight: 600;
+  }
+  .doc-row__file .file-up:disabled { background: var(--ink-700); color: var(--ink-300); cursor: not-allowed; }
+  .doc-row__file .hint { color: var(--ink-300); font-size: 10px; }
+
+  .verified-lock {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.06em;
+    padding: 6px 0;
+  }
+</style>
+</head>
+<body data-screen-label="04 Portal Jemaah · Profil">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/saya">← KEMBALI KE PORTAL</a>
+  </div>
+
+  <div class="head">
+    <h1>Profil <em>saya</em></h1>
+    <div class="sub">
+      Lengkapi data ini untuk persiapan visa, manifes, dan dokumen perjalanan.
+    </div>
+  </div>
+
+  <div class="ok-banner" id="ok-banner"></div>
+  <div class="err-banner" id="err-banner"></div>
+
+  <form id="profile-form">
+    <div class="panel">
+      <h3>Identitas</h3>
+      <p class="sub">Nama lengkap harus sesuai paspor — dipakai untuk dokumen visa Umroh.</p>
+
+      <div class="field">
+        <label class="label" for="f-name">Nama lengkap (sesuai paspor) *</label>
+        <input class="input" name="fullName" id="f-name" required minlength="2" maxlength="190" value="<%= target.fullName %>">
+      </div>
+
+      <div class="grid-3">
+        <div class="field">
+          <label class="label" for="f-phone">Telepon / WA *</label>
+          <input class="input" name="phone" id="f-phone" required maxlength="30" value="<%= target.phone %>">
+        </div>
+        <div class="field">
+          <label class="label" for="f-email">Email</label>
+          <input class="input" type="email" name="email" id="f-email" maxlength="190" value="<%= target.email || '' %>">
+        </div>
+        <div class="field">
+          <label class="label" for="f-gender">Jenis kelamin</label>
+          <select class="input" name="gender" id="f-gender">
+            <option value="">—</option>
+            <% META.GENDERS.forEach(function(g) { %>
+              <option value="<%= g %>" <%= target.gender === g ? 'selected' : '' %>>
+                <%= g === 'L' ? 'Laki-laki' : 'Perempuan' %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="f-bdate">Tanggal lahir</label>
+          <input class="input" type="date" name="birthDate" id="f-bdate" value="<%= target.birthDate %>">
+        </div>
+        <div class="field">
+          <label class="label" for="f-nik">NIK (16 digit)</label>
+          <input class="input" name="nik" id="f-nik" maxlength="16" pattern="\d{16}"
+                 value="<%= target.nik || '' %>" placeholder="3201234567890123">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Paspor</h3>
+      <p class="sub">Saudi mensyaratkan masa berlaku ≥ 6 bulan saat keberangkatan.</p>
+
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="f-pass">Nomor paspor</label>
+          <input class="input" name="passportNo" id="f-pass" maxlength="190" value="<%= target.passportNo || '' %>" placeholder="A12345678">
+        </div>
+        <div class="field">
+          <label class="label" for="f-pexp">Tanggal expire</label>
+          <input class="input" type="date" name="passportExpiry" id="f-pexp" value="<%= target.passportExpiry %>">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Alamat &amp; kontak darurat</h3>
+      <div class="field">
+        <label class="label" for="f-addr">Alamat lengkap</label>
+        <textarea class="input" name="address" id="f-addr" rows="2"><%= target.address || '' %></textarea>
+      </div>
+      <div class="field">
+        <label class="label" for="f-emer">Kontak darurat</label>
+        <input class="input" name="emergencyContact" id="f-emer" maxlength="2000"
+               value="<%= target.emergencyContact || '' %>"
+               placeholder="Nama · hubungan · nomor telepon">
+      </div>
+      <div class="field">
+        <label class="label" for="f-notes">Catatan khusus (lansia, alergi, mahram, dll.)</label>
+        <textarea class="input" name="notes" id="f-notes" rows="3"><%= target.notes || '' %></textarea>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Preferensi notifikasi</h3>
+      <p class="sub">Pilih channel mana yang Anda ingin terima. Reminder pembayaran &amp; status booking penting tetap dikirim — tapi via channel yang Anda izinkan.</p>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
+          <input type="checkbox" name="notifWa" <%= target.notifWa !== false ? 'checked' : '' %> value="on" style="accent-color:var(--gold-300);width:18px;height:18px;">
+          <span>Kirim notifikasi via <strong style="color:var(--gold-300);">WhatsApp</strong> (booking, pembayaran, refund)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
+          <input type="checkbox" name="notifEmail" <%= target.notifEmail !== false ? 'checked' : '' %> value="on" style="accent-color:var(--gold-300);width:18px;height:18px;">
+          <span>Kirim notifikasi via <strong style="color:var(--gold-300);">Email</strong> (konfirmasi booking + receipts)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <a href="/saya" class="btn btn--ghost">Batal</a>
+      <button type="submit" class="btn btn--primary">Simpan profil</button>
+    </div>
+  </form>
+
+  <!-- Documents -->
+  <div class="panel" style="margin-top:24px;">
+    <h3>Dokumen saya</h3>
+    <p class="sub">Isi nomor referensi (paspor, sertifikat) lalu Simpan — tim Religio Pro akan verifikasi. Status VERIFIED hanya bisa diubah oleh admin.</p>
+
+    <%
+      const DOC_LABELS = {
+        PASSPORT: 'Paspor', VISA_UMROH: 'Visa Umroh', MANASIK_CERT: 'Sertifikat Manasik',
+        HEALTH_CERT: 'Surat Sehat', VACCINE_MENINGITIS: 'Vaksin Meningitis',
+        MARRIAGE_CERT: 'Akta Nikah (mahram)', FAMILY_CARD: 'Kartu Keluarga', OTHER: 'Lain',
+      };
+      const docsByType = new Map();
+      (target.documents || []).forEach((d) => docsByType.set(d.type, d));
+    %>
+
+    <div class="doc-list">
+      <% DOC_TYPES.forEach(function(type) {
+        const doc = docsByType.get(type);
+        const state = doc ? doc.status.toLowerCase() : 'missing';
+        const isVerified = doc && doc.status === 'VERIFIED';
+        const expISO = doc?.expiresAt ? new Date(doc.expiresAt).toISOString().slice(0,10) : '';
+      %>
+        <div class="doc-row" data-type="<%= type %>" data-doc-id="<%= doc?.id || '' %>">
+          <div class="doc-row__head">
+            <span class="doc-pill state-<%= state %>">
+              <%= DOC_PILL[type] %>
+            </span>
+            <span class="doc-row__lbl"><%= DOC_LABELS[type] %></span>
+            <span class="doc-row__verif">
+              <% if (isVerified) { %>
+                ✓ VERIFIED <%= fmt.date(doc.verifiedAt) %>
+              <% } else if (doc && doc.submittedAt) { %>
+                SUBMITTED <%= fmt.date(doc.submittedAt) %>
+              <% } else if (doc) { %>
+                <%= doc.status %>
+              <% } else { %>
+                belum diisi
+              <% } %>
+            </span>
+          </div>
+          <% if (isVerified) { %>
+            <div class="verified-lock">
+              Dokumen telah diverifikasi oleh admin · Anda tidak bisa mengubah/hapus dari sini.
+              <% if (doc.refNumber) { %><br>Nomor ref: <strong style="color:var(--cream-100);"><%= doc.refNumber %></strong><% } %>
+              <% if (doc.expiresAt) { %><br>Berlaku sampai: <strong style="color:var(--cream-100);"><%= fmt.date(doc.expiresAt) %></strong><% } %>
+            </div>
+            <% if (doc.filePath) { %>
+              <%# 5vv: native-inline image (jpeg/png/webp) renders as a thumbnail; pdf/heic gets an icon. %>
+              <% const isImg_v = ['image/jpeg','image/png','image/webp'].includes(doc.mimeType); %>
+              <div class="doc-row__file">
+                <% if (isImg_v) { %>
+                  <a class="thumb-link" href="/saya/documents/<%= doc.id %>/file" target="_blank" rel="noopener" title="Klik untuk perbesar">
+                    <img class="thumb" src="/saya/documents/<%= doc.id %>/file" alt="<%= doc.fileName || 'preview' %>">
+                  </a>
+                <% } else { %>
+                  <span class="thumb-fallback" title="<%= doc.mimeType %>"><%= doc.mimeType === 'application/pdf' ? '📄' : '🖼️' %></span>
+                <% } %>
+                <span class="filename"><%= doc.fileName || 'file' %> · <%= Math.round((doc.fileSize||0)/1024) %> KB</span>
+                <a class="dl" href="/saya/documents/<%= doc.id %>/file" target="_blank" rel="noopener">Lihat</a>
+              </div>
+            <% } %>
+          <% } else { %>
+            <div class="doc-row__form">
+              <input class="input doc-ref" placeholder="Nomor referensi (paspor / sertifikat)" value="<%= doc?.refNumber || '' %>" maxlength="190">
+              <input class="input doc-exp" type="date" value="<%= expISO %>" title="Tanggal expire (opsional)">
+              <button type="button" class="doc-save">SIMPAN</button>
+              <% if (doc) { %>
+                <button type="button" class="doc-del" title="Hapus tracking">✕</button>
+              <% } else { %>
+                <span style="display:inline-block;width:28px;"></span>
+              <% } %>
+            </div>
+            <% if (doc) { %>
+              <div class="doc-row__file">
+                <% if (doc.filePath) { %>
+                  <% const isImg_e = ['image/jpeg','image/png','image/webp'].includes(doc.mimeType); %>
+                  <% if (isImg_e) { %>
+                    <a class="thumb-link" href="/saya/documents/<%= doc.id %>/file" target="_blank" rel="noopener" title="Klik untuk perbesar">
+                      <img class="thumb" src="/saya/documents/<%= doc.id %>/file" alt="<%= doc.fileName || 'preview' %>">
+                    </a>
+                  <% } else { %>
+                    <span class="thumb-fallback" title="<%= doc.mimeType %>"><%= doc.mimeType === 'application/pdf' ? '📄' : '🖼️' %></span>
+                  <% } %>
+                  <span class="filename"><%= doc.fileName || 'file' %> · <%= Math.round((doc.fileSize||0)/1024) %> KB</span>
+                  <a class="dl" href="/saya/documents/<%= doc.id %>/file" target="_blank" rel="noopener">Lihat</a>
+                  <button type="button" class="file-del" title="Hapus file">Hapus file</button>
+                  <span class="hint">Re-upload akan menggantikan file ini.</span>
+                <% } else { %>
+                  <span class="hint">Belum ada file. PDF / JPG / PNG / WEBP / HEIC · maks 8 MB.</span>
+                <% } %>
+                <input type="file" class="file-input" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,application/pdf,image/*" hidden>
+                <button type="button" class="file-up">Pilih &amp; upload</button>
+              </div>
+            <% } %>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ok = document.getElementById('ok-banner');
+  const er = document.getElementById('err-banner');
+  function showOk(msg) { ok.textContent = msg; ok.classList.add('is-visible'); er.classList.remove('is-visible'); window.scrollTo(0, 0); }
+  function showErr(msg) { er.textContent = msg; er.classList.add('is-visible'); ok.classList.remove('is-visible'); window.scrollTo(0, 0); }
+
+  // Profile form
+  document.getElementById('profile-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    er.classList.remove('is-visible'); ok.classList.remove('is-visible');
+    const fd = new FormData(e.target);
+    const body = {};
+    for (const [k, v] of fd.entries()) {
+      if (v !== '') body[k] = v;
+    }
+    try {
+      const r = await fetch('/api/saya/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        showErr(j?.error?.message || 'Gagal menyimpan profil');
+        return;
+      }
+      showOk('Profil tersimpan.');
+    } catch {
+      showErr('Tidak dapat menghubungi server');
+    }
+  });
+
+  // Doc save/delete
+  document.querySelectorAll('.doc-row').forEach((row) => {
+    const type = row.dataset.type;
+    const saveBtn = row.querySelector('.doc-save');
+    const delBtn = row.querySelector('.doc-del');
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        saveBtn.disabled = true;
+        const refNumber = row.querySelector('.doc-ref').value || '';
+        const expiresAt = row.querySelector('.doc-exp').value || '';
+        try {
+          const r = await fetch('/api/saya/documents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type, refNumber, expiresAt }),
+          });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            showErr(j?.error?.message || 'Gagal simpan dokumen');
+            saveBtn.disabled = false;
+            return;
+          }
+          location.reload();
+        } catch {
+          showErr('Tidak dapat menghubungi server');
+          saveBtn.disabled = false;
+        }
+      });
+    }
+
+    if (delBtn) {
+      delBtn.addEventListener('click', async () => {
+        const docId = row.dataset.docId;
+        if (!docId || !confirm('Hapus tracking dokumen ini?')) return;
+        delBtn.disabled = true;
+        try {
+          const r = await fetch('/api/saya/documents/' + docId, { method: 'DELETE' });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            showErr(j?.error?.message || 'Gagal menghapus');
+            delBtn.disabled = false;
+            return;
+          }
+          location.reload();
+        } catch {
+          showErr('Tidak dapat menghubungi server');
+          delBtn.disabled = false;
+        }
+      });
+    }
+
+    // 5mm: file upload + delete-file
+    const fileUp = row.querySelector('.file-up');
+    const fileInput = row.querySelector('.file-input');
+    const fileDel = row.querySelector('.file-del');
+    if (fileUp && fileInput) {
+      fileUp.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', async () => {
+        const docId = row.dataset.docId;
+        if (!docId || !fileInput.files?.[0]) return;
+        fileUp.disabled = true;
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        try {
+          const r = await fetch('/api/saya/documents/' + docId + '/file', { method: 'POST', body: fd });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            showErr(j?.error?.message || 'Upload gagal');
+            fileUp.disabled = false;
+            return;
+          }
+          location.reload();
+        } catch {
+          showErr('Tidak dapat menghubungi server');
+          fileUp.disabled = false;
+        }
+      });
+    }
+    if (fileDel) {
+      fileDel.addEventListener('click', async () => {
+        const docId = row.dataset.docId;
+        if (!docId || !confirm('Hapus file (data tracking tetap)?')) return;
+        fileDel.disabled = true;
+        try {
+          const r = await fetch('/api/saya/documents/' + docId + '/file', { method: 'DELETE' });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            showErr(j?.error?.message || 'Gagal hapus file');
+            fileDel.disabled = false;
+            return;
+          }
+          location.reload();
+        } catch {
+          showErr('Tidak dapat menghubungi server');
+          fileDel.disabled = false;
+        }
+      });
+    }
+  });
+</script>
+</body>
+</html>

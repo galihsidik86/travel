@@ -1,0 +1,53 @@
+<div class="lead"
+  data-lead-id="<%= lead.id %>"
+  data-lead-name="<%= lead.fullName %>"
+  data-lead-paket="<%= lead.interestedPaketSlug || '' %>"
+  data-lead-kelas="<%= lead.interestedKelas || '' %>"
+  data-lead-pax="<%= lead.estPaxCount || '' %>"
+  data-lead-notes="<%= lead.notes || '' %>">
+  <div class="lead__head">
+    <span class="lead__locked"><%= lead.id.slice(-6).toUpperCase() %></span>
+    <span class="lead__source src-<%= lead.source.toLowerCase() %>"><%= lead.source %></span>
+  </div>
+  <div class="lead__name"><%= lead.fullName %></div>
+  <div class="lead__sub">
+    <%= lead.phone %>
+    <% if (lead.interestedKelas) { %> · <%= lead.interestedKelas %><% } %>
+    <% if (lead.estPaxCount) { %> · <%= lead.estPaxCount %> PAX<% } %>
+  </div>
+  <% if (lead.interestedPaketSlug) { %>
+    <div class="lead__sub" style="margin-top:2px;color:var(--ink-200);">
+      → <%= lead.interestedPaketSlug %>
+    </div>
+  <% } %>
+
+  <div class="lead__row">
+    <span class="lead__price">
+      <%= lead.estValueIdr ? fmt.rpShort(lead.estValueIdr) : '—' %>
+    </span>
+    <% if (lead.followUpAt) { %>
+      <span class="lead__chip">F/U <%= fmt.dateShort(lead.followUpAt) %></span>
+    <% } %>
+  </div>
+
+  <% if (lead.score != null) { %>
+    <div class="lead__progress"><i style="width:<%= lead.score %>%;"></i></div>
+  <% } %>
+
+  <% if (lead.notes) { %>
+    <div class="lead__fu"><%= lead.notes.length > 80 ? lead.notes.slice(0,80) + '…' : lead.notes %></div>
+  <% } %>
+
+  <div class="lead__actions">
+    <% if (typeof promoteTo === 'string' && promoteTo) { %>
+      <button type="button" data-move="<%= promoteTo %>">→ <%= promoteTo %></button>
+    <% } %>
+    <% if (typeof demoteTo === 'string' && demoteTo) { %>
+      <button type="button" data-move="<%= demoteTo %>">← <%= demoteTo %></button>
+    <% } %>
+    <% if (lead.status === 'WARM') { %>
+      <button type="button" class="primary" data-convert-lead>→ BOOKING</button>
+    <% } %>
+    <button type="button" class="danger" data-delete-lead>HAPUS</button>
+  </div>
+</div>

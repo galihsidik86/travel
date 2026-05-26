@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Portal Jemaah · <%= user.fullName %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 18px; margin-bottom: 28px;
+    border-bottom: var(--hairline-soft);
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+  }
+  .topbar .who { color: var(--gold-300); }
+  .topbar form { display: inline; }
+  .topbar button {
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-100); cursor: pointer;
+    padding: 6px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .topbar button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+
+  .hero {
+    background:
+      radial-gradient(80% 60% at 80% 0%, rgba(212,175,55,0.10), transparent 60%),
+      var(--ink-900);
+    border: var(--hairline-gold);
+    border-radius: var(--r-xl);
+    padding: 40px 48px;
+    margin-bottom: 32px;
+  }
+  .hero .eyebrow {
+    color: var(--gold-300);
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .hero h1 {
+    font-family: var(--font-display); font-size: 40px; font-weight: 500;
+    color: var(--cream-100); margin: 12px 0 0; letter-spacing: -0.015em;
+  }
+  .hero h1 em { font-style: italic; color: var(--gold-300); }
+  .hero .sub {
+    font-family: var(--font-mono); font-size: 12px;
+    color: var(--ink-100); letter-spacing: 0.08em; margin-top: 10px;
+  }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 28px;
+    margin-bottom: 20px;
+  }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 22px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 8px;
+  }
+  .panel .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em; margin: 0 0 20px;
+  }
+
+  .claim-form {
+    display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;
+  }
+  .claim-form .field { margin: 0; }
+  .claim-form .label { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 4px; }
+  .claim-form button {
+    background: var(--gold-300); color: var(--ink-1000);
+    border: 0; padding: 10px 18px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.14em; cursor: pointer; font-weight: 600;
+    text-transform: uppercase;
+  }
+  .claim-form button:hover { background: var(--gold-200); }
+
+  .claim-err {
+    margin-top: 12px;
+    background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 10px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    display: none;
+  }
+  .claim-err.is-visible { display: block; }
+  .claim-ok {
+    margin-top: 12px;
+    background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4);
+    color: var(--emerald);
+    padding: 10px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    display: none;
+  }
+  .claim-ok.is-visible { display: block; }
+
+  .booking-list { display: flex; flex-direction: column; gap: 12px; }
+  .booking-row {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-md); padding: 18px 22px;
+    display: grid; grid-template-columns: 1fr auto auto; gap: 18px;
+    align-items: center;
+  }
+  .booking-row a.title-link {
+    color: var(--cream-100); text-decoration: none;
+    font-family: var(--font-display); font-size: 18px;
+    font-weight: 500;
+  }
+  .booking-row a.title-link:hover { color: var(--gold-300); }
+  .booking-row .meta {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.04em; margin-top: 4px;
+  }
+  .booking-row .id { color: var(--gold-300); }
+  .booking-row .price {
+    font-family: var(--font-display); font-size: 20px; color: var(--cream-100);
+    font-weight: 500; text-align: right;
+  }
+  .booking-row .price .sub {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.06em;
+    margin-top: 2px; font-weight: normal;
+  }
+  .status-tag {
+    padding: 4px 10px; font-family: var(--font-mono); font-size: 10px;
+    border-radius: 3px; letter-spacing: 0.12em; border: 1px solid;
+  }
+  .status-tag.pending   { color: var(--amber); border-color: var(--amber); }
+  .status-tag.booked    { color: var(--sapphire); border-color: var(--sapphire); }
+  .status-tag.dp_paid   { color: var(--gold-300); border-color: var(--gold-300); }
+  .status-tag.partial   { color: var(--gold-300); border-color: rgba(212,175,55,0.5); }
+  .status-tag.lunas     { color: var(--emerald); border-color: var(--emerald); background: rgba(74,143,109,0.08); }
+  .status-tag.cancelled { color: var(--ruby); border-color: var(--ruby); }
+  .status-tag.refunded  { color: var(--ruby); border-color: var(--ruby); background: rgba(181,86,74,0.08); }
+
+  .empty {
+    border: 1px dashed var(--ink-500); border-radius: var(--r-md);
+    padding: 32px; text-align: center;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); line-height: 1.7;
+  }
+  .empty code { color: var(--gold-300); }
+</style>
+</head>
+<body data-screen-label="04 Portal Jemaah">
+<div class="wrap">
+
+  <div class="topbar">
+    <div>JEMAAH · <span class="who"><%= user.email %></span></div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a href="/saya/paket" style="background:transparent;border:var(--hairline-soft);color:var(--ink-100);text-decoration:none;padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;">Lihat paket</a>
+      <a href="/saya/notifications" style="background:transparent;border:var(--hairline-soft);color:var(--ink-100);text-decoration:none;padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;position:relative;display:inline-flex;align-items:center;gap:8px;">
+        Notifikasi
+        <% if (typeof unreadCount !== 'undefined' && unreadCount > 0) { %>
+          <span title="<%= unreadCount %> notifikasi baru"
+                style="background:var(--gold-300);color:var(--ink-1000);font-family:var(--font-mono);font-size:9.5px;line-height:1;padding:3px 6px;border-radius:8px;font-weight:700;letter-spacing:0.02em;">
+            <%= unreadCount > 99 ? '99+' : unreadCount %>
+          </span>
+        <% } %>
+      </a>
+      <a href="/saya/profile" style="background:transparent;border:var(--hairline-soft);color:var(--ink-100);text-decoration:none;padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;">Profil &amp; dokumen</a>
+      <form method="POST" action="/logout">
+        <button type="submit">Keluar</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const u = new URL(location.href);
+      if (u.searchParams.get('welcome')) {
+        const el = document.createElement('div');
+        el.style.cssText = 'background:rgba(74,143,109,0.08);border:1px solid rgba(74,143,109,0.4);color:var(--emerald);padding:14px 18px;border-radius:6px;font-family:var(--font-mono);font-size:12px;margin-bottom:24px;';
+        el.textContent = 'Selamat datang di portal jemaah Religio Pro! Klaim booking Anda untuk mulai memantau dokumen + pembayaran.';
+        document.querySelector('.topbar').after(el);
+      }
+    })();
+  </script>
+
+  <div class="hero">
+    <div class="eyebrow">Portal Jemaah · <%= bookings.length %> booking aktif</div>
+    <h1>Assalamu'alaikum,<br><em><%= user.fullName.split(' ')[0] %></em>.</h1>
+    <div class="sub">
+      <% if (bookings.length === 0) { %>
+        Anda belum punya booking ter-klaim. Gunakan form di bawah untuk klaim booking dengan nomor + nomor telepon.
+      <% } else { %>
+        Pantau status pembayaran, dokumen, dan kamar Anda di sini.
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Claim form -->
+  <div class="panel">
+    <h3>Klaim booking</h3>
+    <p class="sub">Masukkan nomor booking (mis. <code>RP-2026-00001</code>) + nomor telepon yang Anda pakai saat booking.</p>
+
+    <form id="claim-form" class="claim-form">
+      <div class="field">
+        <label class="label" for="cl-no">Nomor Booking *</label>
+        <input class="input" type="text" name="bookingNo" id="cl-no" required maxlength="50" placeholder="RP-2026-XXXXX">
+      </div>
+      <div class="field">
+        <label class="label" for="cl-phone">Telepon saat booking *</label>
+        <input class="input" type="text" name="phone" id="cl-phone" required maxlength="30" placeholder="0812-xxxx-xxxx">
+      </div>
+      <button type="submit">KLAIM</button>
+    </form>
+
+    <div class="claim-err" id="claim-err"></div>
+    <div class="claim-ok" id="claim-ok"></div>
+  </div>
+
+  <!-- Booking list -->
+  <div class="panel">
+    <h3>Booking saya</h3>
+    <p class="sub"><%= bookings.length %> booking ter-klaim di akun ini.</p>
+
+    <% if (bookings.length === 0) { %>
+      <div class="empty">
+        Belum ada booking yang ter-klaim.<br>
+        Klaim minimal 1 booking di atas untuk mulai melihat detail.
+      </div>
+    <% } else { %>
+      <div class="booking-list">
+        <% bookings.forEach(function(b) { %>
+          <%
+            const total = Number(b.totalAmount?.toString?.() ?? b.totalAmount) || 0;
+            const paid  = Number(b.paidAmount?.toString?.() ?? b.paidAmount) || 0;
+            const sisa  = Math.max(0, total - paid);
+          %>
+          <div class="booking-row">
+            <div>
+              <a href="/saya/bookings/<%= b.id %>" class="title-link"><%= b.paket.title %></a>
+              <div class="meta">
+                <span class="id"><%= b.bookingNo %></span>
+                · <%= b.kelas %>
+                · <%= b.paxCount %> PAX
+                · DEP <%= fmt.dateShort(b.paket.departureDate) %>
+                <% if (b.agent) { %> · via <%= b.agent.displayName %><% } %>
+              </div>
+            </div>
+            <div>
+              <span class="status-tag <%= b.status.toLowerCase() %>"><%= b.status %></span>
+            </div>
+            <div class="price">
+              <%= fmt.rpShort(total) %>
+              <div class="sub">
+                <% if (paid >= total && total > 0) { %>
+                  <span style="color:var(--emerald);">LUNAS</span>
+                <% } else { %>
+                  sisa <%= fmt.rpShort(sisa) %>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  const cf = document.getElementById('claim-form');
+  const ce = document.getElementById('claim-err');
+  const co = document.getElementById('claim-ok');
+
+  cf.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    ce.classList.remove('is-visible');
+    co.classList.remove('is-visible');
+    const fd = new FormData(cf);
+    try {
+      const r = await fetch('/api/saya/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingNo: fd.get('bookingNo'), phone: fd.get('phone') }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        ce.textContent = j?.error?.message || 'Klaim gagal';
+        ce.classList.add('is-visible');
+        return;
+      }
+      const j = await r.json();
+      co.textContent = j.alreadyClaimed
+        ? 'Booking ini memang sudah ter-klaim oleh akun Anda.'
+        : 'Booking berhasil di-klaim. Memuat ulang…';
+      co.classList.add('is-visible');
+      setTimeout(() => location.reload(), 1000);
+    } catch {
+      ce.textContent = 'Tidak dapat menghubungi server';
+      ce.classList.add('is-visible');
+    }
+  });
+</script>
+</body>
+</html>

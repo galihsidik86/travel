@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — Portal Agen &amp; Sales CRM</title>
+<link rel="stylesheet" href="../shared/tokens.css">
+<style>
+  body { min-height: 100vh; overflow-x: hidden; }
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ============ SIDEBAR ============ */
+  .rail {
+    background: var(--ink-1000);
+    border-right: var(--hairline);
+    padding: 24px 20px;
+    display: flex; flex-direction: column;
+    gap: 24px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  .rail__brand { padding: 4px 4px 16px; border-bottom: var(--hairline-soft); }
+  .rail__group { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-300); margin: 8px 4px 4px; }
+  .rail__nav { display: flex; flex-direction: column; gap: 1px; }
+  .rail__item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 12px; border-radius: var(--r-sm);
+    color: var(--ink-100); font-size: 13px; cursor: pointer;
+    background: none; border: 0; text-align: left; width: 100%;
+    transition: all var(--dur-fast); font-family: var(--font-sans);
+  }
+  .rail__item:hover { background: var(--ink-900); color: var(--cream-200); }
+  .rail__item.is-active { background: var(--ink-900); color: var(--gold-300); box-shadow: inset 2px 0 0 var(--gold-300); }
+  .rail__item svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.5; flex-shrink: 0; }
+  .rail__item .count { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--ink-300); background: var(--ink-800); border: var(--hairline-soft); padding: 1px 7px; border-radius: 999px; }
+  .rail__item.is-active .count { color: var(--gold-300); border-color: rgba(212,175,55,0.4); background: rgba(212,175,55,0.06); }
+
+  .rail__profile {
+    margin-top: auto;
+    padding: 16px;
+    background:
+      radial-gradient(60% 60% at 100% 0%, rgba(212,175,55,0.10), transparent 60%),
+      var(--ink-900);
+    border: var(--hairline-gold);
+    border-radius: var(--r-md);
+  }
+  .rail__profile .agent-id { font-family: var(--font-mono); font-size: 9.5px; color: var(--gold-300); letter-spacing: 0.14em; }
+  .rail__profile .name { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin-top: 4px; }
+  .rail__profile .tier { display: flex; gap: 4px; margin-top: 12px; }
+  .rail__profile .tier span { flex: 1; height: 4px; background: var(--ink-700); border-radius: 2px; }
+  .rail__profile .tier span.on { background: var(--gold-300); }
+  .rail__profile .tier-text { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-top: 8px; letter-spacing: 0.1em; }
+
+  /* ============ MAIN ============ */
+  .main { background: var(--ink-950); }
+  .topbar {
+    position: sticky; top: 0; z-index: 30;
+    background: rgba(10,9,8,0.85);
+    backdrop-filter: blur(18px);
+    border-bottom: var(--hairline-soft);
+    padding: 16px 40px;
+    display: flex; align-items: center; justify-content: space-between; gap: 32px;
+  }
+  .topbar__crumb { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; }
+  .topbar__crumb .sep { color: var(--ink-400); }
+  .topbar__crumb .leaf { color: var(--gold-300); }
+  .topbar__balance {
+    display: flex; align-items: center; gap: 24px;
+    padding: 6px 18px;
+    background: var(--ink-900);
+    border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+  }
+  .topbar__balance .label { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.14em; }
+  .topbar__balance .val { font-family: var(--font-display); font-size: 18px; color: var(--gold-300); margin-top: 2px; }
+
+  .page { display: none; padding: 40px; max-width: 1640px; margin: 0 auto; }
+  .page.is-active { display: block; }
+  .page__head { margin-bottom: 32px; }
+  .page__head .eyebrow { color: var(--gold-300); }
+  .page__head h1 {
+    font-family: var(--font-display);
+    font-size: 52px; font-weight: 500;
+    line-height: 1.05; letter-spacing: -0.015em;
+    color: var(--cream-100); margin: 14px 0 0;
+  }
+  .page__head h1 em { font-style: italic; color: var(--gold-300); }
+  .page__head .row { display: flex; justify-content: space-between; align-items: end; }
+  .page__head .meta { text-align: right; color: var(--ink-100); font-size: 13.5px; line-height: 1.5; max-width: 340px; }
+
+  /* ============ KANBAN ============ */
+  .kanban {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .col {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .col__head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 18px;
+    border-bottom: var(--hairline-soft);
+    background: var(--ink-1000);
+  }
+  .col__title { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-300); }
+  .col__title .count { color: var(--ink-200); margin-left: 8px; }
+  .col__sum { font-family: var(--font-mono); font-size: 11px; color: var(--cream-100); }
+
+  .col__body { padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 600px; max-height: 75vh; overflow-y: auto; }
+
+  .lead {
+    background: var(--ink-850);
+    border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+    padding: 14px;
+    cursor: grab;
+    transition: all var(--dur-fast);
+  }
+  .lead:hover { border-color: var(--gold-300); }
+  .lead--hot { border-color: rgba(212,175,55,0.4); background:
+    radial-gradient(80% 60% at 100% 0%, rgba(212,175,55,0.06), transparent),
+    var(--ink-850); }
+  .lead__head {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+  }
+  .lead__locked {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--gold-300);
+    letter-spacing: 0.1em;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .lead__locked::before { content: "◆"; }
+  .lead__name { font-family: var(--font-display); font-size: 19px; color: var(--cream-100); line-height: 1.1; font-weight: 500; }
+  .lead__sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 4px; letter-spacing: 0.06em; }
+  .lead__row {
+    display: flex; justify-content: space-between; align-items: end;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: var(--hairline-soft);
+  }
+  .lead__price { font-family: var(--font-display); font-size: 18px; color: var(--gold-300); }
+  .lead__chips { display: flex; gap: 4px; }
+  .lead__chip {
+    padding: 2px 7px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    background: var(--ink-800);
+    border: var(--hairline-soft);
+    color: var(--ink-100);
+    border-radius: 3px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .lead__chip.via-wa { color: #8FCBAA; border-color: rgba(74,143,109,0.3); }
+  .lead__chip.via-ig { color: #C7A0DD; border-color: rgba(155,80,200,0.3); }
+  .lead__chip.via-fb { color: #89B3CB; border-color: rgba(74,111,143,0.3); }
+  .lead__chip.via-walk { color: #E6BC75; border-color: rgba(201,147,59,0.3); }
+
+  .lead__progress {
+    margin-top: 10px;
+    height: 3px;
+    background: var(--ink-700);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .lead__progress > i { display: block; height: 100%; background: var(--gold-300); }
+  .lead__fu { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.06em; margin-top: 6px; }
+  .lead__fu .due { color: var(--amber); }
+
+  .add-lead {
+    border: 1px dashed var(--ink-500);
+    border-radius: var(--r-sm);
+    padding: 16px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-200);
+    letter-spacing: 0.12em;
+    cursor: pointer;
+  }
+  .add-lead:hover { border-color: var(--gold-300); color: var(--gold-300); }
+
+  /* ============ MARKETING KIT ============ */
+  .mk-grid {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 24px;
+  }
+  .mk-card {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    overflow: hidden;
+  }
+  .mk-card__visual {
+    height: 240px;
+    background:
+      linear-gradient(180deg, transparent 40%, rgba(10,9,8,0.95) 95%),
+      repeating-linear-gradient(45deg, var(--ink-800) 0 16px, var(--ink-700) 16px 32px);
+    position: relative;
+    display: flex; align-items: flex-end;
+    padding: 24px;
+  }
+  .mk-card__visual::before {
+    content: "PROGRAM PHOTO";
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em;
+    color: var(--ink-300); opacity: 0.6;
+  }
+  .mk-card__visual .badge { background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); }
+  .mk-card__body { padding: 24px; }
+  .mk-card__title { font-family: var(--font-display); font-size: 26px; color: var(--cream-100); margin: 0; font-weight: 500; letter-spacing: -0.005em; }
+  .mk-card__sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; margin-top: 6px; }
+
+  .mk-link {
+    margin-top: 24px;
+    background: var(--ink-1000);
+    border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .mk-link .url { font-family: var(--font-mono); font-size: 12px; color: var(--cream-100); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mk-link .url em { color: var(--gold-300); font-style: normal; }
+  .mk-link button { background: none; border: 0; color: var(--ink-200); cursor: pointer; padding: 4px 8px; }
+  .mk-link button:hover { color: var(--gold-300); }
+
+  .mk-controls {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    padding: 28px;
+  }
+  .mk-controls h3 { font-family: var(--font-display); font-size: 24px; color: var(--cream-100); margin: 0 0 18px; font-weight: 500; }
+  .mk-controls .field { margin-bottom: 16px; }
+  .mk-controls .helper { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 6px; letter-spacing: 0.06em; }
+
+  .channel-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin-top: 12px;
+  }
+  .channel-btn {
+    padding: 14px 16px;
+    background: var(--ink-1000);
+    border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    color: var(--cream-200);
+    font-size: 13px;
+    transition: all var(--dur-fast);
+  }
+  .channel-btn:hover { border-color: var(--gold-300); }
+  .channel-btn .ico { width: 22px; height: 22px; color: var(--gold-300); }
+  .channel-btn .ico svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 1.5; }
+
+  /* ============ WALLET / COMMISSION ============ */
+  .wallet-hero {
+    background:
+      radial-gradient(80% 60% at 80% 0%, rgba(212,175,55,0.12), transparent 60%),
+      linear-gradient(180deg, var(--ink-1000), var(--ink-900));
+    border: var(--hairline-gold);
+    border-radius: var(--r-xl);
+    padding: 56px;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 56px;
+    align-items: center;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .wallet-hero::before, .wallet-hero::after {
+    content: ""; position: absolute;
+    width: 320px; height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(212,175,55,0.08), transparent 70%);
+    pointer-events: none;
+  }
+  .wallet-hero::before { left: -100px; top: -100px; }
+  .wallet-hero::after { right: -100px; bottom: -100px; }
+
+  .wallet-hero__amt { position: relative; z-index: 2; }
+  .wallet-hero__amt .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; color: var(--gold-300); text-transform: uppercase; }
+  .wallet-hero__amt .num {
+    font-family: var(--font-display);
+    font-size: 88px; line-height: 1;
+    color: var(--cream-100); margin: 16px 0 12px;
+    font-weight: 500; letter-spacing: -0.02em;
+  }
+  .wallet-hero__amt .num .u { font-family: var(--font-mono); font-size: 18px; color: var(--gold-300); margin-left: 6px; }
+  .wallet-hero__amt .sub { font-family: var(--font-mono); font-size: 12px; color: var(--ink-100); letter-spacing: 0.08em; }
+  .wallet-hero__amt .actions { display: flex; gap: 12px; margin-top: 28px; }
+
+  .wallet-hero__stats { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 18px; }
+  .wallet-stat { display: flex; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid rgba(212,175,55,0.2); }
+  .wallet-stat:last-child { border-bottom: 0; padding-bottom: 0; }
+  .wallet-stat .l { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink-200); text-transform: uppercase; }
+  .wallet-stat .v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); font-weight: 500; }
+  .wallet-stat .v.gold { color: var(--gold-300); }
+
+  /* commission table */
+  .tbl {
+    width: 100%; border-collapse: collapse;
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); overflow: hidden;
+  }
+  .tbl thead th {
+    text-align: left; padding: 14px 16px;
+    background: var(--ink-1000);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-200); font-weight: 500;
+    border-bottom: var(--hairline);
+  }
+  .tbl tbody td {
+    padding: 16px; border-bottom: var(--hairline-soft);
+    font-size: 13.5px; color: var(--cream-200);
+  }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl tbody tr:hover td { background: var(--ink-850); }
+  .tbl .id { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .tbl .amt { font-family: var(--font-mono); color: var(--cream-100); }
+  .tbl .amt.in { color: var(--emerald); }
+  .tbl .amt.out { color: var(--ruby); }
+
+  /* point rewards */
+  .rewards {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    padding: 28px;
+  }
+  .rewards__head { display: flex; justify-content: space-between; align-items: end; margin-bottom: 24px; padding-bottom: 16px; border-bottom: var(--hairline-soft); }
+  .rewards__title { font-family: var(--font-display); font-size: 24px; color: var(--cream-100); margin: 0; font-weight: 500; }
+  .rewards__progress { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.1em; }
+
+  .reward-track {
+    height: 12px;
+    background: var(--ink-1000);
+    border-radius: 6px;
+    position: relative;
+    margin: 32px 0 56px;
+  }
+  .reward-track__fill {
+    height: 100%;
+    width: 62%;
+    background: linear-gradient(90deg, var(--gold-400), var(--gold-200));
+    border-radius: 6px;
+    position: relative;
+  }
+  .reward-track__fill::after {
+    content: ""; position: absolute;
+    right: -6px; top: -4px; width: 20px; height: 20px;
+    background: var(--gold-300); border: 3px solid var(--ink-1000);
+    border-radius: 50%;
+    box-shadow: 0 0 16px rgba(212,175,55,0.6);
+  }
+  .reward-marker {
+    position: absolute; top: -36px;
+    transform: translateX(-50%);
+    text-align: center;
+    width: 100px;
+  }
+  .reward-marker__dot {
+    width: 12px; height: 12px;
+    background: var(--ink-1000);
+    border: 2px solid var(--ink-500);
+    border-radius: 50%;
+    margin: 0 auto 6px;
+    position: relative; top: 38px;
+  }
+  .reward-marker.passed .reward-marker__dot { border-color: var(--gold-300); background: var(--gold-300); }
+  .reward-marker__label { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.08em; }
+  .reward-marker.passed .reward-marker__label { color: var(--gold-300); }
+
+  .reward-list {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  .reward-item {
+    padding: 18px;
+    background: var(--ink-850);
+    border-radius: var(--r-sm);
+    border-left: 2px solid var(--gold-300);
+  }
+  .reward-item__pax { font-family: var(--font-mono); font-size: 10px; color: var(--gold-300); letter-spacing: 0.14em; }
+  .reward-item__reward { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin-top: 6px; font-weight: 500; }
+  .reward-item.locked { opacity: 0.5; border-left-color: var(--ink-500); }
+  .reward-item.locked .reward-item__pax { color: var(--ink-200); }
+
+  /* leads kpi */
+  .lk-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .lk {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    padding: 20px;
+  }
+  .lk .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .lk .v { font-family: var(--font-display); font-size: 36px; color: var(--cream-100); margin: 8px 0 4px; line-height: 1; }
+  .lk .d { font-family: var(--font-mono); font-size: 11px; color: var(--emerald); }
+  .lk .d.down { color: var(--ruby); }
+
+  /* responsive nudge */
+  @media (max-width: 1100px) {
+    .kanban { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body data-screen-label="03 Portal Agen">
+
+<div class="app">
+  <!-- =========== SIDEBAR =========== -->
+  <aside class="rail">
+    <a href="../index.html" class="brand-mark rail__brand">
+      <span class="brand-mark__glyph">R</span>
+      <span class="brand-mark__name">Religio <em>Pro</em></span>
+    </a>
+
+    <nav class="rail__nav">
+      <div class="rail__group">Sales</div>
+      <button class="rail__item is-active" data-page="leads">
+        <svg viewBox="0 0 24 24"><path d="M3 11 H21 M5 7 C5 5 6 4 8 4 H16 C18 4 19 5 19 7 V17 C19 19 18 20 16 20 H8 C6 20 5 19 5 17 Z"/></svg>
+        Leads Pipeline
+        <span class="count">82</span>
+      </button>
+      <button class="rail__item" data-page="kit">
+        <svg viewBox="0 0 24 24"><path d="M4 4 H20 V14 H4 Z M4 9 H20 M12 14 V20 M8 20 H16"/></svg>
+        Marketing Kit
+        <span class="count">6</span>
+      </button>
+      <button class="rail__item" data-page="wallet">
+        <svg viewBox="0 0 24 24"><path d="M4 7 H20 V17 H4 Z M4 11 H20 M8 15 H10"/></svg>
+        Wallet &amp; Komisi
+      </button>
+
+      <div class="rail__group">Resources</div>
+      <button class="rail__item">
+        <svg viewBox="0 0 24 24"><path d="M4 7 L12 3 L20 7 V17 L12 21 L4 17 Z M4 7 L12 11 L20 7 M12 11 V21"/></svg>
+        Paket Aktif
+        <span class="count">12</span>
+      </button>
+      <button class="rail__item">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7 V12 L15 14"/></svg>
+        Follow-up Hari Ini
+        <span class="count">9</span>
+      </button>
+      <button class="rail__item">
+        <svg viewBox="0 0 24 24"><path d="M4 4 H20 V20 H4 Z M4 9 H20 M8 14 L11 17 L16 12"/></svg>
+        Riwayat
+      </button>
+
+      <div class="rail__group">Account</div>
+      <button class="rail__item">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"/></svg>
+        Profil Agen
+      </button>
+    </nav>
+
+    <div class="rail__profile">
+      <div class="agent-id">AG-BANDUNG-04</div>
+      <div class="name">Lia Marlina</div>
+      <div class="tier"><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div>
+      <div class="tier-text">TIER GOLD · 14 JEMAAH MUSIM INI</div>
+    </div>
+  </aside>
+
+  <!-- =========== MAIN =========== -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar__crumb">
+        <span>RELIGIO PRO</span>
+        <span class="sep">/</span>
+        <span>AGEN</span>
+        <span class="sep">/</span>
+        <span class="leaf" id="crumb-leaf">Leads Pipeline</span>
+      </div>
+      <div class="topbar__balance">
+        <div>
+          <div class="label">SALDO WALLET</div>
+          <div class="val">Rp 24.840.000</div>
+        </div>
+        <div style="height:32px;width:1px;background:var(--ink-500);"></div>
+        <div>
+          <div class="label">PENDING</div>
+          <div class="val" style="color:var(--amber);">Rp 8.640.000</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn--ghost btn--sm">Notifikasi</button>
+        <button class="btn btn--primary btn--sm">+ Lead Baru</button>
+      </div>
+    </div>
+
+    <!-- ============ LEADS PIPELINE ============ -->
+    <section class="page is-active" id="page-leads">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Sales pipeline · Bu Lia Marlina · Bandung-04</span>
+            <h1>14 leads aktif,<br><em>Rp 540 Juta</em> potensi.</h1>
+          </div>
+          <div class="meta">
+            <strong style="color:var(--cream-100);">Targetmu bulan ini: 8 jemaah</strong><br>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.08em;">SUDAH TERCAPAI: 5/8 · 1 LAGI MASUK GOLD TIER</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="lk-grid">
+        <div class="lk"><div class="l">Leads bulan ini</div><div class="v">28</div><div class="d">▲ 8 vs bulan lalu</div></div>
+        <div class="lk"><div class="l">Konversi</div><div class="v">36<span style="font-family:var(--font-mono);font-size:14px;color:var(--gold-300);"> %</span></div><div class="d">▲ 4% vs bulan lalu</div></div>
+        <div class="lk"><div class="l">F/U Pending hari ini</div><div class="v">9</div><div class="d down">3 sudah lewat tenggat</div></div>
+        <div class="lk"><div class="l">Komisi musim ini</div><div class="v">8,4<span style="font-family:var(--font-mono);font-size:14px;color:var(--gold-300);"> JT</span></div><div class="d">▲ Rp 1,2 Jt minggu ini</div></div>
+      </div>
+
+      <div class="kanban">
+        <!-- COLD -->
+        <div class="col">
+          <div class="col__head">
+            <span class="col__title">Cold · <span class="count">28</span></span>
+            <span class="col__sum">Rp 240 Jt</span>
+          </div>
+          <div class="col__body">
+            <div class="lead">
+              <div class="lead__head">
+                <span class="lead__locked">PT-LEAD-1182</span>
+                <div class="lead__chips"><span class="lead__chip via-wa">WA</span></div>
+              </div>
+              <div class="lead__name">Pak Hasan Wibowo</div>
+              <div class="lead__sub">Quad · DEP MEI · 1 PAX</div>
+              <div class="lead__row">
+                <span class="lead__price">Rp 32,5 Jt</span>
+                <span class="lead__chip">F/U H+2</span>
+              </div>
+              <div class="lead__progress"><i style="width:18%;"></i></div>
+              <div class="lead__fu">Tertangkap dari iklan WhatsApp · 22 Mei</div>
+            </div>
+            <div class="lead">
+              <div class="lead__head">
+                <span class="lead__locked">PT-LEAD-1183</span>
+                <div class="lead__chips"><span class="lead__chip via-ig">IG</span></div>
+              </div>
+              <div class="lead__name">Bu Yuli Anwar</div>
+              <div class="lead__sub">Triple · DEP MEI · 1 PAX</div>
+              <div class="lead__row">
+                <span class="lead__price">Rp 35,8 Jt</span>
+                <span class="lead__chip">F/U H+3</span>
+              </div>
+              <div class="lead__progress"><i style="width:22%;"></i></div>
+              <div class="lead__fu">Komen post Reels · 20 Mei</div>
+            </div>
+            <div class="lead">
+              <div class="lead__head">
+                <span class="lead__locked">PT-LEAD-1184</span>
+                <div class="lead__chips"><span class="lead__chip via-walk">WALK</span></div>
+              </div>
+              <div class="lead__name">Pak Zulkifli</div>
+              <div class="lead__sub">Double · DEP MEI · 1 PAX</div>
+              <div class="lead__row">
+                <span class="lead__price">Rp 38,5 Jt</span>
+                <span class="lead__chip"><span style="color:var(--amber);">F/U TODAY</span></span>
+              </div>
+              <div class="lead__progress"><i style="width:28%;"></i></div>
+              <div class="lead__fu"><span class="due">⚠ Lewat tenggat 2 hari</span></div>
+            </div>
+            <div class="lead">
+              <div class="lead__head">
+                <span class="lead__locked">PT-LEAD-1185</span>
+                <div class="lead__chips"><span class="lead__chip via-fb">FB</span></div>
+              </div>
+              <div class="lead__name">Pak Nurdin Latif</div>
+              <div class="lead__sub">Quad · DEP JUL · 2 PAX</div>
+              <div class="lead__row">
+                <span class="lead__price">Rp 65,0 Jt</span>
+                <span class="lead__chip">F/U H+5</span>
+              </div>
+              <div class="lead__progress"><i style="width:16%;"></i></div>
+              <div class="lead__fu">Klik landing page · 18 Mei</div>
+            </div>
+            <div class="add-lead">+ TAMBAH LEAD</div>
+          </div>
+        </div>
+
+        <!-- WARM -->
+        <div class="col">
+          <div class="col__head">
+            <span class="col__title">Warm · <span class="count">14</span></span>
+            <span class="col__sum">Rp 420 Jt</span>
+          </div>
+          <div class="col__body">
+            <div class="lead">
+              <div class="lead__head">
+                <span class="lead__locked">PT-LEAD-1186</span>
+                <div class="lead__chips"><span class="lead__chip via-wa">WA</span><span class="lead__chip">FAM</span></div>
+              </div>
+              <div class="lead__name">Bu Hartini Susanto</div>
+              <div class="lead__sub">Plus Aqsa · DEP SEP · 2 PAX</div>
+              <div class="lead__row">
+                <span class="lead__price">Rp 78,0 Jt</span>
+                <span class="lead__chip">PROPOSAL</span>
+              </div>
+              <div class="lead__progress"><i style="width:62%;"></i></div>
+              <div class="lead__fu">F/U: <span style="color:var(--gold-300);">Kirim brosur paket VVIP · besok 10:00</span></div>
+            </div>
+            <div class="lead">
+              <div class="lead__head">
+                <span class="lead__locked">PT-LEAD-1187</span>
+                <div class="lead__chips"><span class="lead__chip via-wa">WA</span></div>
+              </div>
+              <div class="lead__name">Pak Joko Wibowo</div>
+              <div class="lead__sub">Triple · DEP SEP · 4 PAX</div>
+              <div class="lead__row">
+                <span class="lead__price">Rp 143 Jt</span>
+                <span class="lead__chip">DEMO</span>
+              </div>
+              <div class="lead__progress"><i style="width:55%;"></i></div>
+              <div class="lead__fu">Sudah meeting di toko · pertimbangkan keluarga</div>
+            </div>
+            <div class="lead">
+              <div class="lead__head">
+                <span class="lead__locked">PT-LEAD-1188</span>
+                <div class="lead__chips"><span class="lead__chip via-ig">IG</span></div>
+              </div>
+              <div class="lead__name">Bu Sarah Hidayat</div>
+              <div class="lead__sub">Quad · DEP JUL · 1 PAX</div>
+              <div class="lead__row">
+                <span class="lead__price">Rp 29,8 Jt</span>
+                <span class="lead__chip"><span style="color:var(--amber);">F/U TODAY</span></span>
+              </div>
+              <div class="lead__progress"><i style="width:48%;"></i></div>
+              <div class="lead__fu">Tanya cicilan via DM · perlu jelaskan</div>
+            </div>
+            <div class="add-lead">+ TAMBAH LEAD</div>
+          </div>
+        </div>
+
+        <!-- HOT -->
+        <div class="col">
+          <div class="col__head">
+            <span class="col__title">Hot / DP · <span class="count">8</span></span>
+            <span class="col__sum" style="color:var(--gold-300);">Rp 540 Jt</span>
+          </div>
+          <div class="col__body">
+            <div class="lead lead--hot">
+              <div class="lead__head">
+                <span class="lead__locked">PT-LEAD-1189</span>
+                <div class="lead__chips"><span class="lead__chip" style="color:var(--gold-300);border-color:var(--gold-300);">VVIP</span><span class="lead__chip">FAM</span></div>
+              </div>
+              <div class="lead__name">Keluarga Rahman</div>
+              <div class="lead__sub">Eksekutif Madinah · 6 PAX</div>
+              <div class="lead__row">
+                <span class="lead__price">Rp 312 Jt</span>
+                <span class="lead__chip" style="color:var(--gold-300);border-color:var(--gold-300);">DP 100Jt</span>
+              </div>
+              <div class="lead__progress"><i style="width:80%;"></i></div>
+              <div class="lead__fu">Pelunasan: <strong style="color:var(--cream-100);">28 Mei 2026</strong></div>
+            </div>
+            <div class="lead lead--hot">
+              <div class="lead__head">
+                <span class="lead__locked">PT-LEAD-1190</span>
+                <div class="lead__chips"><span class="lead__chip via-wa">WA</span></div>
+              </div>
+              <div class="lead__name">Bu Siti Aminah</div>
+              <div class="lead__sub">Quad · DEP MEI · 1 PAX</div>
+              <div class="lead__row">
+                <span class="lead__price">Rp 32,5 Jt</span>
+                <span class="lead__chip">DP 30%</span>
+              </div>
+              <div class="lead__progress"><i style="width:72%;"></i></div>
+              <div class="lead__fu">Cicilan 1/3 masuk · jatuh tempo 25 Mei</div>
+            </div>
+            <div class="lead lead--hot">
+              <div class="lead__head">
+                <span class="lead__locked">PT-LEAD-1191</span>
+                <div class="lead__chips"><span class="lead__chip via-walk">WALK</span></div>
+              </div>
+              <div class="lead__name">Pak Anwar Hidayat</div>
+              <div class="lead__sub">Triple · DEP JUL · 2 PAX</div>
+              <div class="lead__row">
+                <span class="lead__price">Rp 67,0 Jt</span>
+                <span class="lead__chip">DP 50%</span>
+              </div>
+              <div class="lead__progress"><i style="width:68%;"></i></div>
+              <div class="lead__fu">Konfirmasi visa · 26 Mei</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LUNAS -->
+        <div class="col">
+          <div class="col__head">
+            <span class="col__title" style="color:var(--emerald);">Lunas · <span class="count" style="color:var(--ink-200);">5</span></span>
+            <span class="col__sum">Rp 187 Jt</span>
+          </div>
+          <div class="col__body">
+            <div class="lead" style="border-left:3px solid var(--emerald);">
+              <div class="lead__head">
+                <span class="lead__locked" style="color:var(--emerald);">✓ PT-2026-0481</span>
+                <div class="lead__chips"><span class="lead__chip">KOMISI</span></div>
+              </div>
+              <div class="lead__name">Ahmad Fauzi</div>
+              <div class="lead__sub">Quad · MEI · LUNAS 11 MEI</div>
+              <div class="lead__row">
+                <span class="lead__price" style="color:var(--emerald);">Rp 32,5 Jt</span>
+                <span class="lead__chip" style="color:var(--emerald);">+ Rp 1,95 Jt</span>
+              </div>
+            </div>
+            <div class="lead" style="border-left:3px solid var(--emerald);">
+              <div class="lead__head">
+                <span class="lead__locked" style="color:var(--emerald);">✓ PT-2026-0482</span>
+                <div class="lead__chips"><span class="lead__chip">KOMISI</span></div>
+              </div>
+              <div class="lead__name">Hartini Susanto</div>
+              <div class="lead__sub">Plus Aqsa · 1 PAX · DOUBLE</div>
+              <div class="lead__row">
+                <span class="lead__price" style="color:var(--emerald);">Rp 61,8 Jt</span>
+                <span class="lead__chip" style="color:var(--emerald);">+ Rp 4,94 Jt</span>
+              </div>
+            </div>
+            <div class="lead" style="border-left:3px solid var(--emerald);">
+              <div class="lead__head">
+                <span class="lead__locked" style="color:var(--emerald);">✓ PT-2026-0485</span>
+                <div class="lead__chips"><span class="lead__chip">KOMISI</span></div>
+              </div>
+              <div class="lead__name">Yusuf Karim</div>
+              <div class="lead__sub">Quad · MEI · LUNAS 10 MEI</div>
+              <div class="lead__row">
+                <span class="lead__price" style="color:var(--emerald);">Rp 32,5 Jt</span>
+                <span class="lead__chip" style="color:var(--emerald);">+ Rp 1,95 Jt</span>
+              </div>
+            </div>
+            <div class="lead" style="border-left:3px solid var(--emerald);">
+              <div class="lead__head">
+                <span class="lead__locked" style="color:var(--emerald);">✓ PT-2026-0486</span>
+                <div class="lead__chips"><span class="lead__chip">KOMISI</span></div>
+              </div>
+              <div class="lead__name">Siti Rahmah</div>
+              <div class="lead__sub">Triple · MEI · LUNAS 12 MEI</div>
+              <div class="lead__row">
+                <span class="lead__price" style="color:var(--emerald);">Rp 35,8 Jt</span>
+                <span class="lead__chip" style="color:var(--emerald);">+ Rp 2,15 Jt</span>
+              </div>
+            </div>
+            <div class="lead" style="border-left:3px solid var(--emerald);">
+              <div class="lead__head">
+                <span class="lead__locked" style="color:var(--emerald);">✓ PT-2026-0497</span>
+                <div class="lead__chips"><span class="lead__chip">KOMISI</span></div>
+              </div>
+              <div class="lead__name">Andi Pratama</div>
+              <div class="lead__sub">Quad · MEI · LUNAS 09 MEI</div>
+              <div class="lead__row">
+                <span class="lead__price" style="color:var(--emerald);">Rp 32,5 Jt</span>
+                <span class="lead__chip" style="color:var(--emerald);">+ Rp 1,95 Jt</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MARKETING KIT ============ -->
+    <section class="page" id="page-kit">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Marketing kit · auto-link</span>
+            <h1>Landing page-mu sendiri,<br>untuk <em>setiap paket.</em></h1>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <button class="btn btn--ghost btn--sm">Unduh QR (semua)</button>
+            <button class="btn btn--primary btn--sm">Bagikan ke WhatsApp</button>
+          </div>
+        </div>
+      </header>
+
+      <p style="color:var(--ink-100);font-size:15px;max-width:680px;margin:0 0 32px;line-height:1.6;">
+        Setiap paket yang dibuat HQ otomatis menjadi <strong style="color:var(--gold-300);">landing page elegan</strong> dengan nama, foto, dan nomor WhatsApp Anda. Jika jemaah mendaftar via link Anda, sistem otomatis menguncinya sebagai milik Anda.
+      </p>
+
+      <div class="mk-grid" style="margin-bottom:24px;">
+        <div class="mk-card">
+          <div class="mk-card__visual">
+            <span class="badge badge--solid-gold">VVIP</span>
+          </div>
+          <div class="mk-card__body">
+            <h4 class="mk-card__title">Umroh Plus Aqsa Ramadhan</h4>
+            <p class="mk-card__sub">RAMADHAN 1447H · 12 HARI · DEP 14 MAR 2026</p>
+            <div class="mk-link">
+              <span class="url">religiopro.id/p/aqsa-ramadhan-<em>?ag=bandung04</em></span>
+              <button>Salin</button>
+              <button>QR</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:24px -28px -28px;border-top:var(--hairline-soft);">
+              <div style="padding:18px;border-right:var(--hairline-soft);">
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;">CLICKS · 7 HARI</div>
+                <div style="font-family:var(--font-display);font-size:24px;color:var(--cream-100);margin-top:4px;">142</div>
+              </div>
+              <div style="padding:18px;border-right:var(--hairline-soft);">
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;">LEADS</div>
+                <div style="font-family:var(--font-display);font-size:24px;color:var(--cream-100);margin-top:4px;">18</div>
+              </div>
+              <div style="padding:18px;">
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;">KOMISI POTENSI</div>
+                <div style="font-family:var(--font-display);font-size:24px;color:var(--gold-300);margin-top:4px;">62 Jt</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mk-controls">
+          <h3>Kustomisasi link-mu</h3>
+          <div class="field">
+            <span class="label">Slug agen</span>
+            <input class="input" value="bandung04">
+            <div class="helper">URL akhir: religiopro.id/p/&lt;paket&gt;?ag=<strong style="color:var(--gold-300);">bandung04</strong></div>
+          </div>
+          <div class="field">
+            <span class="label">No. WhatsApp ditampilkan</span>
+            <input class="input" value="+62 813-2240-7891">
+            <div class="helper">Tombol "Chat Agen" mengarah ke nomor ini.</div>
+          </div>
+          <div class="field">
+            <span class="label">Bio singkat (opsional)</span>
+            <input class="input" value="Agen tier Gold · 28 jemaah · Bandung &amp; sekitarnya">
+          </div>
+
+          <p class="label" style="margin-top:16px;">Bagikan via</p>
+          <div class="channel-row">
+            <button class="channel-btn">
+              <span class="ico"><svg viewBox="0 0 24 24"><path d="M5 19 L19 12 L5 5 V11 L13 12 L5 13 Z"/></svg></span>
+              WhatsApp Broadcast
+            </button>
+            <button class="channel-btn">
+              <span class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r="0.6" fill="currentColor"/></svg></span>
+              Story Instagram
+            </button>
+            <button class="channel-btn">
+              <span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12 H21 M12 3 C15 6 16 9 16 12 C16 15 15 18 12 21 C9 18 8 15 8 12 C8 9 9 6 12 3"/></svg></span>
+              QR Cetak A5
+            </button>
+            <button class="channel-btn">
+              <span class="ico"><svg viewBox="0 0 24 24"><path d="M4 8 V18 H20 V8 M4 8 L12 14 L20 8 M4 8 H20"/></svg></span>
+              Email
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Paket</th>
+            <th>Jenis</th>
+            <th>Periode</th>
+            <th>Clicks (7H)</th>
+            <th>Leads</th>
+            <th>Komisi Potensi</th>
+            <th style="text-align:right;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong style="color:var(--cream-100);">Umroh Plus Aqsa Ramadhan</strong></td>
+            <td><span class="badge badge--gold">VVIP</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink-100);">14 MAR · 12 HARI</span></td>
+            <td><span class="amt">142</span></td>
+            <td><span class="amt">18</span></td>
+            <td><span class="amt in">Rp 62 Jt</span></td>
+            <td style="text-align:right;"><a class="btn btn--outline-gold btn--sm">Bagikan</a></td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--cream-100);">Umroh Mei 2026 — Reguler</strong></td>
+            <td><span class="badge">Reguler</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink-100);">18 MEI · 9 HARI</span></td>
+            <td><span class="amt">312</span></td>
+            <td><span class="amt">42</span></td>
+            <td><span class="amt in">Rp 84 Jt</span></td>
+            <td style="text-align:right;"><a class="btn btn--outline-gold btn--sm">Bagikan</a></td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--cream-100);">Eksekutif Plus Madinah</strong></td>
+            <td><span class="badge badge--gold">VVIP</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink-100);">10 JUN · 15 HARI</span></td>
+            <td><span class="amt">84</span></td>
+            <td><span class="amt">9</span></td>
+            <td><span class="amt in">Rp 48 Jt</span></td>
+            <td style="text-align:right;"><a class="btn btn--outline-gold btn--sm">Bagikan</a></td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--cream-100);">Umroh Juli 2026 — Reguler</strong></td>
+            <td><span class="badge">Reguler</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink-100);">14 JUL · 9 HARI</span></td>
+            <td><span class="amt">198</span></td>
+            <td><span class="amt">24</span></td>
+            <td><span class="amt in">Rp 42 Jt</span></td>
+            <td style="text-align:right;"><a class="btn btn--outline-gold btn--sm">Bagikan</a></td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--cream-100);">Umroh Plus Al-Aqsa Premium</strong></td>
+            <td><span class="badge badge--gold">Plus Aqsa</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink-100);">02 SEP · 17 HARI</span></td>
+            <td><span class="amt">56</span></td>
+            <td><span class="amt">6</span></td>
+            <td><span class="amt in">Rp 38 Jt</span></td>
+            <td style="text-align:right;"><a class="btn btn--outline-gold btn--sm">Bagikan</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============ WALLET ============ -->
+    <section class="page" id="page-wallet">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Wallet digital · transparan · real-time</span>
+            <h1>Komisi yang <em>tidak pernah</em><br>tertunda.</h1>
+          </div>
+          <button class="btn btn--primary">Cairkan ke Rekening</button>
+        </div>
+      </header>
+
+      <!-- Wallet hero -->
+      <div class="wallet-hero">
+        <div class="wallet-hero__amt">
+          <div class="label">Saldo tersedia · IDR</div>
+          <div class="num">24.840.000<span class="u">IDR</span></div>
+          <div class="sub">Setara: USD 1.564 · SAR 5.867 · Diperbarui realtime</div>
+          <div class="actions">
+            <button class="btn btn--primary">Cairkan Rp 24,84 Jt</button>
+            <button class="btn btn--outline-gold">Riwayat Transfer</button>
+          </div>
+        </div>
+        <div class="wallet-hero__stats">
+          <div class="wallet-stat">
+            <span class="l">Pending · 3 jemaah</span>
+            <span class="v">Rp 8.640.000</span>
+          </div>
+          <div class="wallet-stat">
+            <span class="l">Komisi musim ini</span>
+            <span class="v gold">Rp 38.420.000</span>
+          </div>
+          <div class="wallet-stat">
+            <span class="l">Jemaah lunas musim ini</span>
+            <span class="v">14 / 25</span>
+          </div>
+          <div class="wallet-stat">
+            <span class="l">Tier &amp; rate komisi</span>
+            <span class="v gold">Gold · 6–10%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Point Rewards Track -->
+      <div class="rewards" style="margin-bottom:24px;">
+        <div class="rewards__head">
+          <h3 class="rewards__title">Point rewards berjenjang</h3>
+          <span class="rewards__progress">14 / 25 JEMAAH · 56% MENUJU PLATINUM</span>
+        </div>
+
+        <div class="reward-track">
+          <div class="reward-track__fill"></div>
+          <div class="reward-marker passed" style="left:0%;"><div class="reward-marker__dot"></div><div class="reward-marker__label">START</div></div>
+          <div class="reward-marker passed" style="left:20%;"><div class="reward-marker__dot"></div><div class="reward-marker__label">5 PAX</div></div>
+          <div class="reward-marker passed" style="left:40%;"><div class="reward-marker__dot"></div><div class="reward-marker__label">10 PAX · GOLD</div></div>
+          <div class="reward-marker" style="left:62%;"><div class="reward-marker__dot" style="border-color:var(--gold-300);"></div><div class="reward-marker__label" style="color:var(--gold-300);">14 PAX ← KAMU</div></div>
+          <div class="reward-marker" style="left:80%;"><div class="reward-marker__dot"></div><div class="reward-marker__label">20 PAX</div></div>
+          <div class="reward-marker" style="left:100%;"><div class="reward-marker__dot"></div><div class="reward-marker__label">25 PAX · PLATINUM</div></div>
+        </div>
+
+        <div class="reward-list">
+          <div class="reward-item">
+            <div class="reward-item__pax">✓ 5 PAX · TERCAPAI</div>
+            <div class="reward-item__reward">Voucher umroh 50% · sudah diklaim</div>
+          </div>
+          <div class="reward-item">
+            <div class="reward-item__pax">✓ 10 PAX · TERCAPAI</div>
+            <div class="reward-item__reward">Tier Gold · komisi 6 → 8%</div>
+          </div>
+          <div class="reward-item">
+            <div class="reward-item__pax">⌖ 20 PAX · 6 LAGI</div>
+            <div class="reward-item__reward">1 kursi gratis senilai Rp 32,5 Jt</div>
+          </div>
+          <div class="reward-item locked">
+            <div class="reward-item__pax">◌ 25 PAX · 11 LAGI</div>
+            <div class="reward-item__reward">Tier Platinum · komisi 10% + 1 kursi</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transaction history -->
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Tanggal</th>
+            <th>Aktivitas</th>
+            <th>Jemaah / Paket</th>
+            <th>Rate</th>
+            <th>Jumlah</th>
+            <th>Status</th>
+            <th>Hash</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">23 MEI · 11:42</span></td>
+            <td>Komisi pelunasan</td>
+            <td><strong style="color:var(--cream-100);">Bu Hartini Susanto</strong><div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Plus Aqsa Premium · Rp 61,8 Jt</div></td>
+            <td><span class="amt">8%</span></td>
+            <td><span class="amt in">+ Rp 4.944.000</span></td>
+            <td><span class="badge badge--emerald badge--dot">Masuk wallet</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">7e2f…04ad</span></td>
+          </tr>
+          <tr>
+            <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">22 MEI · 14:12</span></td>
+            <td>Pencairan ke BCA</td>
+            <td>****-3214 · Lia Marlina</td>
+            <td><span class="amt">—</span></td>
+            <td><span class="amt out">− Rp 6.864.000</span></td>
+            <td><span class="badge badge--emerald badge--dot">Selesai</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">b40a…f912</span></td>
+          </tr>
+          <tr>
+            <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">12 MEI · 16:08</span></td>
+            <td>Komisi pelunasan</td>
+            <td><strong style="color:var(--cream-100);">Bu Siti Rahmah</strong><div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Umroh Mei Reguler · Rp 35,8 Jt</div></td>
+            <td><span class="amt">6%</span></td>
+            <td><span class="amt in">+ Rp 2.148.000</span></td>
+            <td><span class="badge badge--emerald badge--dot">Masuk wallet</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">aa14…7820</span></td>
+          </tr>
+          <tr>
+            <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">11 MEI · 09:24</span></td>
+            <td>Komisi pelunasan</td>
+            <td><strong style="color:var(--cream-100);">Pak Ahmad Fauzi</strong><div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Umroh Mei Reguler · Rp 32,5 Jt</div></td>
+            <td><span class="amt">6%</span></td>
+            <td><span class="amt in">+ Rp 1.950.000</span></td>
+            <td><span class="badge badge--emerald badge--dot">Masuk wallet</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">ff32…14a1</span></td>
+          </tr>
+          <tr>
+            <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">10 MEI · 13:58</span></td>
+            <td>Komisi pelunasan</td>
+            <td><strong style="color:var(--cream-100);">Pak Yusuf Karim</strong><div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Umroh Mei Reguler · Rp 32,5 Jt</div></td>
+            <td><span class="amt">6%</span></td>
+            <td><span class="amt in">+ Rp 1.950.000</span></td>
+            <td><span class="badge badge--emerald badge--dot">Masuk wallet</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">c41a…f902</span></td>
+          </tr>
+          <tr>
+            <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">09 MEI · 10:11</span></td>
+            <td>Komisi DP 30%</td>
+            <td><strong style="color:var(--cream-100);">Keluarga Rahman</strong><div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Eksekutif Madinah · 6 PAX · DP 100Jt</div></td>
+            <td><span class="amt">10%</span></td>
+            <td><span class="amt" style="color:var(--amber);">+ Rp 10.000.000</span></td>
+            <td><span class="badge badge--amber badge--dot">Pending pelunasan</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">93de…6f48</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  const items = document.querySelectorAll('.rail__item');
+  const pages = document.querySelectorAll('.page');
+  const crumb = document.getElementById('crumb-leaf');
+  const labels = { leads: 'Leads Pipeline', kit: 'Marketing Kit', wallet: 'Wallet & Komisi' };
+  items.forEach(it => it.addEventListener('click', () => {
+    const target = it.dataset.page;
+    if (!target) return;
+    items.forEach(i => i.classList.toggle('is-active', i.dataset.page === target && i === it));
+    pages.forEach(p => p.classList.toggle('is-active', p.id === 'page-' + target));
+    crumb.textContent = labels[target] || target;
+    window.scrollTo(0, 0);
+  }));
+</script>
+</body>
+</html>

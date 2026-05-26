@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Crew · <%= paket.title %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+
+  .head { display: flex; justify-content: space-between; align-items: end; margin-bottom: 20px; gap: 20px; flex-wrap: wrap; }
+  .head h1 { font-family: var(--font-display); font-size: 30px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; margin-top: 8px; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 26px; }
+  .kpi { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 16px 18px; }
+  .kpi .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .kpi .v { font-family: var(--font-display); font-size: 26px; color: var(--cream-100); margin-top: 6px; font-weight: 500; }
+  .kpi .v.gold { color: var(--gold-300); }
+
+  .tbl { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+  .tbl thead th { text-align: left; padding: 12px 14px; background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); font-weight: 500; border-bottom: var(--hairline); }
+  .tbl tbody td { padding: 12px 14px; border-bottom: var(--hairline-soft); font-size: 12.5px; color: var(--cream-200); vertical-align: top; }
+  .tbl tbody tr:hover td { background: var(--ink-850); }
+  .tbl .id { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .tbl .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; letter-spacing: 0.04em; }
+
+  .status-tag {
+    padding: 3px 8px; font-family: var(--font-mono); font-size: 9.5px;
+    border-radius: 3px; letter-spacing: 0.1em; border: 1px solid;
+  }
+  .status-tag.pending   { color: var(--amber); border-color: var(--amber); }
+  .status-tag.booked    { color: var(--sapphire); border-color: var(--sapphire); }
+  .status-tag.dp_paid   { color: var(--gold-300); border-color: var(--gold-300); }
+  .status-tag.partial   { color: var(--gold-300); border-color: rgba(212,175,55,0.5); }
+  .status-tag.lunas     { color: var(--emerald); border-color: var(--emerald); background: rgba(74,143,109,0.08); }
+
+  .doc-strip { display: flex; gap: 3px; flex-wrap: wrap; }
+  .doc-pill {
+    display: inline-block; padding: 2px 6px; font-family: var(--font-mono); font-size: 9px;
+    border-radius: 2px; border: 1px solid;
+  }
+  .doc-pill.state-verified  { color: var(--emerald); border-color: rgba(74,143,109,0.5); background: rgba(74,143,109,0.08); }
+  .doc-pill.state-submitted { color: var(--amber);   border-color: rgba(201,147,59,0.5); background: rgba(201,147,59,0.08); }
+  .doc-pill.state-pending   { color: var(--ink-200); border-color: var(--ink-500); }
+  .doc-pill.state-rejected  { color: var(--ruby);    border-color: rgba(181,86,74,0.5); background: rgba(181,86,74,0.08); }
+  .doc-pill.state-expired   { color: var(--ruby);    border-color: var(--ruby);          background: rgba(181,86,74,0.15); }
+  .doc-pill.state-missing   { color: var(--ink-300); border-color: var(--ink-500); border-style: dashed; }
+
+  .empty { padding: 40px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+</style>
+</head>
+<body data-screen-label="05 Crew · Manifest">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/crew">← KEMBALI KE DAFTAR PAKET</a>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1><em><%= paket.title %></em></h1>
+      <div class="sub">
+        <%= paket.slug %> · DEP <%= fmt.dateLong(paket.departureDate) %> · <%= paket.durationDays %> hari
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <%# 5ww: per-day attendance grid %>
+      <a href="/crew/paket/<%= paket.slug %>/attendance"
+         style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-100);text-decoration:none;border:var(--hairline-soft);padding:8px 16px;border-radius:var(--r-sm);"
+         title="Attendance per hari (itinerary)">
+        ✓ Absensi
+      </a>
+      <%# 5ss: offline-friendly export — open in any spreadsheet on a laptop/phone %>
+      <a href="/crew/paket/<%= paket.slug %>/export.csv"
+         style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:8px 16px;border-radius:var(--r-sm);"
+         title="Download manifest sebagai CSV (untuk referensi offline)">
+        ⬇ Export CSV
+      </a>
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="l">Jemaah aktif</div><div class="v gold"><%= paket.bookings.length %></div></div>
+    <div class="kpi"><div class="l">Kursi terisi</div><div class="v"><%= paket.kursiTerisi %> / <%= paket.kursiTotal %></div></div>
+    <div class="kpi">
+      <div class="l">Doc verified</div>
+      <div class="v">
+        <% const allDocs = paket.bookings.flatMap((b) => (b.docPills || [])); %>
+        <% const verifiedCount = allDocs.filter((p) => p.state === 'verified').length; %>
+        <%= verifiedCount %>
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="l">LUNAS</div>
+      <div class="v"><%= paket.bookings.filter((b) => b.status === 'LUNAS').length %></div>
+    </div>
+  </div>
+
+  <% if (paket.bookings.length === 0) { %>
+    <div class="empty">Belum ada booking aktif untuk paket ini.</div>
+  <% } else { %>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:130px;">Booking</th>
+          <th>Jemaah</th>
+          <th style="width:90px;">Kelas</th>
+          <th style="width:100px;">Kamar</th>
+          <th style="width:90px;">Status</th>
+          <th>Dokumen</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% paket.bookings.forEach(function(b) { %>
+          <tr>
+            <td>
+              <div class="id"><%= b.bookingNo %></div>
+              <div class="sx"><%= b.paxCount %> PAX</div>
+            </td>
+            <td>
+              <div class="nm"><%= b.jemaah.fullName %></div>
+              <div class="sx">📱 <%= b.jemaah.phone %></div>
+              <% if (b.jemaah.emergencyContact) { %>
+                <div class="sx">🆘 <%= b.jemaah.emergencyContact %></div>
+              <% } %>
+              <% if (b.jemaah.passportNo) { %>
+                <div class="sx">PSP <%= b.jemaah.passportNo %><% if (b.jemaah.passportExpiry) { %> · exp <%= fmt.dateShort(b.jemaah.passportExpiry) %><% } %></div>
+              <% } %>
+            </td>
+            <td><%= b.kelas %></td>
+            <td>
+              <% if (b.room) { %>
+                <div class="nm"><%= b.room.roomNo %></div>
+                <div class="sx">lt <%= b.room.floor %> · <%= b.room.wing || '' %></div>
+              <% } else { %>
+                <span class="sx" style="color:var(--amber);">— belum</span>
+              <% } %>
+            </td>
+            <td><span class="status-tag <%= b.status.toLowerCase() %>"><%= b.status %></span></td>
+            <td>
+              <div class="doc-strip">
+                <% (b.docPills || []).forEach(function(p) { %>
+                  <span class="doc-pill state-<%= p.state %>" title="<%= p.type %> · <%= p.state %>"><%= p.label %></span>
+                <% }) %>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+</body>
+</html>

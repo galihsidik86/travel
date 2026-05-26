@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Absensi Hari <%= day.dayNumber %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head h1 { font-family: var(--font-display); font-size: 28px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; margin-top: 8px; }
+  .head { margin-bottom: 22px; }
+
+  .ok-banner { display: none; background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4); color: var(--emerald); padding: 10px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11.5px; margin-bottom: 16px; }
+  .ok-banner.is-visible { display: block; }
+
+  .tbl { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+  .tbl thead th { text-align: left; padding: 12px 14px; background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); font-weight: 500; border-bottom: var(--hairline); }
+  .tbl tbody td { padding: 11px 14px; border-bottom: var(--hairline-soft); font-size: 12.5px; color: var(--cream-200); vertical-align: middle; }
+  .tbl tbody tr:hover td { background: var(--ink-850); }
+  .tbl .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .id { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+
+  .row-form { display: flex; gap: 10px; align-items: center; margin: 0; }
+  .row-form .toggle-wrap {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em;
+    cursor: pointer;
+  }
+  .row-form input[type=checkbox] {
+    appearance: none; width: 22px; height: 22px;
+    border: 2px solid var(--ink-500); border-radius: 4px;
+    cursor: pointer; background: var(--ink-1000); transition: all 120ms ease;
+    position: relative;
+  }
+  .row-form input[type=checkbox]:checked {
+    border-color: var(--emerald); background: var(--emerald);
+  }
+  .row-form input[type=checkbox]:checked::after {
+    content: '✓'; position: absolute; top: -1px; left: 3px;
+    color: var(--ink-1000); font-weight: 700; font-size: 16px;
+  }
+  .row-form .notes {
+    flex: 1; min-width: 140px;
+    background: var(--ink-1000); border: var(--hairline-soft);
+    color: var(--cream-100); padding: 6px 10px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  .row-form button {
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-100); cursor: pointer;
+    padding: 7px 14px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .row-form button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+
+  .mark-meta { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-300); letter-spacing: 0.04em; margin-top: 4px; }
+  .empty { padding: 40px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+</style>
+</head>
+<body data-screen-label="05 Crew · Attendance Day">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/crew/paket/<%= paket.slug %>/attendance">← KEMBALI KE OVERVIEW ABSENSI</a>
+  </div>
+
+  <div class="head">
+    <h1>Hari <%= day.dayNumber %> · <em><%= day.title %></em></h1>
+    <div class="sub">
+      <% if (day.dateLabel) { %><%= day.dateLabel %><% if (day.monthLabel) { %> <%= day.monthLabel %><% } %> · <% } %>
+      <%= paket.title %>
+    </div>
+  </div>
+
+  <% if (day.description) { %>
+    <div style="background:var(--ink-900);border:var(--hairline);border-radius:var(--r-md);padding:14px 18px;margin-bottom:18px;font-family:var(--font-body);font-size:13px;color:var(--ink-100);line-height:1.55;">
+      <%= day.description %>
+    </div>
+  <% } %>
+
+  <div id="ok-banner" class="ok-banner">Tersimpan.</div>
+
+  <% if (bookings.length === 0) { %>
+    <div class="tbl"><div class="empty">Tidak ada jemaah aktif untuk paket ini.</div></div>
+  <% } else { %>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Jemaah</th>
+          <th style="width:90px;">Kelas</th>
+          <th style="width:90px;">Kamar</th>
+          <th style="width:50%;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% bookings.forEach(function(b) { %>
+          <tr>
+            <td>
+              <div class="nm"><%= b.jemaah.fullName %></div>
+              <div class="sx"><span class="id"><%= b.bookingNo %></span> · 📱 <%= b.jemaah.phone %></div>
+            </td>
+            <td><%= b.kelas %></td>
+            <td><%= b.room?.roomNo || '—' %></td>
+            <td>
+              <form class="row-form" method="POST" action="/crew/paket/<%= paket.slug %>/attendance/<%= day.id %>/<%= b.id %>">
+                <label class="toggle-wrap">
+                  <input type="checkbox" name="present" value="on" <%= b.mark?.present ? 'checked' : '' %>>
+                  <span><%= b.mark?.present ? 'Hadir' : (b.mark ? 'Tidak hadir' : 'Belum ditandai') %></span>
+                </label>
+                <input class="notes" type="text" name="notes" maxlength="500"
+                       placeholder="Catatan (opsional, mis. alasan absen)"
+                       value="<%= b.mark?.notes || '' %>">
+                <button type="submit">Simpan</button>
+              </form>
+              <% if (b.mark) { %>
+                <div class="mark-meta">terakhir: <%= fmt.date(b.mark.markedAt) %> oleh <%= b.mark.markedBy?.fullName || '—' %></div>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<script>
+  (function () {
+    const u = new URL(location.href);
+    if (u.searchParams.get('ok') === 'saved') {
+      document.getElementById('ok-banner').classList.add('is-visible');
+      // Clear ?ok=saved from URL after a moment so a refresh doesn't re-show
+      history.replaceState(null, '', location.pathname);
+      setTimeout(() => document.getElementById('ok-banner').classList.remove('is-visible'), 2500);
+    }
+  })();
+</script>
+</body>
+</html>

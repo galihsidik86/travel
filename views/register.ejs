@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daftar · RELIGIO PRO</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body {
+    min-height: 100vh; display: grid; place-items: center;
+    background:
+      radial-gradient(60% 50% at 50% 0%, rgba(212,175,55,0.06), transparent 70%),
+      var(--ink-1000);
+    padding: 24px;
+  }
+  .wrap { width: 100%; max-width: 460px; }
+  .brand-mark { justify-content: center; margin-bottom: 32px; }
+  .card.reg {
+    padding: 40px 32px; background: var(--ink-900);
+    border: var(--hairline-gold);
+  }
+  .reg h1 {
+    font-family: var(--font-display); font-size: 30px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.01em;
+  }
+  .reg h1 em { font-style: italic; color: var(--gold-300); }
+  .reg .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 24px;
+  }
+  .field { margin-bottom: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .err {
+    background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 10px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 18px;
+  }
+  .actions { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+  .hint {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.06em;
+    text-align: center; margin-top: 18px;
+  }
+  .hint a { color: var(--gold-300); text-decoration: none; }
+</style>
+</head>
+<body data-screen-label="00 Register">
+  <div class="wrap">
+    <a href="/" class="brand-mark">
+      <span class="brand-mark__glyph">R</span>
+      <span class="brand-mark__name">Religio <em>Pro</em></span>
+    </a>
+
+    <div class="card reg">
+      <h1>Daftar <em>akun jemaah</em></h1>
+      <div class="sub">Untuk pantau booking + dokumen Anda</div>
+
+      <% if (error) { %>
+        <div class="err"><%= error %></div>
+      <% } %>
+
+      <form method="POST" action="/register" autocomplete="on">
+        <div class="field">
+          <label class="label" for="r-name">Nama lengkap *</label>
+          <input class="input" type="text" name="fullName" id="r-name" required
+                 minlength="2" maxlength="190" value="<%= values.fullName %>"
+                 placeholder="Sesuai paspor — penting!">
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label class="label" for="r-email">Email *</label>
+            <input class="input" type="email" name="email" id="r-email" required
+                   maxlength="190" value="<%= values.email %>"
+                   placeholder="anda@email.com">
+          </div>
+          <div class="field">
+            <label class="label" for="r-phone">Telepon / WA *</label>
+            <input class="input" type="text" name="phone" id="r-phone" required
+                   minlength="8" maxlength="30" value="<%= values.phone %>"
+                   placeholder="0812-xxxx-xxxx">
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="r-pwd">Password *</label>
+          <input class="input" type="password" name="password" id="r-pwd" required
+                 minlength="8" maxlength="200" placeholder="Min. 8 karakter">
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Daftar</button>
+        </div>
+      </form>
+
+      <div class="hint">
+        Sudah punya akun? <a href="/login">Masuk di sini.</a><br>
+        Punya booking dari tautan agen? Daftar dulu, lalu klaim di portal Anda.
+      </div>
+    </div>
+  </div>
+</body>
+</html>

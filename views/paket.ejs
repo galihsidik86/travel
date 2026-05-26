@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — <%= paket.title %><% if (paket.subtitle) { %> · <%= paket.subtitle %><% } %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { overflow-x: hidden; }
+
+  /* RIBBON */
+  .ribbon { background: linear-gradient(90deg, var(--ink-1000), var(--ink-900) 30%, var(--ink-900) 70%, var(--ink-1000)); border-bottom: var(--hairline-soft); padding: 10px 0; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); }
+  .ribbon__inner { max-width: 1280px; margin: 0 auto; padding: 0 32px; display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+  .ribbon__left { display: flex; align-items: center; gap: 14px; }
+  .ribbon__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold-300); box-shadow: 0 0 12px var(--gold-300); animation: pulse 2.4s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .ribbon__url { color: var(--cream-200); }
+  .ribbon__url em { color: var(--gold-300); font-style: normal; }
+
+  /* NAV */
+  .nav { position: sticky; top: 0; z-index: 50; backdrop-filter: blur(20px); background: rgba(10,9,8,0.82); border-bottom: var(--hairline-soft); }
+  .nav__inner { max-width: 1280px; margin: 0 auto; padding: 16px 32px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 32px; }
+  .nav__links { display: flex; gap: 32px; justify-content: center; font-size: 13px; color: var(--ink-100); }
+  .nav__links a { color: inherit; text-decoration: none; transition: color var(--dur-fast); }
+  .nav__links a:hover { color: var(--gold-300); }
+  .nav__price { display: flex; align-items: center; gap: 16px; }
+  .nav__price .amount { font-family: var(--font-display); font-size: 22px; color: var(--gold-300); font-weight: 500; line-height: 1; }
+  .nav__price .amount .from { font-family: var(--font-mono); font-size: 10px; color: var(--ink-300); text-transform: uppercase; letter-spacing: 0.14em; display: block; margin-bottom: 2px; }
+
+  /* HERO */
+  .hero { position: relative; padding: 96px 32px 80px; max-width: 1280px; margin: 0 auto; overflow: hidden; }
+  .hero__bg { position: absolute; inset: -100px -200px -100px 40%; background: radial-gradient(60% 60% at 60% 30%, rgba(212,175,55,0.10), transparent 70%), radial-gradient(40% 40% at 20% 80%, rgba(74,143,109,0.04), transparent 60%); pointer-events: none; }
+  .hero__crest { position: absolute; right: 0; top: 64px; width: 540px; height: 540px; border: 1px solid rgba(212,175,55,0.18); border-radius: 50%; pointer-events: none; }
+  .hero__crest::before { content: ""; position: absolute; inset: 80px; border: 1px solid rgba(212,175,55,0.10); border-radius: 50%; }
+  .hero__crest::after { content: ""; position: absolute; inset: 180px; border: 1px solid rgba(212,175,55,0.06); border-radius: 50%; }
+  .hero__grid { position: relative; display: grid; grid-template-columns: 1.4fr 1fr; gap: 64px; align-items: end; }
+  .hero__eyebrow { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
+  .hero__eyebrow .line { flex: 1; max-width: 80px; height: 1px; background: var(--ink-500); }
+  .hero__title { font-family: var(--font-display); font-size: clamp(56px, 8vw, 104px); line-height: 0.94; letter-spacing: -0.025em; font-weight: 400; color: var(--cream-100); margin: 0; }
+  .hero__title em { font-style: italic; color: var(--gold-300); font-weight: 400; }
+  .hero__arabic { font-family: var(--font-arabic); font-size: 38px; color: var(--gold-200); direction: rtl; text-align: left; margin: 28px 0 8px; line-height: 1.5; letter-spacing: 0.02em; }
+  .hero__translit { font-family: var(--font-display); font-style: italic; font-size: 16px; color: var(--ink-100); margin: 0 0 36px; }
+  .hero__meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: var(--hairline-soft); margin-top: 40px; padding-top: 24px; }
+  .hero__meta div { padding-right: 16px; }
+  .hero__meta dt { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-300); margin-bottom: 6px; }
+  .hero__meta dd { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); font-weight: 500; margin: 0; letter-spacing: -0.005em; line-height: 1.15; }
+  .hero__meta dd .u { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-left: 4px; }
+
+  /* AGENT CARD */
+  .agent-card { background: radial-gradient(120% 80% at 0% 0%, rgba(212,175,55,0.06), transparent 60%), var(--ink-900); border: 1px solid var(--ink-500); border-radius: var(--r-xl); padding: 32px; box-shadow: var(--shadow-lg), var(--inset-hairline); position: relative; }
+  .agent-card__head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 18px; border-bottom: var(--hairline-soft); margin-bottom: 22px; }
+  .agent-card__head .l { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-300); }
+  .agent-card__profile { display: flex; align-items: center; gap: 16px; }
+  .agent-card__avatar { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--ink-700), var(--ink-900)); border: 1px solid var(--gold-300); display: grid; place-items: center; font-family: var(--font-display); font-size: 22px; color: var(--gold-300); }
+  .agent-card__name { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); font-weight: 500; letter-spacing: -0.01em; line-height: 1.1; }
+  .agent-card__name em { font-style: italic; color: var(--gold-300); }
+  .agent-card__role { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
+  .agent-card__contacts { display: flex; flex-direction: column; gap: 10px; margin: 22px 0; }
+  .agent-card__contacts a { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--ink-850); border: var(--hairline); border-radius: var(--r-md); color: var(--cream-200); font-size: 13px; text-decoration: none; transition: all var(--dur-fast); }
+  .agent-card__contacts a:hover { border-color: var(--gold-300); background: var(--ink-800); }
+  .agent-card__contacts svg { width: 16px; height: 16px; stroke: var(--gold-300); fill: none; stroke-width: 1.5; flex-shrink: 0; }
+  .agent-card__price { margin-top: 24px; padding-top: 22px; border-top: var(--hairline-soft); display: flex; align-items: end; justify-content: space-between; }
+  .agent-card__price .from { font-family: var(--font-mono); font-size: 10px; color: var(--ink-300); letter-spacing: 0.14em; text-transform: uppercase; }
+  .agent-card__price .amount { font-family: var(--font-display); font-size: 44px; color: var(--gold-300); font-weight: 500; line-height: 1; margin-top: 4px; letter-spacing: -0.01em; }
+  .agent-card__price .amount .ccy { font-family: var(--font-mono); font-size: 13px; color: var(--ink-200); margin-right: 6px; }
+  .agent-card__cta { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  .agent-card__cta .promo { font-family: var(--font-mono); font-size: 10px; color: var(--emerald); letter-spacing: 0.12em; text-transform: uppercase; }
+
+  /* SECTIONS */
+  .section { max-width: 1280px; margin: 0 auto; padding: 96px 32px; border-top: var(--hairline-soft); position: relative; }
+  .section__head { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; margin-bottom: 56px; }
+  .section__head h2 { font-family: var(--font-display); font-size: clamp(36px, 5vw, 56px); line-height: 1; letter-spacing: -0.02em; color: var(--cream-100); margin: 12px 0 0; font-weight: 400; }
+  .section__head h2 em { font-style: italic; color: var(--gold-300); }
+  .section__head p { color: var(--ink-100); font-size: 15px; line-height: 1.65; margin: 0; align-self: end; max-width: 480px; }
+
+  /* HIGHLIGHTS */
+  .highlights { display: grid; grid-template-columns: repeat(4, 1fr); border: var(--hairline); border-radius: var(--r-lg); overflow: hidden; background: var(--ink-900); }
+  .highlight { padding: 32px 28px; border-right: var(--hairline-soft); position: relative; }
+  .highlight:last-child { border-right: 0; }
+  .highlight__ico { width: 28px; height: 28px; margin-bottom: 22px; color: var(--gold-300); }
+  .highlight__ico svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 1.25; }
+  .highlight__label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-200); margin-bottom: 8px; }
+  .highlight__value { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); font-weight: 500; line-height: 1.2; letter-spacing: -0.005em; }
+  .highlight__sub { font-size: 12.5px; color: var(--ink-100); margin-top: 6px; }
+  .stars { color: var(--gold-300); letter-spacing: 0.04em; font-size: 13px; }
+
+  /* HOTELS */
+  .hotels { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .hotel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-lg); overflow: hidden; display: flex; flex-direction: column; }
+  .hotel__visual { height: 320px; position: relative; overflow: hidden; border-bottom: var(--hairline); }
+  .hotel--mekkah .hotel__visual { background: radial-gradient(ellipse at 50% 100%, rgba(212,175,55,0.4), transparent 50%), radial-gradient(ellipse at 50% 20%, rgba(184,148,86,0.15), transparent 70%), linear-gradient(180deg, var(--ink-1000), #15110a); }
+  .hotel--madinah .hotel__visual { background: radial-gradient(ellipse at 50% 80%, rgba(74,143,109,0.35), transparent 55%), radial-gradient(circle at 50% 35%, rgba(237,230,211,0.08), transparent 50%), linear-gradient(180deg, var(--ink-1000), #0c1410); }
+  .hotel__visual::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 3px 3px; }
+  .skyline { position: absolute; bottom: 0; left: 0; right: 0; height: 140px; pointer-events: none; }
+  .skyline svg { width: 100%; height: 100%; display: block; }
+  .skyline path { fill: rgba(5,4,3,0.7); }
+  .hotel__visual .crescent { position: absolute; top: 32px; right: 32px; font-family: var(--font-arabic); font-size: 56px; color: var(--gold-200); direction: rtl; opacity: 0.4; }
+  .hotel__meta { padding: 28px 32px 32px; display: flex; flex-direction: column; gap: 14px; }
+  .hotel__row { display: flex; justify-content: space-between; align-items: baseline; }
+  .hotel__name { font-family: var(--font-display); font-size: 30px; color: var(--cream-100); font-weight: 500; letter-spacing: -0.01em; margin: 0; line-height: 1.1; }
+  .hotel__city { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold-300); }
+  .hotel__desc { color: var(--ink-100); font-size: 14px; line-height: 1.6; margin: 0; }
+  .hotel__specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px; padding-top: 18px; border-top: var(--hairline-soft); }
+  .hotel__specs > div { display: flex; flex-direction: column; gap: 4px; }
+  .hotel__specs .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-300); letter-spacing: 0.14em; text-transform: uppercase; }
+  .hotel__specs .v { font-size: 13.5px; color: var(--cream-200); }
+
+  /* ITINERARY */
+  .timeline { position: relative; padding-left: 64px; list-style: none; margin: 0; }
+  .timeline::before { content: ""; position: absolute; left: 24px; top: 12px; bottom: 12px; width: 1px; background: linear-gradient(180deg, transparent, var(--gold-500) 5%, var(--ink-500) 50%, var(--ink-500) 95%, transparent); }
+  .day { position: relative; padding: 24px 0; border-bottom: var(--hairline-soft); display: grid; grid-template-columns: 0.5fr 1fr 1fr; gap: 48px; align-items: start; }
+  .day:last-child { border-bottom: 0; }
+  .day::before { content: ""; position: absolute; left: -52px; top: 36px; width: 9px; height: 9px; border-radius: 50%; background: var(--ink-900); border: 2px solid var(--gold-300); box-shadow: 0 0 0 4px var(--ink-950); }
+  .day--highlight::before { background: var(--gold-300); box-shadow: 0 0 0 4px var(--ink-950), var(--glow-gold); }
+  .day__num { font-family: var(--font-mono); font-size: 10px; color: var(--ink-300); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 4px; }
+  .day__date { font-family: var(--font-display); font-size: 30px; color: var(--cream-100); font-weight: 500; letter-spacing: -0.01em; line-height: 1; }
+  .day__date .month { display: block; font-size: 13px; font-family: var(--font-mono); color: var(--gold-300); letter-spacing: 0.16em; text-transform: uppercase; margin-top: 6px; font-weight: 400; }
+  .day__title { font-family: var(--font-display); font-size: 24px; color: var(--cream-100); font-weight: 500; letter-spacing: -0.005em; margin: 0 0 8px; line-height: 1.2; }
+  .day__title em { font-style: italic; color: var(--gold-300); }
+  .day__desc { font-size: 14px; color: var(--ink-100); line-height: 1.6; margin: 0; }
+  .day__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .day__pembi-title { font-family: var(--font-mono); font-size: 10px; color: var(--ink-300); letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 10px; }
+  .tag { font-family: var(--font-mono); font-size: 10px; color: var(--ink-100); letter-spacing: 0.08em; padding: 4px 9px; border: 1px solid var(--ink-500); border-radius: var(--r-sm); background: var(--ink-850); }
+  .tag--gold { color: var(--gold-200); border-color: rgba(212,175,55,0.4); background: rgba(212,175,55,0.06); }
+  .tag--emerald { color: #8FCBAA; border-color: rgba(74,143,109,0.4); background: var(--emerald-soft); }
+
+  /* PRICING */
+  .pricing { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .price-card { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-lg); padding: 32px 28px; display: flex; flex-direction: column; position: relative; transition: all var(--dur-mid) var(--ease-out); }
+  .price-card:hover { transform: translateY(-2px); border-color: var(--gold-300); box-shadow: var(--shadow-lg); }
+  .price-card--feature { background: radial-gradient(120% 80% at 50% 0%, rgba(212,175,55,0.10), transparent 60%), var(--ink-900); border-color: var(--gold-300); box-shadow: var(--shadow-gold); }
+  .price-card__crown { position: absolute; top: -12px; right: 28px; background: var(--gold-300); color: var(--ink-950); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; padding: 5px 11px; border-radius: var(--r-sm); font-weight: 600; }
+  .price-card__class { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--gold-300); margin-bottom: 8px; }
+  .price-card__name { font-family: var(--font-display); font-size: 36px; color: var(--cream-100); font-weight: 500; line-height: 1; letter-spacing: -0.01em; margin: 0 0 6px; }
+  .price-card__per { font-size: 12.5px; color: var(--ink-200); margin-bottom: 24px; }
+  .price-card__amount { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+  .price-card__amount .ccy { font-family: var(--font-mono); font-size: 12px; color: var(--ink-200); letter-spacing: 0.12em; }
+  .price-card__amount .v { font-family: var(--font-display); font-size: 48px; color: var(--gold-300); font-weight: 500; line-height: 1; letter-spacing: -0.02em; }
+  .price-card__amount .u { font-family: var(--font-mono); font-size: 12px; color: var(--gold-300); margin-left: 2px; }
+  .price-card__cicilan { font-size: 12px; color: var(--ink-100); padding: 12px 0; border-top: var(--hairline-soft); border-bottom: var(--hairline-soft); margin: 16px 0 22px; }
+  .price-card__cicilan strong { color: var(--cream-200); font-weight: 600; }
+  .price-card ul { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
+  .price-card li { font-size: 12.5px; color: var(--ink-100); display: flex; align-items: start; gap: 10px; line-height: 1.45; }
+  .price-card li::before { content: "→"; color: var(--gold-300); font-family: var(--font-mono); font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+  .price-card .btn { justify-content: center; width: 100%; }
+
+  /* INCLUSIONS */
+  .incl { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .incl-col { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-lg); padding: 36px 32px; }
+  .incl-col--no { border-color: rgba(181,86,74,0.25); }
+  .incl-col h3 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 22px; font-weight: 500; letter-spacing: -0.005em; padding-bottom: 16px; border-bottom: var(--hairline-soft); display: flex; align-items: center; gap: 12px; }
+  .incl-col h3 .badge { font-size: 10px; }
+  .incl-col ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; }
+  .incl-col li { font-size: 13.5px; color: var(--cream-200); display: flex; gap: 12px; line-height: 1.5; padding-left: 0; }
+  .incl-col li::before { content: ""; flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; background-image: var(--check); background-size: contain; background-repeat: no-repeat; }
+  .incl-col--yes { --check: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3 8.5l3 3 7-7' fill='none' stroke='%23D4AF37' stroke-width='1.6' stroke-linecap='round'/></svg>"); }
+  .incl-col--no { --check: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M4 4l8 8M12 4l-8 8' fill='none' stroke='%23B5564A' stroke-width='1.6' stroke-linecap='round'/></svg>"); }
+
+  /* PAYMENT */
+  .scheme { display: grid; grid-template-columns: 1fr 1.4fr; gap: 64px; align-items: start; }
+  .scheme__steps { list-style: none; padding: 0; margin: 0; counter-reset: step; position: relative; }
+  .scheme__steps::before { content: ""; position: absolute; left: 19px; top: 24px; bottom: 24px; width: 1px; background: linear-gradient(180deg, var(--gold-300), var(--ink-500)); opacity: 0.4; }
+  .scheme__steps li { counter-increment: step; display: grid; grid-template-columns: 56px 1fr; gap: 20px; padding: 18px 0; position: relative; }
+  .scheme__steps li::before { content: counter(step, decimal-leading-zero); grid-column: 1; align-self: start; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; color: var(--gold-300); width: 40px; height: 40px; display: grid; place-items: center; background: var(--ink-900); border: 1px solid var(--gold-300); border-radius: 50%; z-index: 2; }
+  .scheme__steps h4 { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 6px 0 6px; font-weight: 500; letter-spacing: -0.005em; }
+  .scheme__steps p { color: var(--ink-100); font-size: 13.5px; line-height: 1.6; margin: 0; }
+  .scheme__steps .due { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 8px; }
+  .pay-methods { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-lg); padding: 32px; }
+  .pay-methods h4 { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 0 0 4px; font-weight: 500; }
+  .pay-methods .lede { font-size: 13.5px; color: var(--ink-100); margin: 0 0 24px; line-height: 1.55; }
+  .pay-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .pay-tile { aspect-ratio: 1.6; background: var(--ink-850); border: var(--hairline-soft); border-radius: var(--r-md); display: flex; flex-direction: column; justify-content: space-between; padding: 14px 16px; transition: all var(--dur-fast); }
+  .pay-tile:hover { border-color: var(--gold-300); }
+  .pay-tile .l { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; color: var(--ink-300); text-transform: uppercase; }
+  .pay-tile .v { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); font-weight: 500; letter-spacing: -0.005em; }
+  .pay-tile .v em { font-style: italic; color: var(--gold-300); }
+
+  /* BOOKING */
+  .booking { background: radial-gradient(80% 60% at 100% 0%, rgba(212,175,55,0.06), transparent 60%), var(--ink-900); border: var(--hairline); border-radius: var(--r-xl); padding: 56px; display: grid; grid-template-columns: 1fr 1fr; gap: 56px; }
+  .booking__left h2 { font-family: var(--font-display); font-size: 44px; color: var(--cream-100); margin: 12px 0 16px; font-weight: 400; line-height: 1; letter-spacing: -0.02em; }
+  .booking__left h2 em { font-style: italic; color: var(--gold-300); }
+  .booking__left p { color: var(--ink-100); font-size: 14.5px; line-height: 1.65; margin: 0; }
+  .booking__assure { margin-top: 32px; padding-top: 24px; border-top: var(--hairline-soft); display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .booking__assure > div { display: flex; flex-direction: column; gap: 4px; }
+  .booking__assure .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--gold-300); letter-spacing: 0.14em; text-transform: uppercase; }
+  .booking__assure .v { font-size: 13.5px; color: var(--cream-200); line-height: 1.45; }
+  .self-booking-banner {
+    grid-column: span 2;
+    background: rgba(74,143,109,0.08);
+    border: 1px solid rgba(74,143,109,0.4);
+    color: var(--cream-100);
+    padding: 12px 16px;
+    border-radius: var(--r-md);
+    margin-bottom: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    line-height: 1.7;
+  }
+  .self-booking-banner strong { color: var(--emerald); }
+  .self-booking-banner a {
+    color: var(--gold-300);
+    text-decoration: none;
+    margin-left: 8px;
+    border-bottom: 1px dotted var(--gold-300);
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid label { display: flex; flex-direction: column; gap: 6px; }
+  .form-grid label.wide { grid-column: span 2; }
+  .form-grid label span { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); }
+  .form-grid select, .form-grid textarea, .form-grid .input { background: var(--ink-850); border: 1px solid var(--ink-500); border-radius: var(--r-md); padding: 13px 14px; color: var(--cream-200); font-family: var(--font-sans); font-size: 13.5px; outline: none; transition: border-color var(--dur-fast); }
+  .form-grid select:focus, .form-grid textarea:focus, .form-grid .input:focus { border-color: var(--gold-300); box-shadow: 0 0 0 3px rgba(212,175,55,0.12); }
+  .form-grid textarea { min-height: 78px; resize: vertical; font-family: var(--font-sans); }
+  .form-grid .submit-row { grid-column: span 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; }
+  .form-grid .submit-row .agree { font-size: 11.5px; color: var(--ink-200); line-height: 1.55; flex: 1; }
+  .form-grid .submit-row .agree a { color: var(--gold-300); }
+
+  .lockin { margin-top: 16px; padding: 14px 16px; background: rgba(212,175,55,0.05); border: 1px solid rgba(212,175,55,0.25); border-radius: var(--r-md); display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--cream-200); line-height: 1.5; }
+  .lockin svg { width: 18px; height: 18px; flex-shrink: 0; stroke: var(--gold-300); fill: none; stroke-width: 1.5; }
+  .lockin strong { color: var(--gold-300); }
+
+  /* Booking success state */
+  .booking-success { background: radial-gradient(80% 80% at 50% 0%, rgba(74,143,109,0.10), transparent 70%), var(--ink-900); border: 1px solid var(--emerald); border-radius: var(--r-xl); padding: 64px 56px; text-align: center; }
+  .booking-success__check { width: 64px; height: 64px; margin: 0 auto 24px; border-radius: 50%; border: 1.5px solid var(--emerald); display: grid; place-items: center; background: rgba(74,143,109,0.1); }
+  .booking-success__check svg { width: 28px; height: 28px; stroke: var(--emerald); fill: none; stroke-width: 2; }
+  .booking-success h2 { font-family: var(--font-display); font-size: 44px; color: var(--cream-100); margin: 0 0 16px; font-weight: 400; letter-spacing: -0.015em; line-height: 1.05; }
+  .booking-success h2 em { font-style: italic; color: var(--gold-300); }
+  .booking-success p { color: var(--ink-100); font-size: 15px; line-height: 1.65; margin: 0 auto 32px; max-width: 540px; }
+  .booking-success__no { font-family: var(--font-mono); font-size: 13px; color: var(--gold-300); letter-spacing: 0.14em; padding: 14px 20px; border: 1px solid var(--gold-300); border-radius: var(--r-md); display: inline-block; margin: 16px 0 32px; }
+  .booking-success__details { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: var(--hairline-soft); border-bottom: var(--hairline-soft); padding: 24px 0; margin: 32px 0; }
+  .booking-success__details > div { border-right: var(--hairline-soft); padding: 0 16px; }
+  .booking-success__details > div:last-child { border-right: 0; }
+  .booking-success__details .l { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-300); margin-bottom: 6px; }
+  .booking-success__details .v { font-family: var(--font-display); font-size: 20px; color: var(--cream-100); font-weight: 500; letter-spacing: -0.005em; }
+  .form-error { grid-column: span 2; padding: 12px 16px; background: var(--ruby-soft); border: 1px solid var(--ruby); border-radius: var(--r-md); color: #E69089; font-size: 13px; margin-top: 12px; }
+
+  /* TRUST */
+  .trust { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; border-top: var(--hairline-soft); border-bottom: var(--hairline-soft); padding: 28px 0; margin-top: 56px; }
+  .trust > div { text-align: center; border-right: var(--hairline-soft); padding: 8px 16px; }
+  .trust > div:last-child { border-right: 0; }
+  .trust .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-300); letter-spacing: 0.16em; text-transform: uppercase; }
+  .trust .v { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); font-weight: 500; margin-top: 6px; letter-spacing: -0.005em; }
+
+  /* FAQ */
+  .faq details { border-top: var(--hairline-soft); padding: 24px 0; }
+  .faq details:last-child { border-bottom: var(--hairline-soft); }
+  .faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-display); font-size: 22px; color: var(--cream-100); font-weight: 500; letter-spacing: -0.005em; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; font-family: var(--font-display); color: var(--gold-300); font-size: 28px; line-height: 1; transition: transform var(--dur-mid); }
+  .faq details[open] summary::after { content: "—"; }
+  .faq details p { color: var(--ink-100); font-size: 14px; line-height: 1.65; margin: 16px 0 0; max-width: 720px; }
+
+  /* FINAL */
+  .final { text-align: center; padding: 128px 32px; border-top: var(--hairline-soft); position: relative; overflow: hidden; }
+  .final::before { content: ""; position: absolute; inset: 0; background: radial-gradient(50% 70% at 50% 100%, rgba(212,175,55,0.10), transparent 70%); pointer-events: none; }
+  .final__quote { font-family: var(--font-arabic); font-size: 52px; color: var(--gold-200); direction: rtl; line-height: 1.5; margin: 0; }
+  .final h2 { font-family: var(--font-display); font-size: clamp(48px, 7vw, 96px); line-height: 0.95; font-weight: 400; color: var(--cream-100); margin: 32px 0 24px; letter-spacing: -0.02em; }
+  .final h2 em { font-style: italic; color: var(--gold-300); }
+  .final p { max-width: 560px; margin: 0 auto 48px; color: var(--ink-100); font-size: 16px; line-height: 1.6; }
+  .final__ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  /* FOOTER */
+  .foot { border-top: var(--hairline-soft); padding: 36px 32px; max-width: 1280px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; }
+
+  /* STICKY */
+  .stick { position: fixed; bottom: 24px; left: 50%; transform: translate(-50%, 24px); z-index: 100; background: radial-gradient(120% 80% at 0% 0%, rgba(212,175,55,0.08), transparent 60%), rgba(17,16,14,0.95); backdrop-filter: blur(20px); border: 1px solid var(--gold-300); border-radius: var(--r-full); padding: 12px 14px 12px 26px; display: flex; align-items: center; gap: 24px; box-shadow: var(--shadow-lg), var(--glow-gold); opacity: 0; transition: all var(--dur-slow) var(--ease-out); pointer-events: none; }
+  .stick.is-visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .stick__price { display: flex; flex-direction: column; gap: 2px; }
+  .stick__price .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-300); letter-spacing: 0.14em; text-transform: uppercase; }
+  .stick__price .v { font-family: var(--font-display); font-size: 22px; color: var(--gold-300); line-height: 1; font-weight: 500; }
+  .stick__divider { width: 1px; height: 30px; background: var(--ink-500); }
+  .stick__agent { display: flex; align-items: center; gap: 10px; }
+  .stick__avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--ink-700), var(--ink-900)); border: 1px solid var(--gold-300); display: grid; place-items: center; font-family: var(--font-display); font-size: 14px; color: var(--gold-300); }
+  .stick__agent .who { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .stick__agent .name { font-size: 13px; color: var(--cream-200); }
+
+  @media (max-width: 980px) {
+    .hero__grid, .hotels, .scheme, .booking, .incl, .pricing, .day, .form-grid { grid-template-columns: 1fr; gap: 32px; }
+    .hero__crest { display: none; }
+    .highlights, .trust, .booking-success__details { grid-template-columns: repeat(2, 1fr); }
+    .highlight, .trust > div, .booking-success__details > div { border-right: 0; border-bottom: var(--hairline-soft); }
+    .section__head { grid-template-columns: 1fr; gap: 20px; }
+    .timeline { padding-left: 32px; }
+    .day::before { left: -20px; }
+    .pay-grid { grid-template-columns: repeat(2, 1fr); }
+    .nav__links { display: none; }
+    .nav__inner { grid-template-columns: auto auto; }
+    .booking { padding: 32px; }
+    .stick { left: 12px; right: 12px; transform: translateY(24px); width: auto; flex-wrap: wrap; justify-content: center; }
+    .stick.is-visible { transform: translateY(0); }
+  }
+</style>
+</head>
+<%
+  // Helpers in template scope
+  const hotelMadinah = paket.hotels.find(h => h.city === 'MADINAH');
+  const hotelMekkah  = paket.hotels.find(h => h.city === 'MEKKAH');
+  const hotelPlus    = paket.hotels.filter(h => h.city !== 'MADINAH' && h.city !== 'MEKKAH' && h.city !== 'JEDDAH' && h.city !== 'JAKARTA');
+  const minPrice = paket.prices.reduce((m, p) => (m == null || Number(p.priceIdr) < m ? Number(p.priceIdr) : m), null);
+  const kursiSisa = paket.kursiTotal - paket.kursiTerisi;
+  const KELAS_LABEL = { QUAD: 'Quad', TRIPLE: 'Triple', DOUBLE: 'Double', VVIP: 'VVIP Suite' };
+  const stars = (n) => '★'.repeat(Math.max(0, Math.min(5, n)));
+%>
+<body data-screen-label="06 Paket Detail · Live">
+
+<!-- RIBBON -->
+<div class="ribbon">
+  <div class="ribbon__inner">
+    <div class="ribbon__left">
+      <span class="ribbon__dot"></span>
+      <% if (agent) { %>
+        <span>Halaman ini dibuatkan untuk Anda oleh agen tersertifikasi RELIGIO PRO</span>
+      <% } else { %>
+        <span>Halaman resmi paket Religio Pro</span>
+      <% } %>
+    </div>
+    <div class="ribbon__url">religio.pro/p/<%= paket.slug %><% if (agent) { %> <em>?a=<%= agent.slug %></em><% } %></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav__inner">
+    <a href="/" class="brand-mark">
+      <span class="brand-mark__glyph">R</span>
+      <span class="brand-mark__name">Religio <em>Pro</em></span>
+    </a>
+    <div class="nav__links">
+      <a href="#hotel">Hotel</a>
+      <a href="#itinerary">Rute</a>
+      <a href="#harga">Harga</a>
+      <a href="#termasuk">Termasuk</a>
+      <a href="#bayar">Pembayaran</a>
+      <a href="#daftar">Daftar</a>
+    </div>
+    <div class="nav__price">
+      <div>
+        <span class="amount"><span class="from">Mulai</span>Rp <%= fmt.rpShort(minPrice) %></span>
+      </div>
+      <a class="btn btn--primary btn--sm" href="#daftar">Pesan</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero__bg"></div>
+  <div class="hero__crest"></div>
+  <div class="hero__grid">
+    <div>
+      <div class="hero__eyebrow">
+        <span class="eyebrow">Paket Eksklusif · <%= new Date(paket.departureDate).getFullYear() %></span>
+        <span class="line"></span>
+        <span class="eyebrow" style="color:var(--ink-200);"><%= paket.durationDays %> Hari · <%= paket.durationDays - 1 %> Malam</span>
+      </div>
+
+      <h1 class="hero__title"><%- paket.heroTitleHtml || paket.title %></h1>
+
+      <% if (paket.arabicTagline) { %><p class="hero__arabic"><%= paket.arabicTagline %></p><% } %>
+      <% if (paket.translitTagline) { %><p class="hero__translit"><%= paket.translitTagline %></p><% } %>
+
+      <dl class="hero__meta">
+        <div>
+          <dt>Keberangkatan</dt>
+          <dd><%= fmt.dateShort(paket.departureDate) %> <span class="u"><%= new Date(paket.departureDate).getFullYear() %></span></dd>
+        </div>
+        <div>
+          <dt>Maskapai</dt>
+          <dd><%= paket.airline || '—' %><% if (paket.airlineCode) { %> <span class="u"><%= paket.airlineCode %></span><% } %></dd>
+        </div>
+        <div>
+          <dt>Rute</dt>
+          <dd><%= paket.routeFrom || '—' %> · <%= paket.routeTo || '—' %></dd>
+        </div>
+        <div>
+          <dt>Kursi tersisa</dt>
+          <dd><%= kursiSisa %> <span class="u">/ <%= paket.kursiTotal %></span></dd>
+        </div>
+      </dl>
+    </div>
+
+    <!-- Agent / Contact card -->
+    <aside class="agent-card">
+      <div class="agent-card__head">
+        <% if (agent) { %>
+          <span class="l">Agen Anda · Religio Pro</span>
+          <% if (agent.isVerified) { %><span class="badge badge--gold badge--dot">Verified</span><% } %>
+        <% } else { %>
+          <span class="l">Kantor Pusat · Religio Pro</span>
+          <span class="badge badge--gold badge--dot">Official</span>
+        <% } %>
+      </div>
+
+      <% if (agent) { %>
+        <div class="agent-card__profile">
+          <div class="agent-card__avatar"><%= agent.displayName.charAt(0) %></div>
+          <div>
+            <div class="agent-card__name"><%= agent.displayName %></div>
+            <% if (agent.tier) { %><div class="agent-card__role"><%= agent.tier %></div><% } %>
+          </div>
+        </div>
+
+        <div class="agent-card__contacts">
+          <a href="https://wa.me/<%= agent.whatsapp.replace(/[^0-9]/g, '').replace(/^0/, '62') %>" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24"><path d="M21 11.5C21 17 16.5 21.5 11 21.5C9.3 21.5 7.7 21 6.3 20.1L3 21L4 17.8C3.1 16.4 2.5 14.7 2.5 12.9C2.5 7.4 7 2.9 12.5 2.9C18 2.9 22.5 7.4 22.5 12.9"/></svg>
+            <span>WhatsApp · <strong style="color:var(--cream-100);"><%= agent.whatsapp %></strong></span>
+          </a>
+          <% if (agent.igHandle) { %>
+            <a href="https://instagram.com/<%= agent.igHandle %>" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.9" fill="currentColor"/></svg>
+              <span>Instagram · <strong style="color:var(--cream-100);">@<%= agent.igHandle %></strong></span>
+            </a>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div class="agent-card__contacts" style="margin-top:0;">
+          <a href="https://wa.me/6285715690293" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24"><path d="M21 11.5C21 17 16.5 21.5 11 21.5C9.3 21.5 7.7 21 6.3 20.1L3 21L4 17.8C3.1 16.4 2.5 14.7 2.5 12.9C2.5 7.4 7 2.9 12.5 2.9C18 2.9 22.5 7.4 22.5 12.9"/></svg>
+            <span>WhatsApp · <strong style="color:var(--cream-100);">0857-1569-0293</strong></span>
+          </a>
+        </div>
+      <% } %>
+
+      <div class="agent-card__price">
+        <div>
+          <div class="from">Harga mulai</div>
+          <div class="amount"><span class="ccy">IDR</span><%= fmt.rpShort(minPrice) %></div>
+        </div>
+        <div class="agent-card__cta">
+          <span class="promo">Cicilan 0% · 12 bulan</span>
+          <a class="btn btn--primary btn--lg" href="#daftar">Pesan kursi</a>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- HIGHLIGHTS -->
+<section class="section" style="padding-top:32px;border-top:0;">
+  <div class="highlights">
+    <% if (hotelMadinah) { %>
+    <div class="highlight">
+      <div class="highlight__ico"><svg viewBox="0 0 24 24"><path d="M2 21h20M4 21V8l8-5 8 5v13M9 21v-8h6v8"/></svg></div>
+      <div class="highlight__label">Hotel Madinah</div>
+      <div class="highlight__value"><%= hotelMadinah.name %></div>
+      <div class="highlight__sub"><span class="stars"><%= stars(hotelMadinah.stars) %></span><% if (hotelMadinah.distance) { %> · <%= hotelMadinah.distance %><% } %></div>
+    </div>
+    <% } %>
+    <% if (hotelMekkah) { %>
+    <div class="highlight">
+      <div class="highlight__ico"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V10l7-6 7 6v11M9 21v-6h6v6"/></svg></div>
+      <div class="highlight__label">Hotel Mekkah</div>
+      <div class="highlight__value"><%= hotelMekkah.name %></div>
+      <div class="highlight__sub"><span class="stars"><%= stars(hotelMekkah.stars) %></span><% if (hotelMekkah.distance) { %> · <%= hotelMekkah.distance %><% } %></div>
+    </div>
+    <% } %>
+    <% if (hotelPlus.length) { %>
+    <div class="highlight">
+      <div class="highlight__ico"><svg viewBox="0 0 24 24"><path d="M2 17h20M4 17l4-7 3 3 4-6 5 10M3 21h18"/></svg></div>
+      <div class="highlight__label">Plus Tour</div>
+      <div class="highlight__value"><%= hotelPlus.map(h => h.city.charAt(0) + h.city.slice(1).toLowerCase()).join(' & ') %></div>
+      <div class="highlight__sub"><%= hotelPlus.map(h => h.nights + 'N ' + h.city.charAt(0) + h.city.slice(1).toLowerCase()).join(' · ') %></div>
+    </div>
+    <% } %>
+    <div class="highlight">
+      <div class="highlight__ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg></div>
+      <div class="highlight__label">Muthawwif</div>
+      <div class="highlight__value">Pembimbing Tetap</div>
+      <div class="highlight__sub">1 pendamping per 20 jemaah</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOTELS -->
+<section class="section" id="hotel">
+  <div class="section__head">
+    <div>
+      <p class="eyebrow">01 · Akomodasi</p>
+      <h2>Dua kota suci,<br><em>dua rumah tenang.</em></h2>
+    </div>
+    <p>Hotel bintang lima berjarak jalan kaki dari Masjid Nabawi dan Masjidil Haram — tanpa shuttle, tanpa antrian.</p>
+  </div>
+
+  <div class="hotels">
+    <% if (hotelMadinah) { %>
+    <article class="hotel hotel--madinah">
+      <div class="hotel__visual">
+        <div class="crescent">ﷲ</div>
+        <div class="skyline">
+          <svg viewBox="0 0 800 140" preserveAspectRatio="none">
+            <path d="M0,140 L0,90 L40,90 L40,72 L70,72 L70,90 L100,90 L100,60 L140,60 L140,46 L170,46 L170,60 L210,60 L210,82 L260,82 L260,42 L280,30 L300,42 L300,82 L350,82 L350,52 L380,52 L380,38 L420,38 L420,52 L460,52 L460,76 L520,76 L520,48 L560,48 L560,34 L600,34 L600,48 L640,48 L640,70 L700,70 L700,84 L760,84 L760,96 L800,96 L800,140 Z"/>
+            <path d="M260,42 L280,18 L300,42" fill="rgba(74,143,109,0.4)"/>
+          </svg>
+        </div>
+      </div>
+      <div class="hotel__meta">
+        <div class="hotel__row">
+          <h3 class="hotel__name"><%= hotelMadinah.name %></h3>
+          <span class="hotel__city">Madinah</span>
+        </div>
+        <% if (hotelMadinah.description) { %><p class="hotel__desc"><%= hotelMadinah.description %></p><% } %>
+        <div class="hotel__specs">
+          <div><span class="l">Bintang</span><span class="v stars"><%= stars(hotelMadinah.stars) %></span></div>
+          <% if (hotelMadinah.distance) { %><div><span class="l">Jarak Nabawi</span><span class="v"><%= hotelMadinah.distance %></span></div><% } %>
+          <div><span class="l">Lama menginap</span><span class="v"><%= hotelMadinah.nights %> malam</span></div>
+        </div>
+      </div>
+    </article>
+    <% } %>
+
+    <% if (hotelMekkah) { %>
+    <article class="hotel hotel--mekkah">
+      <div class="hotel__visual">
+        <div class="crescent">ﷺ</div>
+        <div class="skyline">
+          <svg viewBox="0 0 800 140" preserveAspectRatio="none">
+            <path d="M0,140 L0,100 L60,100 L60,80 L100,80 L100,60 L140,60 L140,42 L180,42 L180,30 L200,12 L220,30 L220,42 L260,42 L260,68 L320,68 L320,28 L340,12 L360,28 L360,68 L420,68 L420,50 L460,50 L460,68 L520,68 L520,86 L580,86 L580,60 L640,60 L640,86 L720,86 L720,100 L800,100 L800,140 Z"/>
+            <path d="M180,30 L200,8 L220,30" fill="rgba(212,175,55,0.4)"/>
+            <path d="M320,28 L340,4 L360,28" fill="rgba(212,175,55,0.5)"/>
+          </svg>
+        </div>
+      </div>
+      <div class="hotel__meta">
+        <div class="hotel__row">
+          <h3 class="hotel__name"><%= hotelMekkah.name %></h3>
+          <span class="hotel__city">Mekkah</span>
+        </div>
+        <% if (hotelMekkah.description) { %><p class="hotel__desc"><%= hotelMekkah.description %></p><% } %>
+        <div class="hotel__specs">
+          <div><span class="l">Bintang</span><span class="v stars"><%= stars(hotelMekkah.stars) %></span></div>
+          <% if (hotelMekkah.distance) { %><div><span class="l">Jarak Haram</span><span class="v"><%= hotelMekkah.distance %></span></div><% } %>
+          <div><span class="l">Lama menginap</span><span class="v"><%= hotelMekkah.nights %> malam</span></div>
+        </div>
+      </div>
+    </article>
+    <% } %>
+  </div>
+</section>
+
+<!-- ITINERARY -->
+<% if (paket.days.length) { %>
+<section class="section" id="itinerary">
+  <div class="section__head">
+    <div>
+      <p class="eyebrow">02 · Rute perjalanan</p>
+      <h2><%= paket.durationDays %> hari,<br>satu <em>panggilan suci.</em></h2>
+    </div>
+    <p>Setiap hari dirancang dengan ritme yang seimbang — ibadah inti pada waktu utama, ziarah pada saat suhu paling teduh, dan istirahat yang cukup untuk para sepuh.</p>
+  </div>
+
+  <ol class="timeline">
+    <% paket.days.forEach((day) => { %>
+      <li class="day<%= day.highlight ? ' day--highlight' : '' %>">
+        <div>
+          <% if (day.dayRange) { %><div class="day__num"><%= day.dayRange %></div><% } %>
+          <div class="day__date"><%= day.dateLabel || day.dayNumber %><% if (day.monthLabel) { %><span class="month"><%= day.monthLabel %></span><% } %></div>
+        </div>
+        <div>
+          <h3 class="day__title"><%- day.title.replace(/(→|—|·)/g, '<em>$1</em>') %></h3>
+          <p class="day__desc"><%= day.description %></p>
+          <% if (Array.isArray(day.tags) && day.tags.length) { %>
+            <div class="day__tags">
+              <% day.tags.forEach((t, i) => { %>
+                <span class="tag<%= i === 0 && day.highlight ? ' tag--gold' : '' %>"><%= t %></span>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+        <% if (day.pembimbingNote) { %>
+        <div>
+          <h4 class="day__pembi-title"><%= day.pembimbingTitle || 'Catatan Pembimbing' %></h4>
+          <p class="day__desc"><%= day.pembimbingNote %></p>
+        </div>
+        <% } else { %>
+        <div></div>
+        <% } %>
+      </li>
+    <% }) %>
+  </ol>
+</section>
+<% } %>
+
+<!-- PRICING -->
+<section class="section" id="harga">
+  <div class="section__head">
+    <div>
+      <p class="eyebrow">03 · Harga &amp; Kelas Kamar</p>
+      <h2>Empat kelas.<br>Satu <em>standar VVIP.</em></h2>
+    </div>
+    <p>Harga termasuk visa, tiket pesawat PP, hotel sesuai kelas, makan 3x/hari di Saudi, transportasi AC penuh, muthawwif tetap, dan perlengkapan lengkap.</p>
+  </div>
+
+  <div class="pricing">
+    <% paket.prices.forEach((p) => { %>
+      <div class="price-card<%= p.isFeatured ? ' price-card--feature' : '' %>">
+        <% if (p.isFeatured) { %><span class="price-card__crown">Most Popular</span><% } %>
+        <div class="price-card__class"><%= KELAS_LABEL[p.kelas] %></div>
+        <h3 class="price-card__name"><%= p.label || KELAS_LABEL[p.kelas] %></h3>
+        <% if (p.caption) { %><p class="price-card__per"><%= p.caption %></p><% } %>
+        <div class="price-card__amount">
+          <span class="ccy">IDR</span>
+          <span class="v"><%= Math.round(Number(p.priceIdr) / 1_000_000) %></span>
+          <span class="u">JT</span>
+        </div>
+        <% if (p.cicilanIdr && p.cicilanMonths) { %>
+        <div class="price-card__cicilan"><strong>Rp <%= fmt.rpShort(p.cicilanIdr) %></strong> / <%= p.cicilanMonths %>× cicilan 0%</div>
+        <% } %>
+        <% if (Array.isArray(p.perks)) { %>
+        <ul>
+          <% p.perks.forEach((perk) => { %><li><%= perk %></li><% }) %>
+        </ul>
+        <% } %>
+        <a class="btn <%= p.isFeatured ? 'btn--primary' : 'btn--ghost' %>" href="#daftar" data-prefill-kelas="<%= p.kelas %>">Pilih <%= KELAS_LABEL[p.kelas] %></a>
+      </div>
+    <% }) %>
+  </div>
+</section>
+
+<!-- INCLUSIONS -->
+<% if (Array.isArray(paket.inclusions) || Array.isArray(paket.exclusions)) { %>
+<section class="section" id="termasuk">
+  <div class="section__head">
+    <div>
+      <p class="eyebrow">04 · Transparansi penuh</p>
+      <h2>Apa yang termasuk,<br>apa yang <em>tidak.</em></h2>
+    </div>
+    <p>Daftar lengkap, tanpa biaya tersembunyi. Semua yang Anda butuhkan untuk fokus pada ibadah sudah disiapkan; sisanya jelas di awal.</p>
+  </div>
+
+  <div class="incl">
+    <% if (Array.isArray(paket.inclusions)) { %>
+    <div class="incl-col incl-col--yes">
+      <h3>Termasuk dalam harga <span class="badge badge--gold"><%= paket.inclusions.length %> item</span></h3>
+      <ul>
+        <% paket.inclusions.forEach((item) => { %><li><%= item %></li><% }) %>
+      </ul>
+    </div>
+    <% } %>
+    <% if (Array.isArray(paket.exclusions)) { %>
+    <div class="incl-col incl-col--no">
+      <h3>Tidak termasuk <span class="badge badge--ruby"><%= paket.exclusions.length %> item</span></h3>
+      <ul>
+        <% paket.exclusions.forEach((item) => { %><li><%= item %></li><% }) %>
+      </ul>
+    </div>
+    <% } %>
+  </div>
+</section>
+<% } %>
+
+<!-- PAYMENT SCHEME -->
+<section class="section" id="bayar">
+  <div class="section__head">
+    <div>
+      <p class="eyebrow">05 · Skema pembayaran</p>
+      <h2>DP, cicilan,<br>atau <em>pelunasan.</em></h2>
+    </div>
+    <p>Pilih ritme yang nyaman. Pembayaran terkonfirmasi otomatis di aplikasi — tanpa foto bukti transfer, tanpa drama.</p>
+  </div>
+
+  <div class="scheme">
+    <ol class="scheme__steps">
+      <li><div><h4>Booking fee</h4><p>Mengunci kursi Anda di manifes. Refundable 100% sampai 60 hari sebelum keberangkatan.</p><span class="due">IDR 5 Jt · saat daftar</span></div></li>
+      <li><div><h4>DP minimum</h4><p>Setoran awal yang memastikan posisi Anda terjamin. Visa &amp; tiket mulai diproses.</p><span class="due">IDR 25 Jt · H-150</span></div></li>
+      <li><div><h4>Cicilan bulanan</h4><p>Auto-debet via Payment Gateway resmi. Notifikasi WhatsApp 3 hari sebelum jatuh tempo.</p><span class="due">12× cicilan 0%</span></div></li>
+      <li><div><h4>Pelunasan akhir</h4><p>Pelunasan paling lambat 30 hari sebelum keberangkatan. Status di app otomatis <strong style="color:var(--gold-300);">LUNAS</strong>.</p><span class="due">H-30 · sebelum berangkat</span></div></li>
+    </ol>
+
+    <div class="pay-methods">
+      <h4>Metode pembayaran resmi</h4>
+      <p class="lede">Terhubung Payment Gateway tersertifikasi OJK. Konfirmasi otomatis &amp; instan — tidak perlu kirim bukti transfer.</p>
+      <div class="pay-grid">
+        <div class="pay-tile"><span class="l">Virtual Account</span><span class="v">VA <em>Bank</em></span></div>
+        <div class="pay-tile"><span class="l">QR Code Nasional</span><span class="v">QRIS</span></div>
+        <div class="pay-tile"><span class="l">E-Wallet</span><span class="v">OVO · <em>GoPay</em></span></div>
+        <div class="pay-tile"><span class="l">E-Wallet</span><span class="v">DANA · <em>ShopeePay</em></span></div>
+        <div class="pay-tile"><span class="l">Credit Card</span><span class="v">Visa / <em>Master</em></span></div>
+        <div class="pay-tile"><span class="l">Cicilan 0%</span><span class="v">12 / <em>24 bulan</em></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BOOKING -->
+<section class="section" id="daftar">
+  <div id="booking-mount">
+    <div class="booking">
+      <div class="booking__left">
+        <p class="eyebrow">06 · Daftar via halaman ini</p>
+        <h2>Kunci kursi <em>Anda</em><br>dalam 90 detik.</h2>
+        <% if (agent) { %>
+          <p>Isi form di samping — tim CS akan mengkonfirmasi dalam 1 jam kerja. Anda akan terdaftar otomatis di bawah agen <strong style="color:var(--gold-300);"><%= agent.displayName %></strong>.</p>
+          <div class="lockin">
+            <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            <div><strong>Auto-Agent Lock-in.</strong> Pendaftaran via halaman ini otomatis terhubung dengan agen Anda — komisi terlacak transparan di sistem.</div>
+          </div>
+        <% } else { %>
+          <p>Isi form di samping — tim CS akan mengkonfirmasi dalam 1 jam kerja.</p>
+        <% } %>
+
+        <div class="booking__assure">
+          <div><span class="l">Garansi refund</span><span class="v">Booking fee 100% kembali jika batal H-60</span></div>
+          <div><span class="l">Data dienkripsi</span><span class="v">AES-256 · sesuai UU PDP Indonesia</span></div>
+          <div><span class="l">Izin resmi</span><span class="v">SISKOPATUH · Kemenag · AMPHURI</span></div>
+          <div><span class="l">Respon CS</span><span class="v">Konfirmasi maks 1 jam kerja (08–22)</span></div>
+        </div>
+      </div>
+
+      <% if (currentUser && currentUser.role === 'JEMAAH' && prefillJemaah) { %>
+        <div class="self-booking-banner" id="self-banner">
+          <strong>Login sebagai <%= currentUser.email %></strong> — booking ini akan otomatis terhubung ke akun Anda.
+          <a href="#" id="switch-other">Booking untuk orang lain?</a>
+        </div>
+      <% } %>
+
+      <form id="booking-form" class="form-grid" novalidate>
+        <input type="hidden" name="paketSlug" value="<%= paket.slug %>">
+        <% if (agent) { %><input type="hidden" name="agentSlug" value="<%= agent.slug %>"><% } %>
+
+        <label>
+          <span>Nama lengkap (sesuai paspor)</span>
+          <input class="input" name="fullName" required placeholder="Mis. Ahmad Fauzi" minlength="2" maxlength="190"
+                 value="<%= prefillJemaah ? prefillJemaah.fullName : '' %>" />
+        </label>
+        <label>
+          <span>WhatsApp aktif</span>
+          <input class="input" name="phone" required placeholder="0812-XXXX-XXXX" minlength="8" maxlength="30" inputmode="tel"
+                 value="<%= prefillJemaah ? prefillJemaah.phone : '' %>" />
+        </label>
+        <label>
+          <span>Kelas kamar</span>
+          <select name="kelas" required>
+            <% paket.prices.forEach((p) => { %>
+              <option value="<%= p.kelas %>"<%= p.isFeatured ? ' selected' : '' %>>
+                <%= KELAS_LABEL[p.kelas] %> — Rp <%= fmt.rpShort(p.priceIdr) %><%= p.isFeatured ? ' (Paling populer)' : '' %>
+              </option>
+            <% }) %>
+          </select>
+        </label>
+        <label>
+          <span>Jumlah jemaah</span>
+          <select name="paxCount">
+            <option value="1">1 jemaah</option>
+            <option value="2">2 jemaah (pasangan)</option>
+            <option value="3">3-4 jemaah (keluarga)</option>
+            <option value="5">5+ jemaah (rombongan)</option>
+          </select>
+        </label>
+        <label class="wide">
+          <span>Catatan khusus (opsional)</span>
+          <textarea name="notes" maxlength="2000" placeholder="Mis: lansia perlu kursi roda, alergi makanan, request sekamar dengan saudara, dll."></textarea>
+        </label>
+        <div id="form-error-mount"></div>
+        <div class="submit-row">
+          <span class="agree">Dengan mendaftar, saya menyetujui <a href="#">Syarat &amp; Ketentuan</a> dan <a href="#">Kebijakan Privasi UU PDP</a>.</span>
+          <button class="btn btn--primary btn--lg" type="submit" id="booking-submit">Kunci kursi saya →</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Trust strip -->
+  <% if (Array.isArray(paket.trustBadges) && paket.trustBadges.length) { %>
+  <div class="trust">
+    <% paket.trustBadges.forEach((b) => { %>
+      <div><div class="l"><%= b.label %></div><div class="v"><%= b.value %></div></div>
+    <% }) %>
+  </div>
+  <% } %>
+</section>
+
+<!-- FAQ -->
+<section class="section faq">
+  <div class="section__head">
+    <div>
+      <p class="eyebrow">07 · Pertanyaan yang sering ditanya</p>
+      <h2>Sebelum Anda <em>berangkat.</em></h2>
+    </div>
+    <p>Pertanyaan paling sering dari calon jemaah. Tidak ketemu jawabannya? Hubungi <% if (agent) { %><%= agent.displayName.split(' ')[0] %><% } else { %>kami<% } %> — beliau standby.</p>
+  </div>
+
+  <details open><summary>Apakah paspor saya harus aktif berapa bulan?</summary><p>Minimal 7 bulan dari tanggal keberangkatan. Tim kami bisa membantu surat rekomendasi ke imigrasi via fitur Surat Otomatis di sistem.</p></details>
+  <details><summary>Bagaimana jika harus batal mendadak karena sakit?</summary><p>Booking fee Rp 5 Jt refund 100% sampai H-60. Setelah itu refund prorata sesuai biaya yang sudah dikeluarkan (visa, tiket). Asuransi AXA mengcover pembatalan karena alasan medis.</p></details>
+  <details><summary>Apakah ada manasik untuk jemaah yang tinggal di luar Jakarta?</summary><p>Ya. Manasik diadakan 4× di Jakarta tatap muka, dan disiarkan live online untuk jemaah luar kota. Rekaman tersimpan di aplikasi Jemaah.</p></details>
+  <details><summary>Bagaimana dengan jemaah lansia atau kursi roda?</summary><p>Tersedia layanan kursi roda di bandara, masjid, dan tempat ziarah — gratis untuk Quad/Triple/Double, dan termasuk pendamping pribadi pada paket VVIP.</p></details>
+  <details><summary>Apakah harga ini sudah termasuk perlengkapan?</summary><p>Ya. Koper Religio Pro 24" + tas tangan + tas paspor + seragam atasan + ihram/mukena + sajadah + buku doa + tasbih digital — semua diantar ke alamat H-21.</p></details>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final">
+  <p class="final__quote">وَأَذِّن فِي ٱلنَّاسِ بِٱلْحَجِّ</p>
+  <h2>Lihatlah panggilan-Nya<br>sebagai <em>kesempatan,</em><br>bukan kebetulan.</h2>
+  <p>Kursi terbatas — <%= paket.kursiTerisi %> dari <%= paket.kursiTotal %> kursi sudah terisi.<% if (paket.manifestClosesAt) { %> Manifes ditutup <%= fmt.dateLong(paket.manifestClosesAt) %>.<% } %></p>
+  <div class="final__ctas">
+    <a class="btn btn--primary btn--lg" href="#daftar">Daftar via halaman ini</a>
+    <% if (agent) { %>
+      <a class="btn btn--outline-gold btn--lg" href="https://wa.me/<%= agent.whatsapp.replace(/[^0-9]/g, '').replace(/^0/, '62') %>" target="_blank" rel="noopener">Chat <%= agent.displayName.split(' ')[0] %> di WhatsApp</a>
+    <% } %>
+  </div>
+</section>
+
+<footer class="foot">
+  <span>RELIGIO PRO · Auto-generated paket page · v1.0</span>
+  <span>info.sosmartpro@gmail.com · WA 0857 1569 0293</span>
+</footer>
+
+<!-- STICKY BAR -->
+<div class="stick" id="stick">
+  <div class="stick__price">
+    <span class="l">Mulai dari</span>
+    <span class="v">Rp <%= fmt.rpShort(minPrice) %></span>
+  </div>
+  <div class="stick__divider"></div>
+  <div class="stick__agent">
+    <div class="stick__avatar"><%= agent ? agent.displayName.charAt(0) : 'R' %></div>
+    <div>
+      <div class="who">Dilayani oleh</div>
+      <div class="name"><%= agent ? agent.displayName : 'Religio Pro' %></div>
+    </div>
+  </div>
+  <div class="stick__divider"></div>
+  <a class="btn btn--primary" href="#daftar">Pesan kursi →</a>
+</div>
+
+<script>
+  // Sticky bar reveal
+  (function () {
+    const stick = document.getElementById('stick');
+    const hero = document.querySelector('.hero');
+    if (!stick || !hero) return;
+    const io = new IntersectionObserver(
+      ([entry]) => stick.classList.toggle('is-visible', !entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    io.observe(hero);
+  })();
+
+  // Smooth scroll for in-page anchors
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const id = a.getAttribute('href');
+      if (id === '#' || id.length < 2) return;
+      const el = document.querySelector(id);
+      if (!el) return;
+      e.preventDefault();
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  // Prefill kelas when a pricing CTA is clicked
+  document.querySelectorAll('[data-prefill-kelas]').forEach(a => {
+    a.addEventListener('click', () => {
+      const sel = document.querySelector('select[name="kelas"]');
+      if (sel) sel.value = a.dataset.prefillKelas;
+    });
+  });
+
+  // ── Self-booking: "Booking untuk orang lain?" toggle ────────
+  (function () {
+    const banner = document.getElementById('self-banner');
+    const switchLink = document.getElementById('switch-other');
+    if (!banner || !switchLink) return;
+    switchLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      banner.remove(); // remove banner → POST without session = anonymous booking
+      const form = document.getElementById('booking-form');
+      if (form) {
+        form.elements.fullName.value = '';
+        form.elements.phone.value = '';
+        form.elements.fullName.focus();
+      }
+      // Note: we still send the cookie, but server-side decides based on form
+      // values. To force anonymous, add a hidden flag:
+      const flag = document.createElement('input');
+      flag.type = 'hidden'; flag.name = 'forceAnonymous'; flag.value = '1';
+      form.appendChild(flag);
+    });
+  })();
+
+  // ── Booking form submission ──────────────────────────────
+  (function () {
+    const form = document.getElementById('booking-form');
+    if (!form) return;
+    const submit = document.getElementById('booking-submit');
+    const mount = document.getElementById('booking-mount');
+    const errMount = document.getElementById('form-error-mount');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errMount.innerHTML = '';
+      submit.disabled = true;
+      submit.textContent = 'Mengirim…';
+
+      const fd = new FormData(form);
+      const payload = {
+        paketSlug: fd.get('paketSlug'),
+        agentSlug: fd.get('agentSlug') || null,
+        fullName: fd.get('fullName')?.toString().trim(),
+        phone: fd.get('phone')?.toString().trim(),
+        kelas: fd.get('kelas'),
+        paxCount: fd.get('paxCount'),
+        notes: fd.get('notes')?.toString().trim() || null,
+      };
+
+      try {
+        const res = await fetch('/api/booking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw data?.error || { message: 'Gagal mengirim. Coba lagi.' };
+
+        // Replace form with success state
+        mount.innerHTML = renderSuccess(data);
+        mount.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (err) {
+        const msg = err?.message || 'Terjadi kesalahan. Coba lagi.';
+        const details = err?.details
+          ? '<ul style="margin:8px 0 0 18px;padding:0;">' +
+            Object.entries(err.details).map(([k, v]) => `<li><strong>${k}:</strong> ${v.join(', ')}</li>`).join('') +
+            '</ul>'
+          : '';
+        errMount.innerHTML = `<div class="form-error">${msg}${details}</div>`;
+        submit.disabled = false;
+        submit.textContent = 'Kunci kursi saya →';
+      }
+    });
+
+    function renderSuccess(data) {
+      const b = data.booking;
+      const a = data.agent;
+      const totalFmt = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(Math.round(Number(b.totalAmount)));
+      const agentLine = a
+        ? `Konfirmasi akan dikirim ke WhatsApp Anda. Agen <strong style="color:var(--gold-300);">${a.displayName}</strong> juga akan menghubungi Anda dalam 1 jam kerja.`
+        : 'Konfirmasi akan dikirim ke WhatsApp Anda dalam 1 jam kerja.';
+      return `
+        <div class="booking-success">
+          <div class="booking-success__check">
+            <svg viewBox="0 0 24 24"><polyline points="4,12 10,18 20,7"/></svg>
+          </div>
+          <h2>Pendaftaran <em>tercatat.</em></h2>
+          <div class="booking-success__no">${b.bookingNo}</div>
+          <p>${agentLine}</p>
+          <div class="booking-success__details">
+            <div><div class="l">Kelas</div><div class="v">${b.kelas}</div></div>
+            <div><div class="l">Jumlah</div><div class="v">${b.paxCount} pax</div></div>
+            <div><div class="l">Total</div><div class="v">Rp ${totalFmt}</div></div>
+            <div><div class="l">Status</div><div class="v">${b.status}</div></div>
+          </div>
+          <p style="font-family:var(--font-mono);font-size:11px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;">Booking fee Rp 5 Jt akan ditagih saat konfirmasi</p>
+        </div>`;
+    }
+  })();
+</script>
+
+</body>
+</html>

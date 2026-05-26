@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — <%= mode === 'new' ? 'Paket Baru' : 'Edit Paket' %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .crumb .sep { color: var(--ink-400); margin: 0 8px; }
+
+  .form-head { margin-bottom: 28px; }
+  .form-head h1 {
+    font-family: var(--font-display); font-size: 40px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .form-head h1 em { font-style: italic; color: var(--gold-300); }
+  .form-head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+
+  .ok-banner {
+    background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4);
+    color: var(--emerald);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 20px;
+  }
+  .err-banner {
+    background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 20px;
+  }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 28px;
+    margin-bottom: 20px;
+  }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 22px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 6px;
+  }
+  .panel .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em;
+    margin: 0 0 22px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; align-items: end; }
+
+  .field { margin-bottom: 14px; }
+  .field .label-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .field .field-err {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ruby); margin-top: 4px;
+  }
+  .field .helper {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); margin-top: 4px; letter-spacing: 0.04em;
+  }
+  textarea.input { resize: vertical; min-height: 84px; font-family: inherit; }
+  select.input { background-color: var(--ink-1000); color: var(--cream-100); }
+
+  .price-row {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 14px;
+    margin-bottom: 10px;
+  }
+  .price-row .kelas-tag {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--gold-300); letter-spacing: 0.14em;
+    background: var(--ink-900); border: var(--hairline-soft);
+    padding: 4px 10px; border-radius: 3px;
+    display: inline-block; margin-bottom: 10px;
+  }
+  .price-row .check-row {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-100); margin-top: 8px;
+  }
+  .price-row input[type="checkbox"] { accent-color: var(--gold-300); }
+
+  .readonly-list {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 16px;
+  }
+  .readonly-list .empty {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); text-align: center; padding: 20px;
+  }
+  .readonly-list .row {
+    padding: 10px 0; border-bottom: var(--hairline-soft);
+    font-size: 13.5px; color: var(--cream-200);
+  }
+  .readonly-list .row:last-child { border: 0; }
+  .readonly-list .row .sx {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); margin-top: 2px;
+  }
+
+  .form-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 24px; padding-top: 20px;
+    border-top: var(--hairline-soft);
+  }
+  .form-footer .left, .form-footer .right { display: flex; gap: 10px; }
+
+  .btn-danger {
+    background: transparent; border: 1px solid rgba(181,86,74,0.5);
+    color: var(--ruby);
+    padding: 9px 16px; border-radius: var(--r-sm);
+    font-size: 13px; cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  .btn-danger:hover { background: rgba(181,86,74,0.08); border-color: var(--ruby); }
+
+  /* Editable child list (hotels/days) */
+  .child-panel-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .child-panel-head .lbl {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.12em;
+  }
+  .child-panel-head .lbl strong { color: var(--cream-100); }
+  .add-child-btn {
+    background: transparent; border: 1px dashed var(--gold-300);
+    color: var(--gold-300);
+    padding: 5px 12px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; cursor: pointer;
+  }
+  .add-child-btn:hover { background: rgba(212,175,55,0.08); }
+
+  .child-list {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .child-row {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 12px 14px;
+    display: grid; grid-template-columns: 1fr auto; gap: 8px;
+    align-items: center;
+  }
+  .child-row .info { min-width: 0; }
+  .child-row .info .nm {
+    color: var(--cream-100); font-size: 14px;
+    line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .child-row .info .sx {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); margin-top: 3px; letter-spacing: 0.04em;
+  }
+  .child-row .acts { display: flex; gap: 4px; }
+  .child-row .acts button {
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-200);
+    padding: 5px 10px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; cursor: pointer;
+  }
+  .child-row .acts button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+  .child-row .acts button.danger:hover { color: var(--ruby); border-color: var(--ruby); }
+
+  .child-empty {
+    border: 1px dashed var(--ink-500); border-radius: var(--r-sm);
+    padding: 20px 16px; text-align: center;
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.06em;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(10,9,8,0.75); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.is-open { display: flex; }
+  .modal {
+    background: var(--ink-900); border: var(--hairline-gold);
+    border-radius: var(--r-md); padding: 32px;
+    width: 100%; max-width: 560px;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 {
+    font-family: var(--font-display); font-size: 24px;
+    color: var(--cream-100); margin: 0 0 6px; font-weight: 500;
+  }
+  .modal .sub-m {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    margin-bottom: 18px;
+  }
+  .modal .actions {
+    display: flex; gap: 10px; justify-content: flex-end;
+    margin-top: 22px;
+  }
+  .modal .err-m {
+    background: rgba(176,68,68,0.08);
+    border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 10px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    margin-bottom: 16px; display: none;
+  }
+  .modal .err-m.is-visible { display: block; }
+  .modal .check-row {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-100); margin-top: 8px;
+  }
+  .modal .check-row input[type="checkbox"] { accent-color: var(--gold-300); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Paket Form">
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="/admin?tab=packages">← KEMBALI KE PAKET</a>
+    <% if (mode === 'edit') { %>
+      <span class="sep">·</span>
+      <a href="/admin/paket/<%= paket.slug %>/attendance">ABSENSI</a>
+      <span class="sep">·</span>
+      <a href="/admin?tab=manifest&manifestPaket=<%= paket.slug %>">MANIFEST</a>
+    <% } %>
+  </div>
+
+  <div class="form-head">
+    <h1>
+      <% if (mode === 'new') { %>
+        Paket <em>baru</em>
+      <% } else { %>
+        Edit <em><%= paket.title || paket.slug %></em>
+      <% } %>
+    </h1>
+    <div class="sub">
+      <% if (mode === 'new') { %>
+        Status default DRAFT — ubah ke ACTIVE setelah harga + hotel + itinerary lengkap.
+      <% } else { %>
+        Slug saat ini: <code><%= paket.slug %></code>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (typeof formError !== 'undefined' && formError) { %>
+    <div class="err-banner"><%= formError %></div>
+  <% } %>
+  <% if (typeof query !== 'undefined' && false) { } %>
+  <%
+    const okMsg = ({ created: 'Paket berhasil dibuat.', updated: 'Perubahan disimpan.' })[locals?.ok || (typeof query !== 'undefined' ? query.ok : null)] ;
+    // Simpler: rely on req.query passed implicitly — via res.locals? Use the URL directly.
+  %>
+  <script>
+    (function () {
+      const u = new URL(location.href);
+      const ok = u.searchParams.get('ok');
+      const err = u.searchParams.get('err');
+      const banners = { created: 'Paket berhasil dibuat.', updated: 'Perubahan disimpan.' };
+      if (ok && banners[ok]) {
+        const el = document.createElement('div');
+        el.className = 'ok-banner';
+        el.textContent = banners[ok];
+        document.querySelector('.form-head').after(el);
+      }
+      if (err) {
+        const el = document.createElement('div');
+        el.className = 'err-banner';
+        el.textContent = decodeURIComponent(err);
+        document.querySelector('.form-head').after(el);
+      }
+    })();
+  </script>
+
+  <form method="POST" action="<%= mode === 'new' ? '/admin/paket' : '/admin/paket/' + (paket.originalSlug || paket.slug) %>" autocomplete="off">
+
+    <!-- ====== Identitas ====== -->
+    <div class="panel">
+      <h3>Identitas paket</h3>
+      <p class="sub">Slug muncul di URL landing: <code>/p/&lt;slug&gt;</code></p>
+
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-slug">Slug *</label></div>
+          <input class="input" id="f-slug" name="slug" required maxlength="190"
+                 value="<%= paket.slug %>" placeholder="paket-ramadhan-2027">
+          <% if (errors.slug) { %><div class="field-err"><%= errors.slug %></div><% } %>
+          <div class="helper">huruf kecil, angka, strip</div>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-status">Status</label></div>
+          <select class="input" id="f-status" name="status">
+            <% ['DRAFT','ACTIVE','CLOSED','ARCHIVED'].forEach(function(s) { %>
+              <option value="<%= s %>" <%= paket.status === s ? 'selected' : '' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-title">Judul *</label></div>
+        <input class="input" id="f-title" name="title" required maxlength="190" value="<%= paket.title %>">
+        <% if (errors.title) { %><div class="field-err"><%= errors.title %></div><% } %>
+      </div>
+
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-subtitle">Subtitle</label></div>
+        <input class="input" id="f-subtitle" name="subtitle" maxlength="190" value="<%= paket.subtitle || '' %>">
+        <div class="helper">Mis. "14 Hari · 13 Malam · Lailatul Qadr di Mekkah"</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-arabic">Tagline Arab</label></div>
+          <input class="input" id="f-arabic" name="arabicTagline" value="<%= paket.arabicTagline || '' %>">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-translit">Translit Tagline</label></div>
+          <input class="input" id="f-translit" name="translitTagline" value="<%= paket.translitTagline || '' %>">
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-hero">Hero Title HTML</label></div>
+        <textarea class="input" id="f-hero" name="heroTitleHtml" rows="3"><%= paket.heroTitleHtml || '' %></textarea>
+        <div class="helper">HTML dipercaya — boleh &lt;em&gt; dan &lt;br&gt;</div>
+      </div>
+
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-herodesc">Deskripsi hero</label></div>
+        <textarea class="input" id="f-herodesc" name="heroDescription" rows="3"><%= paket.heroDescription || '' %></textarea>
+      </div>
+    </div>
+
+    <!-- ====== Jadwal + kuota ====== -->
+    <div class="panel">
+      <h3>Jadwal &amp; kuota</h3>
+      <p class="sub">Tanggal pulang harus ≥ tanggal berangkat.</p>
+
+      <div class="grid-3">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-dep">Berangkat *</label></div>
+          <input class="input" type="date" id="f-dep" name="departureDate" required value="<%= paket.departureDate || '' %>">
+          <% if (errors.departureDate) { %><div class="field-err"><%= errors.departureDate %></div><% } %>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-ret">Pulang *</label></div>
+          <input class="input" type="date" id="f-ret" name="returnDate" required value="<%= paket.returnDate || '' %>">
+          <% if (errors.returnDate) { %><div class="field-err"><%= errors.returnDate %></div><% } %>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-dur">Durasi (hari) *</label></div>
+          <input class="input" type="number" id="f-dur" name="durationDays" required min="1" max="60" value="<%= paket.durationDays %>">
+          <% if (errors.durationDays) { %><div class="field-err"><%= errors.durationDays %></div><% } %>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-kursi">Kuota kursi *</label></div>
+          <input class="input" type="number" id="f-kursi" name="kursiTotal" required min="1" max="500" value="<%= paket.kursiTotal %>">
+          <% if (errors.kursiTotal) { %><div class="field-err"><%= errors.kursiTotal %></div><% } %>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label">Terisi</label></div>
+          <input class="input" type="number" disabled value="<%= paket.kursiTerisi || 0 %>">
+          <div class="helper">otomatis dari booking</div>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-close">Manifes tutup</label></div>
+          <input class="input" type="datetime-local" id="f-close" name="manifestClosesAt" value="<%= paket.manifestClosesAt || '' %>">
+          <div class="helper">opsional</div>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-komisi">Komisi agen (%)</label></div>
+          <input class="input" type="number" id="f-komisi" name="komisiRatePct"
+                 min="0" max="50" step="0.01"
+                 value="<%= paket.komisiRatePct || '6' %>">
+          <% if (errors.komisiRatePct) { %><div class="field-err"><%= errors.komisiRatePct %></div><% } %>
+          <div class="helper">0-50%. Hanya dipakai saat LUNAS — komisi yang sudah EARNED tidak ikut berubah.</div>
+        </div>
+        <div class="field"></div>
+        <div class="field"></div>
+      </div>
+
+      <div class="grid-4">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-air">Maskapai</label></div>
+          <input class="input" id="f-air" name="airline" value="<%= paket.airline || '' %>">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-aircd">Kode penerbangan</label></div>
+          <input class="input" id="f-aircd" name="airlineCode" value="<%= paket.airlineCode || '' %>">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-from">Dari (IATA)</label></div>
+          <input class="input" id="f-from" name="routeFrom" maxlength="6" value="<%= paket.routeFrom || '' %>">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-to">Ke (IATA)</label></div>
+          <input class="input" id="f-to" name="routeTo" maxlength="6" value="<%= paket.routeTo || '' %>">
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== Harga ====== -->
+    <div class="panel">
+      <h3>Harga per kelas</h3>
+      <p class="sub">Kosongkan baris yang tidak dijual. Centang "Featured" untuk highlight gold di landing.</p>
+
+      <% paket.prices.forEach(function(p) { %>
+        <div class="price-row">
+          <span class="kelas-tag"><%= p.kelas %></span>
+          <div class="grid-4">
+            <div class="field">
+              <div class="label-row"><label class="label" for="pr-<%= p.kelas %>-price">Harga (Rp) *</label></div>
+              <input class="input" type="number" id="pr-<%= p.kelas %>-price"
+                     name="prices[<%= p.kelas %>][priceIdr]"
+                     min="0" step="1"
+                     value="<%= p.priceIdr != null && p.priceIdr !== '' ? Number(p.priceIdr.toString ? p.priceIdr.toString() : p.priceIdr) : '' %>">
+            </div>
+            <div class="field">
+              <div class="label-row"><label class="label">Cicilan (Rp)</label></div>
+              <input class="input" type="number"
+                     name="prices[<%= p.kelas %>][cicilanIdr]"
+                     min="0" step="1"
+                     value="<%= p.cicilanIdr != null && p.cicilanIdr !== '' ? Number(p.cicilanIdr.toString ? p.cicilanIdr.toString() : p.cicilanIdr) : '' %>">
+            </div>
+            <div class="field">
+              <div class="label-row"><label class="label">Bulan cicilan</label></div>
+              <input class="input" type="number"
+                     name="prices[<%= p.kelas %>][cicilanMonths]"
+                     min="1" max="36"
+                     value="<%= p.cicilanMonths || '' %>">
+            </div>
+            <div class="field">
+              <div class="label-row"><label class="label">Label kamar</label></div>
+              <input class="input"
+                     name="prices[<%= p.kelas %>][label]"
+                     value="<%= p.label || '' %>">
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <input class="input"
+                   name="prices[<%= p.kelas %>][caption]"
+                   placeholder="Caption (mis. 'Sharing 4 jemaah · bunking diatur via app')"
+                   value="<%= p.caption || '' %>">
+          </div>
+          <label class="check-row">
+            <input type="checkbox" name="prices[<%= p.kelas %>][isFeatured]" <%= p.isFeatured ? 'checked' : '' %>>
+            FEATURED — highlight gold di landing
+          </label>
+        </div>
+      <% }) %>
+    </div>
+
+    <!-- ====== Inclusions / Exclusions ====== -->
+    <div class="panel">
+      <h3>Inclusions &amp; exclusions</h3>
+      <p class="sub">Satu item per baris.</p>
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-inc">Termasuk</label></div>
+          <textarea class="input" id="f-inc" name="inclusionsText" rows="8"
+                    placeholder="Visa Umroh resmi&#10;Tiket pesawat PP&#10;Hotel ★★★★★ 4 malam"><%= (paket.inclusions || []).join('\n') %></textarea>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-exc">Tidak termasuk</label></div>
+          <textarea class="input" id="f-exc" name="exclusionsText" rows="8"
+                    placeholder="Suntik meningitis&#10;Paspor baru"><%= (paket.exclusions || []).join('\n') %></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== Hotels + Days (interactive) ====== -->
+    <% if (mode === 'edit') { %>
+      <div class="panel">
+        <h3>Hotel &amp; Itinerary</h3>
+        <p class="sub">Klik baris untuk edit. Tambah / hapus berlaku langsung (tidak menunggu Simpan paket).</p>
+        <div class="grid-2">
+          <div>
+            <div class="child-panel-head">
+              <div class="lbl">HOTEL · <strong><%= paket.hotels.length %></strong></div>
+              <button type="button" class="add-child-btn" data-add-hotel>+ TAMBAH HOTEL</button>
+            </div>
+            <div class="child-list" id="hotel-list">
+              <% if (paket.hotels.length === 0) { %>
+                <div class="child-empty">Belum ada hotel.</div>
+              <% } %>
+              <% paket.hotels.forEach(function(h) { %>
+                <div class="child-row"
+                     data-hotel-id="<%= h.id %>"
+                     data-city="<%= h.city %>"
+                     data-name="<%= h.name %>"
+                     data-stars="<%= h.stars %>"
+                     data-distance="<%= h.distance || '' %>"
+                     data-description="<%= h.description || '' %>"
+                     data-nights="<%= h.nights %>"
+                     data-order="<%= h.order %>">
+                  <div class="info">
+                    <div class="nm"><%= h.name %></div>
+                    <div class="sx"><%= h.city %> · <%= h.stars %>★ · <%= h.nights %> malam<% if (h.distance) { %> · <%= h.distance %><% } %></div>
+                  </div>
+                  <div class="acts">
+                    <button type="button" data-edit-hotel>EDIT</button>
+                    <button type="button" class="danger" data-delete-hotel>HAPUS</button>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+          <div>
+            <div class="child-panel-head">
+              <div class="lbl">ITINERARY · <strong><%= paket.days.length %></strong> HARI</div>
+              <button type="button" class="add-child-btn" data-add-day>+ TAMBAH HARI</button>
+            </div>
+            <div class="child-list" id="day-list">
+              <% if (paket.days.length === 0) { %>
+                <div class="child-empty">Belum ada itinerary.</div>
+              <% } %>
+              <% paket.days.sort(function(a,b){return a.dayNumber-b.dayNumber;}).forEach(function(d) { %>
+                <div class="child-row"
+                     data-day-id="<%= d.id %>"
+                     data-day-number="<%= d.dayNumber %>"
+                     data-day-range="<%= d.dayRange || '' %>"
+                     data-date-label="<%= d.dateLabel || '' %>"
+                     data-month-label="<%= d.monthLabel || '' %>"
+                     data-title="<%= d.title %>"
+                     data-description="<%= d.description %>"
+                     data-tags="<%= (d.tags || []).join(', ') %>"
+                     data-highlight="<%= d.highlight ? '1' : '' %>"
+                     data-pembimbing-title="<%= d.pembimbingTitle || '' %>"
+                     data-pembimbing-note="<%= d.pembimbingNote || '' %>">
+                  <div class="info">
+                    <div class="nm"><strong>Hari <%= d.dayNumber %></strong> — <%= d.title %></div>
+                    <div class="sx"><%= d.dayRange || '' %><% if (d.dateLabel) { %> · <%= d.dateLabel %><% } %><% if (d.monthLabel) { %> <%= d.monthLabel %><% } %></div>
+                  </div>
+                  <div class="acts">
+                    <button type="button" data-edit-day>EDIT</button>
+                    <button type="button" class="danger" data-delete-day>HAPUS</button>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== Rooms (Bunking) ====== -->
+      <div class="panel">
+        <h3>Kamar (Bunking)</h3>
+        <p class="sub">Daftar kamar hotel — di-assign ke booking via tab Bunking. Hapus kamar memerlukan booking tidak ter-assign dulu.</p>
+
+        <div class="child-panel-head">
+          <div class="lbl">KAMAR · <strong><%= paket.rooms.length %></strong></div>
+          <button type="button" class="add-child-btn" data-add-room>+ TAMBAH KAMAR</button>
+        </div>
+        <div class="child-list" id="room-list">
+          <% if (paket.rooms.length === 0) { %>
+            <div class="child-empty">Belum ada kamar.</div>
+          <% } %>
+          <% paket.rooms.forEach(function(r) {
+            const occupied = (r.bookings || []).reduce(function(acc, b) { return acc + b.paxCount; }, 0);
+            const state = occupied === 0 ? 'empty' : (occupied >= r.capacity ? 'full' : 'partial');
+            const stateColor = state === 'full' ? 'var(--emerald)' : (state === 'partial' ? 'var(--gold-300)' : 'var(--ink-300)');
+          %>
+            <div class="child-row"
+                 data-room-id="<%= r.id %>"
+                 data-room-no="<%= r.roomNo %>"
+                 data-floor="<%= r.floor ?? '' %>"
+                 data-wing="<%= r.wing || '' %>"
+                 data-kelas="<%= r.kelas %>"
+                 data-capacity="<%= r.capacity %>"
+                 data-notes="<%= r.notes || '' %>">
+              <div class="info">
+                <div class="nm">
+                  <%= r.roomNo %>
+                  <span style="color:<%= stateColor %>;font-family:var(--font-mono);font-size:10.5px;margin-left:8px;letter-spacing:0.06em;">
+                    <%= occupied %>/<%= r.capacity %> slot
+                  </span>
+                </div>
+                <div class="sx">
+                  <%= r.kelas %> · Lt <%= r.floor ?? '—' %><% if (r.wing) { %> · <%= r.wing %><% } %>
+                </div>
+              </div>
+              <div class="acts">
+                <button type="button" data-edit-room>EDIT</button>
+                <button type="button" class="danger" data-delete-room>HAPUS</button>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- ====== Crew (5oo) ====== -->
+    <% if (mode === 'edit' && Array.isArray(availableCrew)) { %>
+      <div class="panel">
+        <h3>Crew (muthawwif)</h3>
+        <p class="sub">Assign satu atau lebih muthawwif sebagai crew untuk paket ini. Mereka akan lihat manifest di <code>/crew/paket/<%= paket.slug %></code>.</p>
+
+        <div id="crew-assigned-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+          <% if (assignedCrew.length === 0) { %>
+            <div style="padding:16px;border:1px dashed var(--ink-500);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">
+              Belum ada crew di-assign.
+            </div>
+          <% } else { %>
+            <% assignedCrew.forEach(function(c) { %>
+              <div class="child-row" data-crew-id="<%= c.id %>" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);">
+                <div style="flex:1;">
+                  <div style="color:var(--cream-100);font-size:13px;"><%= c.fullName %></div>
+                  <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);"><%= c.email %> · assigned <%= fmt.dateShort(c.assignedAt) %></div>
+                </div>
+                <button type="button" class="acts danger crew-unassign" style="background:transparent;border:1px solid rgba(181,86,74,0.5);color:var(--ruby);padding:5px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;cursor:pointer;text-transform:uppercase;">HAPUS</button>
+              </div>
+            <% }) %>
+          <% } %>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:end;">
+          <select id="crew-select" class="input" style="flex:1;background-color:var(--ink-900);color:var(--cream-100);">
+            <option value="">— Pilih muthawwif untuk di-assign —</option>
+            <%
+              const assignedIds = new Set(assignedCrew.map((c) => c.id));
+              availableCrew.filter((u) => !assignedIds.has(u.id)).forEach(function(u) {
+            %>
+              <option value="<%= u.id %>"><%= u.fullName %> · <%= u.email %></option>
+            <% }) %>
+          </select>
+          <button type="button" id="crew-assign-btn" class="btn btn--primary">Assign</button>
+        </div>
+        <div id="crew-err" style="display:none;margin-top:10px;color:var(--ruby);font-family:var(--font-mono);font-size:11px;"></div>
+      </div>
+    <% } %>
+
+    <!-- ====== Footer ====== -->
+    <div class="form-footer">
+      <div class="left">
+        <% if (mode === 'edit') { %>
+          <button type="button" class="btn-danger" id="archive-btn">Arsipkan</button>
+        <% } %>
+      </div>
+      <div class="right">
+        <a href="/admin?tab=packages" class="btn btn--ghost">Batal</a>
+        <button type="submit" class="btn btn--primary">
+          <%= mode === 'new' ? 'Buat Paket' : 'Simpan' %>
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <% if (mode === 'edit') { %>
+    <form id="archive-form" method="POST" action="/admin/paket/<%= paket.slug %>/delete" style="display:none;"></form>
+  <% } %>
+</div>
+
+<% if (mode === 'edit') { %>
+<!-- Hotel modal -->
+<div class="modal-overlay" id="hotel-modal" aria-hidden="true">
+  <div class="modal">
+    <h2 id="hotel-modal-title">Tambah Hotel</h2>
+    <div class="sub-m" id="hotel-modal-sub">—</div>
+    <div class="err-m" id="hotel-err"></div>
+
+    <form id="hotel-form">
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="h-city">Kota *</label></div>
+          <select class="input" id="h-city" name="city" required>
+            <% ['MADINAH','MEKKAH','JEDDAH','AQSA','PETRA','AMMAN','ISTANBUL','CAIRO','DUBAI','JAKARTA'].forEach(function(c) { %>
+              <option value="<%= c %>"><%= c %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="h-stars">Bintang *</label></div>
+          <select class="input" id="h-stars" name="stars" required>
+            <option value="3">3 ★</option>
+            <option value="4">4 ★</option>
+            <option value="5" selected>5 ★</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="h-name">Nama hotel *</label></div>
+        <input class="input" id="h-name" name="name" required minlength="2" maxlength="190">
+      </div>
+      <div class="grid-3">
+        <div class="field">
+          <div class="label-row"><label class="label" for="h-distance">Jarak</label></div>
+          <input class="input" id="h-distance" name="distance" maxlength="190" placeholder="mis. 50m Nabawi">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="h-nights">Malam *</label></div>
+          <input class="input" type="number" id="h-nights" name="nights" required min="1" max="60" value="3">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="h-order">Urutan</label></div>
+          <input class="input" type="number" id="h-order" name="order" min="0" max="99" value="0">
+        </div>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="h-desc">Deskripsi</label></div>
+        <textarea class="input" id="h-desc" name="description" rows="3"></textarea>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" data-close-hotel>Batal</button>
+        <button type="submit" class="btn btn--primary">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Room modal -->
+<div class="modal-overlay" id="room-modal" aria-hidden="true">
+  <div class="modal">
+    <h2 id="room-modal-title">Tambah Kamar</h2>
+    <div class="sub-m" id="room-modal-sub">—</div>
+    <div class="err-m" id="room-err"></div>
+
+    <form id="room-form">
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="rm-no">Nomor kamar *</label></div>
+          <input class="input" id="rm-no" name="roomNo" required maxlength="50" placeholder="mis. M-401">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="rm-kelas">Kelas *</label></div>
+          <select class="input" id="rm-kelas" name="kelas" required>
+            <option value="QUAD">QUAD (4 pax)</option>
+            <option value="TRIPLE">TRIPLE (3 pax)</option>
+            <option value="DOUBLE">DOUBLE (2 pax)</option>
+            <option value="VVIP">VVIP (1 pax)</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-3">
+        <div class="field">
+          <div class="label-row"><label class="label" for="rm-floor">Lantai</label></div>
+          <input class="input" type="number" id="rm-floor" name="floor" min="0" max="99" placeholder="4">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="rm-wing">Wing</label></div>
+          <input class="input" id="rm-wing" name="wing" maxlength="190" placeholder="Selatan / Utara">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="rm-cap">Kapasitas</label></div>
+          <input class="input" type="number" id="rm-cap" name="capacity" min="1" max="20" placeholder="auto dari kelas">
+        </div>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="rm-notes">Catatan</label></div>
+        <textarea class="input" id="rm-notes" name="notes" rows="2"></textarea>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" data-close-room>Batal</button>
+        <button type="submit" class="btn btn--primary">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Day modal -->
+<div class="modal-overlay" id="day-modal" aria-hidden="true">
+  <div class="modal">
+    <h2 id="day-modal-title">Tambah Hari</h2>
+    <div class="sub-m" id="day-modal-sub">—</div>
+    <div class="err-m" id="day-err"></div>
+
+    <form id="day-form">
+      <div class="grid-3">
+        <div class="field">
+          <div class="label-row"><label class="label" for="d-num">Day # *</label></div>
+          <input class="input" type="number" id="d-num" name="dayNumber" required min="1" max="60">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="d-range">Day range</label></div>
+          <input class="input" id="d-range" name="dayRange" placeholder="Hari 01 / Hari 02–05">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="d-date">Date label</label></div>
+          <input class="input" id="d-date" name="dateLabel" placeholder="25 / 26–29">
+        </div>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="d-month">Month label</label></div>
+        <input class="input" id="d-month" name="monthLabel" placeholder="Mar 2026 / Apr · Pulang">
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="d-title">Judul *</label></div>
+        <input class="input" id="d-title" name="title" required minlength="2" maxlength="190">
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="d-desc">Deskripsi *</label></div>
+        <textarea class="input" id="d-desc" name="description" required rows="3"></textarea>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="d-tags">Tags (comma-separated)</label></div>
+        <input class="input" id="d-tags" name="tagsText" placeholder="Manasik Final, CGK · T3, Direct Flight">
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="d-pemb-t">Pembimbing — title</label></div>
+          <input class="input" id="d-pemb-t" name="pembimbingTitle" placeholder="Catatan Pembimbing">
+        </div>
+        <div class="field" style="display:flex;align-items:flex-end;">
+          <label class="check-row" style="margin:0 0 14px;">
+            <input type="checkbox" name="highlight"> HIGHLIGHT hari penting
+          </label>
+        </div>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="d-pemb-n">Pembimbing — note</label></div>
+        <textarea class="input" id="d-pemb-n" name="pembimbingNote" rows="3"></textarea>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" data-close-day>Batal</button>
+        <button type="submit" class="btn btn--primary">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<script>
+  const archiveBtn = document.getElementById('archive-btn');
+  if (archiveBtn) {
+    archiveBtn.addEventListener('click', () => {
+      if (confirm('Arsipkan paket ini? Booking yang sudah ada tetap aman, tapi paket tidak akan tampil di landing.')) {
+        document.getElementById('archive-form').submit();
+      }
+    });
+  }
+
+  <% if (mode === 'edit') { %>
+  const SLUG = <%- JSON.stringify(paket.slug) %>;
+
+  // ─── Helpers ───
+  function openModal(id) { document.getElementById(id).classList.add('is-open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('is-open'); }
+  function fillForm(form, data) {
+    for (const [k, v] of Object.entries(data)) {
+      const el = form.elements[k];
+      if (!el) continue;
+      if (el.type === 'checkbox') el.checked = !!v;
+      else el.value = v ?? '';
+    }
+  }
+  function formToBody(form) {
+    const fd = new FormData(form);
+    const body = {};
+    for (const [k, v] of fd.entries()) {
+      if (v !== '') body[k] = v;
+    }
+    // checkbox unchecked = field missing from FormData → ensure false sent for clarity
+    form.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+      if (!cb.checked && !(cb.name in body)) body[cb.name] = '';
+    });
+    return body;
+  }
+  async function callJson(method, url, body) {
+    const r = await fetch(url, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new Error(j?.error?.message || `HTTP ${r.status}`);
+    }
+    return r.json();
+  }
+
+  // ─── Hotel modal ───
+  const hModal = document.getElementById('hotel-modal');
+  const hForm  = document.getElementById('hotel-form');
+  const hErr   = document.getElementById('hotel-err');
+  const hSub   = document.getElementById('hotel-modal-sub');
+  const hTitle = document.getElementById('hotel-modal-title');
+  let editingHotelId = null;
+
+  function openHotelModal(row) {
+    editingHotelId = row?.dataset.hotelId || null;
+    hErr.classList.remove('is-visible');
+    if (row) {
+      hTitle.textContent = 'Edit Hotel';
+      hSub.textContent = row.dataset.name;
+      fillForm(hForm, {
+        city: row.dataset.city, name: row.dataset.name,
+        stars: row.dataset.stars, distance: row.dataset.distance,
+        description: row.dataset.description, nights: row.dataset.nights,
+        order: row.dataset.order,
+      });
+    } else {
+      hTitle.textContent = 'Tambah Hotel';
+      hSub.textContent = 'Baris baru';
+      hForm.reset();
+      hForm.elements.stars.value = '5';
+      hForm.elements.nights.value = '3';
+      hForm.elements.order.value = '0';
+    }
+    openModal('hotel-modal');
+    setTimeout(() => hForm.elements.name.focus(), 0);
+  }
+
+  document.querySelectorAll('[data-add-hotel]').forEach((b) =>
+    b.addEventListener('click', () => openHotelModal(null)));
+  document.querySelectorAll('[data-close-hotel]').forEach((b) =>
+    b.addEventListener('click', () => closeModal('hotel-modal')));
+  hModal.addEventListener('click', (e) => { if (e.target === hModal) closeModal('hotel-modal'); });
+
+  document.querySelectorAll('.child-row[data-hotel-id]').forEach((row) => {
+    row.querySelector('[data-edit-hotel]').addEventListener('click', () => openHotelModal(row));
+    row.querySelector('[data-delete-hotel]').addEventListener('click', async () => {
+      if (!confirm('Hapus hotel ini?')) return;
+      try {
+        await callJson('DELETE', `/api/paket/${encodeURIComponent(SLUG)}/hotels/${row.dataset.hotelId}`);
+        location.reload();
+      } catch (e) { alert(e.message); }
+    });
+  });
+
+  hForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hErr.classList.remove('is-visible');
+    try {
+      const body = formToBody(hForm);
+      if (editingHotelId) {
+        await callJson('PATCH', `/api/paket/${encodeURIComponent(SLUG)}/hotels/${editingHotelId}`, body);
+      } else {
+        await callJson('POST', `/api/paket/${encodeURIComponent(SLUG)}/hotels`, body);
+      }
+      location.reload();
+    } catch (e) {
+      hErr.textContent = e.message;
+      hErr.classList.add('is-visible');
+    }
+  });
+
+  // ─── Room modal ───
+  const KELAS_CAP = { QUAD: 4, TRIPLE: 3, DOUBLE: 2, VVIP: 1 };
+  const rModal = document.getElementById('room-modal');
+  const rForm  = document.getElementById('room-form');
+  const rErr   = document.getElementById('room-err');
+  const rSub   = document.getElementById('room-modal-sub');
+  const rTitle = document.getElementById('room-modal-title');
+  const rKelas = document.getElementById('rm-kelas');
+  const rCap   = document.getElementById('rm-cap');
+  let editingRoomId = null;
+
+  // When kelas changes, suggest default capacity (only if cap field is empty)
+  rKelas.addEventListener('change', () => {
+    if (!rCap.value || rCap.dataset.autofill === '1') {
+      rCap.value = KELAS_CAP[rKelas.value] || '';
+      rCap.dataset.autofill = '1';
+    }
+  });
+  rCap.addEventListener('input', () => { rCap.dataset.autofill = ''; });
+
+  function openRoomModal(row) {
+    editingRoomId = row?.dataset.roomId || null;
+    rErr.classList.remove('is-visible');
+    if (row) {
+      rTitle.textContent = 'Edit Kamar';
+      rSub.textContent = row.dataset.roomNo;
+      fillForm(rForm, {
+        roomNo: row.dataset.roomNo, kelas: row.dataset.kelas,
+        floor: row.dataset.floor, wing: row.dataset.wing,
+        capacity: row.dataset.capacity, notes: row.dataset.notes,
+      });
+      rCap.dataset.autofill = '';
+    } else {
+      rTitle.textContent = 'Tambah Kamar';
+      rSub.textContent = 'Baris baru';
+      rForm.reset();
+      rKelas.value = 'QUAD';
+      rCap.value = KELAS_CAP.QUAD;
+      rCap.dataset.autofill = '1';
+    }
+    openModal('room-modal');
+    setTimeout(() => rForm.elements.roomNo.focus(), 0);
+  }
+
+  document.querySelectorAll('[data-add-room]').forEach((b) =>
+    b.addEventListener('click', () => openRoomModal(null)));
+  document.querySelectorAll('[data-close-room]').forEach((b) =>
+    b.addEventListener('click', () => closeModal('room-modal')));
+  rModal.addEventListener('click', (e) => { if (e.target === rModal) closeModal('room-modal'); });
+
+  document.querySelectorAll('.child-row[data-room-id]').forEach((row) => {
+    row.querySelector('[data-edit-room]').addEventListener('click', () => openRoomModal(row));
+    row.querySelector('[data-delete-room]').addEventListener('click', async () => {
+      if (!confirm(`Hapus kamar ${row.dataset.roomNo}?`)) return;
+      try {
+        await callJson('DELETE', `/api/paket/${encodeURIComponent(SLUG)}/rooms/${row.dataset.roomId}`);
+        location.reload();
+      } catch (e) { alert(e.message); }
+    });
+  });
+
+  rForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    rErr.classList.remove('is-visible');
+    try {
+      const body = formToBody(rForm);
+      if (editingRoomId) {
+        await callJson('PATCH', `/api/paket/${encodeURIComponent(SLUG)}/rooms/${editingRoomId}`, body);
+      } else {
+        await callJson('POST', `/api/paket/${encodeURIComponent(SLUG)}/rooms`, body);
+      }
+      location.reload();
+    } catch (e) {
+      rErr.textContent = e.message;
+      rErr.classList.add('is-visible');
+    }
+  });
+
+  // ─── Day modal ───
+  const dModal = document.getElementById('day-modal');
+  const dForm  = document.getElementById('day-form');
+  const dErr   = document.getElementById('day-err');
+  const dSub   = document.getElementById('day-modal-sub');
+  const dTitle = document.getElementById('day-modal-title');
+  let editingDayId = null;
+
+  function openDayModal(row) {
+    editingDayId = row?.dataset.dayId || null;
+    dErr.classList.remove('is-visible');
+    if (row) {
+      dTitle.textContent = 'Edit Hari';
+      dSub.textContent = `Hari ${row.dataset.dayNumber} — ${row.dataset.title}`;
+      fillForm(dForm, {
+        dayNumber: row.dataset.dayNumber,
+        dayRange: row.dataset.dayRange,
+        dateLabel: row.dataset.dateLabel,
+        monthLabel: row.dataset.monthLabel,
+        title: row.dataset.title,
+        description: row.dataset.description,
+        tagsText: row.dataset.tags,
+        highlight: row.dataset.highlight === '1',
+        pembimbingTitle: row.dataset.pembimbingTitle,
+        pembimbingNote: row.dataset.pembimbingNote,
+      });
+    } else {
+      dTitle.textContent = 'Tambah Hari';
+      dSub.textContent = 'Baris baru';
+      dForm.reset();
+      // Suggest next day number
+      const used = Array.from(document.querySelectorAll('.child-row[data-day-id]'))
+        .map((r) => Number(r.dataset.dayNumber)).sort((a, b) => a - b);
+      dForm.elements.dayNumber.value = used.length ? (used[used.length - 1] + 1) : 1;
+    }
+    openModal('day-modal');
+    setTimeout(() => dForm.elements.title.focus(), 0);
+  }
+
+  document.querySelectorAll('[data-add-day]').forEach((b) =>
+    b.addEventListener('click', () => openDayModal(null)));
+  document.querySelectorAll('[data-close-day]').forEach((b) =>
+    b.addEventListener('click', () => closeModal('day-modal')));
+  dModal.addEventListener('click', (e) => { if (e.target === dModal) closeModal('day-modal'); });
+
+  document.querySelectorAll('.child-row[data-day-id]').forEach((row) => {
+    row.querySelector('[data-edit-day]').addEventListener('click', () => openDayModal(row));
+    row.querySelector('[data-delete-day]').addEventListener('click', async () => {
+      if (!confirm('Hapus hari itinerary ini?')) return;
+      try {
+        await callJson('DELETE', `/api/paket/${encodeURIComponent(SLUG)}/days/${row.dataset.dayId}`);
+        location.reload();
+      } catch (e) { alert(e.message); }
+    });
+  });
+
+  dForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    dErr.classList.remove('is-visible');
+    try {
+      const body = formToBody(dForm);
+      if (editingDayId) {
+        await callJson('PATCH', `/api/paket/${encodeURIComponent(SLUG)}/days/${editingDayId}`, body);
+      } else {
+        await callJson('POST', `/api/paket/${encodeURIComponent(SLUG)}/days`, body);
+      }
+      location.reload();
+    } catch (e) {
+      dErr.textContent = e.message;
+      dErr.classList.add('is-visible');
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeModal('hotel-modal');
+      closeModal('day-modal');
+      closeModal('room-modal');
+    }
+  });
+  <% } %>
+</script>
+
+<%# 5oo: crew panel JS — assign + unassign via fetch then reload %>
+<% if (mode === 'edit' && Array.isArray(availableCrew)) { %>
+<script>
+  (function () {
+    const slug = <%- JSON.stringify(paket.slug) %>;
+    const assignBtn = document.getElementById('crew-assign-btn');
+    const sel = document.getElementById('crew-select');
+    const err = document.getElementById('crew-err');
+    function showErr(msg) { err.textContent = msg; err.style.display = 'block'; }
+    function hideErr() { err.style.display = 'none'; }
+
+    assignBtn.addEventListener('click', async () => {
+      hideErr();
+      const userId = sel.value;
+      if (!userId) { showErr('Pilih muthawwif dulu'); return; }
+      assignBtn.disabled = true;
+      try {
+        const r = await fetch('/api/paket/' + encodeURIComponent(slug) + '/crew', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          showErr(j?.error?.message || 'Assign gagal');
+          assignBtn.disabled = false;
+          return;
+        }
+        location.reload();
+      } catch {
+        showErr('Tidak dapat menghubungi server');
+        assignBtn.disabled = false;
+      }
+    });
+
+    document.querySelectorAll('.crew-unassign').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const row = btn.closest('[data-crew-id]');
+        const userId = row?.dataset.crewId;
+        if (!userId || !confirm('Hapus crew ini dari paket?')) return;
+        btn.disabled = true;
+        try {
+          const r = await fetch('/api/paket/' + encodeURIComponent(slug) + '/crew/' + encodeURIComponent(userId), {
+            method: 'DELETE',
+          });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            showErr(j?.error?.message || 'Unassign gagal');
+            btn.disabled = false;
+            return;
+          }
+          location.reload();
+        } catch {
+          showErr('Tidak dapat menghubungi server');
+          btn.disabled = false;
+        }
+      });
+    });
+  })();
+</script>
+<% } %>
+</body>
+</html>

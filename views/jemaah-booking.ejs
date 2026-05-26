@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — <%= b.bookingNo %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+
+  .head { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: end; gap: 24px; }
+  .head h1 {
+    font-family: var(--font-display); font-size: 32px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .id {
+    font-family: var(--font-mono); font-size: 20px;
+    color: var(--gold-300); letter-spacing: 0.04em;
+  }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+  .status-tag {
+    padding: 6px 14px; font-family: var(--font-mono); font-size: 12px;
+    border-radius: 4px; letter-spacing: 0.14em; border: 1px solid;
+  }
+  .status-tag.pending   { color: var(--amber); border-color: var(--amber); }
+  .status-tag.booked    { color: var(--sapphire); border-color: var(--sapphire); }
+  .status-tag.dp_paid   { color: var(--gold-300); border-color: var(--gold-300); }
+  .status-tag.partial   { color: var(--gold-300); border-color: rgba(212,175,55,0.5); }
+  .status-tag.lunas     { color: var(--emerald); border-color: var(--emerald); background: rgba(74,143,109,0.08); }
+  .status-tag.cancelled { color: var(--ruby); border-color: var(--ruby); }
+  .status-tag.refunded  { color: var(--ruby); border-color: var(--ruby); background: rgba(181,86,74,0.08); }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px;
+    margin-bottom: 18px;
+  }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 20px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 16px;
+    padding-bottom: 12px; border-bottom: var(--hairline-soft);
+  }
+
+  .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .info-item .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .info-item .v { font-family: var(--font-mono); font-size: 13px; color: var(--cream-100); margin-top: 4px; word-break: break-word; }
+  .info-item .v.gold { color: var(--gold-300); }
+
+  .money-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+    margin: 18px 0 0; padding: 20px;
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+  }
+  .money-row .cell { text-align: center; }
+  .money-row .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .money-row .v { font-family: var(--font-display); font-size: 26px; color: var(--cream-100); margin-top: 6px; font-weight: 500; }
+  .money-row .v.gold { color: var(--gold-300); }
+  .money-row .v.emerald { color: var(--emerald); }
+  .money-row .v.ruby { color: var(--ruby); }
+
+  .progress-bar {
+    height: 10px; background: var(--ink-700); border-radius: 5px; overflow: hidden;
+    margin-top: 14px;
+  }
+  .progress-bar > i { display: block; height: 100%; background: var(--gold-300); }
+  .progress-bar > i.full { background: var(--emerald); }
+
+  .tbl { width: 100%; border-collapse: collapse; }
+  .tbl thead th {
+    text-align: left; padding: 10px 12px;
+    background: var(--ink-1000);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-200); font-weight: 500;
+    border-bottom: var(--hairline);
+  }
+  .tbl tbody td {
+    padding: 10px 12px; border-bottom: var(--hairline-soft);
+    font-size: 13px; color: var(--cream-200);
+  }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl .num { text-align: right; font-family: var(--font-mono); }
+  .tbl .amt.gold { color: var(--gold-300); }
+  .tbl .amt.ruby { color: var(--ruby); }
+
+  .doc-pill {
+    padding: 4px 9px; font-family: var(--font-mono); font-size: 11px;
+    border-radius: 3px; letter-spacing: 0.1em; font-weight: 600;
+    border: 1px solid; margin-right: 6px; display: inline-block; margin-bottom: 6px;
+  }
+  .doc-pill.verified  { color: var(--emerald); border-color: rgba(74,143,109,0.5); background: rgba(74,143,109,0.08); }
+  .doc-pill.submitted { color: var(--amber);   border-color: rgba(201,147,59,0.5); background: rgba(201,147,59,0.08); }
+  .doc-pill.pending   { color: var(--ink-200); border-color: var(--ink-500); }
+  .doc-pill.rejected  { color: var(--ruby);    border-color: rgba(181,86,74,0.5); background: rgba(181,86,74,0.08); }
+  .doc-pill.expired   { color: var(--ruby);    border-color: var(--ruby);          background: rgba(181,86,74,0.15); }
+
+  .empty {
+    padding: 24px; text-align: center;
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-200);
+  }
+  .help-card {
+    background: rgba(212,175,55,0.05); border: 1px dashed rgba(212,175,55,0.3);
+    color: var(--ink-100);
+    padding: 14px 18px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; line-height: 1.7;
+    margin-top: 18px;
+  }
+  .help-card .who { color: var(--gold-300); }
+</style>
+</head>
+<body data-screen-label="04 Portal Jemaah · Detail">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/saya">← KEMBALI KE PORTAL</a>
+  </div>
+
+  <%
+    const total = Number(b.totalAmount?.toString?.() ?? b.totalAmount) || 0;
+    const paid  = Number(b.paidAmount?.toString?.()  ?? b.paidAmount)  || 0;
+    const sisa  = Math.max(0, total - paid);
+    const pct   = total > 0 ? Math.round((paid / total) * 100) : 0;
+  %>
+
+  <div class="head">
+    <div>
+      <h1><em><%= b.paket.title %></em></h1>
+      <div class="sub">
+        <span class="id"><%= b.bookingNo %></span> · DEP <%= fmt.dateLong(b.paket.departureDate) %>
+      </div>
+    </div>
+    <div>
+      <span class="status-tag <%= b.status.toLowerCase() %>"><%= b.status %></span>
+    </div>
+  </div>
+
+  <!-- Booking info -->
+  <div class="panel">
+    <h3>Info booking</h3>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="l">Kelas kamar</div>
+        <div class="v gold"><%= b.kelas %> · <%= b.paxCount %> PAX</div>
+      </div>
+      <div class="info-item">
+        <div class="l">Durasi</div>
+        <div class="v"><%= b.paket.durationDays %> hari</div>
+      </div>
+      <div class="info-item">
+        <div class="l">Berangkat</div>
+        <div class="v"><%= fmt.dateLong(b.paket.departureDate) %></div>
+      </div>
+      <div class="info-item">
+        <div class="l">Pulang</div>
+        <div class="v"><%= fmt.dateLong(b.paket.returnDate) %></div>
+      </div>
+      <% if (b.room) { %>
+        <div class="info-item">
+          <div class="l">Kamar</div>
+          <div class="v gold"><%= b.room.roomNo %> · Lt <%= b.room.floor ?? '—' %><% if (b.room.wing) { %> · <%= b.room.wing %><% } %></div>
+        </div>
+      <% } else { %>
+        <div class="info-item">
+          <div class="l">Kamar</div>
+          <div class="v" style="color:var(--ink-300);">Belum di-assign — akan dibagikan H-7 keberangkatan.</div>
+        </div>
+      <% } %>
+      <div class="info-item">
+        <div class="l">Pembelian</div>
+        <div class="v"><%= fmt.dateLong(b.createdAt) %></div>
+      </div>
+    </div>
+
+    <div class="money-row">
+      <div class="cell">
+        <div class="l">Total tagihan</div>
+        <div class="v"><%= fmt.rpShort(total) %></div>
+      </div>
+      <div class="cell">
+        <div class="l">Sudah dibayar</div>
+        <div class="v <%= paid >= total && total > 0 ? 'emerald' : 'gold' %>"><%= fmt.rpShort(paid) %></div>
+      </div>
+      <div class="cell">
+        <div class="l">Sisa</div>
+        <div class="v <%= sisa === 0 ? 'emerald' : 'ruby' %>"><%= fmt.rpShort(sisa) %></div>
+      </div>
+    </div>
+    <div class="progress-bar"><i class="<%= pct >= 100 ? 'full' : '' %>" style="width:<%= Math.min(100, pct) %>%;"></i>
+</div>
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin-top:6px;text-align:right;letter-spacing:0.08em;">
+      <%= pct %>% PAID
+    </div>
+
+    <%# 5xx: live status of any non-terminal payment intent for this booking. %>
+    <% if (typeof activeIntent !== 'undefined' && activeIntent) { %>
+      <div id="intent-card"
+           data-intent-id="<%= activeIntent.id %>"
+           data-snap-url="<%= activeIntent.snapRedirectUrl || '' %>"
+           style="margin-top:18px;padding:16px 18px;background:rgba(212,175,55,0.06);border:1px solid var(--gold-300);border-radius:var(--r-sm);">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:14px;flex-wrap:wrap;">
+          <div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:4px;">
+              Pembayaran aktif
+            </div>
+            <div style="color:var(--cream-100);font-family:var(--font-mono);font-size:12.5px;">
+              Order <span id="intent-order"><%= activeIntent.orderId %></span> ·
+              <%= Math.round(Number(activeIntent.amount?.toString?.() ?? activeIntent.amount) || 0).toLocaleString('id-ID') %> IDR
+            </div>
+            <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:4px;letter-spacing:0.06em;">
+              Status: <strong id="intent-status" style="color:var(--cream-100);"><%= activeIntent.status %></strong>
+              <span id="intent-gw" style="color:var(--ink-300);">
+                <% if (activeIntent.gatewayStatus) { %> · gateway: <%= activeIntent.gatewayStatus %><% } %>
+              </span>
+              <span id="intent-checked" style="color:var(--ink-300);margin-left:8px;"></span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <% if (activeIntent.snapRedirectUrl) { %>
+              <a href="<%= activeIntent.snapRedirectUrl %>" target="_blank" rel="noopener"
+                 style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:7px 14px;border-radius:3px;">
+                ↗ Lanjut bayar
+              </a>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <%# 5pp: pay-online CTA. Visible only when there's still outstanding amount + booking is alive. %>
+    <% const canPayOnline = sisa > 0 && b.status !== 'CANCELLED' && b.status !== 'REFUNDED'; %>
+    <% if (canPayOnline) { %>
+      <div style="margin-top:18px;display:flex;flex-direction:column;gap:8px;padding:14px;background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);">
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);letter-spacing:0.06em;">
+          Bayar online via Midtrans (VA bank / QRIS / e-wallet). Pilih nominal:
+        </div>
+        <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+          <div style="flex:1;min-width:160px;">
+            <input id="pay-amount" type="number" min="1" step="1" max="<%= sisa %>" value="<%= sisa %>"
+                   class="input" style="width:100%;padding:8px 10px;font-family:var(--font-mono);font-size:14px;">
+          </div>
+          <button type="button" id="pay-btn"
+                  style="background:var(--gold-300);color:var(--ink-1000);border:0;padding:10px 20px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;cursor:pointer;font-weight:600;text-transform:uppercase;">
+            Bayar Sekarang
+          </button>
+        </div>
+        <div id="pay-err" style="display:none;color:var(--ruby);font-family:var(--font-mono);font-size:11px;"></div>
+      </div>
+    <% } %>
+
+    <% if (b.agent) { %>
+      <div class="help-card">
+        Agen penanggung jawab: <span class="who"><%= b.agent.displayName %></span><br>
+        Hubungi via WhatsApp: <strong style="color:var(--cream-100);"><%= b.agent.whatsapp %></strong>
+      </div>
+    <% } else { %>
+      <div class="help-card">
+        Untuk pembayaran &amp; pertanyaan, hubungi <span class="who">Kantor Pusat Religio Pro</span>.
+      </div>
+    <% } %>
+  </div>
+
+  <!-- Payment history -->
+  <div class="panel">
+    <h3>Riwayat pembayaran (<%= b.payments.length %>)</h3>
+    <% if (b.payments.length === 0) { %>
+      <div class="empty">Belum ada pembayaran tercatat.</div>
+    <% } else { %>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Waktu</th>
+            <th>Metode</th>
+            <th>Status</th>
+            <th class="num">Jumlah</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% b.payments.forEach(function(p) { %>
+            <% const pAmt = Number(p.amount?.toString?.() ?? p.amount) || 0; const isRefund = pAmt < 0; %>
+            <tr>
+              <td>
+                <div style="color:var(--cream-100);"><%= fmt.date(p.paidAt || p.createdAt) %></div>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);"><%= new Date(p.paidAt || p.createdAt).toISOString().slice(11,16) %></div>
+              </td>
+              <td><span class="badge"><%= p.method %></span></td>
+              <td>
+                <% const cls = p.status === 'PAID' ? 'badge--emerald' : (p.status === 'REFUNDED' ? 'badge--ruby' : 'badge--amber'); %>
+                <span class="badge <%= cls %>"><%= p.status %></span>
+              </td>
+              <td class="num amt <%= isRefund ? 'ruby' : 'gold' %>">
+                <%= isRefund ? '−' : '' %><%= fmt.rpFull(Math.abs(pAmt)) %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <!-- Cancel request (5ff) -->
+  <% const canRequestCancel = b.status !== 'CANCELLED' && b.status !== 'REFUNDED' && !b.cancelRequested; %>
+  <% if (b.cancelRequested) { %>
+    <div class="help-card" style="background:rgba(201,147,59,0.08);border-color:rgba(201,147,59,0.4);color:var(--cream-100);margin-bottom:18px;">
+      <strong style="color:var(--amber);">PERMINTAAN PEMBATALAN DIKIRIM</strong><br>
+      Dikirim: <%= fmt.dateLong(b.cancelRequestedAt) %><br>
+      Alasan: <em><%= b.cancelRequestReason %></em><br>
+      Status: menunggu konfirmasi admin Religio Pro.
+    </div>
+  <% } else if (canRequestCancel) { %>
+    <div class="panel" style="border-color:rgba(181,86,74,0.3);">
+      <h3 style="color:var(--ruby);">Minta pembatalan</h3>
+      <p style="font-family:var(--font-mono);font-size:12px;color:var(--ink-100);line-height:1.7;">
+        Anda dapat mengajukan pembatalan booking — admin akan mengonfirmasi via WhatsApp dan memproses refund (jika ada).
+        Catatan: refund mengikuti kebijakan paket dan tanggal H-XX keberangkatan.
+      </p>
+      <button type="button" id="open-req-cancel"
+        style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:10px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;cursor:pointer;text-transform:uppercase;margin-top:6px;">
+        Minta Pembatalan
+      </button>
+    </div>
+  <% } %>
+
+  <!-- Documents -->
+  <div class="panel">
+    <h3>Status dokumen</h3>
+    <% const docs = (b.jemaah && b.jemaah.documents) || []; %>
+    <% if (docs.length === 0) { %>
+      <div class="empty">Belum ada dokumen tercatat. Tim Religio Pro akan kontak Anda untuk pengumpulan paspor &amp; dokumen lain.</div>
+    <% } else { %>
+      <%
+        const DOC_LABELS = {
+          PASSPORT: 'Paspor', VISA_UMROH: 'Visa Umroh', MANASIK_CERT: 'Manasik',
+          HEALTH_CERT: 'Surat Sehat', VACCINE_MENINGITIS: 'Vaksin', MARRIAGE_CERT: 'Akta Nikah',
+          FAMILY_CARD: 'KK', OTHER: 'Lain',
+        };
+      %>
+      <% docs.forEach(function(d) { %>
+        <span class="doc-pill <%= d.status.toLowerCase() %>" title="<%= d.type %> — <%= d.status %>">
+          <%= DOC_LABELS[d.type] || d.type %>
+        </span>
+      <% }) %>
+      <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:14px;letter-spacing:0.06em;">
+        Hijau = verified · Kuning = submitted · Abu = pending · Merah = rejected/expired
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<% if (canRequestCancel) { %>
+<div id="req-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(10,9,8,0.75);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--ink-900);border:1px solid var(--ruby);border-radius:var(--r-md);padding:32px;width:100%;max-width:480px;">
+    <h2 style="font-family:var(--font-display);font-size:24px;color:var(--cream-100);margin:0 0 6px;">Minta Pembatalan</h2>
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);letter-spacing:0.1em;margin-bottom:20px;"><%= b.bookingNo %></div>
+
+    <div style="background:rgba(201,147,59,0.05);border:1px dashed rgba(201,147,59,0.4);color:var(--ink-100);padding:12px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;line-height:1.7;margin-bottom:14px;">
+      Permintaan ini bukan pembatalan otomatis — <strong style="color:var(--amber);">admin Religio Pro akan kontak Anda</strong> untuk konfirmasi sebelum booking benar-benar dibatalkan.
+    </div>
+
+    <div id="req-err" style="display:none;background:rgba(176,68,68,0.08);border:1px solid rgba(176,68,68,0.4);color:var(--ruby);padding:10px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;margin-bottom:14px;"></div>
+
+    <form id="req-form">
+      <label class="label" for="rc-reason">Alasan pembatalan *</label>
+      <textarea class="input" id="rc-reason" name="reason" required minlength="3" maxlength="2000" rows="3"
+        style="width:100%;min-height:80px;font-family:inherit;color:var(--cream-100);background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:10px 14px;"
+        placeholder="Mis. perubahan jadwal, kondisi kesehatan, dll."></textarea>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+        <button type="button" class="btn btn--ghost" id="req-cancel-btn">Batal</button>
+        <button type="submit" class="btn btn--danger">Kirim Permintaan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const m = document.getElementById('req-modal');
+  const openBtn = document.getElementById('open-req-cancel');
+  const closeBtn = document.getElementById('req-cancel-btn');
+  const form = document.getElementById('req-form');
+  const errEl = document.getElementById('req-err');
+  function openM() { m.style.display = 'flex'; setTimeout(() => document.getElementById('rc-reason').focus(), 0); }
+  function closeM() { m.style.display = 'none'; }
+  openBtn.addEventListener('click', openM);
+  closeBtn.addEventListener('click', closeM);
+  m.addEventListener('click', (e) => { if (e.target === m) closeM(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeM(); });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errEl.style.display = 'none';
+    const fd = new FormData(form);
+    try {
+      const r = await fetch('/api/saya/bookings/<%= b.id %>/request-cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: fd.get('reason') }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        errEl.textContent = j?.error?.message || 'Gagal kirim permintaan';
+        errEl.style.display = 'block';
+        return;
+      }
+      location.reload();
+    } catch {
+      errEl.textContent = 'Tidak dapat menghubungi server';
+      errEl.style.display = 'block';
+    }
+  });
+</script>
+<% } %>
+
+<%# 5pp: pay-online flow — create intent then redirect to snap URL %>
+<% if (sisa > 0 && b.status !== 'CANCELLED' && b.status !== 'REFUNDED') { %>
+<script>
+  (function () {
+    const btn = document.getElementById('pay-btn');
+    const input = document.getElementById('pay-amount');
+    const err = document.getElementById('pay-err');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      err.style.display = 'none';
+      const amount = Number(input.value);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        err.textContent = 'Jumlah harus > 0'; err.style.display = 'block'; return;
+      }
+      btn.disabled = true; btn.textContent = 'Memproses…';
+      try {
+        const r = await fetch('/api/payments/intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId: <%- JSON.stringify(b.id) %>, amount, replaceActive: true }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          err.textContent = j?.error?.message || 'Gagal membuat intent';
+          err.style.display = 'block';
+          btn.disabled = false; btn.textContent = 'Bayar Sekarang';
+          return;
+        }
+        const { intent } = await r.json();
+        if (intent.snapRedirectUrl) {
+          window.location.href = intent.snapRedirectUrl;
+        } else {
+          err.textContent = 'Snap URL tidak tersedia'; err.style.display = 'block';
+          btn.disabled = false; btn.textContent = 'Bayar Sekarang';
+        }
+      } catch {
+        err.textContent = 'Tidak dapat menghubungi server';
+        err.style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Bayar Sekarang';
+      }
+    });
+  })();
+</script>
+<% } %>
+
+<%# 5xx: poll intent status while CREATED/PENDING. Reload on SETTLED so the
+    payment table picks up the new row; show terminal status otherwise. %>
+<% if (typeof activeIntent !== 'undefined' && activeIntent) { %>
+<script>
+  (function () {
+    const card = document.getElementById('intent-card');
+    if (!card) return;
+    const intentId = card.dataset.intentId;
+    const statusEl = document.getElementById('intent-status');
+    const gwEl = document.getElementById('intent-gw');
+    const checkedEl = document.getElementById('intent-checked');
+
+    const INTERVAL_MS = 15_000;   // 15s — frequent enough to feel live, gentle on server
+    const MAX_TICKS = 20;         // ~5 min total — beyond this, jemaah probably stepped away
+    let tick = 0;
+    let stopped = false;
+
+    function fmtTime(d) {
+      const h = String(d.getHours()).padStart(2, '0');
+      const m = String(d.getMinutes()).padStart(2, '0');
+      const s = String(d.getSeconds()).padStart(2, '0');
+      return h + ':' + m + ':' + s;
+    }
+
+    async function poll() {
+      if (stopped) return;
+      tick++;
+      try {
+        const r = await fetch('/api/payments/intent/' + encodeURIComponent(intentId));
+        if (r.ok) {
+          const { intent } = await r.json();
+          statusEl.textContent = intent.status;
+          gwEl.textContent = intent.gatewayStatus ? ' · gateway: ' + intent.gatewayStatus : '';
+          checkedEl.textContent = '· cek ' + fmtTime(new Date());
+
+          if (intent.status === 'SETTLED') {
+            stopped = true;
+            statusEl.style.color = 'var(--emerald)';
+            card.style.background = 'rgba(74,143,109,0.10)';
+            card.style.borderColor = 'var(--emerald)';
+            checkedEl.textContent = '· tersettlement — memuat ulang…';
+            setTimeout(() => location.reload(), 1500);
+            return;
+          }
+          if (['EXPIRED', 'CANCELLED', 'FAILED'].includes(intent.status)) {
+            stopped = true;
+            statusEl.style.color = 'var(--ruby)';
+            card.style.background = 'rgba(181,86,74,0.06)';
+            card.style.borderColor = 'var(--ruby)';
+            return;
+          }
+        }
+      } catch { /* network blip; will retry next tick */ }
+
+      if (tick >= MAX_TICKS) {
+        stopped = true;
+        checkedEl.textContent = '· polling dihentikan, refresh halaman untuk update terbaru';
+        return;
+      }
+      setTimeout(poll, INTERVAL_MS);
+    }
+
+    // First check after a short delay so the page paint settles first
+    setTimeout(poll, 2000);
+  })();
+</script>
+<% } %>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Booking Baru (Walk-in)</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+
+  .head { margin-bottom: 24px; }
+  .head h1 {
+    font-family: var(--font-display); font-size: 32px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+
+  .err-banner {
+    background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 18px;
+  }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px;
+    margin-bottom: 16px;
+  }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 18px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 6px;
+  }
+  .panel .sub-p {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em; margin: 0 0 16px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .field { margin-bottom: 12px; }
+  .field .label { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); margin-bottom: 4px; }
+  .field .helper { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 4px; }
+  select.input { background-color: var(--ink-1000); color: var(--cream-100); }
+  textarea.input { resize: vertical; min-height: 70px; font-family: inherit; }
+
+  .footer-row {
+    display: flex; justify-content: flex-end; gap: 10px;
+    margin-top: 20px; padding-top: 20px;
+    border-top: var(--hairline-soft);
+  }
+
+  .info-card {
+    background: rgba(212,175,55,0.05); border: 1px dashed rgba(212,175,55,0.3);
+    color: var(--ink-100);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; line-height: 1.7;
+    margin-bottom: 18px;
+  }
+  .info-card strong { color: var(--gold-300); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Booking Baru">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/admin?tab=manifest">← KEMBALI</a>
+  </div>
+
+  <div class="head">
+    <h1>Booking <em>baru</em> (walk-in)</h1>
+    <div class="sub">Buat booking atas nama jemaah yang datang langsung ke kantor.</div>
+  </div>
+
+  <div class="info-card">
+    <strong>CATATAN:</strong> Form ini membuat JemaahProfile baru (tidak dedup by phone — itu di-handle saat jemaah register + claim).
+    Untuk attribute ke agen, pilih dari dropdown — kalau kosong, booking jadi <em>Kantor Pusat</em>.
+    Anda (<%= user.email %>, <%= user.role %>) tercatat sebagai <code>adminCreated</code> di audit.
+  </div>
+
+  <% if (error) { %>
+    <div class="err-banner"><%= error %></div>
+  <% } %>
+
+  <form method="POST" action="/admin/bookings" autocomplete="off">
+    <!-- Paket + agent -->
+    <div class="panel">
+      <h3>Paket &amp; agen</h3>
+      <p class="sub-p">Hanya paket dengan status ACTIVE yang muncul.</p>
+
+      <div class="field">
+        <label class="label" for="f-paket">Paket *</label>
+        <select class="input" id="f-paket" name="paketSlug" required>
+          <option value="">— pilih paket —</option>
+          <% paketList.forEach(function(p) { %>
+            <option value="<%= p.slug %>" <%= values.paketSlug === p.slug ? 'selected' : '' %>>
+              <%= p.title %> · DEP <%= fmt.dateShort(p.departureDate) %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label" for="f-agent">Agen (opsional)</label>
+        <select class="input" id="f-agent" name="agentSlug">
+          <option value="">— Kantor Pusat (tanpa agen) —</option>
+          <% agents.forEach(function(a) { %>
+            <option value="<%= a.slug %>" <%= values.agentSlug === a.slug ? 'selected' : '' %>>
+              <%= a.displayName %> (slug: <%= a.slug %>)
+            </option>
+          <% }) %>
+        </select>
+        <div class="helper">Komisi akan tercatat untuk agen yang dipilih (kalau ada) saat booking LUNAS.</div>
+      </div>
+    </div>
+
+    <!-- Jemaah -->
+    <div class="panel">
+      <h3>Data jemaah</h3>
+      <p class="sub-p">Nama sesuai paspor. Jemaah bisa register + claim sendiri nanti pakai bookingNo + phone ini.</p>
+
+      <div class="field">
+        <label class="label" for="f-name">Nama lengkap (sesuai paspor) *</label>
+        <input class="input" id="f-name" name="fullName" required minlength="2" maxlength="190" value="<%= values.fullName %>">
+      </div>
+
+      <div class="field">
+        <label class="label" for="f-phone">Telepon / WhatsApp *</label>
+        <input class="input" id="f-phone" name="phone" required minlength="8" maxlength="30" value="<%= values.phone %>" placeholder="0812-xxxx-xxxx">
+      </div>
+    </div>
+
+    <!-- Kelas + pax -->
+    <div class="panel">
+      <h3>Kelas &amp; pax</h3>
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="f-kelas">Kelas kamar *</label>
+          <select class="input" id="f-kelas" name="kelas" required>
+            <option value="QUAD" <%= values.kelas === 'QUAD' ? 'selected' : '' %>>QUAD (4 jemaah/kamar)</option>
+            <option value="TRIPLE" <%= values.kelas === 'TRIPLE' ? 'selected' : '' %>>TRIPLE (3/kamar)</option>
+            <option value="DOUBLE" <%= values.kelas === 'DOUBLE' ? 'selected' : '' %>>DOUBLE (2/kamar)</option>
+            <option value="VVIP" <%= values.kelas === 'VVIP' ? 'selected' : '' %>>VVIP (1/kamar)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="f-pax">Jumlah PAX *</label>
+          <input class="input" type="number" id="f-pax" name="paxCount" required min="1" max="20" value="<%= values.paxCount || 1 %>">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="f-notes">Catatan</label>
+        <textarea class="input" id="f-notes" name="notes" rows="2" maxlength="2000" placeholder="Mis. lansia perlu kursi roda, mahram, dll."><%= values.notes || '' %></textarea>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <a href="/admin?tab=manifest" class="btn btn--ghost">Batal</a>
+      <button type="submit" class="btn btn--primary">Buat Booking</button>
+    </div>
+  </form>
+</div>
+</body>
+</html>

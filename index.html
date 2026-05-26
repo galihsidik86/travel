@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — Design Hub</title>
+<link rel="stylesheet" href="shared/tokens.css">
+<style>
+  body { min-height: 100vh; }
+  .hub {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 56px 48px 96px;
+  }
+  .hub__top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 24px;
+    border-bottom: var(--hairline-soft);
+  }
+  .hub__top .meta {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.12em;
+  }
+
+  .hub-hero {
+    padding: 72px 0 56px;
+    border-bottom: var(--hairline-soft);
+    display: grid; grid-template-columns: 1.6fr 1fr; gap: 64px; align-items: end;
+  }
+  .hub-hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(56px, 7vw, 88px);
+    font-weight: 400;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--cream-100);
+    margin: 0;
+  }
+  .hub-hero h1 em { font-style: italic; color: var(--gold-300); }
+  .hub-hero p {
+    color: var(--ink-100);
+    font-size: 16px;
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  /* sections */
+  .section-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 72px 0 24px;
+  }
+  .section-head h2 {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 500;
+    color: var(--cream-100);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .section-head .count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-200);
+    letter-spacing: 0.14em;
+  }
+
+  /* tile grid */
+  .tile-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 24px;
+  }
+  .tile {
+    grid-column: span 6;
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: flex; flex-direction: column;
+    transition: all var(--dur-mid) var(--ease-out);
+    position: relative;
+  }
+  .tile:hover {
+    border-color: var(--gold-300);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg), var(--glow-gold);
+  }
+  .tile--feature { grid-column: span 12; }
+  .tile--small { grid-column: span 4; }
+  .tile--third { grid-column: span 4; }
+
+  .tile__visual {
+    height: 280px;
+    background: var(--ink-1000);
+    position: relative;
+    overflow: hidden;
+    border-bottom: var(--hairline);
+  }
+  .tile--feature .tile__visual { height: 380px; }
+  .tile--small .tile__visual, .tile--third .tile__visual { height: 220px; }
+
+  .tile__meta {
+    padding: 24px 28px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .tile__row1 {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tile__num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--gold-300);
+    letter-spacing: 0.14em;
+  }
+  .tile__platform {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-200);
+  }
+  .tile__title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    color: var(--cream-100);
+    margin: 0;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  .tile__desc {
+    color: var(--ink-100);
+    font-size: 13.5px;
+    margin: 0;
+    line-height: 1.55;
+  }
+  .tile__cta {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 8px;
+    padding-top: 16px;
+    border-top: var(--hairline-soft);
+  }
+  .tile__cta .open {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--gold-300);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* preview specific styling */
+  .preview {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  .preview-canvas {
+    transform: scale(0.42) translate(-50%, -50%);
+    transform-origin: 0 0;
+    position: absolute;
+    left: 50%; top: 50%;
+  }
+
+  /* DS preview */
+  .pv-ds {
+    width: 1200px; height: 660px;
+    background: var(--ink-900);
+    padding: 56px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+  }
+  .pv-ds__left h2 {
+    font-family: var(--font-display);
+    font-size: 86px; line-height: 0.95; color: var(--cream-100);
+    margin: 24px 0; font-weight: 400;
+  }
+  .pv-ds__left h2 em { font-style: italic; color: var(--gold-300); }
+  .pv-ds__swatches {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+  }
+  .pv-ds__swatches .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px; background: var(--ink-800); border-radius: 4px;
+  }
+  .pv-ds__swatches .chip { width: 48px; height: 32px; border-radius: 4px; }
+
+  /* Landing preview */
+  .pv-landing {
+    width: 1440px; height: 900px;
+    background: var(--ink-1000);
+    position: relative;
+    padding: 32px 64px;
+  }
+  .pv-landing__nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 24px;
+    border-bottom: var(--hairline-soft);
+  }
+  .pv-landing__hero {
+    margin-top: 72px;
+    text-align: center;
+  }
+  .pv-landing__hero h1 {
+    font-family: var(--font-display); font-size: 128px;
+    line-height: 0.92; color: var(--cream-100);
+    margin: 0; font-weight: 400; letter-spacing: -0.02em;
+  }
+  .pv-landing__hero h1 em { font-style: italic; color: var(--gold-300); }
+
+  /* Admin preview */
+  .pv-admin {
+    width: 1440px; height: 900px;
+    background: var(--ink-950);
+    display: grid; grid-template-columns: 64px 1fr;
+  }
+  .pv-admin__rail { background: var(--ink-1000); border-right: var(--hairline); }
+  .pv-admin__main { padding: 32px 40px; }
+  .pv-admin__kpis {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    margin-top: 32px;
+  }
+  .pv-admin .kpi-mini {
+    background: var(--ink-850);
+    border: var(--hairline);
+    padding: 20px; border-radius: 8px;
+  }
+  .pv-admin .kpi-mini .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; }
+  .pv-admin .kpi-mini .v { font-family: var(--font-display); font-size: 36px; color: var(--cream-100); margin-top: 6px; }
+  .pv-admin .kpi-mini .v .u { font-family: var(--font-mono); font-size: 13px; color: var(--gold-300); margin-left: 4px; }
+
+  .pv-admin__chart {
+    margin-top: 32px;
+    background: var(--ink-850);
+    border: var(--hairline);
+    padding: 28px;
+    border-radius: 12px;
+    height: 380px;
+    position: relative;
+  }
+
+  /* Agen preview */
+  .pv-agen {
+    width: 1440px; height: 900px;
+    background: var(--ink-950);
+    padding: 32px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  }
+  .pv-agen .col {
+    background: var(--ink-900); border: var(--hairline); border-radius: 8px;
+    padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .pv-agen .col h4 {
+    font-family: var(--font-mono); font-size: 10px; color: var(--gold-300);
+    letter-spacing: 0.16em; text-transform: uppercase; margin: 0 0 8px;
+    display: flex; justify-content: space-between;
+  }
+  .pv-agen .card {
+    background: var(--ink-850); border: var(--hairline); border-radius: 4px;
+    padding: 14px; padding-block: 14px;
+  }
+  .pv-agen .card .name { font-size: 14px; color: var(--cream-100); }
+  .pv-agen .card .sub { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-top: 4px; }
+  .pv-agen .card .price { font-family: var(--font-display); font-size: 22px; color: var(--gold-300); margin-top: 8px; }
+
+  /* Mobile preview */
+  .pv-mobile-wrap {
+    display: flex; justify-content: center; align-items: center;
+    height: 100%; background:
+      radial-gradient(60% 60% at 50% 50%, rgba(212,175,55,0.06), transparent),
+      var(--ink-1000);
+    padding: 24px;
+  }
+  .pv-phone {
+    width: 280px; height: 580px;
+    background: var(--ink-900);
+    border-radius: 36px;
+    border: 8px solid var(--ink-700);
+    overflow: hidden;
+    position: relative;
+    box-shadow: var(--shadow-lg);
+  }
+  .pv-phone__notch {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    width: 80px; height: 22px; background: var(--ink-1000); border-radius: 12px;
+    z-index: 2;
+  }
+
+  /* footer */
+  .hub-foot {
+    margin-top: 96px;
+    padding-top: 32px;
+    border-top: var(--hairline-soft);
+    display: flex; justify-content: space-between;
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em;
+  }
+
+  .grain::before {
+    content:""; position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 3px 3px;
+    opacity: 0.4;
+  }
+</style>
+</head>
+<body data-screen-label="00 Hub">
+
+<div class="hub">
+
+  <header class="hub__top">
+    <a href="index.html" class="brand-mark">
+      <span class="brand-mark__glyph">R</span>
+      <span class="brand-mark__name">Religio <em>Pro</em></span>
+    </a>
+    <span class="meta">DESIGN PACKAGE · v1.0 · 23 MEI 2026</span>
+  </header>
+
+  <section class="hub-hero">
+    <div>
+      <p class="eyebrow" style="margin-bottom:28px;">Design Hub</p>
+      <h1>Satu sistem.<br>Lima permukaan.<br>Disiplin <em>satu</em> bahasa.</h1>
+    </div>
+    <p>Paket desain lengkap RELIGIO PRO — fondasi, marketing, dan empat platform peran yang terikat oleh design system tunggal. Setiap kartu di bawah adalah artefak yang dapat dibuka dan diklik secara langsung.</p>
+  </section>
+
+  <!-- Foundations -->
+  <div class="section-head">
+    <h2>Fondasi</h2>
+    <span class="count">01 / DESIGN SYSTEM</span>
+  </div>
+  <div class="tile-grid">
+    <a class="tile tile--feature" href="design-system.html">
+      <div class="tile__visual grain">
+        <div class="preview"><div class="preview-canvas pv-ds">
+          <div class="pv-ds__left">
+            <p class="eyebrow">Religio Pro · Foundations</p>
+            <h2>Sistem yang <em>tenang</em>,<br>untuk perjalanan <em>suci</em>.</h2>
+            <p style="color:var(--ink-100);font-size:18px;max-width:480px;">Onyx, gold, dan cream — tiga warna yang menyatakan ketenangan, nilai, dan kehormatan.</p>
+          </div>
+          <div class="pv-ds__swatches">
+            <div class="row"><span class="chip" style="background:#0A0908;border:1px solid var(--ink-500);"></span><span style="font-family:var(--font-mono);font-size:12px;">ink-950</span></div>
+            <div class="row"><span class="chip" style="background:#D4AF37;"></span><span style="font-family:var(--font-mono);font-size:12px;">gold-300</span></div>
+            <div class="row"><span class="chip" style="background:#EDE6D3;"></span><span style="font-family:var(--font-mono);font-size:12px;">cream-200</span></div>
+            <div class="row"><span class="chip" style="background:#4A8F6D;"></span><span style="font-family:var(--font-mono);font-size:12px;">emerald</span></div>
+            <div class="row"><span class="chip" style="background:#B5564A;"></span><span style="font-family:var(--font-mono);font-size:12px;">ruby</span></div>
+            <div class="row"><span class="chip" style="background:#4A6F8F;"></span><span style="font-family:var(--font-mono);font-size:12px;">sapphire</span></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="tile__meta">
+        <div class="tile__row1">
+          <span class="tile__num">01 · FOUNDATIONS</span>
+          <span class="tile__platform">DESIGN SYSTEM</span>
+        </div>
+        <h3 class="tile__title">Design System &amp; Foundations</h3>
+        <p class="tile__desc">Color tokens, typography (Cormorant + Plus Jakarta + JetBrains + Amiri), spacing scale, radius, elevation, ikonografi, komponen primitif, pola domain, dan tone of voice.</p>
+        <div class="tile__cta">
+          <span class="open">Buka design system →</span>
+          <span class="font-mono" style="color:var(--ink-200);font-size:11px;">42 tokens · 34 komponen</span>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Marketing -->
+  <div class="section-head">
+    <h2>Marketing</h2>
+    <span class="count">02 / LANDING PAGE</span>
+  </div>
+  <div class="tile-grid">
+    <a class="tile tile--feature" href="screens/landing.html">
+      <div class="tile__visual grain">
+        <div class="preview"><div class="preview-canvas pv-landing">
+          <div class="pv-landing__nav">
+            <div style="font-family:var(--font-display);font-size:24px;color:var(--cream-100);">RELIGIO <em style="color:var(--gold-300);font-style:italic;">PRO</em></div>
+            <div style="display:flex;gap:32px;font-family:var(--font-sans);font-size:14px;color:var(--ink-100);">
+              <span>Sistem</span><span>Fitur</span><span>Keamanan</span><span>Harga</span>
+            </div>
+          </div>
+          <div class="pv-landing__hero">
+            <p class="eyebrow">Untuk travel kelas middle-up</p>
+            <h1>Satu sistem.<br>Empat platform.<br><em>Nol kesalahan manual.</em></h1>
+          </div>
+        </div></div>
+      </div>
+      <div class="tile__meta">
+        <div class="tile__row1">
+          <span class="tile__num">02 · MARKETING</span>
+          <span class="tile__platform">PUBLIC WEBSITE</span>
+        </div>
+        <h3 class="tile__title">Landing Page RELIGIO PRO</h3>
+        <p class="tile__desc">Halaman penawaran resmi — hero, empat tantangan, arsitektur 4-platform, fitur unggulan, keamanan &amp; UU PDP, perbandingan tanpa/dengan, langkah selanjutnya. Long-scroll cinematic.</p>
+        <div class="tile__cta">
+          <span class="open">Buka landing page →</span>
+          <span class="font-mono" style="color:var(--ink-200);font-size:11px;">10 sections · long-scroll</span>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Auto-generated marketing kit -->
+  <div class="section-head">
+    <h2>Marketing kit otomatis</h2>
+    <span class="count">02b / SALES LANDING PER-PAKET</span>
+  </div>
+  <div class="tile-grid">
+    <a class="tile tile--feature" href="/p/ramadhan-aqsa-2026?a=ahmad-w">
+      <div class="tile__visual grain">
+        <div class="preview"><div class="preview-canvas" style="
+          width:1440px;height:900px;
+          background:
+            radial-gradient(60% 60% at 60% 30%, rgba(212,175,55,0.10), transparent 70%),
+            var(--ink-1000);
+          padding:64px 80px;display:grid;grid-template-columns:1.4fr 1fr;gap:64px;align-items:center;">
+          <div>
+            <p class="eyebrow">Paket Eksklusif · Q1 2026</p>
+            <div style="font-family:var(--font-display);font-size:96px;line-height:0.94;color:var(--cream-100);margin-top:24px;font-weight:400;letter-spacing:-0.025em;">
+              Umroh<br>Ramadhan,<br><em style="font-style:italic;color:var(--gold-300);">+ Aqsa.</em>
+            </div>
+            <div style="font-family:var(--font-arabic);font-size:34px;color:var(--gold-200);direction:rtl;text-align:left;margin-top:24px;">لَبَّيْكَ اللَّهُمَّ</div>
+          </div>
+          <div style="background:var(--ink-900);border:1px solid var(--gold-300);border-radius:18px;padding:28px;box-shadow:0 24px 64px -16px rgba(0,0,0,0.7);">
+            <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.16em;color:var(--gold-300);text-transform:uppercase;padding-bottom:14px;border-bottom:1px solid var(--ink-700);">AGEN ANDA</div>
+            <div style="display:flex;align-items:center;gap:14px;margin-top:18px;">
+              <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--ink-700),var(--ink-900));border:1px solid var(--gold-300);display:grid;place-items:center;font-family:var(--font-display);font-size:18px;color:var(--gold-300);">A</div>
+              <div>
+                <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);">H. Ahmad <em style="font-style:italic;color:var(--gold-300);">Wibowo</em></div>
+                <div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">Mitra Resmi · 8 thn</div>
+              </div>
+            </div>
+            <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--ink-700);display:flex;align-items:end;justify-content:space-between;">
+              <div>
+                <div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-300);letter-spacing:0.14em;text-transform:uppercase;">Mulai</div>
+                <div style="font-family:var(--font-display);font-size:36px;color:var(--gold-300);line-height:1;margin-top:4px;"><span style="font-family:var(--font-mono);font-size:12px;color:var(--ink-200);">IDR </span>62<span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">JT</span></div>
+              </div>
+              <div style="background:linear-gradient(180deg,var(--gold-200),var(--gold-400));color:var(--ink-950);padding:11px 22px;border-radius:4px;font-size:13px;font-weight:600;">Pesan kursi</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <div class="tile__meta">
+        <div class="tile__row1">
+          <span class="tile__num">02B · MARKETING KIT</span>
+          <span class="tile__platform">AUTO-GENERATED · /p/[paket]?a=[agen]</span>
+        </div>
+        <h3 class="tile__title">Sales Landing Page per-Paket</h3>
+        <p class="tile__desc">Setiap paket otomatis menghasilkan landing page premium dengan link agen yang dapat dikustomisasi. Jemaah yang daftar via link akan terkunci otomatis ke agen — komisi terlacak transparan.</p>
+        <div class="tile__cta">
+          <span class="open">Buka contoh paket →</span>
+          <span class="font-mono" style="color:var(--ink-200);font-size:11px;">8 sections · auto-lock agen</span>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Desktop platforms -->
+  <div class="section-head">
+    <h2>Platform desktop</h2>
+    <span class="count">03 / WEB ADMIN · PORTAL AGEN</span>
+  </div>
+  <div class="tile-grid">
+    <a class="tile" href="screens/admin-dashboard.html">
+      <div class="tile__visual grain">
+        <div class="preview"><div class="preview-canvas pv-admin">
+          <div class="pv-admin__rail"></div>
+          <div class="pv-admin__main">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <span class="eyebrow">Owner Dashboard</span>
+                <div style="font-family:var(--font-display);font-size:44px;color:var(--cream-100);margin-top:8px;">Kabar baik pagi ini.</div>
+              </div>
+              <div style="display:flex;gap:12px;">
+                <span class="badge badge--gold">Q2 · 2026</span>
+              </div>
+            </div>
+            <div class="pv-admin__kpis">
+              <div class="kpi-mini"><div class="l">OMZET HARI INI</div><div class="v">428<span class="u">JT IDR</span></div></div>
+              <div class="kpi-mini"><div class="l">JEMAAH AKTIF</div><div class="v">1.284</div></div>
+              <div class="kpi-mini"><div class="l">LEADS BARU</div><div class="v">47</div></div>
+              <div class="kpi-mini"><div class="l">DOC OK</div><div class="v">96<span class="u">%</span></div></div>
+            </div>
+            <div class="pv-admin__chart"></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="tile__meta">
+        <div class="tile__row1">
+          <span class="tile__num">03 · OWNER &amp; DIREKSI</span>
+          <span class="tile__platform">WEB · 1440px</span>
+        </div>
+        <h3 class="tile__title">Admin &amp; HQ Dashboard</h3>
+        <p class="tile__desc">Owner overview · paket umroh · manifes &amp; dokumen · bunking drag&amp;drop · keuangan multi-currency · audit log.</p>
+        <div class="tile__cta">
+          <span class="open">Buka dashboard →</span>
+          <span class="font-mono" style="color:var(--ink-200);font-size:11px;">6 modul</span>
+        </div>
+      </div>
+    </a>
+    <a class="tile" href="screens/agen-crm.html">
+      <div class="tile__visual grain">
+        <div class="preview"><div class="preview-canvas pv-agen">
+          <div class="col">
+            <h4>Cold · 28<span style="color:var(--ink-200);">IDR 240Jt</span></h4>
+            <div class="card"><div class="name">Pak Hasan Wibowo</div><div class="sub">Quad · WA</div><div class="price">Rp 32,5 Jt</div></div>
+            <div class="card"><div class="name">Bu Yuli Anwar</div><div class="sub">Triple · IG</div><div class="price">Rp 35,8 Jt</div></div>
+            <div class="card"><div class="name">Pak Zulkifli</div><div class="sub">Double · Walk-in</div><div class="price">Rp 38,5 Jt</div></div>
+          </div>
+          <div class="col">
+            <h4>Warm · 14<span style="color:var(--ink-200);">IDR 420Jt</span></h4>
+            <div class="card"><div class="name">Bu Hartini Susanto</div><div class="sub">Quad Plus Aqsa · 2 pax</div><div class="price">Rp 78 Jt</div></div>
+            <div class="card"><div class="name">Pak Joko Wibowo</div><div class="sub">Triple · 4 pax</div><div class="price">Rp 143 Jt</div></div>
+          </div>
+          <div class="col">
+            <h4>Hot · DP<span style="color:var(--gold-300);">IDR 540Jt</span></h4>
+            <div class="card" style="border-color:var(--gold-300);"><div class="name">Keluarga Rahman</div><div class="sub">VVIP · 6 pax</div><div class="price">Rp 312 Jt</div></div>
+            <div class="card"><div class="name">Bu Siti Aminah</div><div class="sub">Quad · 1 pax</div><div class="price">Rp 32,5 Jt</div></div>
+          </div>
+          <div class="col">
+            <h4>Lunas · 31<span style="color:var(--emerald);">IDR 1,2M</span></h4>
+            <div class="card"><div class="name">Pak Ahmad Fauzi</div><div class="sub">Triple · LUNAS</div><div class="price" style="color:var(--emerald);">✓ Selesai</div></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="tile__meta">
+        <div class="tile__row1">
+          <span class="tile__num">04 · AGEN &amp; SALES</span>
+          <span class="tile__platform">WEB · 1440px</span>
+        </div>
+        <h3 class="tile__title">Portal Agen &amp; Sales CRM</h3>
+        <p class="tile__desc">Pipeline kanban leads · marketing kit auto-link · komisi real-time &amp; wallet digital · point rewards berjenjang.</p>
+        <div class="tile__cta">
+          <span class="open">Buka portal agen →</span>
+          <span class="font-mono" style="color:var(--ink-200);font-size:11px;">4 stage · auto-lock</span>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Mobile platforms -->
+  <div class="section-head">
+    <h2>Platform mobile</h2>
+    <span class="count">04 / CREW · JEMAAH APP</span>
+  </div>
+  <div class="tile-grid">
+    <a class="tile" href="screens/crew-app.html">
+      <div class="tile__visual grain">
+        <div class="pv-mobile-wrap">
+          <div class="pv-phone">
+            <div class="pv-phone__notch"></div>
+            <div style="padding:40px 18px 18px;background:var(--ink-1000);height:100%;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:14px;">
+                <span class="eyebrow" style="font-size:9px;">Crew · M. Yusuf</span>
+                <span style="width:8px;height:8px;background:var(--emerald);border-radius:50%;"></span>
+              </div>
+              <div style="font-family:var(--font-display);font-size:24px;line-height:1.1;color:var(--cream-100);">Bus 03 · ke<br>Masjid Quba</div>
+              <div style="margin-top:18px;background:var(--ink-900);border:var(--hairline);border-radius:8px;padding:14px;">
+                <div class="eyebrow" style="font-size:9px;">MANIFES</div>
+                <div style="display:flex;justify-content:space-between;margin-top:8px;font-family:var(--font-display);">
+                  <span style="font-size:32px;color:var(--cream-100);">22<span style="font-size:13px;color:var(--ink-300);font-family:var(--font-mono);">/24</span></span>
+                  <span style="font-size:12px;color:var(--amber);font-family:var(--font-mono);align-self:end;">2 BELUM</span>
+                </div>
+              </div>
+              <div style="margin-top:14px;background:var(--ruby-soft);border:1px solid var(--ruby);border-radius:8px;padding:14px;">
+                <div style="font-family:var(--font-mono);font-size:9px;color:#E69089;letter-spacing:0.14em;">SOS · 00:42</div>
+                <div style="font-family:var(--font-display);font-size:16px;color:var(--cream-100);margin-top:6px;line-height:1.2;">Ibu Khadijah Lestari</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tile__meta">
+        <div class="tile__row1">
+          <span class="tile__num">05 · MUTHAWWIF</span>
+          <span class="tile__platform">iOS · 393×852</span>
+        </div>
+        <h3 class="tile__title">Crew &amp; Muthawwif App</h3>
+        <p class="tile__desc">Absensi manifes bus · live GPS tracker jemaah · alert SOS prioritas · pelaporan darurat &amp; komunikasi terpusat.</p>
+        <div class="tile__cta">
+          <span class="open">Buka crew app →</span>
+          <span class="font-mono" style="color:var(--ink-200);font-size:11px;">5 screens</span>
+        </div>
+      </div>
+    </a>
+    <a class="tile" href="screens/jemaah-app.html">
+      <div class="tile__visual grain">
+        <div class="pv-mobile-wrap">
+          <div class="pv-phone">
+            <div class="pv-phone__notch"></div>
+            <div style="padding:40px 18px 18px;background:linear-gradient(180deg, var(--ink-900), var(--ink-1000));height:100%;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:14px;">
+                <span class="eyebrow" style="font-size:9px;">Jemaah · Pak Ahmad</span>
+                <span style="font-family:var(--font-mono);font-size:9px;color:var(--gold-300);">DAY 4/12</span>
+              </div>
+              <div style="font-family:var(--font-arabic);font-size:34px;color:var(--gold-300);direction:rtl;text-align:right;line-height:1.5;">لَبَّيْكَ اللَّهُمَّ</div>
+              <div style="font-family:var(--font-display);font-style:italic;font-size:14px;color:var(--cream-100);text-align:right;margin-top:4px;">"Labbaik Allahumma…"</div>
+              <div style="margin-top:18px;background:var(--ink-900);border:1px solid var(--gold-300);border-radius:10px;padding:14px;">
+                <div class="eyebrow" style="font-size:9px;">THAWAF · PUTARAN</div>
+                <div style="font-family:var(--font-display);font-size:42px;color:var(--cream-100);margin-top:4px;line-height:1;">4<span style="font-family:var(--font-mono);font-size:14px;color:var(--ink-300);">/7</span></div>
+                <div style="margin-top:12px;height:4px;background:var(--ink-700);border-radius:2px;overflow:hidden;">
+                  <div style="width:58%;height:100%;background:var(--gold-300);"></div>
+                </div>
+              </div>
+              <div style="margin-top:12px;background:var(--ink-850);border:var(--hairline);border-radius:8px;padding:12px;">
+                <div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-200);">14:45 · 15 menit lagi</div>
+                <div style="font-size:12px;color:var(--cream-100);margin-top:4px;">Bus ziarah Madinah berangkat</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tile__meta">
+        <div class="tile__row1">
+          <span class="tile__num">06 · JEMAAH</span>
+          <span class="tile__platform">iOS · 393×852</span>
+        </div>
+        <h3 class="tile__title">Premium Jemaah App</h3>
+        <p class="tile__desc">Smart audio doa otomatis Thawaf &amp; Sa'i · timeline perjalanan · tombol SOS · komunikasi pembimbing.</p>
+        <div class="tile__cta">
+          <span class="open">Buka jemaah app →</span>
+          <span class="font-mono" style="color:var(--ink-200);font-size:11px;">5 screens</span>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <footer class="hub-foot">
+    <span>RELIGIO PRO · DESIGN PACKAGE v1.0</span>
+    <span>info.sosmartpro@gmail.com · WA 0857 1569 0293</span>
+  </footer>
+</div>
+
+</body>
+</html>

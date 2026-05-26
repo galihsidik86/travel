@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Absensi · <%= paket.title %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head h1 { font-family: var(--font-display); font-size: 28px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; margin-top: 8px; }
+  .head { margin-bottom: 22px; }
+
+  .day-list { display: flex; flex-direction: column; gap: 10px; }
+  .day-card {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 18px 22px;
+    display: grid; grid-template-columns: auto 1fr auto auto; gap: 18px; align-items: center;
+    text-decoration: none; color: inherit;
+    transition: border-color 120ms ease;
+  }
+  .day-card:hover { border-color: var(--gold-300); }
+  .day-card .day-num {
+    font-family: var(--font-display); font-size: 32px; color: var(--gold-300);
+    font-weight: 500; min-width: 60px; text-align: center;
+  }
+  .day-card .day-num .sub { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .day-card .title-cell .t { color: var(--cream-100); font-family: var(--font-display); font-size: 17px; font-weight: 500; }
+  .day-card .title-cell .meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.06em; margin-top: 4px; }
+  .day-card .meta .hilite { color: var(--amber); }
+  .day-card .count {
+    font-family: var(--font-display); font-size: 22px; color: var(--cream-100); font-weight: 500;
+    text-align: right;
+  }
+  .day-card .count.full { color: var(--emerald); }
+  .day-card .count.none { color: var(--ink-300); }
+  .day-card .count .lbl { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; font-weight: normal; margin-top: 2px; }
+  .day-card .cta {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em;
+    color: var(--gold-300); text-transform: uppercase;
+    border: 1px solid var(--gold-300); padding: 6px 14px; border-radius: 3px;
+  }
+  .empty { padding: 40px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); border: 1px dashed var(--ink-500); border-radius: var(--r-md); }
+</style>
+</head>
+<body data-screen-label="05 Crew · Attendance Overview">
+<div class="wrap">
+  <div class="crumb"><a href="/crew/paket/<%= paket.slug %>">← KEMBALI KE MANIFEST</a></div>
+
+  <div class="head">
+    <h1>Absensi <em>per hari</em></h1>
+    <div class="sub">
+      <%= paket.title %> · <%= paket.totalActive %> jemaah aktif · <%= paket.days.length %> hari itinerary
+    </div>
+  </div>
+
+  <% if (paket.days.length === 0) { %>
+    <div class="empty">Belum ada itinerary day untuk paket ini.</div>
+  <% } else { %>
+    <div class="day-list">
+      <% paket.days.forEach(function(d) {
+        const pct = paket.totalActive === 0 ? 0 : Math.round((d.presentCount / paket.totalActive) * 100);
+        const countClass = d.presentCount === 0 ? 'none' : (d.presentCount === paket.totalActive ? 'full' : '');
+      %>
+        <a class="day-card" href="/crew/paket/<%= paket.slug %>/attendance/<%= d.id %>">
+          <div class="day-num">
+            <%= d.dayNumber %>
+            <div class="sub">Hari</div>
+          </div>
+          <div class="title-cell">
+            <div class="t"><%= d.title %><% if (d.highlight) { %> <span class="hilite">★</span><% } %></div>
+            <div class="meta">
+              <% if (d.dateLabel) { %><%= d.dateLabel %><% if (d.monthLabel) { %> <%= d.monthLabel %><% } %> · <% } %>
+              <%= d.markedCount %>/<%= paket.totalActive %> sudah ditandai
+            </div>
+          </div>
+          <div class="count <%= countClass %>">
+            <%= d.presentCount %>
+            <div class="lbl">hadir (<%= pct %>%)</div>
+          </div>
+          <div class="cta">Tandai →</div>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+</body>
+</html>

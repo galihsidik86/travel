@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — <%= code %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { display: grid; place-items: center; min-height: 100vh; padding: 32px; }
+  main { text-align: center; max-width: 520px; }
+  h1 { font-family: var(--font-display); font-size: clamp(80px, 18vw, 180px); color: var(--gold-300); margin: 0; line-height: 1; letter-spacing: -0.04em; }
+  h2 { font-family: var(--font-display); font-size: 32px; color: var(--cream-100); margin: 24px 0 12px; font-weight: 500; letter-spacing: -0.01em; }
+  p { color: var(--ink-100); margin: 0 0 32px; }
+</style>
+</head>
+<body>
+<%
+  const headlines = { 400: 'Permintaan tidak valid', 403: 'Akses ditolak', 404: 'Halaman tidak ditemukan', 500: 'Terjadi kesalahan' };
+  const headline = headlines[code] || 'Terjadi kesalahan';
+%>
+<main>
+  <h1><%= code %></h1>
+  <h2><%= headline %></h2>
+  <p><%= message %></p>
+  <a class="btn btn--primary" href="/">Kembali ke beranda</a>
+</main>
+</body>
+</html>

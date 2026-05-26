@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — Admin &amp; HQ Dashboard</title>
+<link rel="stylesheet" href="../shared/tokens.css">
+<style>
+  body { min-height: 100vh; overflow-x: hidden; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ============ SIDEBAR ============ */
+  .rail {
+    background: var(--ink-1000);
+    border-right: var(--hairline);
+    padding: 24px 20px;
+    display: flex; flex-direction: column;
+    gap: 24px;
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto;
+  }
+  .rail__brand { padding: 4px 4px 16px; border-bottom: var(--hairline-soft); }
+  .rail__group {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-300);
+    margin: 8px 4px 4px;
+  }
+  .rail__nav { display: flex; flex-direction: column; gap: 1px; }
+  .rail__item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 12px;
+    border-radius: var(--r-sm);
+    color: var(--ink-100);
+    font-size: 13px;
+    cursor: pointer;
+    background: none;
+    border: 0;
+    text-align: left;
+    width: 100%;
+    transition: all var(--dur-fast);
+    font-family: var(--font-sans);
+  }
+  .rail__item:hover { background: var(--ink-900); color: var(--cream-200); }
+  .rail__item.is-active {
+    background: var(--ink-900);
+    color: var(--gold-300);
+    box-shadow: inset 2px 0 0 var(--gold-300);
+  }
+  .rail__item svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.5; flex-shrink: 0; }
+  .rail__item .count {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-300);
+    background: var(--ink-800);
+    border: var(--hairline-soft);
+    padding: 1px 7px;
+    border-radius: 999px;
+  }
+  .rail__item.is-active .count { color: var(--gold-300); border-color: rgba(212,175,55,0.4); background: rgba(212,175,55,0.06); }
+
+  .rail__user {
+    margin-top: auto;
+    padding: 14px;
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center;
+  }
+  .rail__user .name { font-size: 13px; color: var(--cream-100); line-height: 1.2; }
+  .rail__user .role { font-family: var(--font-mono); font-size: 9.5px; color: var(--gold-300); letter-spacing: 0.12em; margin-top: 2px; }
+
+  /* ============ MAIN ============ */
+  .main { background: var(--ink-950); }
+  .topbar {
+    position: sticky; top: 0; z-index: 30;
+    background: rgba(10,9,8,0.85);
+    backdrop-filter: blur(18px);
+    border-bottom: var(--hairline-soft);
+    padding: 16px 40px;
+    display: flex; align-items: center; justify-content: space-between; gap: 32px;
+  }
+  .topbar__crumb { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; }
+  .topbar__crumb .sep { color: var(--ink-400); }
+  .topbar__crumb .leaf { color: var(--gold-300); }
+
+  .topbar__search {
+    flex: 1; max-width: 420px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px;
+    background: var(--ink-900);
+    border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+  }
+  .topbar__search input {
+    background: none; border: 0; outline: 0;
+    color: var(--cream-200);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    flex: 1;
+  }
+  .topbar__search input::placeholder { color: var(--ink-300); }
+  .topbar__search kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    border: 1px solid var(--ink-500);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--ink-200);
+  }
+  .topbar__actions { display: flex; gap: 8px; align-items: center; }
+
+  /* page panel */
+  .page { display: none; padding: 40px; max-width: 1640px; margin: 0 auto; }
+  .page.is-active { display: block; }
+
+  .page__head { margin-bottom: 32px; }
+  .page__head .eyebrow { color: var(--gold-300); }
+  .page__head h1 {
+    font-family: var(--font-display);
+    font-size: 52px;
+    font-weight: 500;
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    color: var(--cream-100);
+    margin: 14px 0 0;
+  }
+  .page__head h1 em { font-style: italic; color: var(--gold-300); }
+  .page__head .row {
+    display: flex; justify-content: space-between; align-items: end;
+  }
+  .page__head .meta {
+    text-align: right;
+    color: var(--ink-100);
+    font-size: 13.5px;
+    line-height: 1.5;
+    max-width: 340px;
+  }
+
+  /* ============ DASHBOARD MODULE ============ */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .kpi {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi--highlight {
+    background:
+      radial-gradient(120% 80% at 100% 0%, rgba(212,175,55,0.10), transparent 55%),
+      var(--ink-900);
+    border-color: rgba(212,175,55,0.35);
+  }
+  .kpi__head { display: flex; justify-content: space-between; align-items: center; }
+  .kpi__label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); }
+  .kpi__icon { width: 24px; height: 24px; color: var(--ink-300); }
+  .kpi__icon svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 1.5; }
+  .kpi--highlight .kpi__icon { color: var(--gold-300); }
+  .kpi__value { font-family: var(--font-display); font-size: 44px; color: var(--cream-100); line-height: 1.05; margin: 14px 0 6px; font-weight: 500; }
+  .kpi__value .u { font-family: var(--font-mono); font-size: 13px; color: var(--gold-300); margin-left: 4px; font-weight: 500; }
+  .kpi__sub { display: flex; justify-content: space-between; align-items: center; }
+  .kpi__delta { font-family: var(--font-mono); font-size: 11px; color: var(--emerald); }
+  .kpi__delta.down { color: var(--ruby); }
+  .kpi__spark { width: 90px; height: 28px; }
+
+  /* split layout */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .panel {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    padding: 24px 28px;
+  }
+  .panel__head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: var(--hairline-soft);
+  }
+  .panel__head h3 {
+    font-family: var(--font-display);
+    font-size: 24px;
+    color: var(--cream-100);
+    margin: 0;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+  .panel__head .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; }
+  .panel__head .tabs { display: flex; gap: 4px; }
+  .panel__head .tab {
+    padding: 5px 11px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-200);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+    background: none;
+    border: 1px solid transparent;
+  }
+  .panel__head .tab.is-active { color: var(--gold-300); border-color: var(--ink-500); background: var(--ink-850); }
+
+  /* chart */
+  .chart-area {
+    height: 260px;
+    position: relative;
+    margin-top: 8px;
+  }
+  .chart-area svg { width: 100%; height: 100%; }
+  .chart-legend { display: flex; gap: 18px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+  .chart-legend span { display: flex; align-items: center; gap: 6px; }
+  .chart-legend i { width: 10px; height: 2px; }
+
+  /* tasks list */
+  .list { display: flex; flex-direction: column; gap: 0; }
+  .list__row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: var(--hairline-soft);
+  }
+  .list__row:last-child { border-bottom: 0; }
+  .list__row .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold-300); }
+  .list__row .dot.emerald { background: var(--emerald); }
+  .list__row .dot.amber { background: var(--amber); }
+  .list__row .dot.ruby { background: var(--ruby); }
+  .list__row .title { font-size: 14px; color: var(--cream-100); }
+  .list__row .sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; letter-spacing: 0.05em; }
+
+  /* activity log */
+  .activity { display: flex; flex-direction: column; }
+  .activity__row {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: var(--hairline-soft);
+    align-items: baseline;
+  }
+  .activity__row .t { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.08em; }
+  .activity__row .e { font-size: 13.5px; color: var(--cream-200); line-height: 1.5; }
+  .activity__row .e strong { color: var(--cream-100); font-weight: 600; }
+  .activity__row .e .who { color: var(--gold-300); font-weight: 500; }
+
+  /* packages */
+  .pkg-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .pkg {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    position: relative;
+  }
+  .pkg--gold { border-color: var(--gold-300); }
+  .pkg__hero {
+    height: 140px;
+    background:
+      linear-gradient(180deg, transparent 40%, rgba(10,9,8,0.95)),
+      repeating-linear-gradient(45deg, var(--ink-800) 0 16px, var(--ink-700) 16px 32px);
+    position: relative;
+    padding: 16px 20px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+  }
+  .pkg__hero .badge { background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
+  .pkg__hero::after {
+    content: "PROGRAM PHOTO";
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-300); letter-spacing: 0.18em;
+    opacity: 0.7;
+  }
+  .pkg__body { padding: 20px 22px 22px; }
+  .pkg__title { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 0 0 4px; font-weight: 500; letter-spacing: -0.005em; }
+  .pkg__sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; }
+  .pkg__price-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+    margin: 18px -22px 0;
+    border-top: var(--hairline-soft);
+  }
+  .pkg__price {
+    padding: 14px 16px;
+    border-right: var(--hairline-soft);
+    text-align: left;
+  }
+  .pkg__price:last-child { border-right: 0; }
+  .pkg__price .room { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; }
+  .pkg__price .amt { font-family: var(--font-display); font-size: 20px; color: var(--cream-100); margin-top: 4px; }
+  .pkg__price.is-recommended { background: rgba(212,175,55,0.05); }
+  .pkg__price.is-recommended .amt { color: var(--gold-300); }
+
+  .pkg__meta {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: var(--hairline-soft);
+    display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200);
+  }
+  .pkg__meta strong { color: var(--cream-100); font-family: var(--font-mono); font-weight: 500; }
+
+  .pkg__pax {
+    display: flex; margin-top: 16px; gap: 4px;
+  }
+  .pkg__pax span {
+    flex: 1; height: 6px; background: var(--ink-700); border-radius: 2px;
+  }
+  .pkg__pax span.filled { background: var(--gold-300); }
+
+  /* MANIFEST table */
+  .manifest-controls {
+    display: flex; gap: 12px; align-items: center; margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .manifest-controls .input { width: auto; min-width: 280px; }
+  .seg {
+    display: inline-flex;
+    background: var(--ink-900);
+    border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+    padding: 2px;
+  }
+  .seg button {
+    padding: 7px 14px;
+    background: none;
+    border: 0;
+    color: var(--ink-200);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .seg button.is-active { background: var(--ink-700); color: var(--gold-300); }
+
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    overflow: hidden;
+  }
+  .tbl thead th {
+    text-align: left;
+    padding: 14px 16px;
+    background: var(--ink-1000);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-200);
+    font-weight: 500;
+    border-bottom: var(--hairline);
+  }
+  .tbl tbody td {
+    padding: 14px 16px;
+    border-bottom: var(--hairline-soft);
+    font-size: 13.5px;
+    color: var(--cream-200);
+    vertical-align: middle;
+  }
+  .tbl tbody tr:hover td { background: var(--ink-850); }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl .id { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .tbl .name-cell { display: flex; align-items: center; gap: 12px; }
+  .tbl .name-cell .avatar { width: 32px; height: 32px; font-size: 12px; }
+  .tbl .name-cell .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .name-cell .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); }
+  .tbl .doc-pills { display: flex; gap: 4px; }
+  .tbl .doc-pill {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .tbl .doc-pill.ok { background: var(--emerald-soft); color: #8FCBAA; border-color: rgba(74,143,109,0.4); }
+  .tbl .doc-pill.warn { background: var(--amber-soft); color: #E6BC75; border-color: rgba(201,147,59,0.4); }
+  .tbl .doc-pill.err { background: var(--ruby-soft); color: #E69089; border-color: rgba(181,86,74,0.4); }
+
+  /* BUNKING */
+  .bunking {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
+  }
+  .bunking__unassigned {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    padding: 20px;
+    height: fit-content;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: sticky;
+    top: 80px;
+  }
+  .bunking__unassigned h4 { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-300); margin: 0 0 16px; display: flex; justify-content: space-between; }
+  .bunking__pax {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: var(--ink-850);
+    border: var(--hairline-soft);
+    border-radius: 4px;
+    margin-bottom: 6px;
+    cursor: grab;
+  }
+  .bunking__pax:hover { border-color: var(--gold-300); }
+  .bunking__pax .avatar { width: 28px; height: 28px; font-size: 11px; }
+  .bunking__pax .nm { font-size: 13px; color: var(--cream-100); line-height: 1; }
+  .bunking__pax .sx { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); margin-top: 2px; }
+  .bunking__pax .grip { margin-left: auto; color: var(--ink-300); }
+
+  .bunking__floors { display: flex; flex-direction: column; gap: 32px; }
+  .bunking__floor h3 { font-family: var(--font-display); font-size: 24px; margin: 0 0 14px; color: var(--cream-100); font-weight: 500; display: flex; justify-content: space-between; align-items: baseline; }
+  .bunking__floor h3 .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; }
+  .rooms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .room {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-sm);
+    padding: 14px;
+    min-height: 168px;
+  }
+  .room.full { border-color: var(--emerald); }
+  .room.partial { border-style: dashed; border-color: var(--amber); }
+  .room.empty { border-style: dashed; border-color: var(--ink-500); background: var(--ink-1000); }
+  .room__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .room__no { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.08em; }
+  .room__type { font-family: var(--font-mono); font-size: 9px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; }
+  .room__slots { display: flex; flex-direction: column; gap: 4px; }
+  .room__slot {
+    padding: 5px 8px;
+    background: var(--ink-850);
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--cream-100);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .room__slot .av {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--ink-700);
+    border: 1px solid var(--gold-500);
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--gold-300);
+  }
+  .room__slot.empty {
+    background: transparent;
+    color: var(--ink-300);
+    border: 1px dashed var(--ink-500);
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    padding: 5px 8px;
+    text-transform: uppercase;
+    justify-content: center;
+  }
+
+  /* FINANCE */
+  .fin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .currency-card {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .currency-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-left: 4px solid var(--bar);
+  }
+  .currency-card[data-cur="IDR"] { --bar: var(--currency-idr); }
+  .currency-card[data-cur="USD"] { --bar: var(--currency-usd); }
+  .currency-card[data-cur="SAR"] { --bar: var(--currency-sar); }
+  .currency-card__head { display: flex; justify-content: space-between; }
+  .currency-card__lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); }
+  .currency-card__lbl strong { color: var(--cream-100); }
+  .currency-card__fx { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+  .currency-card__val { font-family: var(--font-display); font-size: 38px; color: var(--cream-100); margin: 20px 0 8px; font-weight: 500; letter-spacing: -0.01em; }
+  .currency-card__delta { font-family: var(--font-mono); font-size: 11px; color: var(--emerald); }
+  .currency-card__delta.down { color: var(--ruby); }
+
+  /* topbar audit hash */
+  .hash {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--gold-300);
+    background: var(--ink-900);
+    border: var(--hairline-soft);
+    padding: 6px 12px;
+    border-radius: 4px;
+    letter-spacing: 0.06em;
+  }
+</style>
+</head>
+<body data-screen-label="02 Admin Dashboard">
+
+<div class="app">
+
+  <!-- =========== SIDEBAR =========== -->
+  <aside class="rail">
+    <a href="../index.html" class="brand-mark rail__brand">
+      <span class="brand-mark__glyph">R</span>
+      <span class="brand-mark__name">Religio <em>Pro</em></span>
+    </a>
+
+    <nav class="rail__nav">
+      <div class="rail__group">Workspace</div>
+      <button class="rail__item is-active" data-page="overview">
+        <svg viewBox="0 0 24 24"><path d="M3 12 L7 8 L11 12 L17 6 L21 10"/><path d="M3 18 L21 18"/></svg>
+        Overview
+      </button>
+      <button class="rail__item" data-page="packages">
+        <svg viewBox="0 0 24 24"><path d="M4 7 L12 3 L20 7 V17 L12 21 L4 17 Z M4 7 L12 11 L20 7 M12 11 V21"/></svg>
+        Paket Umroh
+        <span class="count">12</span>
+      </button>
+      <button class="rail__item" data-page="manifest">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"/></svg>
+        Manifes Jemaah
+        <span class="count">1,284</span>
+      </button>
+      <button class="rail__item" data-page="bunking">
+        <svg viewBox="0 0 24 24"><path d="M4 21 V10 L12 4 L20 10 V21 H4 Z M9 21 V14 H15 V21"/></svg>
+        Bunking
+      </button>
+      <button class="rail__item" data-page="finance">
+        <svg viewBox="0 0 24 24"><path d="M4 6 H20 V18 H4 Z"/><circle cx="12" cy="12" r="3"/></svg>
+        Keuangan
+      </button>
+
+      <div class="rail__group">Operations</div>
+      <button class="rail__item" data-page="overview">
+        <svg viewBox="0 0 24 24"><path d="M6 4 H18 V20 H6 Z M9 8 H15 M9 12 H15 M9 16 H13"/></svg>
+        Dokumen &amp; Visa
+        <span class="count">96%</span>
+      </button>
+      <button class="rail__item" data-page="overview">
+        <svg viewBox="0 0 24 24"><path d="M3 11 H21 M5 7 C5 5 6 4 8 4 H16 C18 4 19 5 19 7 V17 C19 19 18 20 16 20 H8 C6 20 5 19 5 17 Z"/></svg>
+        Agen &amp; Komisi
+      </button>
+      <button class="rail__item" data-page="overview">
+        <svg viewBox="0 0 24 24"><path d="M4 4 H20 V20 H4 Z M4 9 H20 M8 14 L11 17 L16 12"/></svg>
+        Audit Log
+      </button>
+
+      <div class="rail__group">Settings</div>
+      <button class="rail__item" data-page="overview">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12 L21 12 M3 12 L5 12 M12 3 L12 5 M12 19 L12 21 M16.5 7.5 L18 6 M6 18 L7.5 16.5 M16.5 16.5 L18 18 M6 6 L7.5 7.5"/></svg>
+        Pengaturan
+      </button>
+    </nav>
+
+    <div class="rail__user">
+      <div class="avatar" style="width:36px;height:36px;font-size:13px;">HF</div>
+      <div>
+        <div class="name">H. Faisal Rahim</div>
+        <div class="role">OWNER · DIRUT</div>
+      </div>
+      <span style="color:var(--ink-300);">›</span>
+    </div>
+  </aside>
+
+  <!-- =========== MAIN =========== -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar__crumb">
+        <span>RELIGIO PRO</span>
+        <span class="sep">/</span>
+        <span>HQ</span>
+        <span class="sep">/</span>
+        <span class="leaf" id="crumb-leaf">Overview</span>
+      </div>
+      <div class="topbar__search">
+        <svg width="14" height="14" viewBox="0 0 24 24" stroke="var(--ink-300)" fill="none" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M16 16 L21 21"/></svg>
+        <input placeholder="Cari jemaah, paspor, atau no. invoice…" />
+        <kbd>⌘K</kbd>
+      </div>
+      <div class="topbar__actions">
+        <span class="hash">● LIVE · 14:32 WIB</span>
+        <button class="btn btn--ghost btn--sm">Cetak Laporan</button>
+        <button class="btn btn--primary btn--sm">+ Paket Baru</button>
+      </div>
+    </div>
+
+    <!-- ============== PAGE: OVERVIEW ============== -->
+    <section class="page is-active" id="page-overview">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Owner Overview · Q2 · 2026</span>
+            <h1>Kabar baik <em>pagi ini</em>, Pak Faisal.</h1>
+          </div>
+          <div class="meta">
+            <strong style="color:var(--cream-100);">Musim umroh tengah · pekan ke-9</strong><br>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);letter-spacing:0.08em;">23 MEI 2026 · KAMIS · 06 DZUL-QAIDAH 1447H</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <article class="kpi kpi--highlight">
+          <div class="kpi__head">
+            <span class="kpi__label">Omzet · Q2 berjalan</span>
+            <span class="kpi__icon"><svg viewBox="0 0 24 24"><path d="M4 6 H20 V18 H4 Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+          </div>
+          <div class="kpi__value">12,84<span class="u">M IDR</span></div>
+          <div class="kpi__sub">
+            <span class="kpi__delta">▲ 18,4% vs Q1</span>
+            <svg class="kpi__spark" viewBox="0 0 90 28" preserveAspectRatio="none">
+              <polyline points="0,22 12,18 24,20 36,12 48,14 60,8 72,10 90,4" fill="none" stroke="var(--gold-300)" stroke-width="1.5"/>
+            </svg>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi__head">
+            <span class="kpi__label">Jemaah aktif</span>
+            <span class="kpi__icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"/></svg></span>
+          </div>
+          <div class="kpi__value">1.284</div>
+          <div class="kpi__sub">
+            <span class="kpi__delta">▲ 142 minggu ini</span>
+            <svg class="kpi__spark" viewBox="0 0 90 28" preserveAspectRatio="none">
+              <polyline points="0,24 12,22 24,18 36,20 48,16 60,12 72,8 90,6" fill="none" stroke="var(--emerald)" stroke-width="1.5"/>
+            </svg>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi__head">
+            <span class="kpi__label">Leads baru · 24j</span>
+            <span class="kpi__icon"><svg viewBox="0 0 24 24"><path d="M3 11 H21 M5 7 C5 5 6 4 8 4 H16 C18 4 19 5 19 7 V17 C19 19 18 20 16 20 H8 C6 20 5 19 5 17 Z"/></svg></span>
+          </div>
+          <div class="kpi__value">47</div>
+          <div class="kpi__sub">
+            <span class="kpi__delta">▲ 12 hot leads</span>
+            <svg class="kpi__spark" viewBox="0 0 90 28" preserveAspectRatio="none">
+              <polyline points="0,18 12,14 24,16 36,10 48,14 60,8 72,12 90,6" fill="none" stroke="var(--sapphire)" stroke-width="1.5"/>
+            </svg>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi__head">
+            <span class="kpi__label">Kelengkapan dokumen</span>
+            <span class="kpi__icon"><svg viewBox="0 0 24 24"><path d="M5 4 H19 V14 L12 20 L5 14 Z"/><path d="M9 11 L11 13 L15 9"/></svg></span>
+          </div>
+          <div class="kpi__value">96<span class="u">%</span></div>
+          <div class="kpi__sub">
+            <span class="kpi__delta down">▼ 7 jemaah perlu atensi</span>
+            <svg class="kpi__spark" viewBox="0 0 90 28" preserveAspectRatio="none">
+              <polyline points="0,10 12,8 24,6 36,10 48,8 60,12 72,14 90,12" fill="none" stroke="var(--amber)" stroke-width="1.5"/>
+            </svg>
+          </div>
+        </article>
+      </div>
+
+      <!-- Chart + Tasks -->
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel__head">
+            <div>
+              <h3>Tren omzet &amp; pelunasan</h3>
+              <p style="margin:4px 0 0;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">12 minggu terakhir · multi-currency dikonversi ke IDR harian</p>
+            </div>
+            <div class="tabs">
+              <button class="tab">7H</button>
+              <button class="tab is-active">12P</button>
+              <button class="tab">6B</button>
+              <button class="tab">YTD</button>
+            </div>
+          </div>
+
+          <div class="chart-area">
+            <svg viewBox="0 0 800 260" preserveAspectRatio="none">
+              <!-- grid -->
+              <g stroke="rgba(58,54,48,0.5)" stroke-dasharray="2 4">
+                <line x1="0" y1="40" x2="800" y2="40"/>
+                <line x1="0" y1="100" x2="800" y2="100"/>
+                <line x1="0" y1="160" x2="800" y2="160"/>
+                <line x1="0" y1="220" x2="800" y2="220"/>
+              </g>
+              <!-- y-axis labels -->
+              <g font-family="JetBrains Mono" font-size="9" fill="#6B6558">
+                <text x="0" y="36">Rp 1,2 M</text>
+                <text x="0" y="96">Rp 900 jt</text>
+                <text x="0" y="156">Rp 600 jt</text>
+                <text x="0" y="216">Rp 300 jt</text>
+              </g>
+              <!-- bars: pelunasan -->
+              <g fill="#25221E">
+                <rect x="60" y="150" width="28" height="80"/>
+                <rect x="120" y="120" width="28" height="110"/>
+                <rect x="180" y="140" width="28" height="90"/>
+                <rect x="240" y="100" width="28" height="130"/>
+                <rect x="300" y="80" width="28" height="150"/>
+                <rect x="360" y="110" width="28" height="120"/>
+                <rect x="420" y="70" width="28" height="160"/>
+                <rect x="480" y="60" width="28" height="170"/>
+                <rect x="540" y="50" width="28" height="180"/>
+                <rect x="600" y="40" width="28" height="190"/>
+                <rect x="660" y="30" width="28" height="200"/>
+                <rect x="720" y="20" width="28" height="210"/>
+              </g>
+              <!-- bars: konversi gold -->
+              <g fill="#BE9A2A" opacity="0.85">
+                <rect x="60" y="170" width="28" height="60"/>
+                <rect x="120" y="150" width="28" height="80"/>
+                <rect x="180" y="170" width="28" height="60"/>
+                <rect x="240" y="130" width="28" height="100"/>
+                <rect x="300" y="120" width="28" height="110"/>
+                <rect x="360" y="140" width="28" height="90"/>
+                <rect x="420" y="100" width="28" height="130"/>
+                <rect x="480" y="90" width="28" height="140"/>
+                <rect x="540" y="80" width="28" height="150"/>
+                <rect x="600" y="60" width="28" height="170"/>
+                <rect x="660" y="50" width="28" height="180"/>
+                <rect x="720" y="40" width="28" height="190"/>
+              </g>
+              <!-- trend line gold -->
+              <polyline
+                points="74,190 134,170 194,180 254,150 314,140 374,160 434,120 494,110 554,100 614,80 674,70 734,60"
+                fill="none" stroke="#D4AF37" stroke-width="2"/>
+              <!-- circles -->
+              <g fill="#D4AF37">
+                <circle cx="734" cy="60" r="4"/>
+                <circle cx="734" cy="60" r="8" fill="none" stroke="#D4AF37" stroke-width="1.2" opacity="0.5"/>
+              </g>
+              <!-- x labels -->
+              <g font-family="JetBrains Mono" font-size="9" fill="#6B6558">
+                <text x="62" y="252">W11</text>
+                <text x="122" y="252">W12</text>
+                <text x="182" y="252">W13</text>
+                <text x="242" y="252">W14</text>
+                <text x="302" y="252">W15</text>
+                <text x="362" y="252">W16</text>
+                <text x="422" y="252">W17</text>
+                <text x="482" y="252">W18</text>
+                <text x="542" y="252">W19</text>
+                <text x="602" y="252">W20</text>
+                <text x="662" y="252">W21</text>
+                <text x="722" y="252" fill="#D4AF37">W22</text>
+              </g>
+            </svg>
+          </div>
+          <hr class="divider" style="margin-top:12px;">
+          <div class="chart-legend" style="margin-top:12px;">
+            <span><i style="background:#D4AF37;"></i>Pelunasan (IDR)</span>
+            <span><i style="background:#BE9A2A;opacity:0.85;"></i>DP &amp; cicilan</span>
+            <span><i style="background:#25221E;"></i>Forecast belum lunas</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__head">
+            <h3>Atensi hari ini</h3>
+            <span class="badge badge--amber badge--dot">7 perlu tindakan</span>
+          </div>
+          <div class="list">
+            <div class="list__row">
+              <span class="dot ruby"></span>
+              <div>
+                <div class="title">Visa Khadijah Lestari ditolak</div>
+                <div class="sub">Foto paspor blur · perlu re-submit hari ini</div>
+              </div>
+              <a class="btn btn--ghost btn--sm">Tinjau</a>
+            </div>
+            <div class="list__row">
+              <span class="dot amber"></span>
+              <div>
+                <div class="title">7 jemaah belum upload suntik meningitis</div>
+                <div class="sub">Tenggat: 6 Juni 2026 · H-14</div>
+              </div>
+              <a class="btn btn--ghost btn--sm">Kirim WA</a>
+            </div>
+            <div class="list__row">
+              <span class="dot amber"></span>
+              <div>
+                <div class="title">Manifes Bus 03 belum lengkap</div>
+                <div class="sub">22/24 jemaah · 2 belum ditugaskan</div>
+              </div>
+              <a class="btn btn--ghost btn--sm">Buka</a>
+            </div>
+            <div class="list__row">
+              <span class="dot"></span>
+              <div>
+                <div class="title">Diskon kustom Rp 500K oleh Sr. Lia</div>
+                <div class="sub">Memerlukan persetujuan Owner</div>
+              </div>
+              <a class="btn btn--outline-gold btn--sm">Setujui</a>
+            </div>
+            <div class="list__row">
+              <span class="dot emerald"></span>
+              <div>
+                <div class="title">Komisi agen siap dicairkan</div>
+                <div class="sub">Rp 142,8 Jt untuk 14 agen aktif</div>
+              </div>
+              <a class="btn btn--ghost btn--sm">Lihat</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity + Currency mini -->
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel__head">
+            <h3>Aktivitas terkini</h3>
+            <span class="meta">AUDIT LOG · IMMUTABLE</span>
+          </div>
+          <div class="activity">
+            <div class="activity__row">
+              <span class="t">14:22</span>
+              <span class="e"><span class="who">Sr. Lia (Sales)</span> menerapkan <strong>diskon Rp 500.000</strong> untuk Bu Hartini Susanto · perlu persetujuan Owner</span>
+            </div>
+            <div class="activity__row">
+              <span class="t">13:08</span>
+              <span class="e"><span class="who">Pak Yusuf (Crew)</span> memperbarui <strong>manifes Bus 03</strong> · 22 jemaah hadir, 2 belum check-in</span>
+            </div>
+            <div class="activity__row">
+              <span class="t">11:42</span>
+              <span class="e"><span class="who">Sistem</span> menerima pelunasan <strong>Rp 38.500.000</strong> dari Bu Hartini · status: LUNAS</span>
+            </div>
+            <div class="activity__row">
+              <span class="t">11:08</span>
+              <span class="e"><span class="who">Pak Hamzah (Ops)</span> mencatat pengeluaran <strong>﷼ 24.000</strong> · katering Mansoor · Madinah</span>
+            </div>
+            <div class="activity__row">
+              <span class="t">09:41</span>
+              <span class="e"><span class="who">Agen Bandung-04</span> mengunci 6 leads baru via marketing kit · konversi ekspektasi Rp 234 Jt</span>
+            </div>
+            <div class="activity__row">
+              <span class="t">08:14</span>
+              <span class="e"><span class="who">Sistem</span> mengirim pengingat WA ke <strong>14 jemaah</strong> · suntik meningitis tertunda</span>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel__head">
+            <h3>Kas multi-currency</h3>
+            <span class="meta">REKONSILIASI · LIVE</span>
+          </div>
+          <div class="mock-fin" style="display:flex;flex-direction:column;gap:1px;background:var(--ink-500);border-radius:6px;overflow:hidden;">
+            <div style="background:var(--ink-900);padding:14px 16px;display:grid;grid-template-columns:6px 1fr auto;gap:14px;align-items:center;">
+              <span style="width:6px;height:28px;background:var(--currency-idr);border-radius:2px;"></span>
+              <div>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;">IDR · KAS BANK</div>
+                <div style="font-family:var(--font-display);font-size:22px;color:var(--cream-100);">Rp 4.812.500.000</div>
+              </div>
+              <span class="badge badge--gold">Primary</span>
+            </div>
+            <div style="background:var(--ink-900);padding:14px 16px;display:grid;grid-template-columns:6px 1fr auto;gap:14px;align-items:center;">
+              <span style="width:6px;height:28px;background:var(--currency-usd);border-radius:2px;"></span>
+              <div>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;">USD · OPERASIONAL</div>
+                <div style="font-family:var(--font-display);font-size:22px;color:var(--cream-100);">$ 184,250.00</div>
+              </div>
+              <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">1 = 15.880</span>
+            </div>
+            <div style="background:var(--ink-900);padding:14px 16px;display:grid;grid-template-columns:6px 1fr auto;gap:14px;align-items:center;">
+              <span style="width:6px;height:28px;background:var(--currency-sar);border-radius:2px;"></span>
+              <div>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;">SAR · TANAH SUCI</div>
+                <div style="font-family:var(--font-display);font-size:22px;color:var(--cream-100);">﷼ 928,400</div>
+              </div>
+              <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">1 = 4.234</span>
+            </div>
+          </div>
+          <button class="btn btn--ghost" style="width:100%;justify-content:center;margin-top:16px;">Buka modul keuangan →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== PAGE: PACKAGES ============== -->
+    <section class="page" id="page-packages">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Paket Umroh · 12 aktif</span>
+            <h1>Paket &amp; <em>program perjalanan</em></h1>
+          </div>
+          <button class="btn btn--primary">+ Paket Baru</button>
+        </div>
+      </header>
+
+      <div class="manifest-controls">
+        <div class="seg">
+          <button class="is-active">Semua (12)</button>
+          <button>VVIP (3)</button>
+          <button>Reguler (7)</button>
+          <button>Plus Aqsa (2)</button>
+          <button>Arsip</button>
+        </div>
+        <input class="input" placeholder="Cari paket…" style="max-width:280px;">
+      </div>
+
+      <div class="pkg-grid">
+        <article class="pkg pkg--gold">
+          <div class="pkg__hero">
+            <span class="badge badge--solid-gold">VVIP</span>
+            <span class="badge">12 Hari</span>
+          </div>
+          <div class="pkg__body">
+            <h4 class="pkg__title">Umroh Plus Aqsa Ramadhan</h4>
+            <p class="pkg__sub">RAMADHAN 1447H · 12 HARI · DEP 14 MAR 2026</p>
+            <div class="pkg__price-row">
+              <div class="pkg__price"><span class="room">Quad</span><span class="amt">38,5 Jt</span></div>
+              <div class="pkg__price is-recommended"><span class="room">Triple</span><span class="amt">42,8 Jt</span></div>
+              <div class="pkg__price"><span class="room">Double</span><span class="amt">48,2 Jt</span></div>
+            </div>
+            <div class="pkg__meta">
+              <span>Kuota <strong>40</strong></span>
+              <span>Terisi <strong style="color:var(--gold-300);">34/40</strong></span>
+              <span>Komisi <strong>8%</strong></span>
+            </div>
+            <div class="pkg__pax">
+              <span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span></span><span></span>
+            </div>
+          </div>
+        </article>
+
+        <article class="pkg">
+          <div class="pkg__hero">
+            <span class="badge">Reguler</span>
+            <span class="badge">9 Hari</span>
+          </div>
+          <div class="pkg__body">
+            <h4 class="pkg__title">Umroh Mei 2026 — Reguler</h4>
+            <p class="pkg__sub">MAY 2026 · 9 HARI · DEP 18 MEI 2026</p>
+            <div class="pkg__price-row">
+              <div class="pkg__price is-recommended"><span class="room">Quad</span><span class="amt">32,5 Jt</span></div>
+              <div class="pkg__price"><span class="room">Triple</span><span class="amt">35,8 Jt</span></div>
+              <div class="pkg__price"><span class="room">Double</span><span class="amt">38,5 Jt</span></div>
+            </div>
+            <div class="pkg__meta">
+              <span>Kuota <strong>120</strong></span>
+              <span>Terisi <strong style="color:var(--emerald);">118/120</strong></span>
+              <span>Komisi <strong>6%</strong></span>
+            </div>
+            <div class="pkg__pax">
+              <span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span></span>
+            </div>
+          </div>
+        </article>
+
+        <article class="pkg">
+          <div class="pkg__hero">
+            <span class="badge">VVIP</span>
+            <span class="badge">15 Hari</span>
+          </div>
+          <div class="pkg__body">
+            <h4 class="pkg__title">Umroh Eksekutif Plus Madinah</h4>
+            <p class="pkg__sub">JUN 2026 · 15 HARI · DEP 10 JUN 2026</p>
+            <div class="pkg__price-row">
+              <div class="pkg__price"><span class="room">Quad</span><span class="amt">54,5 Jt</span></div>
+              <div class="pkg__price is-recommended"><span class="room">Triple</span><span class="amt">58,8 Jt</span></div>
+              <div class="pkg__price"><span class="room">Double</span><span class="amt">64,5 Jt</span></div>
+            </div>
+            <div class="pkg__meta">
+              <span>Kuota <strong>30</strong></span>
+              <span>Terisi <strong>18/30</strong></span>
+              <span>Komisi <strong>10%</strong></span>
+            </div>
+            <div class="pkg__pax">
+              <span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </article>
+
+        <article class="pkg">
+          <div class="pkg__hero">
+            <span class="badge">Reguler</span>
+            <span class="badge">9 Hari</span>
+          </div>
+          <div class="pkg__body">
+            <h4 class="pkg__title">Umroh Juli 2026 — Reguler</h4>
+            <p class="pkg__sub">JUL 2026 · 9 HARI · DEP 14 JUL 2026</p>
+            <div class="pkg__price-row">
+              <div class="pkg__price is-recommended"><span class="room">Quad</span><span class="amt">29,8 Jt</span></div>
+              <div class="pkg__price"><span class="room">Triple</span><span class="amt">33,5 Jt</span></div>
+              <div class="pkg__price"><span class="room">Double</span><span class="amt">36,8 Jt</span></div>
+            </div>
+            <div class="pkg__meta">
+              <span>Kuota <strong>200</strong></span>
+              <span>Terisi <strong>84/200</strong></span>
+              <span>Komisi <strong>6%</strong></span>
+            </div>
+            <div class="pkg__pax">
+              <span class="filled"></span><span class="filled"></span><span class="filled"></span><span class="filled"></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </article>
+
+        <article class="pkg">
+          <div class="pkg__hero">
+            <span class="badge">Plus Aqsa</span>
+            <span class="badge">17 Hari</span>
+          </div>
+          <div class="pkg__body">
+            <h4 class="pkg__title">Umroh Plus Al-Aqsa Premium</h4>
+            <p class="pkg__sub">SEP 2026 · 17 HARI · DEP 02 SEP 2026</p>
+            <div class="pkg__price-row">
+              <div class="pkg__price"><span class="room">Quad</span><span class="amt">52,8 Jt</span></div>
+              <div class="pkg__price is-recommended"><span class="room">Triple</span><span class="amt">56,5 Jt</span></div>
+              <div class="pkg__price"><span class="room">Double</span><span class="amt">61,8 Jt</span></div>
+            </div>
+            <div class="pkg__meta">
+              <span>Kuota <strong>40</strong></span>
+              <span>Terisi <strong>12/40</strong></span>
+              <span>Komisi <strong>8%</strong></span>
+            </div>
+            <div class="pkg__pax">
+              <span class="filled"></span><span class="filled"></span><span class="filled"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </article>
+
+        <article class="pkg" style="border-style:dashed;background:var(--ink-1000);display:grid;place-items:center;min-height:380px;">
+          <div style="text-align:center;">
+            <div style="width:48px;height:48px;border:1px dashed var(--gold-300);border-radius:50%;display:grid;place-items:center;margin:0 auto 16px;color:var(--gold-300);font-size:24px;">+</div>
+            <div style="font-family:var(--font-display);font-size:22px;color:var(--cream-100);">Buat paket baru</div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin-top:6px;letter-spacing:0.1em;">LANDING PAGE OTOMATIS</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============== PAGE: MANIFEST ============== -->
+    <section class="page" id="page-manifest">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Manifes Jemaah · Grup PRO-481</span>
+            <h1>124 jemaah, <em>satu kebenaran.</em></h1>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <button class="btn btn--ghost btn--sm">Ekspor Excel</button>
+            <button class="btn btn--outline-gold btn--sm">Surat Rekomendasi (124)</button>
+            <button class="btn btn--primary btn--sm">+ Jemaah</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="manifest-controls">
+        <input class="input" placeholder="Cari nama, paspor, kontak…">
+        <div class="seg">
+          <button class="is-active">Semua (124)</button>
+          <button>Lunas (98)</button>
+          <button>DP (19)</button>
+          <button>Dokumen kurang (7)</button>
+        </div>
+        <span style="margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);letter-spacing:0.1em;">FILTER · BUS 03 · QUAD · MAY 2026</span>
+      </div>
+
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:120px;">ID</th>
+            <th>Nama</th>
+            <th>Paket</th>
+            <th>Dokumen</th>
+            <th>Pembayaran</th>
+            <th>Bunking</th>
+            <th>Agen</th>
+            <th style="text-align:right;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="id">PT-2026-0481</span></td>
+            <td><div class="name-cell"><div class="avatar">AF</div><div><div class="nm">Ahmad Fauzi</div><div class="sx">A12345678 · L · 1968</div></div></div></td>
+            <td><span style="color:var(--cream-100);">Umroh Mei · Reguler</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">QUAD · DEP 18 MEI</div></td>
+            <td><div class="doc-pills"><span class="doc-pill ok">P</span><span class="doc-pill ok">V</span><span class="doc-pill ok">M</span><span class="doc-pill ok">S</span></div></td>
+            <td><span class="badge badge--emerald badge--dot">Lunas</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Rp 32,5 Jt · 11 MEI</div></td>
+            <td><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--gold-300);">412 · Bus 03</span></td>
+            <td><span style="font-size:13px;color:var(--cream-100);">Direct</span></td>
+            <td style="text-align:right;"><a class="btn btn--ghost btn--sm">Lihat</a></td>
+          </tr>
+          <tr>
+            <td><span class="id">PT-2026-0482</span></td>
+            <td><div class="name-cell"><div class="avatar">HS</div><div><div class="nm">Hartini Susanto</div><div class="sx">B98765432 · P · 1962</div></div></div></td>
+            <td><span style="color:var(--cream-100);">Plus Aqsa Premium</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">DOUBLE · DEP 02 SEP</div></td>
+            <td><div class="doc-pills"><span class="doc-pill ok">P</span><span class="doc-pill ok">V</span><span class="doc-pill ok">M</span><span class="doc-pill ok">S</span></div></td>
+            <td><span class="badge badge--emerald badge--dot">Lunas</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Rp 61,8 Jt · 14 MEI</div></td>
+            <td><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--gold-300);">301 · Bus 01</span></td>
+            <td><span style="font-size:13px;color:var(--gold-300);">Bandung-04</span></td>
+            <td style="text-align:right;"><a class="btn btn--ghost btn--sm">Lihat</a></td>
+          </tr>
+          <tr>
+            <td><span class="id">PT-2026-0483</span></td>
+            <td><div class="name-cell"><div class="avatar">KL</div><div><div class="nm">Khadijah Lestari</div><div class="sx">A87654321 · P · 1955</div></div></div></td>
+            <td><span style="color:var(--cream-100);">Umroh Mei · Reguler</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">TRIPLE · DEP 18 MEI</div></td>
+            <td><div class="doc-pills"><span class="doc-pill ok">P</span><span class="doc-pill err">V</span><span class="doc-pill ok">M</span><span class="doc-pill ok">S</span></div></td>
+            <td><span class="badge badge--emerald badge--dot">Lunas</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Rp 35,8 Jt · 09 MEI</div></td>
+            <td><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--gold-300);">408 · Bus 03</span></td>
+            <td><span style="font-size:13px;color:var(--cream-100);">Direct</span></td>
+            <td style="text-align:right;"><a class="btn btn--ghost btn--sm" style="color:var(--ruby);">Visa!</a></td>
+          </tr>
+          <tr>
+            <td><span class="id">PT-2026-0484</span></td>
+            <td><div class="name-cell"><div class="avatar">RS</div><div><div class="nm">Ridho Salman</div><div class="sx">C45678912 · L · 1985</div></div></div></td>
+            <td><span style="color:var(--cream-100);">Umroh Mei · Reguler</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">QUAD · DEP 18 MEI</div></td>
+            <td><div class="doc-pills"><span class="doc-pill ok">P</span><span class="doc-pill ok">V</span><span class="doc-pill warn">M</span><span class="doc-pill ok">S</span></div></td>
+            <td><span class="badge badge--amber badge--dot">DP 30%</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Rp 9,75 Jt · cicilan</div></td>
+            <td><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--gold-300);">412 · Bus 03</span></td>
+            <td><span style="font-size:13px;color:var(--gold-300);">KBIH Solo-02</span></td>
+            <td style="text-align:right;"><a class="btn btn--ghost btn--sm">Lihat</a></td>
+          </tr>
+          <tr>
+            <td><span class="id">PT-2026-0485</span></td>
+            <td><div class="name-cell"><div class="avatar">YK</div><div><div class="nm">Yusuf Karim</div><div class="sx">D14725836 · L · 1971</div></div></div></td>
+            <td><span style="color:var(--cream-100);">Umroh Mei · Reguler</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">QUAD · DEP 18 MEI</div></td>
+            <td><div class="doc-pills"><span class="doc-pill ok">P</span><span class="doc-pill ok">V</span><span class="doc-pill ok">M</span><span class="doc-pill ok">S</span></div></td>
+            <td><span class="badge badge--emerald badge--dot">Lunas</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Rp 32,5 Jt · 10 MEI</div></td>
+            <td><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--gold-300);">412 · Bus 03</span></td>
+            <td><span style="font-size:13px;color:var(--cream-100);">Direct</span></td>
+            <td style="text-align:right;"><a class="btn btn--ghost btn--sm">Lihat</a></td>
+          </tr>
+          <tr>
+            <td><span class="id">PT-2026-0486</span></td>
+            <td><div class="name-cell"><div class="avatar">SR</div><div><div class="nm">Siti Rahmah</div><div class="sx">E25836147 · P · 1968</div></div></div></td>
+            <td><span style="color:var(--cream-100);">Umroh Mei · Reguler</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">TRIPLE · DEP 18 MEI</div></td>
+            <td><div class="doc-pills"><span class="doc-pill ok">P</span><span class="doc-pill ok">V</span><span class="doc-pill warn">M</span><span class="doc-pill ok">S</span></div></td>
+            <td><span class="badge badge--emerald badge--dot">Lunas</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Rp 35,8 Jt · 12 MEI</div></td>
+            <td><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--gold-300);">408 · Bus 03</span></td>
+            <td><span style="font-size:13px;color:var(--gold-300);">Bandung-04</span></td>
+            <td style="text-align:right;"><a class="btn btn--ghost btn--sm">Lihat</a></td>
+          </tr>
+          <tr>
+            <td><span class="id">PT-2026-0487</span></td>
+            <td><div class="name-cell"><div class="avatar">JW</div><div><div class="nm">Joko Wibowo</div><div class="sx">F36947258 · L · 1965</div></div></div></td>
+            <td><span style="color:var(--cream-100);">Plus Aqsa Premium</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">TRIPLE · DEP 02 SEP</div></td>
+            <td><div class="doc-pills"><span class="doc-pill ok">P</span><span class="doc-pill warn">V</span><span class="doc-pill ok">M</span><span class="doc-pill ok">S</span></div></td>
+            <td><span class="badge badge--amber badge--dot">DP 50%</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Rp 28,25 Jt</div></td>
+            <td><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--ink-300);">— belum —</span></td>
+            <td><span style="font-size:13px;color:var(--gold-300);">Surabaya-01</span></td>
+            <td style="text-align:right;"><a class="btn btn--ghost btn--sm">Lihat</a></td>
+          </tr>
+          <tr>
+            <td><span class="id">PT-2026-0488</span></td>
+            <td><div class="name-cell"><div class="avatar">FR</div><div><div class="nm">Faisal Rahman</div><div class="sx">G47852369 · L · 1970</div></div></div></td>
+            <td><span style="color:var(--cream-100);">Eksekutif Madinah</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">DOUBLE · DEP 10 JUN</div></td>
+            <td><div class="doc-pills"><span class="doc-pill ok">P</span><span class="doc-pill ok">V</span><span class="doc-pill ok">M</span><span class="doc-pill ok">S</span></div></td>
+            <td><span class="badge badge--emerald badge--dot">Lunas</span><div class="sx" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Rp 64,5 Jt · 28 APR</div></td>
+            <td><span style="font-family:var(--font-mono);font-size:11.5px;color:var(--gold-300);">VVIP-02</span></td>
+            <td><span style="font-size:13px;color:var(--cream-100);">Direct</span></td>
+            <td style="text-align:right;"><a class="btn btn--ghost btn--sm">Lihat</a></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top:16px;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);letter-spacing:0.1em;">MENAMPILKAN 8 DARI 124 JEMAAH · <a href="#" style="color:var(--gold-300);">MUAT 20 LAGI</a></p>
+    </section>
+
+    <!-- ============== PAGE: BUNKING ============== -->
+    <section class="page" id="page-bunking">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Bunking · Hotel Anjum Makkah · Lt 4</span>
+            <h1>Drag &amp; drop, <em>tanpa coret-coretan.</em></h1>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <button class="btn btn--ghost btn--sm">Cetak Rooming List</button>
+            <button class="btn btn--outline-gold btn--sm">Auto-arrange by Keluarga</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="bunking">
+        <aside class="bunking__unassigned">
+          <h4>Belum ditugaskan <span style="color:var(--ink-200);font-weight:400;">3</span></h4>
+          <div class="bunking__pax"><div class="avatar">HM</div><div><div class="nm">Hadi Maulana</div><div class="sx">M · QUAD · KEL-04</div></div><span class="grip">≡</span></div>
+          <div class="bunking__pax"><div class="avatar">IL</div><div><div class="nm">Irma Latifah</div><div class="sx">P · TRIPLE · KEL-12</div></div><span class="grip">≡</span></div>
+          <div class="bunking__pax"><div class="avatar">UN</div><div><div class="nm">Umar Nasrullah</div><div class="sx">M · QUAD · SOLO</div></div><span class="grip">≡</span></div>
+
+          <h4 style="margin-top:24px;">Konflik <span style="color:var(--ruby);font-weight:400;">1</span></h4>
+          <div class="bunking__pax" style="border-color:var(--ruby);background:var(--ruby-soft);">
+            <div class="avatar" style="border-color:var(--ruby);color:var(--ruby);">!</div>
+            <div>
+              <div class="nm">Kel-04 terpisah</div>
+              <div class="sx" style="color:#E69089;">2 kamar berbeda</div>
+            </div>
+            <span class="grip">›</span>
+          </div>
+        </aside>
+
+        <div class="bunking__floors">
+          <div class="bunking__floor">
+            <h3>Lantai 4 — Wing Selatan <span class="meta">8 KAMAR · 24 PAX TERISI</span></h3>
+            <div class="rooms">
+              <div class="room full">
+                <div class="room__head"><span class="room__no">412</span><span class="room__type">Triple</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">AF</span>Ahmad Fauzi</div>
+                  <div class="room__slot"><span class="av">RS</span>Ridho Salman</div>
+                  <div class="room__slot"><span class="av">YK</span>Yusuf Karim</div>
+                </div>
+              </div>
+              <div class="room full">
+                <div class="room__head"><span class="room__no">414</span><span class="room__type">Quad</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">HW</span>Hadi Wijaya</div>
+                  <div class="room__slot"><span class="av">BS</span>Bambang S.</div>
+                  <div class="room__slot"><span class="av">CN</span>Cahyo Nugroho</div>
+                  <div class="room__slot"><span class="av">DA</span>Dimas Aji</div>
+                </div>
+              </div>
+              <div class="room partial">
+                <div class="room__head"><span class="room__no">416</span><span class="room__type">Quad</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">EA</span>Edi Akbar</div>
+                  <div class="room__slot"><span class="av">FH</span>Fahmi Hadi</div>
+                  <div class="room__slot empty">DROP HERE</div>
+                  <div class="room__slot empty">DROP HERE</div>
+                </div>
+              </div>
+              <div class="room full">
+                <div class="room__head"><span class="room__no">418</span><span class="room__type">Triple</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">GA</span>Galuh Arman</div>
+                  <div class="room__slot"><span class="av">HK</span>Hadi Kusuma</div>
+                  <div class="room__slot"><span class="av">IZ</span>Ihsan Zaki</div>
+                </div>
+              </div>
+              <div class="room full">
+                <div class="room__head"><span class="room__no">420</span><span class="room__type">Double</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">FR</span>Faisal R. (VVIP)</div>
+                  <div class="room__slot"><span class="av">FW</span>F. Wati</div>
+                </div>
+              </div>
+              <div class="room full">
+                <div class="room__head"><span class="room__no">422</span><span class="room__type">Triple · ♀</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">KL</span>Khadijah L.</div>
+                  <div class="room__slot"><span class="av">SR</span>Siti Rahmah</div>
+                  <div class="room__slot"><span class="av">HS</span>Hartini S.</div>
+                </div>
+              </div>
+              <div class="room partial">
+                <div class="room__head"><span class="room__no">424</span><span class="room__type">Quad · ♀</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">JW</span>Juwita W.</div>
+                  <div class="room__slot"><span class="av">LA</span>Lilis Aprilia</div>
+                  <div class="room__slot"><span class="av">MS</span>Maharani S.</div>
+                  <div class="room__slot empty">DROP HERE</div>
+                </div>
+              </div>
+              <div class="room empty">
+                <div class="room__head"><span class="room__no">426</span><span class="room__type">Quad</span></div>
+                <div class="room__slots">
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bunking__floor">
+            <h3>Lantai 5 — Wing Utara <span class="meta">8 KAMAR · 18 PAX TERISI</span></h3>
+            <div class="rooms">
+              <div class="room full">
+                <div class="room__head"><span class="room__no">508</span><span class="room__type">Triple</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">NA</span>Naufal Anwar</div>
+                  <div class="room__slot"><span class="av">OR</span>Omar Reza</div>
+                  <div class="room__slot"><span class="av">PA</span>Pandu Aji</div>
+                </div>
+              </div>
+              <div class="room full">
+                <div class="room__head"><span class="room__no">510</span><span class="room__type">Quad</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">QS</span>Qomar Sidik</div>
+                  <div class="room__slot"><span class="av">RA</span>Rahmat A.</div>
+                  <div class="room__slot"><span class="av">SA</span>Salman Ash.</div>
+                  <div class="room__slot"><span class="av">TF</span>Tegar F.</div>
+                </div>
+              </div>
+              <div class="room partial">
+                <div class="room__head"><span class="room__no">512</span><span class="room__type">Triple · ♀</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">UA</span>Umi Aisyah</div>
+                  <div class="room__slot"><span class="av">VR</span>Vita Rahma</div>
+                  <div class="room__slot empty">DROP HERE</div>
+                </div>
+              </div>
+              <div class="room full">
+                <div class="room__head"><span class="room__no">514</span><span class="room__type">Double</span></div>
+                <div class="room__slots">
+                  <div class="room__slot"><span class="av">WA</span>Wahyu Alif</div>
+                  <div class="room__slot"><span class="av">XN</span>Xenia N.</div>
+                </div>
+              </div>
+              <div class="room empty">
+                <div class="room__head"><span class="room__no">516</span><span class="room__type">Quad</span></div>
+                <div class="room__slots">
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                </div>
+              </div>
+              <div class="room empty">
+                <div class="room__head"><span class="room__no">518</span><span class="room__type">Triple</span></div>
+                <div class="room__slots">
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                </div>
+              </div>
+              <div class="room empty">
+                <div class="room__head"><span class="room__no">520</span><span class="room__type">Double</span></div>
+                <div class="room__slots">
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                </div>
+              </div>
+              <div class="room empty">
+                <div class="room__head"><span class="room__no">522</span><span class="room__type">Quad</span></div>
+                <div class="room__slots">
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                  <div class="room__slot empty">EMPTY</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== PAGE: FINANCE ============== -->
+    <section class="page" id="page-finance">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Keuangan Multi-Currency · Q2 · 2026</span>
+            <h1>IDR · USD · SAR<br>dalam <em>satu pandangan.</em></h1>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <button class="btn btn--ghost btn--sm">Ekspor Excel</button>
+            <button class="btn btn--outline-gold btn--sm">Unduh Audit Log</button>
+            <button class="btn btn--primary btn--sm">+ Transaksi</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="fin-grid">
+        <article class="currency-card" data-cur="IDR">
+          <div class="currency-card__head">
+            <span class="currency-card__lbl"><strong>IDR</strong> · Rupiah · Primary</span>
+            <span class="badge badge--gold">Live</span>
+          </div>
+          <div class="currency-card__val">Rp 12.840.500.000</div>
+          <div class="currency-card__delta">▲ 18,4% MoM · 124 transaksi</div>
+          <hr class="divider" style="margin:20px 0 16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:12.5px;color:var(--ink-100);">
+            <div><span class="muted font-mono" style="font-size:10px;letter-spacing:0.12em;">MASUK</span><br><strong style="color:var(--emerald);font-family:var(--font-mono);">+ Rp 4,81 M</strong></div>
+            <div><span class="muted font-mono" style="font-size:10px;letter-spacing:0.12em;">KELUAR</span><br><strong style="color:var(--ruby);font-family:var(--font-mono);">− Rp 1,28 M</strong></div>
+          </div>
+        </article>
+
+        <article class="currency-card" data-cur="USD">
+          <div class="currency-card__head">
+            <span class="currency-card__lbl"><strong>USD</strong> · Dollar · Operasional</span>
+            <span class="currency-card__fx">1 USD = Rp 15.880 ⓘ</span>
+          </div>
+          <div class="currency-card__val">$ 808,420.55</div>
+          <div class="currency-card__delta">▲ 6,2% MoM · airfare &amp; hotel</div>
+          <hr class="divider" style="margin:20px 0 16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:12.5px;color:var(--ink-100);">
+            <div><span class="muted font-mono" style="font-size:10px;letter-spacing:0.12em;">SETARA IDR</span><br><strong style="color:var(--cream-100);font-family:var(--font-mono);">12,83 M</strong></div>
+            <div><span class="muted font-mono" style="font-size:10px;letter-spacing:0.12em;">TX 30H</span><br><strong style="color:var(--cream-100);font-family:var(--font-mono);">28 transaksi</strong></div>
+          </div>
+        </article>
+
+        <article class="currency-card" data-cur="SAR">
+          <div class="currency-card__head">
+            <span class="currency-card__lbl"><strong>SAR</strong> · Riyal · Tanah Suci</span>
+            <span class="currency-card__fx">1 SAR = Rp 4.234 ⓘ</span>
+          </div>
+          <div class="currency-card__val">﷼ 3.032.180</div>
+          <div class="currency-card__delta down">▼ 2,1% MoM · katering &amp; ground</div>
+          <hr class="divider" style="margin:20px 0 16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:12.5px;color:var(--ink-100);">
+            <div><span class="muted font-mono" style="font-size:10px;letter-spacing:0.12em;">SETARA IDR</span><br><strong style="color:var(--cream-100);font-family:var(--font-mono);">12,84 M</strong></div>
+            <div><span class="muted font-mono" style="font-size:10px;letter-spacing:0.12em;">TX 30H</span><br><strong style="color:var(--cream-100);font-family:var(--font-mono);">96 transaksi</strong></div>
+          </div>
+        </article>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel__head">
+            <h3>Audit log · 7 hari terakhir</h3>
+            <span class="badge badge--gold">IMMUTABLE · 247 entri</span>
+          </div>
+          <table class="tbl" style="background:transparent;border:0;">
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Aksi</th>
+                <th>Pelaku</th>
+                <th>Nilai</th>
+                <th>Hash</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">14:22 · 23 MEI</span></td>
+                <td>Diskon kustom diterapkan</td>
+                <td><span style="color:var(--cream-100);">Sr. Lia (Sales)</span></td>
+                <td><span style="font-family:var(--font-mono);color:var(--amber);">− Rp 500.000</span></td>
+                <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">3f8a…91bc</span></td>
+              </tr>
+              <tr>
+                <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">11:42 · 23 MEI</span></td>
+                <td>Pelunasan masuk</td>
+                <td><span style="color:var(--cream-100);">Sistem · VA Mandiri</span></td>
+                <td><span style="font-family:var(--font-mono);color:var(--emerald);">+ Rp 38.500.000</span></td>
+                <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">7e2f…04ad</span></td>
+              </tr>
+              <tr>
+                <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">11:08 · 23 MEI</span></td>
+                <td>Pengeluaran katering Madinah</td>
+                <td><span style="color:var(--cream-100);">Pak Hamzah (Ops)</span></td>
+                <td><span style="font-family:var(--font-mono);color:var(--ruby);">− ﷼ 24.000</span></td>
+                <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">a17c…ee20</span></td>
+              </tr>
+              <tr>
+                <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">09:41 · 23 MEI</span></td>
+                <td>DP 30% diterima</td>
+                <td><span style="color:var(--cream-100);">Sistem · QRIS BCA</span></td>
+                <td><span style="font-family:var(--font-mono);color:var(--emerald);">+ Rp 9.750.000</span></td>
+                <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">5d3b…8a01</span></td>
+              </tr>
+              <tr>
+                <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">17:55 · 22 MEI</span></td>
+                <td>Tagihan hotel Anjum</td>
+                <td><span style="color:var(--cream-100);">Pak Hamzah (Ops)</span></td>
+                <td><span style="font-family:var(--font-mono);color:var(--ruby);">− ﷼ 84.500</span></td>
+                <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">9c1e…42f7</span></td>
+              </tr>
+              <tr>
+                <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">14:12 · 22 MEI</span></td>
+                <td>Komisi dicairkan ke Bandung-04</td>
+                <td><span style="color:var(--cream-100);">Sistem · auto-payout</span></td>
+                <td><span style="font-family:var(--font-mono);color:var(--ruby);">− Rp 6.864.000</span></td>
+                <td><span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);">b40a…f912</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <div class="panel__head">
+            <h3>Pengeluaran per kategori</h3>
+            <span class="meta">30H · IDR EKUIVALEN</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--cream-100);"><span>Akomodasi (Hotel)</span><span style="font-family:var(--font-mono);color:var(--gold-300);">Rp 4,82 M</span></div>
+              <div style="height:6px;background:var(--ink-700);border-radius:2px;margin-top:6px;"><div style="width:78%;height:100%;background:var(--gold-300);border-radius:2px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--cream-100);"><span>Maskapai &amp; Tiket</span><span style="font-family:var(--font-mono);color:var(--gold-300);">Rp 3,14 M</span></div>
+              <div style="height:6px;background:var(--ink-700);border-radius:2px;margin-top:6px;"><div style="width:52%;height:100%;background:var(--gold-300);border-radius:2px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--cream-100);"><span>Katering · Madinah/Makkah</span><span style="font-family:var(--font-mono);color:var(--gold-300);">Rp 1,62 M</span></div>
+              <div style="height:6px;background:var(--ink-700);border-radius:2px;margin-top:6px;"><div style="width:32%;height:100%;background:var(--gold-300);border-radius:2px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--cream-100);"><span>Bus &amp; Ground Transport</span><span style="font-family:var(--font-mono);color:var(--gold-300);">Rp 824 Jt</span></div>
+              <div style="height:6px;background:var(--ink-700);border-radius:2px;margin-top:6px;"><div style="width:18%;height:100%;background:var(--gold-300);border-radius:2px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--cream-100);"><span>Visa &amp; Imigrasi</span><span style="font-family:var(--font-mono);color:var(--gold-300);">Rp 612 Jt</span></div>
+              <div style="height:6px;background:var(--ink-700);border-radius:2px;margin-top:6px;"><div style="width:14%;height:100%;background:var(--gold-300);border-radius:2px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--cream-100);"><span>Marketing &amp; Komisi Agen</span><span style="font-family:var(--font-mono);color:var(--gold-300);">Rp 480 Jt</span></div>
+              <div style="height:6px;background:var(--ink-700);border-radius:2px;margin-top:6px;"><div style="width:10%;height:100%;background:var(--gold-300);border-radius:2px;"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // page switching
+  const items = document.querySelectorAll('.rail__item');
+  const pages = document.querySelectorAll('.page');
+  const crumb = document.getElementById('crumb-leaf');
+  const labels = { overview: 'Overview', packages: 'Paket Umroh', manifest: 'Manifes Jemaah', bunking: 'Bunking', finance: 'Keuangan' };
+  items.forEach(it => it.addEventListener('click', () => {
+    const target = it.dataset.page;
+    if (!target) return;
+    items.forEach(i => i.classList.toggle('is-active', i.dataset.page === target && i === it));
+    pages.forEach(p => p.classList.toggle('is-active', p.id === 'page-' + target));
+    crumb.textContent = labels[target] || target;
+    window.scrollTo(0, 0);
+  }));
+</script>
+</body>
+</html>

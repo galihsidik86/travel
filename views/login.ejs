@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masuk · RELIGIO PRO</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body {
+    min-height: 100vh;
+    display: grid; place-items: center;
+    background:
+      radial-gradient(60% 50% at 50% 0%, rgba(212,175,55,0.06), transparent 70%),
+      var(--ink-1000);
+    padding: 24px;
+  }
+  .wrap { width: 100%; max-width: 420px; }
+  .brand-mark { justify-content: center; margin-bottom: 32px; }
+  .card.login {
+    padding: 40px 32px;
+    background: var(--ink-900);
+    border: var(--hairline-gold);
+  }
+  .login h1 {
+    font-family: var(--font-display);
+    font-size: 32px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .login h1 em { font-style: italic; color: var(--gold-300); }
+  .login .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 28px;
+  }
+  .field { margin-bottom: 16px; }
+  .err {
+    background: rgba(176,68,68,0.08);
+    border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 10px 14px;
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 18px;
+  }
+  .actions { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; }
+  .hint {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.06em;
+    text-align: center; margin-top: 20px;
+  }
+  .hint a { color: var(--gold-300); text-decoration: none; }
+  .seed-creds {
+    margin-top: 24px; padding: 14px;
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-100); line-height: 1.7;
+  }
+  .seed-creds strong { color: var(--gold-300); }
+</style>
+</head>
+<body data-screen-label="00 Login">
+  <div class="wrap">
+    <a href="/" class="brand-mark">
+      <span class="brand-mark__glyph">R</span>
+      <span class="brand-mark__name">Religio <em>Pro</em></span>
+    </a>
+
+    <div class="card login">
+      <h1>Masuk Portal</h1>
+      <div class="sub">Agen · Staf · Owner</div>
+
+      <% if (error) { %>
+        <div class="err"><%= error %></div>
+      <% } %>
+
+      <form method="POST" action="/login" autocomplete="on">
+        <input type="hidden" name="next" value="<%= next %>">
+
+        <div class="field">
+          <label class="label" for="email">Email</label>
+          <input class="input" type="email" name="email" id="email"
+                 value="<%= email %>" required autofocus
+                 placeholder="anda@religio.pro">
+        </div>
+
+        <div class="field">
+          <label class="label" for="password">Password</label>
+          <input class="input" type="password" name="password" id="password"
+                 required minlength="1" placeholder="••••••••">
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Masuk</button>
+        </div>
+      </form>
+
+      <div class="hint">
+        Belum punya akun? Hubungi admin kantor pusat.
+      </div>
+
+      <div class="seed-creds">
+        <strong>DEMO CREDENTIALS</strong><br>
+        AGEN  · ahmad@religio.pro  / ahmad12345<br>
+        OWNER · owner@religio.pro  / owner12345
+      </div>
+    </div>
+  </div>
+</body>
+</html>

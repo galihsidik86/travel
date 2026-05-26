@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — <%= mode === 'new' ? 'User Baru' : 'Edit User' %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .form-head { margin-bottom: 24px; }
+  .form-head h1 {
+    font-family: var(--font-display); font-size: 36px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .form-head h1 em { font-style: italic; color: var(--gold-300); }
+  .form-head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+
+  .ok-banner {
+    background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4);
+    color: var(--emerald);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 20px;
+  }
+  .err-banner {
+    background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 20px;
+  }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px;
+    margin-bottom: 18px;
+  }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 20px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 6px;
+  }
+  .panel .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em;
+    margin: 0 0 18px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .field { margin-bottom: 12px; }
+  .field .label-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .field .field-err {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ruby); margin-top: 4px;
+  }
+  .field .helper {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); margin-top: 4px;
+  }
+  select.input { background-color: var(--ink-1000); color: var(--cream-100); }
+  textarea.input { resize: vertical; min-height: 70px; font-family: inherit; }
+
+  .footer-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 24px; padding-top: 20px;
+    border-top: var(--hairline-soft);
+  }
+  .footer-row .right { display: flex; gap: 10px; }
+
+  .danger-actions {
+    display: flex; gap: 10px;
+  }
+  .btn-danger {
+    background: transparent; border: 1px solid rgba(181,86,74,0.5);
+    color: var(--ruby);
+    padding: 8px 14px; border-radius: var(--r-sm);
+    font-size: 12.5px; cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  .btn-danger:hover { background: rgba(181,86,74,0.08); border-color: var(--ruby); }
+  .btn-warn {
+    background: transparent; border: 1px solid rgba(201,147,59,0.5);
+    color: var(--amber);
+    padding: 8px 14px; border-radius: var(--r-sm);
+    font-size: 12.5px; cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  .btn-warn:hover { background: rgba(201,147,59,0.08); border-color: var(--amber); }
+
+  .role-help {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 12px 14px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-100); margin-bottom: 14px;
+  }
+  .role-help strong { color: var(--gold-300); }
+
+  /* Role-specific profile section visibility (toggled by JS) */
+  .profile-section { display: none; }
+  .profile-section.is-active { display: block; }
+</style>
+</head>
+<body data-screen-label="02 Admin · User Form">
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="/admin/users">← KEMBALI KE DAFTAR USER</a>
+  </div>
+
+  <div class="form-head">
+    <h1>
+      <% if (mode === 'new') { %>
+        User <em>baru</em>
+      <% } else { %>
+        Edit <em><%= target.fullName || target.email %></em>
+      <% } %>
+    </h1>
+    <div class="sub">
+      <% if (mode === 'new') { %>
+        OWNER hanya bisa dibuat oleh OWNER. SUPERADMIN tidak bisa membuat OWNER.
+      <% } else { %>
+        <%= target.email %>
+        <% if (target.lastLoginAt) { %> · Last login <%= fmt.date(target.lastLoginAt) %><% } %>
+        <% if (target.createdAt) { %> · Dibuat <%= fmt.date(target.createdAt) %><% } %>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (formError) { %>
+    <div class="err-banner"><%= formError %></div>
+  <% } %>
+
+  <script>
+    (function () {
+      const u = new URL(location.href);
+      const ok = u.searchParams.get('ok');
+      const err = u.searchParams.get('err');
+      const banners = {
+        created: 'User berhasil dibuat.',
+        updated: 'Perubahan disimpan.',
+        password: 'Password baru tersimpan.',
+        suspended: 'User telah di-suspend.',
+        reactivated: 'User telah diaktifkan kembali.',
+      };
+      if (ok && banners[ok]) {
+        const el = document.createElement('div');
+        el.className = 'ok-banner';
+        el.textContent = banners[ok];
+        document.querySelector('.form-head').after(el);
+      }
+      if (err) {
+        const el = document.createElement('div');
+        el.className = 'err-banner';
+        el.textContent = decodeURIComponent(err);
+        document.querySelector('.form-head').after(el);
+      }
+    })();
+  </script>
+
+  <form method="POST" action="<%= mode === 'new' ? '/admin/users' : '/admin/users/' + target.id %>" autocomplete="off">
+
+    <!-- ====== Identitas ====== -->
+    <div class="panel">
+      <h3>Identitas</h3>
+      <p class="sub">Email tidak boleh diubah jika sudah dipakai login aktif.</p>
+
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-email">Email *</label></div>
+          <input class="input" type="email" id="f-email" name="email" required maxlength="190" value="<%= target.email %>">
+          <% if (errors.email) { %><div class="field-err"><%= errors.email %></div><% } %>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-phone">Telepon</label></div>
+          <input class="input" id="f-phone" name="phone" maxlength="30" value="<%= target.phone %>">
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-name">Nama lengkap *</label></div>
+        <input class="input" id="f-name" name="fullName" required minlength="2" maxlength="190" value="<%= target.fullName %>">
+        <% if (errors.fullName) { %><div class="field-err"><%= errors.fullName %></div><% } %>
+      </div>
+
+      <% if (mode === 'new') { %>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-pwd">Password *</label></div>
+          <input class="input" type="password" id="f-pwd" name="password" required minlength="8" maxlength="200">
+          <% if (errors.password) { %><div class="field-err"><%= errors.password %></div><% } %>
+          <div class="helper">Minimal 8 karakter. User dapat ganti sendiri setelah login.</div>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- ====== Peran + Status ====== -->
+    <div class="panel">
+      <h3>Peran &amp; status</h3>
+      <p class="sub">Profil yang dibutuhkan otomatis muncul sesuai peran.</p>
+
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-role">Peran *</label></div>
+          <select class="input" id="f-role" name="role" required>
+            <% META.ROLES.forEach(function(r) {
+              const disabled = (r === 'OWNER' && user.role !== 'OWNER') ? 'disabled' : '';
+            %>
+              <option value="<%= r %>" <%= target.role === r ? 'selected' : '' %> <%= disabled %>>
+                <%= r %><%= disabled ? ' (hanya OWNER)' : '' %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-status">Status *</label></div>
+          <select class="input" id="f-status" name="status" required>
+            <% META.STATUSES.forEach(function(s) { %>
+              <option value="<%= s %>" <%= target.status === s ? 'selected' : '' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== Profil AGEN ====== -->
+    <div class="panel profile-section" data-role-section="AGEN">
+      <h3>Profil Agen</h3>
+      <p class="sub">Slug muncul di URL: <code>/p/&lt;paket&gt;?a=&lt;slug&gt;</code></p>
+
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-slug">Slug *</label></div>
+          <input class="input" id="f-slug" name="slug" maxlength="190" value="<%= target.slug %>" placeholder="ahmad-w">
+          <div class="helper">huruf kecil + strip</div>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-display">Display name</label></div>
+          <input class="input" id="f-display" name="displayName" maxlength="190" value="<%= target.displayName %>" placeholder="kosong = nama lengkap">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-wa">WhatsApp</label></div>
+          <input class="input" id="f-wa" name="whatsapp" maxlength="30" value="<%= target.whatsapp %>">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-tier">Tier</label></div>
+          <input class="input" id="f-tier" name="tier" maxlength="190" value="<%= target.tier %>" placeholder="mis. Mitra Resmi · 8 tahun">
+        </div>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-bio">Bio</label></div>
+        <textarea class="input" id="f-bio" name="bio" rows="3"><%= target.bio %></textarea>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-komisi-or">Override komisi (%)</label></div>
+        <input class="input" type="number" id="f-komisi-or" name="komisiRateOverridePct"
+               min="0" max="50" step="0.01"
+               value="<%= target.komisiRateOverridePct || '' %>"
+               placeholder="kosong = pakai rate paket">
+        <% if (errors.komisiRateOverridePct) { %><div class="field-err"><%= errors.komisiRateOverridePct %></div><% } %>
+        <div class="helper">0-50%. Kalau di-set, override rate di Paket. Berlaku saat LUNAS baru saja.</div>
+      </div>
+    </div>
+
+    <!-- ====== Profil STAFF (OWNER/SUPERADMIN/MANAJER_OPS/KASIR/SALES) ====== -->
+    <div class="panel profile-section" data-role-section="STAFF">
+      <h3>Profil Staff</h3>
+      <p class="sub">Untuk OWNER / SUPERADMIN / MANAJER_OPS / KASIR / SALES.</p>
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-dept">Departemen</label></div>
+          <input class="input" id="f-dept" name="department" maxlength="190" value="<%= target.department %>" placeholder="mis. Keuangan / Operasional">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-pos">Posisi</label></div>
+          <input class="input" id="f-pos" name="position" maxlength="190" value="<%= target.position %>" placeholder="mis. Kasir Front Desk">
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== Profil MUTHAWWIF (crew) ====== -->
+    <div class="panel profile-section" data-role-section="MUTHAWWIF">
+      <h3>Profil Muthawwif</h3>
+      <p class="sub">Pembimbing rombongan.</p>
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-lang">Bahasa</label></div>
+          <input class="input" id="f-lang" name="languages" maxlength="190" value="<%= target.languages %>" placeholder="ID, AR, EN">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-exp">Pengalaman (tahun)</label></div>
+          <input class="input" type="number" id="f-exp" name="experience" min="0" max="80" value="<%= target.experience %>">
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== Profil JEMAAH ====== -->
+    <div class="panel profile-section" data-role-section="JEMAAH">
+      <h3>Profil Jemaah</h3>
+      <p class="sub">Detail paspor / NIK belum bisa diisi dari sini — gunakan flow booking publik atau Prisma Studio.</p>
+      <div class="role-help">
+        JemaahProfile dibuat otomatis dari nama lengkap + telepon di atas.
+      </div>
+    </div>
+
+    <!-- ====== Footer ====== -->
+    <div class="footer-row">
+      <div class="danger-actions">
+        <% if (mode === 'edit' && target.id !== user.id) { %>
+          <% if (target.status === 'SUSPENDED') { %>
+            <form method="POST" action="/admin/users/<%= target.id %>/reactivate" style="display:inline;">
+              <button type="submit" class="btn-warn">Reaktifkan</button>
+            </form>
+          <% } else { %>
+            <form method="POST" action="/admin/users/<%= target.id %>/suspend" style="display:inline;"
+                  onsubmit="return confirm('Suspend user ini? Mereka tidak bisa login sampai diaktifkan kembali.');">
+              <button type="submit" class="btn-danger">Suspend</button>
+            </form>
+          <% } %>
+        <% } %>
+      </div>
+      <div class="right">
+        <a href="/admin/users" class="btn btn--ghost">Batal</a>
+        <button type="submit" class="btn btn--primary">
+          <%= mode === 'new' ? 'Buat User' : 'Simpan' %>
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Password reset (separate form) -->
+  <% if (mode === 'edit') { %>
+    <div class="panel" style="margin-top:24px;">
+      <h3>Reset password</h3>
+      <p class="sub">Set password baru. Setelah ini user wajib login ulang.</p>
+      <form method="POST" action="/admin/users/<%= target.id %>/reset-password"
+            onsubmit="return confirm('Reset password user ini?');">
+        <div class="grid-2">
+          <div class="field">
+            <div class="label-row"><label class="label" for="f-new-pwd">Password baru *</label></div>
+            <input class="input" type="password" id="f-new-pwd" name="password" required minlength="8" maxlength="200">
+          </div>
+          <div class="field" style="display:flex;align-items:flex-end;">
+            <button type="submit" class="btn btn--outline-gold">Reset Password</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  <% } %>
+</div>
+
+<script>
+  // Show/hide profile sections based on role
+  const roleSel = document.getElementById('f-role');
+  const sections = document.querySelectorAll('.profile-section');
+  const STAFF_ROLES = new Set(['OWNER', 'SUPERADMIN', 'MANAJER_OPS', 'KASIR', 'SALES']);
+  function syncProfileSections() {
+    const role = roleSel.value;
+    sections.forEach((s) => {
+      const tag = s.dataset.roleSection;
+      let on = false;
+      if (tag === role) on = true;
+      else if (tag === 'STAFF' && STAFF_ROLES.has(role)) on = true;
+      s.classList.toggle('is-active', on);
+    });
+  }
+  roleSel.addEventListener('change', syncProfileSections);
+  syncProfileSections();
+</script>
+</body>
+</html>

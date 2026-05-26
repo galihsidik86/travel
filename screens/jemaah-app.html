@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — Premium Jemaah App</title>
+<link rel="stylesheet" href="../shared/tokens.css">
+<style>
+  body { min-height: 100vh; }
+
+  /* Stage */
+  .stage {
+    min-height: 100vh;
+    padding: 56px 48px 120px;
+    background:
+      radial-gradient(60% 50% at 80% 0%, rgba(212,175,55,0.08), transparent 60%),
+      radial-gradient(40% 40% at 10% 80%, rgba(74,143,109,0.04), transparent 60%),
+      var(--ink-950);
+  }
+  .stage__top {
+    max-width: 1640px;
+    margin: 0 auto 64px;
+    display: flex; align-items: end; justify-content: space-between;
+    padding-bottom: 32px;
+    border-bottom: var(--hairline-soft);
+  }
+  .stage__top h1 {
+    font-family: var(--font-display);
+    font-size: 64px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--cream-100);
+    letter-spacing: -0.02em;
+    margin: 14px 0 0;
+  }
+  .stage__top h1 em { font-style: italic; color: var(--gold-300); }
+  .stage__top .meta { text-align: right; color: var(--ink-100); font-size: 13.5px; max-width: 320px; line-height: 1.55; }
+
+  .phones {
+    max-width: 1840px;
+    margin: 0 auto;
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    overflow-x: auto;
+    padding-bottom: 32px;
+  }
+
+  /* Phone */
+  .phone-cell { width: 360px; flex-shrink: 0; }
+  .phone-cell__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold-300);
+    margin-bottom: 6px;
+  }
+  .phone-cell__name { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 0 0 4px; font-weight: 500; }
+  .phone-cell__desc { font-size: 12.5px; color: var(--ink-200); margin-bottom: 24px; line-height: 1.45; }
+
+  .phone {
+    width: 360px; height: 760px;
+    background: var(--ink-950);
+    border-radius: 44px;
+    border: 10px solid #1A1815;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 32px 80px -32px rgba(0,0,0,0.8), inset 0 0 0 1px #2A2620;
+  }
+  .phone__notch {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    width: 100px; height: 28px;
+    background: #050403;
+    border-radius: 14px;
+    z-index: 10;
+  }
+  .phone__screen {
+    width: 100%; height: 100%;
+    padding-top: 48px;
+    overflow-y: auto;
+    background: var(--ink-1000);
+    display: flex; flex-direction: column;
+  }
+
+  .sbar {
+    position: absolute; top: 12px; left: 0; right: 0;
+    z-index: 11;
+    display: flex; justify-content: space-between;
+    padding: 0 28px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--cream-200); letter-spacing: 0.04em;
+  }
+
+  /* Header — softer than crew */
+  .ph-head { padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; }
+  .ph-head__l {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold-300);
+  }
+  .ph-head__r {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--ink-200);
+  }
+
+  /* Bottom nav */
+  .ph-nav {
+    margin-top: auto;
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    border-top: var(--hairline-soft);
+    background: var(--ink-1000);
+    padding: 10px 6px 12px;
+  }
+  .ph-nav button {
+    background: none; border: 0; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--ink-300);
+    padding: 6px 4px;
+    font-family: var(--font-mono);
+    font-size: 9px; letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .ph-nav button.is-active { color: var(--gold-300); }
+  .ph-nav button svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+
+  /* Body */
+  .ph-body { padding: 6px 18px 18px; display: flex; flex-direction: column; gap: 14px; flex: 1; overflow-y: auto; }
+  .ph-eyebrow { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-300); }
+  .ph-title { font-family: var(--font-display); font-size: 28px; line-height: 1.05; color: var(--cream-100); font-weight: 400; letter-spacing: -0.015em; margin: 4px 0 0; }
+  .ph-title em { font-style: italic; color: var(--gold-300); }
+
+  .ph-card { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 16px; }
+  .ph-card--gold { border-color: rgba(212,175,55,0.4); }
+  .ph-card__lbl { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); }
+
+  /* Doa card */
+  .doa-card {
+    background:
+      radial-gradient(60% 60% at 80% 0%, rgba(212,175,55,0.10), transparent 60%),
+      linear-gradient(180deg, var(--ink-900), var(--ink-1000));
+    border: 1px solid var(--gold-300);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .doa-card::after {
+    content: ""; position: absolute;
+    top: -40px; right: -40px;
+    width: 120px; height: 120px;
+    border: 1px solid var(--gold-300);
+    border-radius: 50%;
+    opacity: 0.15;
+  }
+  .doa-card .arabic {
+    font-family: var(--font-arabic);
+    font-size: 30px;
+    color: var(--gold-200);
+    direction: rtl;
+    text-align: right;
+    line-height: 1.6;
+    font-weight: 700;
+  }
+  .doa-card .latin {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--cream-100);
+    text-align: right;
+    margin-top: 8px;
+    line-height: 1.45;
+  }
+  .doa-card .id {
+    font-size: 12.5px;
+    color: var(--ink-100);
+    text-align: right;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .audio-bar { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(212,175,55,0.2); position: relative; z-index: 2; }
+  .audio-bar .play {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--gold-300);
+    border: 0;
+    color: var(--ink-950);
+    display: grid; place-items: center;
+    font-size: 14px;
+    box-shadow: 0 0 24px rgba(212,175,55,0.4);
+  }
+  .audio-bar .bar { flex: 1; height: 3px; background: var(--ink-700); border-radius: 2px; position: relative; }
+  .audio-bar .bar > i { display:block; height: 100%; width: 62%; background: var(--gold-300); border-radius: 2px; }
+  .audio-bar .time { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+
+  /* Counter (Thawaf) */
+  .counter {
+    background:
+      radial-gradient(50% 100% at 50% 0%, rgba(212,175,55,0.18), transparent 60%),
+      var(--ink-1000);
+    padding: 32px 20px 24px;
+    text-align: center;
+    border: 1px solid var(--gold-300);
+    border-radius: 14px;
+    position: relative;
+  }
+  .counter::before, .counter::after {
+    content: "";
+    position: absolute; top: 0; bottom: 0;
+    width: 1px; background: linear-gradient(to bottom, transparent, var(--gold-300) 30%, var(--gold-300) 70%, transparent);
+    opacity: 0.5;
+  }
+  .counter::before { left: 14px; }
+  .counter::after { right: 14px; }
+
+  .counter__big {
+    font-family: var(--font-display);
+    font-size: 110px;
+    line-height: 1;
+    color: var(--cream-100);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+  .counter__big .of {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    color: var(--gold-300);
+    margin-left: 4px;
+  }
+  .counter__lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em; color: var(--gold-300); margin-top: 4px; text-transform: uppercase; }
+  .counter__ring {
+    margin: 20px auto 0;
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: var(--gold-300);
+    color: var(--ink-950);
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    font-size: 28px;
+    box-shadow: 0 0 36px rgba(212,175,55,0.4);
+  }
+  .counter__hint { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); margin-top: 12px; letter-spacing: 0.1em; }
+
+  /* Mini KPI strip */
+  .kpi-strip {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-md);
+    overflow: hidden;
+  }
+  .kpi-strip__cell {
+    padding: 14px 12px;
+    border-right: var(--hairline-soft);
+    text-align: center;
+  }
+  .kpi-strip__cell:last-child { border-right: 0; }
+  .kpi-strip__cell .v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); line-height: 1; }
+  .kpi-strip__cell .v.gold { color: var(--gold-300); }
+  .kpi-strip__cell .l { font-family: var(--font-mono); font-size: 9px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
+
+  /* Timeline */
+  .timeline { display: flex; flex-direction: column; position: relative; padding-left: 22px; }
+  .timeline::before {
+    content: ""; position: absolute; top: 12px; bottom: 12px; left: 7px;
+    width: 1px; background: var(--ink-500);
+  }
+  .tl-item {
+    position: relative;
+    padding-bottom: 18px;
+  }
+  .tl-item::before {
+    content: ""; position: absolute; left: -19px; top: 4px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--ink-1000);
+    border: 2px solid var(--ink-500);
+  }
+  .tl-item.done::before { background: var(--gold-300); border-color: var(--gold-300); }
+  .tl-item.now::before { background: var(--ink-1000); border-color: var(--gold-300); box-shadow: 0 0 0 4px rgba(212,175,55,0.18); }
+  .tl-item.now { background: rgba(212,175,55,0.04); border-radius: 8px; padding: 10px 12px 14px; margin-left: -12px; margin-right: -12px; padding-left: 24px; }
+
+  .tl-time {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-200);
+    letter-spacing: 0.1em;
+  }
+  .tl-item.now .tl-time { color: var(--gold-300); }
+  .tl-item.done .tl-time { color: var(--ink-300); text-decoration: line-through; }
+
+  .tl-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: var(--cream-100);
+    margin-top: 3px;
+    line-height: 1.2;
+  }
+  .tl-item.done .tl-title { color: var(--ink-200); }
+  .tl-sub { font-size: 11.5px; color: var(--ink-100); margin-top: 4px; line-height: 1.4; }
+  .tl-item.now .tl-sub { color: var(--cream-200); }
+
+  /* SOS Help */
+  .sos-button {
+    background: linear-gradient(135deg, var(--ruby), #8E3B33);
+    border: 0;
+    border-radius: 18px;
+    padding: 28px 20px;
+    color: white;
+    text-align: center;
+    box-shadow: 0 24px 48px -16px rgba(181,86,74,0.4);
+    position: relative;
+    overflow: hidden;
+  }
+  .sos-button::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(50% 80% at 50% 100%, rgba(255,255,255,0.12), transparent 60%);
+  }
+  .sos-button .ring {
+    width: 96px; height: 96px;
+    border: 2px solid white;
+    border-radius: 50%;
+    margin: 0 auto 14px;
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 500;
+    position: relative;
+    z-index: 2;
+  }
+  .sos-button .ring::after {
+    content: ""; position: absolute;
+    inset: -10px;
+    border: 1px solid white;
+    border-radius: 50%;
+    opacity: 0.3;
+    animation: ringpulse 1.6s infinite ease-out;
+  }
+  @keyframes ringpulse {
+    0% { inset: -10px; opacity: 0.5; }
+    100% { inset: -28px; opacity: 0; }
+  }
+  .sos-button .lbl { font-family: var(--font-display); font-size: 22px; font-weight: 500; position: relative; z-index: 2; }
+  .sos-button .help { font-family: var(--font-mono); font-size: 10px; opacity: 0.8; margin-top: 4px; letter-spacing: 0.12em; }
+
+  /* Help rows */
+  .help-list { display: flex; flex-direction: column; gap: 6px; }
+  .help-row {
+    background: var(--ink-900);
+    border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+    padding: 12px 14px;
+    display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center;
+  }
+  .help-row__ico {
+    width: 32px; height: 32px;
+    border: 1px solid var(--gold-300);
+    border-radius: 6px;
+    display: grid; place-items: center;
+    color: var(--gold-300);
+  }
+  .help-row__ico svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+  .help-row__nm { font-size: 13px; color: var(--cream-100); }
+  .help-row__sb { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); margin-top: 2px; letter-spacing: 0.05em; }
+
+  /* E-Ticket */
+  .ticket {
+    background:
+      radial-gradient(70% 80% at 0% 0%, rgba(212,175,55,0.12), transparent 60%),
+      var(--ink-900);
+    border: var(--hairline-gold);
+    border-radius: var(--r-lg);
+    padding: 0;
+    overflow: hidden;
+  }
+  .ticket__top {
+    padding: 20px;
+    border-bottom: 1px dashed rgba(212,175,55,0.4);
+    position: relative;
+  }
+  .ticket__top::before, .ticket__top::after {
+    content: ""; position: absolute; bottom: -10px;
+    width: 18px; height: 18px;
+    background: var(--ink-1000);
+    border-radius: 50%;
+  }
+  .ticket__top::before { left: -10px; }
+  .ticket__top::after { right: -10px; }
+
+  .ticket__pgm { font-family: var(--font-mono); font-size: 9px; color: var(--gold-300); letter-spacing: 0.16em; }
+  .ticket__name { font-family: var(--font-display); font-size: 26px; color: var(--cream-100); margin-top: 2px; font-weight: 500; line-height: 1; }
+  .ticket__route { margin-top: 22px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .ticket__route .col .iata { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); line-height: 1; }
+  .ticket__route .col .city { font-family: var(--font-mono); font-size: 9px; color: var(--ink-200); letter-spacing: 0.1em; margin-top: 4px; }
+  .ticket__route .arrow {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-300), transparent);
+    position: relative;
+  }
+  .ticket__route .arrow::after {
+    content: "✈";
+    position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
+    color: var(--gold-300);
+    font-size: 14px;
+    background: var(--ink-900);
+    padding: 0 6px;
+  }
+  .ticket__bot {
+    padding: 16px 20px 20px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 14px 18px;
+  }
+  .ticket__bot .field .lbl { font-family: var(--font-mono); font-size: 9px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .ticket__bot .field .val { font-family: var(--font-display); font-size: 16px; color: var(--cream-100); margin-top: 2px; font-weight: 500; }
+  .ticket__bar { padding: 14px 20px; border-top: 1px dashed rgba(212,175,55,0.3); display: flex; gap: 16px; align-items: center; }
+  .ticket__qr {
+    width: 56px; height: 56px;
+    background:
+      conic-gradient(from 0deg, var(--ink-1000) 25%, var(--cream-200) 25% 50%, var(--ink-1000) 50% 75%, var(--cream-200) 75%);
+    background-size: 8px 8px;
+    background-image:
+      linear-gradient(90deg, var(--cream-200) 50%, var(--ink-1000) 50%),
+      linear-gradient(90deg, var(--ink-1000) 50%, var(--cream-200) 50%);
+    background-size: 6px 6px;
+    background-position: 0 0, 3px 3px;
+    border: 2px solid var(--cream-200);
+    border-radius: 6px;
+  }
+  .ticket__pnr { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; }
+  .ticket__pnr strong { color: var(--gold-300); font-weight: 600; font-size: 13px; display: block; margin-top: 2px; letter-spacing: 0.08em; }
+
+  /* Profile */
+  .profile-head {
+    background:
+      radial-gradient(60% 70% at 50% 0%, rgba(212,175,55,0.14), transparent 60%);
+    padding: 16px 0 0;
+    text-align: center;
+  }
+  .profile-head .av-big {
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    background: var(--ink-800);
+    border: 2px solid var(--gold-300);
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    font-size: 32px;
+    color: var(--gold-300);
+    margin: 0 auto;
+    box-shadow: 0 0 36px rgba(212,175,55,0.3);
+  }
+  .profile-head .nm { font-family: var(--font-display); font-size: 26px; color: var(--cream-100); margin-top: 12px; font-weight: 500; }
+  .profile-head .id { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); letter-spacing: 0.14em; margin-top: 4px; }
+
+  /* Photos placeholder for Madinah / Makkah pictures */
+  .photo-card {
+    background:
+      linear-gradient(180deg, transparent 40%, rgba(10,9,8,0.85)),
+      repeating-linear-gradient(45deg, var(--ink-800) 0 14px, var(--ink-700) 14px 28px);
+    height: 140px;
+    border-radius: var(--r-md);
+    display: flex; align-items: flex-end;
+    padding: 14px;
+    position: relative;
+  }
+  .photo-card::before {
+    content: "MAKKAH PHOTO";
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-family: var(--font-mono); font-size: 9px; color: var(--ink-300); letter-spacing: 0.18em;
+  }
+  .photo-card .meta { color: var(--cream-100); font-family: var(--font-display); font-size: 18px; line-height: 1.1; }
+  .photo-card .meta .sub { font-family: var(--font-mono); font-size: 10px; color: var(--gold-300); letter-spacing: 0.08em; margin-top: 4px; }
+
+  .stage__bottom {
+    max-width: 1640px;
+    margin: 64px auto 0;
+    padding-top: 32px;
+    border-top: var(--hairline-soft);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+  }
+  .stage__bottom .point .num { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.18em; }
+  .stage__bottom .point h4 { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 8px 0 8px; font-weight: 500; }
+  .stage__bottom .point p { font-size: 13.5px; color: var(--ink-100); line-height: 1.55; margin: 0; }
+</style>
+</head>
+<body data-screen-label="05 Jemaah App">
+
+<div class="stage">
+  <div class="stage__top">
+    <div>
+      <a class="brand-mark" href="../index.html" style="text-decoration:none;">
+        <span class="brand-mark__glyph">R</span>
+        <span class="brand-mark__name">Religio <em>Pro</em></span>
+      </a>
+      <p class="eyebrow" style="margin-top:32px;">06 · Premium Jemaah App · iOS</p>
+      <h1>Ibadah <em>tenang.</em><br>Genggaman terjaga.</h1>
+    </div>
+    <div class="meta">
+      Untuk jemaah yang ingin fokus pada ibadah, bukan logistik. Lima screen utama — hari ini, smart audio doa, timeline, SOS, dan e-ticket digital.
+    </div>
+  </div>
+
+  <div class="phones">
+
+    <!-- ============ PHONE 1: TODAY ============ -->
+    <div class="phone-cell">
+      <div class="phone-cell__label">01 · TODAY</div>
+      <h3 class="phone-cell__name">Hari Ini</h3>
+      <p class="phone-cell__desc">Sapaan, hari ke-berapa, doa harian, &amp; agenda terdekat.</p>
+
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="sbar"><span>14:32</span><span>● 5G · ﷼</span></div>
+
+        <div class="phone__screen">
+          <div class="ph-head">
+            <span class="ph-head__l">SALAM · PAK AHMAD</span>
+            <span class="ph-head__r">DAY 4 / 12</span>
+          </div>
+
+          <div class="ph-body">
+            <div style="font-family:var(--font-arabic);font-size:34px;color:var(--gold-300);direction:rtl;text-align:right;line-height:1.5;">السَّلَامُ عَلَيْكُمْ</div>
+            <h2 class="ph-title">Selamat siang,<br>Pak Ahmad.</h2>
+            <p style="font-size:13.5px;color:var(--ink-100);line-height:1.5;margin:0;">Hari ke-4 perjalanan Anda. Cuaca cerah di Makkah, 38°C. Tetap hidrasi.</p>
+
+            <!-- Doa harian -->
+            <div class="doa-card">
+              <span class="ph-eyebrow">DOA HARI INI · MASUK MASJIDIL HARAM</span>
+              <div class="arabic" style="margin-top:10px;">اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ</div>
+              <div class="latin">"Allāhummaftaḥ lī abwāba raḥmatik"</div>
+              <div class="id">Ya Allah, bukakanlah untukku pintu-pintu rahmat-Mu.</div>
+              <div class="audio-bar">
+                <button class="play">▶</button>
+                <div class="bar"><i></i></div>
+                <span class="time">00:14</span>
+              </div>
+            </div>
+
+            <!-- Kpi strip -->
+            <div class="kpi-strip">
+              <div class="kpi-strip__cell"><div class="v gold">04</div><div class="l">HARI KE</div></div>
+              <div class="kpi-strip__cell"><div class="v">22</div><div class="l">JEMAAH</div></div>
+              <div class="kpi-strip__cell"><div class="v">38°C</div><div class="l">MAKKAH</div></div>
+            </div>
+
+            <!-- Agenda -->
+            <div class="ph-card">
+              <div class="ph-card__lbl">Agenda berikutnya</div>
+              <div style="display:flex;justify-content:space-between;align-items:end;margin-top:10px;">
+                <div>
+                  <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);line-height:1.1;">Ziarah Masjid Quba</div>
+                  <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:4px;letter-spacing:0.06em;">BUS 03 · BERANGKAT DARI LOBI · 15:30</div>
+                </div>
+                <span style="font-family:var(--font-display);font-size:28px;color:var(--gold-300);">15:30</span>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:12px;">
+                <span class="badge badge--gold">Pakai ihram</span>
+                <span class="badge">Bawa air</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ph-nav">
+            <button class="is-active">
+              <svg viewBox="0 0 24 24"><path d="M4 21 V10 L12 4 L20 10 V21 H4 Z"/></svg>
+              Hari ini
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M3 9 L21 9 M5 9 L5 20 L19 20 L19 9 M9 20 L9 13 L15 13 L15 20 M12 3 L21 9 L3 9 Z"/></svg>
+              Ibadah
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7 V12 L15 14"/></svg>
+              Timeline
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M12 2 L20 6 V12 C20 17 16 21 12 22 C8 21 4 17 4 12 V6 Z"/></svg>
+              SOS
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"/></svg>
+              Profil
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PHONE 2: AUDIO GUIDE / THAWAF ============ -->
+    <div class="phone-cell">
+      <div class="phone-cell__label">02 · IBADAH</div>
+      <h3 class="phone-cell__name">Smart Audio Guide</h3>
+      <p class="phone-cell__desc">Counter Thawaf otomatis · audio muthawwif per putaran.</p>
+
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="sbar"><span>14:32</span><span>● 5G · ﷼</span></div>
+
+        <div class="phone__screen">
+          <div class="ph-head">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="color:var(--gold-300);font-size:16px;">‹</span>
+              <span class="ph-head__l">THAWAF · IFADAH</span>
+            </div>
+            <span class="ph-head__r" style="color:var(--gold-300);">● LIVE GUIDE</span>
+          </div>
+
+          <div class="ph-body">
+
+            <!-- Counter -->
+            <div class="counter">
+              <div class="ph-card__lbl" style="color:var(--gold-300);margin-bottom:8px;">PUTARAN</div>
+              <div class="counter__big">4<span class="of">/7</span></div>
+              <div class="counter__lbl">RUKUN YAMANI · HAJAR ASWAD</div>
+              <div class="counter__hint">Tepuk lingkaran ini saat melewati Hajar Aswad</div>
+              <div class="counter__ring">+</div>
+            </div>
+
+            <!-- Doa current putaran -->
+            <div class="doa-card">
+              <span class="ph-eyebrow">DOA PUTARAN 4</span>
+              <div class="arabic" style="margin-top:8px;font-size:24px;">رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً</div>
+              <div class="latin">"Rabbanā ātinā fid-dunyā ḥasanah…"</div>
+              <div class="audio-bar">
+                <button class="play">▶</button>
+                <div class="bar"><i style="width:42%;"></i></div>
+                <span class="time">00:48</span>
+              </div>
+            </div>
+
+            <div class="ph-card">
+              <div class="ph-card__lbl">Posisi &amp; arah</div>
+              <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:end;">
+                <div>
+                  <div style="font-family:var(--font-display);font-size:16px;color:var(--cream-100);line-height:1.1;">Masjidil Haram</div>
+                  <div style="font-family:var(--font-mono);font-size:10px;color:var(--gold-300);margin-top:4px;letter-spacing:0.06em;">GATE 79 · LANTAI DASAR</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-family:var(--font-display);font-size:22px;color:var(--gold-300);">↻ 4</div>
+                  <div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-200);">PUTARAN AKTIF</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ph-nav">
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M4 21 V10 L12 4 L20 10 V21 H4 Z"/></svg>
+              Hari ini
+            </button>
+            <button class="is-active">
+              <svg viewBox="0 0 24 24"><path d="M3 9 L21 9 M5 9 L5 20 L19 20 L19 9 M9 20 L9 13 L15 13 L15 20 M12 3 L21 9 L3 9 Z"/></svg>
+              Ibadah
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7 V12 L15 14"/></svg>
+              Timeline
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M12 2 L20 6 V12 C20 17 16 21 12 22 C8 21 4 17 4 12 V6 Z"/></svg>
+              SOS
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"/></svg>
+              Profil
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PHONE 3: TIMELINE ============ -->
+    <div class="phone-cell">
+      <div class="phone-cell__label">03 · TIMELINE</div>
+      <h3 class="phone-cell__name">Timeline Perjalanan</h3>
+      <p class="phone-cell__desc">12 hari, satu per satu. Notifikasi otomatis.</p>
+
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="sbar"><span>14:32</span><span>● 5G · ﷼</span></div>
+
+        <div class="phone__screen">
+          <div class="ph-head">
+            <span class="ph-head__l">PERJALANAN UMROH MEI · 12H</span>
+            <span class="ph-head__r" style="color:var(--gold-300);">DAY 4 / 12</span>
+          </div>
+
+          <div class="ph-body">
+            <h2 class="ph-title">Hari ke-<em>empat</em><br>di Tanah Suci.</h2>
+
+            <div class="ph-card" style="background:transparent;border:0;padding:0;">
+              <div class="timeline">
+                <div class="tl-item done">
+                  <div class="tl-time">SABTU · 18 MEI · 23:40</div>
+                  <div class="tl-title">Boarding · Saudia SV 821</div>
+                  <div class="tl-sub">Bandara Soekarno-Hatta → Jeddah</div>
+                </div>
+                <div class="tl-item done">
+                  <div class="tl-time">AHAD · 19 MEI · 06:18</div>
+                  <div class="tl-title">Tiba Jeddah · check-in Madinah</div>
+                </div>
+                <div class="tl-item done">
+                  <div class="tl-time">AHAD · 19 MEI · 14:00</div>
+                  <div class="tl-title">Ziarah Makam Rasulullah ﷺ</div>
+                  <div class="tl-sub">Pembimbing: Ust. Yusuf</div>
+                </div>
+                <div class="tl-item done">
+                  <div class="tl-time">SENIN · 20 MEI · 04:30</div>
+                  <div class="tl-title">Sholat Subuh · Raudhah</div>
+                </div>
+                <div class="tl-item done">
+                  <div class="tl-time">SELASA · 21 MEI · 12:40</div>
+                  <div class="tl-title">Berangkat ke Makkah</div>
+                  <div class="tl-sub">Bus 03 · ihram di Bir Ali</div>
+                </div>
+                <div class="tl-item done">
+                  <div class="tl-time">SELASA · 21 MEI · 18:00</div>
+                  <div class="tl-title">Umroh pertama selesai</div>
+                </div>
+
+                <div class="tl-item now">
+                  <div class="tl-time">KAMIS · 23 MEI · 15:30 · SEKARANG</div>
+                  <div class="tl-title">Ziarah Masjid Quba</div>
+                  <div class="tl-sub">Bus berangkat 15:30 dari lobi · pakai ihram cadangan · bawa botol air. Notifikasi 15 menit sebelum berangkat akan muncul otomatis.</div>
+                </div>
+
+                <div class="tl-item">
+                  <div class="tl-time">JUMAT · 24 MEI · 12:00</div>
+                  <div class="tl-title">Sholat Jumat · Masjidil Haram</div>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-time">SABTU · 25 MEI · 14:00</div>
+                  <div class="tl-title">City tour · Jabal Tsur</div>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-time">RABU · 29 MEI · 23:40</div>
+                  <div class="tl-title">Penerbangan pulang</div>
+                  <div class="tl-sub">Saudia SV 820 · Jeddah → CGK</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ph-nav">
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M4 21 V10 L12 4 L20 10 V21 H4 Z"/></svg>
+              Hari ini
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M3 9 L21 9 M5 9 L5 20 L19 20 L19 9 M9 20 L9 13 L15 13 L15 20 M12 3 L21 9 L3 9 Z"/></svg>
+              Ibadah
+            </button>
+            <button class="is-active">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7 V12 L15 14"/></svg>
+              Timeline
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M12 2 L20 6 V12 C20 17 16 21 12 22 C8 21 4 17 4 12 V6 Z"/></svg>
+              SOS
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"/></svg>
+              Profil
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PHONE 4: SOS / BANTUAN ============ -->
+    <div class="phone-cell">
+      <div class="phone-cell__label">04 · SOS</div>
+      <h3 class="phone-cell__name">Tombol Darurat</h3>
+      <p class="phone-cell__desc">Satu tap. Lokasi terkirim ke pendamping.</p>
+
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="sbar"><span>14:32</span><span>● 5G · ﷼</span></div>
+
+        <div class="phone__screen">
+          <div class="ph-head">
+            <span class="ph-head__l">BANTUAN &amp; DARURAT</span>
+            <span class="ph-head__r" style="color:var(--emerald);">● TERHUBUNG</span>
+          </div>
+
+          <div class="ph-body">
+            <h2 class="ph-title">Bantuan dalam<br><em>satu tap.</em></h2>
+            <p style="font-size:13px;color:var(--ink-100);line-height:1.5;margin:0;">Tekan dan tahan 2 detik. Lokasi Anda dikirim langsung ke Tour Leader dan HQ.</p>
+
+            <button class="sos-button">
+              <div class="ring">SOS</div>
+              <div class="lbl">Tekan untuk SOS</div>
+              <div class="help">TAHAN 2 DETIK</div>
+            </button>
+
+            <span class="ph-eyebrow">Kontak cepat</span>
+
+            <div class="help-list">
+              <div class="help-row">
+                <div class="help-row__ico"><svg viewBox="0 0 24 24"><path d="M5 5 L9 4 L11 8 L9 10 C10 13 12 15 15 16 L17 14 L21 16 L20 20 C13 21 4 13 5 5 Z"/></svg></div>
+                <div>
+                  <div class="help-row__nm">Ust. M. Yusuf (Tour Leader)</div>
+                  <div class="help-row__sb">ONLINE · 240 M DARI ANDA</div>
+                </div>
+                <span style="color:var(--gold-300);font-size:16px;">›</span>
+              </div>
+              <div class="help-row">
+                <div class="help-row__ico"><svg viewBox="0 0 24 24"><path d="M5 5 L9 4 L11 8 L9 10 C10 13 12 15 15 16 L17 14 L21 16 L20 20 C13 21 4 13 5 5 Z"/></svg></div>
+                <div>
+                  <div class="help-row__nm">HQ Jakarta · 24 jam</div>
+                  <div class="help-row__sb">PAK HAMZAH · ONLINE</div>
+                </div>
+                <span style="color:var(--gold-300);font-size:16px;">›</span>
+              </div>
+              <div class="help-row">
+                <div class="help-row__ico" style="color:var(--ruby);border-color:var(--ruby);"><svg viewBox="0 0 24 24"><path d="M12 4 L20 18 H4 Z M12 10 V14 M12 16 V16.01"/></svg></div>
+                <div>
+                  <div class="help-row__nm">KJRI Jeddah · Hotline</div>
+                  <div class="help-row__sb">DARURAT KEIMIGRASIAN</div>
+                </div>
+                <span style="color:var(--gold-300);font-size:16px;">›</span>
+              </div>
+              <div class="help-row">
+                <div class="help-row__ico"><svg viewBox="0 0 24 24"><path d="M12 4 V20 M4 12 H20"/></svg></div>
+                <div>
+                  <div class="help-row__nm">Klinik hotel · Anjum Lt 1</div>
+                  <div class="help-row__sb">JAM BUKA 24/7</div>
+                </div>
+                <span style="color:var(--gold-300);font-size:16px;">›</span>
+              </div>
+            </div>
+
+            <div class="ph-card">
+              <div class="ph-card__lbl">Lokasi terkini</div>
+              <div style="font-family:var(--font-display);font-size:16px;color:var(--cream-100);margin-top:6px;">Masjidil Haram</div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:2px;letter-spacing:0.06em;">GATE 79 · LT DASAR · AKURASI ±8 M</div>
+            </div>
+          </div>
+
+          <div class="ph-nav">
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M4 21 V10 L12 4 L20 10 V21 H4 Z"/></svg>
+              Hari ini
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M3 9 L21 9 M5 9 L5 20 L19 20 L19 9 M9 20 L9 13 L15 13 L15 20 M12 3 L21 9 L3 9 Z"/></svg>
+              Ibadah
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7 V12 L15 14"/></svg>
+              Timeline
+            </button>
+            <button class="is-active">
+              <svg viewBox="0 0 24 24"><path d="M12 2 L20 6 V12 C20 17 16 21 12 22 C8 21 4 17 4 12 V6 Z"/></svg>
+              SOS
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"/></svg>
+              Profil
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PHONE 5: PROFILE / E-TICKET ============ -->
+    <div class="phone-cell">
+      <div class="phone-cell__label">05 · PROFIL</div>
+      <h3 class="phone-cell__name">e-Ticket &amp; Profil</h3>
+      <p class="phone-cell__desc">Tiket digital, paspor, visa — semua di satu kantong.</p>
+
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="sbar"><span>14:32</span><span>● 5G · ﷼</span></div>
+
+        <div class="phone__screen">
+          <div class="ph-head">
+            <span class="ph-head__l">PROFIL JEMAAH</span>
+            <span class="ph-head__r">⚙</span>
+          </div>
+
+          <div class="ph-body">
+            <div class="profile-head">
+              <div class="av-big">AF</div>
+              <div class="nm">Ahmad Fauzi</div>
+              <div class="id">PT-2026-0481</div>
+            </div>
+
+            <!-- E-ticket -->
+            <div class="ticket">
+              <div class="ticket__top">
+                <span class="ticket__pgm">UMROH MEI 2026 · REGULER</span>
+                <div class="ticket__name">e-Ticket Digital</div>
+
+                <div class="ticket__route">
+                  <div class="col">
+                    <div class="iata">CGK</div>
+                    <div class="city">JAKARTA · 18 MEI</div>
+                  </div>
+                  <div class="arrow"></div>
+                  <div class="col" style="text-align:right;">
+                    <div class="iata">JED</div>
+                    <div class="city">JEDDAH · 19 MEI</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ticket__bot">
+                <div class="field"><div class="lbl">Penerbangan</div><div class="val">SV 821</div></div>
+                <div class="field"><div class="lbl">Boarding</div><div class="val">23:40 WIB</div></div>
+                <div class="field"><div class="lbl">Kursi</div><div class="val">12A</div></div>
+                <div class="field"><div class="lbl">Bus</div><div class="val">03</div></div>
+                <div class="field"><div class="lbl">Hotel Madinah</div><div class="val">Anjum Lt 4</div></div>
+                <div class="field"><div class="lbl">Hotel Makkah</div><div class="val">Anjum 412</div></div>
+              </div>
+
+              <div class="ticket__bar">
+                <div class="ticket__qr"></div>
+                <div class="ticket__pnr">
+                  PNR<strong>RP-2026-A481</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Documents status -->
+            <span class="ph-eyebrow">Dokumen</span>
+            <div class="help-list">
+              <div class="help-row">
+                <div class="help-row__ico"><svg viewBox="0 0 24 24"><path d="M6 4 H18 V20 H6 Z M9 8 H15 M9 12 H15 M9 16 H13"/></svg></div>
+                <div>
+                  <div class="help-row__nm">Paspor · A12345678</div>
+                  <div class="help-row__sb">BERLAKU 14 NOV 2027</div>
+                </div>
+                <span class="badge badge--emerald badge--dot" style="font-size:9px;">VALID</span>
+              </div>
+              <div class="help-row">
+                <div class="help-row__ico"><svg viewBox="0 0 24 24"><path d="M5 4 H19 V14 L12 20 L5 14 Z"/><path d="M9 11 L11 13 L15 9"/></svg></div>
+                <div>
+                  <div class="help-row__nm">Visa Umroh</div>
+                  <div class="help-row__sb">ELEKTRONIK · 1447H</div>
+                </div>
+                <span class="badge badge--emerald badge--dot" style="font-size:9px;">VALID</span>
+              </div>
+              <div class="help-row">
+                <div class="help-row__ico"><svg viewBox="0 0 24 24"><path d="M12 4 V20 M4 12 H20"/></svg></div>
+                <div>
+                  <div class="help-row__nm">Suntik Meningitis</div>
+                  <div class="help-row__sb">10 MEI 2026 · BERLAKU 3 TAHUN</div>
+                </div>
+                <span class="badge badge--emerald badge--dot" style="font-size:9px;">VALID</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ph-nav">
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M4 21 V10 L12 4 L20 10 V21 H4 Z"/></svg>
+              Hari ini
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M3 9 L21 9 M5 9 L5 20 L19 20 L19 9 M9 20 L9 13 L15 13 L15 20 M12 3 L21 9 L3 9 Z"/></svg>
+              Ibadah
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7 V12 L15 14"/></svg>
+              Timeline
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M12 2 L20 6 V12 C20 17 16 21 12 22 C8 21 4 17 4 12 V6 Z"/></svg>
+              SOS
+            </button>
+            <button class="is-active">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"/></svg>
+              Profil
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- bottom annotations -->
+  <div class="stage__bottom">
+    <div class="point">
+      <span class="num">DESIGN INTENT</span>
+      <h4>Khusyu' di atas semuanya</h4>
+      <p>Layar dirancang untuk dipakai dengan satu tangan oleh jemaah lansia. Tipografi besar, kontras tinggi, animasi minimal. Bahasa Arab dengan font Amiri yang dapat dibaca jelas, dilengkapi transliterasi &amp; terjemahan.</p>
+    </div>
+    <div class="point">
+      <span class="num">OFFLINE FIRST</span>
+      <h4>Tetap berfungsi tanpa sinyal</h4>
+      <p>Doa, audio guide, dan timeline tersimpan offline. SOS jatuh ke SMS gateway jika 4G/5G tidak tersedia. Counter Thawaf bekerja dengan akselerometer lokal — tidak butuh internet.</p>
+    </div>
+    <div class="point">
+      <span class="num">PRIVACY</span>
+      <h4>Lokasi dibagi hanya pada pendamping resmi</h4>
+      <p>GPS hanya aktif saat Tour Leader meminta akses, atau ketika tombol SOS ditekan. Data dienkripsi AES-256 sesuai standar UU PDP Indonesia.</p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

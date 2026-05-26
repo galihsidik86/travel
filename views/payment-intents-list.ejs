@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Payment Intents</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+
+  .head { display: flex; justify-content: space-between; align-items: end; margin-bottom: 22px; }
+  .head h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 22px; }
+  .kpi { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 14px 16px; }
+  .kpi .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .kpi .v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin-top: 4px; font-weight: 500; }
+  .kpi.created  .v { color: var(--gold-300); }
+  .kpi.pending  .v { color: var(--amber); }
+  .kpi.settled  .v { color: var(--emerald); }
+  .kpi.expired  .v, .kpi.cancelled .v, .kpi.failed .v { color: var(--ruby); }
+
+  .filter-bar { display: flex; gap: 10px; align-items: end; margin-bottom: 18px; flex-wrap: wrap; }
+  .filter-bar .lbl { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; display: block; margin-bottom: 4px; }
+  .filter-bar .input { padding: 6px 10px; font-size: 12px; background-color: var(--ink-900); color: var(--cream-100); }
+  .filter-bar input[type=date].input, .filter-bar input[type=text].input { min-width: 140px; }
+
+  .tbl { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+  .tbl thead th { text-align: left; padding: 12px 14px; background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); font-weight: 500; border-bottom: var(--hairline); }
+  .tbl tbody td { padding: 11px 14px; border-bottom: var(--hairline-soft); font-size: 12.5px; color: var(--cream-200); vertical-align: top; }
+  .tbl tbody tr:hover td { background: var(--ink-850); }
+  .tbl .id { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .tbl .num { text-align: right; font-family: var(--font-mono); }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+  .tbl a { color: var(--gold-300); text-decoration: none; }
+  .tbl a:hover { text-decoration: underline; }
+
+  .status-tag { padding: 3px 8px; font-family: var(--font-mono); font-size: 9.5px; border-radius: 3px; letter-spacing: 0.1em; border: 1px solid; }
+  .status-tag.created   { color: var(--gold-300); border-color: var(--gold-300); }
+  .status-tag.pending   { color: var(--amber); border-color: var(--amber); }
+  .status-tag.settled   { color: var(--emerald); border-color: var(--emerald); background: rgba(74,143,109,0.08); }
+  .status-tag.expired   { color: var(--ruby); border-color: var(--ruby); }
+  .status-tag.cancelled { color: var(--ruby); border-color: var(--ruby); }
+  .status-tag.failed    { color: var(--ruby); border-color: var(--ruby); background: rgba(181,86,74,0.08); }
+
+  .pager { display: flex; gap: 6px; justify-content: center; margin-top: 22px; font-family: var(--font-mono); font-size: 11px; }
+  .pager a, .pager span { padding: 6px 12px; border: var(--hairline-soft); border-radius: 3px; color: var(--ink-100); text-decoration: none; letter-spacing: 0.06em; }
+  .pager a:hover { color: var(--gold-300); border-color: var(--gold-300); }
+  .pager .cur { color: var(--gold-300); border-color: var(--gold-300); }
+  .pager .gap { border: 0; color: var(--ink-300); }
+
+  .empty { padding: 40px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Payment Intents">
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← KEMBALI KE DASHBOARD</a></div>
+
+  <div class="head">
+    <div>
+      <h1>Payment <em>Intents</em></h1>
+      <div class="sub"><%= total.toLocaleString('id-ID') %> intent dalam scope · halaman <%= page %>/<%= totalPages %></div>
+    </div>
+  </div>
+
+  <%# KPI strip — counts across ALL statuses for current search+date scope %>
+  <div class="kpi-row">
+    <% META.STATUSES.forEach(function(s) { %>
+      <div class="kpi <%= s.toLowerCase() %>">
+        <div class="l"><%= s %></div>
+        <div class="v"><%= (countsByStatus[s] || 0).toLocaleString('id-ID') %></div>
+      </div>
+    <% }) %>
+  </div>
+
+  <form method="GET" action="/admin/payment-intents" class="filter-bar">
+    <div>
+      <span class="lbl">Status</span>
+      <select class="input" name="status">
+        <option value="ALL">All</option>
+        <% META.STATUSES.forEach(function(s) { %>
+          <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
+      <span class="lbl">Cari (order ID / bookingNo)</span>
+      <input class="input" type="text" name="q" value="<%= filters.search %>" placeholder="PI-... atau RP-...">
+    </div>
+    <div>
+      <span class="lbl">Dari</span>
+      <input class="input" type="date" name="from" value="<%= filters.from %>">
+    </div>
+    <div>
+      <span class="lbl">Sampai</span>
+      <input class="input" type="date" name="to" value="<%= filters.to %>">
+    </div>
+    <button type="submit" class="btn btn--ghost btn--sm">Filter</button>
+    <a href="/admin/payment-intents" style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);text-decoration:none;letter-spacing:0.08em;align-self:center;">RESET</a>
+  </form>
+
+  <% if (rows.length === 0) { %>
+    <div class="tbl"><div class="empty">Tidak ada payment intent dalam scope.</div></div>
+  <% } else { %>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:140px;">Waktu</th>
+          <th>Order ID</th>
+          <th>Booking</th>
+          <th style="width:110px;">Status</th>
+          <th>Gateway</th>
+          <th style="width:140px;text-align:right;">Jumlah</th>
+          <th style="width:110px;">Payment</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(function(it) { %>
+          <% const amt = Number(it.amount?.toString?.() ?? it.amount) || 0; %>
+          <tr>
+            <td>
+              <div style="color:var(--cream-100);"><%= fmt.date(it.createdAt) %></div>
+              <div class="sx"><%= new Date(it.createdAt).toISOString().slice(11,16) %></div>
+            </td>
+            <td><span class="id"><%= it.orderId %></span></td>
+            <td>
+              <% if (it.booking) { %>
+                <a href="/admin/bookings/<%= it.booking.id %>"><%= it.booking.bookingNo %></a>
+                <div class="sx"><%= it.booking.status %></div>
+              <% } else { %>
+                —
+              <% } %>
+            </td>
+            <td><span class="status-tag <%= it.status.toLowerCase() %>"><%= it.status %></span></td>
+            <td class="sx" style="color:var(--cream-200);"><%= it.gatewayStatus || '—' %></td>
+            <td class="num" style="color:var(--gold-300);"><%= fmt.rpFull(amt) %></td>
+            <td>
+              <% if (it.paymentId) { %>
+                <span class="sx">→ <%= it.paymentId.slice(-8) %></span>
+              <% } else { %>
+                <span class="sx" style="color:var(--ink-300);">—</span>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <% if (totalPages > 1) { %>
+      <%
+        const qs = new URLSearchParams();
+        if (filters.status !== 'ALL') qs.set('status', filters.status);
+        if (filters.search) qs.set('q', filters.search);
+        if (filters.from) qs.set('from', filters.from);
+        if (filters.to) qs.set('to', filters.to);
+        function pageUrl(p) { const q = new URLSearchParams(qs); q.set('page', p); return '/admin/payment-intents?' + q.toString(); }
+      %>
+      <div class="pager">
+        <% if (page > 1) { %><a href="<%= pageUrl(page - 1) %>">← Prev</a><% } %>
+        <% for (let i = 1; i <= totalPages; i++) {
+             if (i === 1 || i === totalPages || Math.abs(i - page) <= 2) { %>
+              <% if (i === page) { %>
+                <span class="cur"><%= i %></span>
+              <% } else { %>
+                <a href="<%= pageUrl(i) %>"><%= i %></a>
+              <% } %>
+           <% } else if (i === page - 3 || i === page + 3) { %>
+              <span class="gap">…</span>
+           <% } } %>
+        <% if (page < totalPages) { %><a href="<%= pageUrl(page + 1) %>">Next →</a><% } %>
+      </div>
+    <% } %>
+  <% } %>
+</div>
+</body>
+</html>

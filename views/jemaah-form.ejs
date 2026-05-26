@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Edit Jemaah · <%= target.fullName %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .form-head { margin-bottom: 24px; }
+  .form-head h1 {
+    font-family: var(--font-display); font-size: 36px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .form-head h1 em { font-style: italic; color: var(--gold-300); }
+  .form-head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+  .ok-banner {
+    background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4);
+    color: var(--emerald);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 20px;
+  }
+  .err-banner {
+    background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 20px;
+  }
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px;
+    margin-bottom: 18px;
+  }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 20px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 6px;
+  }
+  .panel .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em;
+    margin: 0 0 18px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .field { margin-bottom: 12px; }
+  .field .label-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .field .field-err {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ruby); margin-top: 4px;
+  }
+  .field .helper {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); margin-top: 4px;
+  }
+  select.input { background-color: var(--ink-1000); color: var(--cream-100); }
+  textarea.input { resize: vertical; min-height: 70px; font-family: inherit; }
+
+  .pp-badge {
+    padding: 4px 10px; font-family: var(--font-mono); font-size: 11px;
+    border-radius: 3px; letter-spacing: 0.1em; text-transform: uppercase;
+    border: 1px solid; display: inline-block;
+  }
+  .pp-badge.ok       { color: var(--emerald); border-color: rgba(74,143,109,0.4); background: rgba(74,143,109,0.06); }
+  .pp-badge.warning  { color: var(--amber); border-color: rgba(201,147,59,0.4); background: rgba(201,147,59,0.08); }
+  .pp-badge.urgent   { color: var(--ruby); border-color: rgba(181,86,74,0.4); background: rgba(181,86,74,0.08); }
+  .pp-badge.expired  { color: var(--ruby); border-color: var(--ruby); background: rgba(181,86,74,0.15); }
+  .pp-badge.none     { color: var(--ink-300); border-color: var(--ink-500); }
+
+  .booking-row {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 12px 14px;
+    margin-bottom: 6px;
+    display: grid; grid-template-columns: 1fr auto; gap: 12px;
+    align-items: center;
+  }
+  .booking-row .nm { font-size: 13px; color: var(--cream-100); }
+  .booking-row .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+  .booking-row .meta {
+    text-align: right; font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.06em;
+  }
+  .booking-row .id { color: var(--gold-300); }
+
+  .footer-row {
+    display: flex; justify-content: flex-end; gap: 10px;
+    margin-top: 20px; padding-top: 20px;
+    border-top: var(--hairline-soft);
+  }
+
+  /* Documents */
+  .doc-list { display: flex; flex-direction: column; gap: 8px; }
+  .doc-row {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 12px;
+  }
+  .doc-row__head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .doc-row__lbl { color: var(--cream-100); font-size: 14px; font-weight: 500; }
+  .doc-row__verif { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-left: auto; letter-spacing: 0.06em; }
+  .doc-row__form {
+    display: grid;
+    grid-template-columns: 130px 1fr 140px 1fr auto auto;
+    gap: 8px; align-items: center;
+  }
+  .doc-row__form .input { padding: 7px 10px; font-size: 12px; }
+  .doc-row__form select.input { background-color: var(--ink-900); color: var(--cream-100); }
+  .doc-row__form .doc-save {
+    background: var(--gold-300); color: var(--ink-1000);
+    border: 0; padding: 7px 12px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; cursor: pointer; font-weight: 600;
+  }
+  .doc-row__form .doc-save:hover { background: var(--gold-200); }
+  .doc-row__form .doc-del {
+    background: transparent; border: 1px solid rgba(181,86,74,0.4);
+    color: var(--ruby);
+    padding: 7px 10px; border-radius: 3px;
+    cursor: pointer; font-size: 12px;
+  }
+  .doc-row__form .doc-del:hover { background: rgba(181,86,74,0.08); }
+
+  .doc-pill {
+    padding: 4px 9px; font-family: var(--font-mono); font-size: 11px;
+    border-radius: 3px; letter-spacing: 0.1em; font-weight: 600;
+    border: 1px solid; min-width: 24px; text-align: center;
+  }
+  .doc-pill.state-verified  { color: var(--emerald); border-color: rgba(74,143,109,0.5); background: rgba(74,143,109,0.08); }
+  .doc-pill.state-submitted { color: var(--amber);   border-color: rgba(201,147,59,0.5); background: rgba(201,147,59,0.08); }
+  .doc-pill.state-pending   { color: var(--ink-200); border-color: var(--ink-500); }
+  .doc-pill.state-rejected  { color: var(--ruby);    border-color: rgba(181,86,74,0.5); background: rgba(181,86,74,0.08); }
+  .doc-pill.state-expired   { color: var(--ruby);    border-color: var(--ruby);          background: rgba(181,86,74,0.15); }
+  .doc-pill.state-missing   { color: var(--ink-300); border-color: var(--ink-500); border-style: dashed; }
+
+  @media (max-width: 800px) { .doc-row__form { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body data-screen-label="02 Admin · Jemaah Form">
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="/admin/jemaah">← KEMBALI KE DAFTAR JEMAAH</a>
+  </div>
+
+  <div class="form-head">
+    <h1>Edit <em><%= target.fullName %></em></h1>
+    <div class="sub">
+      <% if (target.passportState) { %>
+        Status paspor: <span class="pp-badge <%= target.passportState %>"><%= target.passportState %></span>
+      <% } %>
+      <% if (target.bookings) { %> · <%= target.bookings.length %> booking lifetime<% } %>
+    </div>
+  </div>
+
+  <% if (formError) { %>
+    <div class="err-banner"><%= formError %></div>
+  <% } %>
+
+  <script>
+    (function () {
+      const u = new URL(location.href);
+      const ok = u.searchParams.get('ok');
+      if (ok === 'updated') {
+        const el = document.createElement('div');
+        el.className = 'ok-banner';
+        el.textContent = 'Profil jemaah tersimpan.';
+        document.querySelector('.form-head').after(el);
+      }
+    })();
+  </script>
+
+  <form method="POST" action="/admin/jemaah/<%= target.id %>" autocomplete="off">
+
+    <!-- ====== Identitas ====== -->
+    <div class="panel">
+      <h3>Identitas</h3>
+      <p class="sub">Nama lengkap harus sesuai paspor — dipakai untuk dokumen visa.</p>
+
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-name">Nama lengkap (sesuai paspor) *</label></div>
+        <input class="input" id="f-name" name="fullName" required minlength="2" maxlength="190" value="<%= target.fullName %>">
+        <% if (errors.fullName) { %><div class="field-err"><%= errors.fullName %></div><% } %>
+      </div>
+
+      <div class="grid-3">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-phone">Telepon / WA *</label></div>
+          <input class="input" id="f-phone" name="phone" required maxlength="30" value="<%= target.phone %>">
+          <% if (errors.phone) { %><div class="field-err"><%= errors.phone %></div><% } %>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-email">Email</label></div>
+          <input class="input" type="email" id="f-email" name="email" maxlength="190" value="<%= target.email || '' %>">
+          <% if (errors.email) { %><div class="field-err"><%= errors.email %></div><% } %>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-gender">Jenis kelamin</label></div>
+          <select class="input" id="f-gender" name="gender">
+            <option value="">—</option>
+            <% META.GENDERS.forEach(function(g) { %>
+              <option value="<%= g %>" <%= target.gender === g ? 'selected' : '' %>>
+                <%= g === 'L' ? 'Laki-laki' : 'Perempuan' %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-bdate">Tanggal lahir</label></div>
+          <input class="input" type="date" id="f-bdate" name="birthDate" value="<%= target.birthDate || '' %>">
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-nik">NIK (16 digit)</label></div>
+          <input class="input" id="f-nik" name="nik" maxlength="16" pattern="\d{16}"
+                 value="<%= target.nik || '' %>" placeholder="3201234567890123">
+          <% if (errors.nik) { %><div class="field-err"><%= errors.nik %></div><% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== Paspor ====== -->
+    <div class="panel">
+      <h3>Paspor &amp; visa</h3>
+      <p class="sub">Saudi mensyaratkan masa berlaku ≥ 6 bulan saat keberangkatan.</p>
+
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-pass">Nomor paspor</label></div>
+          <input class="input" id="f-pass" name="passportNo" maxlength="190" value="<%= target.passportNo || '' %>" placeholder="A12345678">
+          <% if (errors.passportNo) { %><div class="field-err"><%= errors.passportNo %></div><% } %>
+        </div>
+        <div class="field">
+          <div class="label-row">
+            <label class="label" for="f-pexp">Tanggal expire</label>
+            <% if (target.passportState) { %>
+              <span class="pp-badge <%= target.passportState %>"><%= target.passportState %></span>
+            <% } %>
+          </div>
+          <input class="input" type="date" id="f-pexp" name="passportExpiry" value="<%= target.passportExpiry || '' %>">
+          <div class="helper">expired / urgent (&lt;90d) / warning (&lt;180d) / ok</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== Alamat & kontak darurat ====== -->
+    <div class="panel">
+      <h3>Alamat &amp; kontak darurat</h3>
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-addr">Alamat</label></div>
+        <textarea class="input" id="f-addr" name="address" rows="2"><%= target.address || '' %></textarea>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-emer">Kontak darurat</label></div>
+        <input class="input" id="f-emer" name="emergencyContact" maxlength="2000" value="<%= target.emergencyContact || '' %>" placeholder="Nama · hubungan · nomor telepon">
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-notes">Catatan khusus</label></div>
+        <textarea class="input" id="f-notes" name="notes" rows="3"><%= target.notes || '' %></textarea>
+        <div class="helper">Mis. lansia, kursi roda, alergi makanan, mahram</div>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <a href="/admin/jemaah" class="btn btn--ghost">Batal</a>
+      <button type="submit" class="btn btn--primary">Simpan</button>
+    </div>
+  </form>
+
+  <!-- ====== Documents tracking ====== -->
+  <div class="panel" style="margin-top:24px;">
+    <h3>Dokumen</h3>
+    <p class="sub">Track status visa, paspor, sertifikat. Update inline — perubahan tersimpan saat kamu klik Simpan baris.</p>
+
+    <div class="err-banner" id="doc-err" style="display:none;"></div>
+
+    <%
+      const DOC_LABELS = {
+        PASSPORT: 'Paspor',
+        VISA_UMROH: 'Visa Umroh',
+        MANASIK_CERT: 'Sertifikat Manasik',
+        HEALTH_CERT: 'Surat Sehat',
+        VACCINE_MENINGITIS: 'Vaksin Meningitis',
+        MARRIAGE_CERT: 'Akta Nikah (mahram)',
+        FAMILY_CARD: 'Kartu Keluarga',
+        OTHER: 'Dokumen lain',
+      };
+      const docsByType = new Map();
+      (target.documents || []).forEach((d) => docsByType.set(d.type, d));
+    %>
+
+    <div class="doc-list">
+      <% DOC_TYPES.forEach(function(type) {
+        const doc = docsByType.get(type);
+        const state = doc ? doc.status.toLowerCase() : 'missing';
+        const expISO = doc?.expiresAt ? new Date(doc.expiresAt).toISOString().slice(0,10) : '';
+      %>
+        <div class="doc-row" data-type="<%= type %>" data-doc-id="<%= doc?.id || '' %>">
+          <div class="doc-row__head">
+            <span class="doc-pill state-<%= state %>"><%= DOC_PILL[type] %></span>
+            <span class="doc-row__lbl"><%= DOC_LABELS[type] %></span>
+            <% if (doc?.verifiedAt) { %>
+              <span class="doc-row__verif">verified <%= fmt.date(doc.verifiedAt) %></span>
+            <% } else if (doc?.submittedAt) { %>
+              <span class="doc-row__verif">submitted <%= fmt.date(doc.submittedAt) %></span>
+            <% } %>
+          </div>
+          <div class="doc-row__form">
+            <select class="input doc-status">
+              <% DOC_STATUSES.forEach(function(s) { %>
+                <option value="<%= s %>" <%= doc && doc.status === s ? 'selected' : '' %>><%= s %></option>
+              <% }) %>
+            </select>
+            <input class="input doc-ref" placeholder="No. ref / paspor / sertifikat" value="<%= doc?.refNumber || '' %>" maxlength="190">
+            <input class="input doc-exp" type="date" value="<%= expISO %>" title="Tanggal expire (opsional)">
+            <input class="input doc-notes" placeholder="Catatan" value="<%= doc?.notes || '' %>" maxlength="500">
+            <button type="button" class="doc-save">SIMPAN</button>
+            <% if (doc) { %>
+              <button type="button" class="doc-del" title="Hapus tracking">✕</button>
+            <% } else { %>
+              <span style="display:inline-block;width:28px;"></span>
+            <% } %>
+          </div>
+          <% if (doc?.filePath) { %>
+            <%# 5vv: image thumbnail when mime is jpeg/png/webp; icon for pdf/heic %>
+            <% const isImg_a = ['image/jpeg','image/png','image/webp'].includes(doc.mimeType); %>
+            <% const dlUrl_a = `/admin/jemaah/${target.id}/documents/${doc.id}/file`; %>
+            <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--ink-700);display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">
+              <% if (isImg_a) { %>
+                <a href="<%= dlUrl_a %>" target="_blank" rel="noopener" title="Klik untuk perbesar" style="line-height:0;display:inline-block;flex-shrink:0;">
+                  <img src="<%= dlUrl_a %>" alt="<%= doc.fileName || 'preview' %>"
+                       style="display:block;width:56px;height:56px;object-fit:cover;border:var(--hairline-soft);border-radius:3px;background:var(--ink-1000);">
+                </a>
+              <% } else { %>
+                <span title="<%= doc.mimeType %>"
+                      style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;border:var(--hairline-soft);border-radius:3px;background:var(--ink-1000);font-size:22px;flex-shrink:0;">
+                  <%= doc.mimeType === 'application/pdf' ? '📄' : '🖼️' %>
+                </span>
+              <% } %>
+              <span style="color:var(--cream-200);"><%= doc.fileName || 'file' %> · <%= Math.round((doc.fileSize||0)/1024) %> KB · <%= doc.mimeType %></span>
+              <a href="<%= dlUrl_a %>"
+                 target="_blank" rel="noopener"
+                 style="color:var(--gold-300);text-decoration:none;padding:3px 10px;border:1px solid var(--gold-300);border-radius:3px;letter-spacing:0.1em;text-transform:uppercase;font-size:10px;">
+                Lihat
+              </a>
+              <span style="color:var(--ink-300);font-size:10px;">diupload <%= fmt.date(doc.fileUploadedAt) %></span>
+            </div>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- ====== Riwayat booking (read-only) ====== -->
+  <% if (target.bookings && target.bookings.length > 0) { %>
+    <div class="panel" style="margin-top:24px;">
+      <h3>Riwayat booking</h3>
+      <p class="sub"><%= target.bookings.length %> booking lifetime — read-only.</p>
+      <% target.bookings.forEach(function(b) { %>
+        <div class="booking-row">
+          <div>
+            <div class="nm"><%= b.paket.title %></div>
+            <div class="sx">
+              <span class="id"><%= b.bookingNo %></span> · <%= b.kelas %> · <%= b.paxCount %> PAX
+              · DEP <%= fmt.dateShort(b.paket.departureDate) %>
+            </div>
+          </div>
+          <div class="meta">
+            <span class="badge badge--<%= b.status === 'LUNAS' ? 'emerald' : (b.status === 'CANCELLED' ? 'ruby' : 'gold') %>">
+              <%= b.status %>
+            </span>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<script>
+  const JEMAAH_ID = <%- JSON.stringify(target.id) %>;
+  const docErr = document.getElementById('doc-err');
+
+  function setDocErr(msg) {
+    docErr.textContent = msg;
+    docErr.style.display = msg ? 'block' : 'none';
+  }
+  function ymd(d) {
+    if (!d) return null;
+    return new Date(d).toISOString().slice(0, 10);
+  }
+
+  document.querySelectorAll('.doc-row').forEach((row) => {
+    const type = row.dataset.type;
+    const saveBtn = row.querySelector('.doc-save');
+    const delBtn  = row.querySelector('.doc-del');
+
+    saveBtn.addEventListener('click', async () => {
+      setDocErr('');
+      saveBtn.disabled = true;
+      const body = {
+        type,
+        status: row.querySelector('.doc-status').value,
+        refNumber: row.querySelector('.doc-ref').value || null,
+        expiresAt: row.querySelector('.doc-exp').value || null,
+        notes: row.querySelector('.doc-notes').value || null,
+      };
+      try {
+        const r = await fetch('/api/jemaah/' + encodeURIComponent(JEMAAH_ID) + '/documents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          setDocErr(j?.error?.message || 'Gagal menyimpan dokumen');
+          saveBtn.disabled = false;
+          return;
+        }
+        location.reload();
+      } catch {
+        setDocErr('Tidak dapat menghubungi server');
+        saveBtn.disabled = false;
+      }
+    });
+
+    if (delBtn) {
+      delBtn.addEventListener('click', async () => {
+        const docId = row.dataset.docId;
+        if (!docId || !confirm('Hapus tracking dokumen ini?')) return;
+        delBtn.disabled = true;
+        try {
+          const r = await fetch('/api/jemaah/' + encodeURIComponent(JEMAAH_ID) + '/documents/' + docId, { method: 'DELETE' });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            setDocErr(j?.error?.message || 'Gagal menghapus');
+            delBtn.disabled = false;
+            return;
+          }
+          location.reload();
+        } catch {
+          setDocErr('Tidak dapat menghubungi server');
+          delBtn.disabled = false;
+        }
+      });
+    }
+  });
+</script>
+</body>
+</html>

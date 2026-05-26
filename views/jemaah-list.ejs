@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Jemaah · Admin</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head {
+    display: flex; justify-content: space-between; align-items: end;
+    margin-bottom: 24px;
+  }
+  .head h1 {
+    font-family: var(--font-display); font-size: 40px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+
+  .filter-bar {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .filter-bar .input.search { min-width: 320px; }
+  .filter-bar .toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    background: var(--ink-900); border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+    color: var(--ink-100); cursor: pointer; text-decoration: none;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+  }
+  .filter-bar .toggle.is-on {
+    color: var(--amber); border-color: rgba(201,147,59,0.5);
+    background: rgba(201,147,59,0.08);
+  }
+
+  .tbl {
+    width: 100%; border-collapse: collapse;
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); overflow: hidden;
+  }
+  .tbl thead th {
+    text-align: left; padding: 14px 16px;
+    background: var(--ink-1000);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-200); font-weight: 500;
+    border-bottom: var(--hairline);
+  }
+  .tbl tbody td {
+    padding: 12px 16px; border-bottom: var(--hairline-soft);
+    font-size: 13px; color: var(--cream-200); vertical-align: middle;
+  }
+  .tbl tbody tr:hover td { background: var(--ink-850); }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; letter-spacing: 0.04em; }
+  .tbl .doc { font-family: var(--font-mono); font-size: 11px; }
+  .tbl .doc.ok { color: var(--emerald); }
+  .tbl .doc.missing { color: var(--ink-300); }
+
+  .pp-badge {
+    padding: 3px 8px; font-family: var(--font-mono); font-size: 10px;
+    border-radius: 3px; letter-spacing: 0.1em; text-transform: uppercase;
+    border: 1px solid;
+  }
+  .pp-badge.ok       { color: var(--emerald); border-color: rgba(74,143,109,0.4); background: rgba(74,143,109,0.06); }
+  .pp-badge.warning  { color: var(--amber); border-color: rgba(201,147,59,0.4); background: rgba(201,147,59,0.08); }
+  .pp-badge.urgent   { color: var(--ruby); border-color: rgba(181,86,74,0.4); background: rgba(181,86,74,0.08); }
+  .pp-badge.expired  { color: var(--ruby); border-color: var(--ruby); background: rgba(181,86,74,0.15); }
+  .pp-badge.none     { color: var(--ink-300); border-color: var(--ink-500); }
+
+  .tbl a.edit-btn {
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-100); padding: 5px 12px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none;
+  }
+  .tbl a.edit-btn:hover { color: var(--gold-300); border-color: var(--gold-300); }
+  .empty {
+    padding: 40px; text-align: center;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200);
+  }
+</style>
+</head>
+<body data-screen-label="02 Admin · Jemaah">
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="/admin">← KEMBALI KE DASHBOARD</a>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1>Jemaah &amp; <em>dokumen</em></h1>
+      <div class="sub"><%= rows.length %> jemaah · max 200 ditampilkan</div>
+    </div>
+  </div>
+
+  <form method="GET" action="/admin/jemaah" class="filter-bar">
+    <input class="input search" type="search" name="q" placeholder="Cari nama / telepon / NIK / paspor…"
+           value="<%= search %>">
+    <button type="submit" class="btn btn--ghost btn--sm">Cari</button>
+    <a href="/admin/jemaah?expiringSoon=<%= expiringSoon ? '' : '1' %><%= search ? '&q=' + encodeURIComponent(search) : '' %>"
+       class="toggle <%= expiringSoon ? 'is-on' : '' %>">
+      <%= expiringSoon ? '✓ ' : '' %>PASPOR EXPIRE &lt; 6 BULAN
+    </a>
+    <% if (search || expiringSoon) { %>
+      <a href="/admin/jemaah" style="margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--gold-300);text-decoration:none;letter-spacing:0.08em;">RESET</a>
+    <% } %>
+  </form>
+
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th>Nama</th>
+        <th>Kontak</th>
+        <th>NIK</th>
+        <th>Paspor</th>
+        <th>Expire</th>
+        <th class="num" style="text-align:right;">Booking</th>
+        <th style="width:90px;text-align:right;">Aksi</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (rows.length === 0) { %>
+        <tr><td colspan="7" class="empty">Tidak ada jemaah yang cocok.</td></tr>
+      <% } %>
+      <% rows.forEach(function(j) { %>
+        <tr>
+          <td>
+            <div class="nm"><%= j.fullName %></div>
+            <div class="sx">
+              <% if (j.gender) { %><%= j.gender === 'L' ? 'Laki-laki' : 'Perempuan' %><% } else { %>—<% } %>
+              <% if (j.birthDate) { %> · <%= fmt.date(j.birthDate) %><% } %>
+            </div>
+          </td>
+          <td>
+            <div style="color:var(--cream-100);"><%= j.phone %></div>
+            <div class="sx"><%= j.email || '—' %></div>
+          </td>
+          <td>
+            <% if (j.nik) { %>
+              <span class="doc ok"><%= j.nik.slice(0,6) + '…' + j.nik.slice(-4) %></span>
+            <% } else { %>
+              <span class="doc missing">— belum diisi —</span>
+            <% } %>
+          </td>
+          <td>
+            <% if (j.passportNo) { %>
+              <span class="doc ok"><%= j.passportNo %></span>
+            <% } else { %>
+              <span class="doc missing">— belum diisi —</span>
+            <% } %>
+          </td>
+          <td>
+            <% if (j.passportExpiry) { %>
+              <span class="pp-badge <%= j.passportState %>">
+                <%= fmt.dateShort(j.passportExpiry) %><% if (j.passportState !== 'ok') { %> · <%= j.passportState %><% } %>
+              </span>
+            <% } else { %>
+              <span class="pp-badge none">N/A</span>
+            <% } %>
+          </td>
+          <td class="num" style="text-align:right;font-family:var(--font-mono);color:var(--cream-100);">
+            <%= j._count.bookings %>
+          </td>
+          <td style="text-align:right;">
+            <a class="edit-btn" href="/admin/jemaah/<%= j.id %>/edit">EDIT</a>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

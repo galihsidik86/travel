@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Payout Baru</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+
+  .head { margin-bottom: 24px; }
+  .head h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px; }
+
+  .err-banner {
+    background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 18px;
+  }
+
+  .info-card {
+    background: rgba(212,175,55,0.05); border: 1px dashed rgba(212,175,55,0.3);
+    color: var(--ink-100);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; line-height: 1.7;
+    margin-bottom: 18px;
+  }
+  .info-card strong { color: var(--gold-300); }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px;
+    margin-bottom: 16px;
+  }
+  .panel h3 { font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--cream-100); margin: 0 0 16px; }
+
+  .field { margin-bottom: 14px; }
+  .field .label { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); margin-bottom: 4px; }
+  .field .helper { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 4px; }
+  select.input { background-color: var(--ink-1000); color: var(--cream-100); }
+  textarea.input { resize: vertical; min-height: 70px; font-family: inherit; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .preview {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 18px;
+    margin-bottom: 14px;
+    display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+  }
+  .preview .label { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .preview .val { font-family: var(--font-display); font-size: 28px; color: var(--gold-300); font-weight: 500; margin-top: 4px; }
+  .preview .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-100); margin-top: 4px; }
+  .preview .none { color: var(--ink-300); font-style: italic; }
+
+  .footer-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: var(--hairline-soft); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Payout Form">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/admin/payouts">← KEMBALI KE PAYOUTS</a>
+  </div>
+
+  <div class="head">
+    <h1>Payout <em>komisi</em> — baru</h1>
+    <div class="sub">Bayarkan semua komisi EARNED untuk satu agen sekaligus. Setelah dibayar, status komisi jadi PAID dan terhubung ke nomor payout.</div>
+  </div>
+
+  <div class="info-card">
+    <strong>CATATAN:</strong> Semua komisi <code>EARNED</code> milik agen yang dipilih akan jadi <code>PAID</code> dalam satu transaksi atomik.
+    Nomor referensi (bank transfer/receipt) di-record untuk audit. Komisi <code>PENDING</code> (booking belum LUNAS) dan <code>CANCELLED</code> tidak ikut.
+  </div>
+
+  <% if (error) { %>
+    <div class="err-banner"><%= error %></div>
+  <% } %>
+
+  <form method="POST" action="/admin/payouts" autocomplete="off" id="payout-form">
+    <div class="panel">
+      <h3>Pilih agen</h3>
+
+      <div class="field">
+        <label class="label" for="f-agent">Agen *</label>
+        <select class="input" id="f-agent" name="agentId" required>
+          <option value="">— pilih agen —</option>
+          <% outstanding.forEach(function(a) { %>
+            <option value="<%= a.id %>"
+              data-earned="<%= a.earnedTotal %>"
+              data-count="<%= a.earnedCount %>"
+              <%= values.agentId === a.id ? 'selected' : '' %>
+              <%= a.earnedTotal <= 0 ? 'disabled' : '' %>>
+              <%= a.displayName %> (<%= a.slug %>) — <%= a.earnedCount %> komisi · Rp <%= a.earnedTotal.toLocaleString('id-ID') %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="preview" id="preview">
+        <div>
+          <div class="label">Akan dibayar</div>
+          <div class="val none" id="prev-amount">Rp 0</div>
+          <div class="sub none" id="prev-count">Pilih agen untuk lihat detail</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Detail pembayaran</h3>
+
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="f-method">Metode *</label>
+          <select class="input" id="f-method" name="method" required>
+            <% META.METHODS.forEach(function(m) { %>
+              <option value="<%= m %>" <%= values.method === m ? 'selected' : '' %>><%= m %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="f-ref">Nomor referensi</label>
+          <input class="input" id="f-ref" name="reference" maxlength="190" value="<%= values.reference || '' %>" placeholder="mis. TX-BCA-2026-1234">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="f-notes">Catatan</label>
+        <textarea class="input" id="f-notes" name="notes" rows="2" maxlength="2000"><%= values.notes || '' %></textarea>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <a href="/admin/payouts" class="btn btn--ghost">Batal</a>
+      <button type="submit" class="btn btn--primary" id="submit-btn">Konfirmasi Payout</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  const sel = document.getElementById('f-agent');
+  const amt = document.getElementById('prev-amount');
+  const cnt = document.getElementById('prev-count');
+  function update() {
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) {
+      amt.textContent = 'Rp 0'; amt.classList.add('none');
+      cnt.textContent = 'Pilih agen untuk lihat detail'; cnt.classList.add('none');
+      return;
+    }
+    const earned = Number(opt.dataset.earned) || 0;
+    const count = Number(opt.dataset.count) || 0;
+    amt.textContent = 'Rp ' + Math.round(earned).toLocaleString('id-ID');
+    amt.classList.remove('none');
+    cnt.textContent = count + ' komisi EARNED → semua akan jadi PAID';
+    cnt.classList.remove('none');
+  }
+  sel.addEventListener('change', update);
+  update();
+
+  // Auto-select via ?agentId=… query
+  (function () {
+    const u = new URL(location.href);
+    const aid = u.searchParams.get('agentId');
+    if (aid && sel.querySelector('option[value="' + aid + '"]')) {
+      sel.value = aid;
+      update();
+    }
+  })();
+</script>
+</body>
+</html>

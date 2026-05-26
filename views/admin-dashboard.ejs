@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — Admin Dashboard · <%= user.fullName %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { min-height: 100vh; overflow-x: hidden; }
+  .app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .rail {
+    background: var(--ink-1000); border-right: var(--hairline);
+    padding: 24px 20px; display: flex; flex-direction: column; gap: 24px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  .rail__brand { padding: 4px 4px 16px; border-bottom: var(--hairline-soft); }
+  .rail__group { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-300); margin: 8px 4px 4px; }
+  .rail__nav { display: flex; flex-direction: column; gap: 1px; }
+  .rail__item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 12px; border-radius: var(--r-sm);
+    color: var(--ink-100); font-size: 13px; cursor: pointer;
+    background: none; border: 0; text-align: left; width: 100%;
+    transition: all var(--dur-fast); font-family: var(--font-sans);
+  }
+  .rail__item:hover { background: var(--ink-900); color: var(--cream-200); }
+  .rail__item.is-active { background: var(--ink-900); color: var(--gold-300); box-shadow: inset 2px 0 0 var(--gold-300); }
+  .rail__item .count { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--ink-300); background: var(--ink-800); border: var(--hairline-soft); padding: 1px 7px; border-radius: 999px; }
+  .rail__item.is-active .count { color: var(--gold-300); border-color: rgba(212,175,55,0.4); background: rgba(212,175,55,0.06); }
+
+  .rail__user {
+    margin-top: auto; padding: 14px;
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md);
+  }
+  .rail__user .name { font-size: 13px; color: var(--cream-100); line-height: 1.3; }
+  .rail__user .role { font-family: var(--font-mono); font-size: 9.5px; color: var(--gold-300); letter-spacing: 0.12em; margin-top: 4px; }
+  .rail__user form { margin-top: 12px; }
+  .rail__user button {
+    width: 100%;
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-100); padding: 8px;
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em;
+    cursor: pointer; text-transform: uppercase;
+  }
+  .rail__user button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+
+  /* MAIN */
+  .main { background: var(--ink-950); }
+  .topbar {
+    position: sticky; top: 0; z-index: 30;
+    background: rgba(10,9,8,0.85); backdrop-filter: blur(18px);
+    border-bottom: var(--hairline-soft);
+    padding: 16px 40px;
+    display: flex; align-items: center; justify-content: space-between; gap: 32px;
+  }
+  .topbar__crumb { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; }
+  .topbar__crumb .sep { color: var(--ink-400); }
+  .topbar__crumb .leaf { color: var(--gold-300); }
+
+  .page { display: none; padding: 40px; max-width: 1640px; margin: 0 auto; }
+  .page.is-active { display: block; }
+
+  .page__head { margin-bottom: 32px; }
+  .page__head .eyebrow { color: var(--gold-300); }
+  .page__head h1 {
+    font-family: var(--font-display);
+    font-size: 52px; font-weight: 500;
+    line-height: 1.05; letter-spacing: -0.015em;
+    color: var(--cream-100); margin: 14px 0 0;
+  }
+  .page__head h1 em { font-style: italic; color: var(--gold-300); }
+  .page__head .row { display: flex; justify-content: space-between; align-items: end; }
+  .page__head .meta { text-align: right; color: var(--ink-100); font-size: 13.5px; line-height: 1.5; max-width: 340px; }
+
+  /* KPI */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+  .kpi { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 22px 24px; position: relative; overflow: hidden; }
+  .kpi--highlight {
+    background: radial-gradient(120% 80% at 100% 0%, rgba(212,175,55,0.10), transparent 55%), var(--ink-900);
+    border-color: rgba(212,175,55,0.35);
+  }
+  .kpi__head { display: flex; justify-content: space-between; align-items: center; }
+  .kpi__label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); }
+  .kpi__value { font-family: var(--font-display); font-size: 44px; color: var(--cream-100); line-height: 1.05; margin: 14px 0 6px; font-weight: 500; }
+  .kpi__value .u { font-family: var(--font-mono); font-size: 13px; color: var(--gold-300); margin-left: 4px; font-weight: 500; }
+  .kpi__sub { display: flex; justify-content: space-between; align-items: center; }
+  .kpi__delta { font-family: var(--font-mono); font-size: 11px; color: var(--emerald); }
+  .kpi__delta.muted { color: var(--ink-200); }
+
+  /* Panels */
+  .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px 28px;
+  }
+  .panel__head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px; padding-bottom: 16px;
+    border-bottom: var(--hairline-soft);
+  }
+  .panel__head h3 {
+    font-family: var(--font-display); font-size: 24px;
+    color: var(--cream-100); margin: 0; font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+  .panel__head .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; }
+
+  /* Status breakdown bar */
+  .status-bar {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;
+    margin-bottom: 16px;
+  }
+  .status-bar .sb-cell {
+    padding: 14px 16px;
+    background: var(--ink-1000);
+    border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+    text-align: center;
+  }
+  .status-bar .sb-cell .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .status-bar .sb-cell .v { font-family: var(--font-display); font-size: 26px; color: var(--cream-100); margin-top: 4px; line-height: 1; }
+  .status-bar .sb-cell.is-lunas .v { color: var(--emerald); }
+  .status-bar .sb-cell.is-pending .v { color: var(--amber); }
+  .status-bar .sb-cell.is-dp .v { color: var(--gold-300); }
+
+  /* Activity */
+  .activity { display: flex; flex-direction: column; }
+  .activity__row {
+    display: grid; grid-template-columns: 92px 1fr; gap: 16px;
+    padding: 12px 0; border-bottom: var(--hairline-soft); align-items: baseline;
+  }
+  .activity__row:last-child { border: 0; }
+  .activity__row .t { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .activity__row .e { font-size: 13.5px; color: var(--cream-200); line-height: 1.5; }
+  .activity__row .e .who { color: var(--gold-300); font-weight: 500; }
+  .activity__row .e .ent { font-family: var(--font-mono); font-size: 11px; color: var(--ink-100); }
+
+  /* Top paket */
+  .topp-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 80px;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: var(--hairline-soft);
+    align-items: center;
+  }
+  .topp-row:last-child { border: 0; }
+  .topp-row .nm { color: var(--cream-100); font-size: 14px; line-height: 1.3; }
+  .topp-row .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; letter-spacing: 0.05em; }
+  .topp-row .progress-bar {
+    background: var(--ink-700); height: 6px; border-radius: 3px;
+    margin-top: 8px; overflow: hidden;
+  }
+  .topp-row .progress-bar > i { display: block; height: 100%; background: var(--gold-300); }
+  .topp-row .pct { text-align: right; font-family: var(--font-mono); font-size: 12px; color: var(--gold-300); }
+  .topp-row .ku { text-align: right; font-family: var(--font-mono); font-size: 11px; color: var(--ink-100); }
+
+  /* Top agents */
+  .tbl {
+    width: 100%; border-collapse: collapse;
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); overflow: hidden;
+  }
+  .tbl thead th {
+    text-align: left; padding: 14px 16px;
+    background: var(--ink-1000);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-200); font-weight: 500;
+    border-bottom: var(--hairline);
+  }
+  .tbl tbody td {
+    padding: 14px 16px; border-bottom: var(--hairline-soft);
+    font-size: 13.5px; color: var(--cream-200); vertical-align: middle;
+  }
+  .tbl tbody tr:hover td { background: var(--ink-850); }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl .id { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .tbl .amt { font-family: var(--font-mono); color: var(--cream-100); }
+  .tbl .amt.gold { color: var(--gold-300); }
+  .tbl .num { text-align: right; font-family: var(--font-mono); }
+  .tbl .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+
+  /* Packages grid */
+  .pkg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .pkg {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); overflow: hidden;
+    position: relative;
+  }
+  .pkg--gold { border-color: var(--gold-300); }
+  .pkg__hero {
+    height: 120px;
+    background:
+      linear-gradient(180deg, transparent 40%, rgba(10,9,8,0.95)),
+      repeating-linear-gradient(45deg, var(--ink-800) 0 16px, var(--ink-700) 16px 32px);
+    position: relative;
+    padding: 16px 20px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+  }
+  .pkg__hero .badge { background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); }
+  .pkg__body { padding: 20px 22px; }
+  .pkg__title { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 0 0 4px; font-weight: 500; letter-spacing: -0.005em; }
+  .pkg__sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; }
+  .pkg__price-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    margin: 18px -22px 0; border-top: var(--hairline-soft);
+  }
+  .pkg__price {
+    padding: 12px 16px;
+    border-right: var(--hairline-soft);
+  }
+  .pkg__price:last-child { border-right: 0; }
+  .pkg__price .room { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; }
+  .pkg__price .amt { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin-top: 4px; }
+  .pkg__price.is-recommended { background: rgba(212,175,55,0.05); }
+  .pkg__price.is-recommended .amt { color: var(--gold-300); }
+
+  .pkg__meta {
+    margin-top: 16px; padding-top: 16px;
+    border-top: var(--hairline-soft);
+    display: flex; justify-content: space-between;
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-200);
+  }
+  .pkg__meta strong { color: var(--cream-100); font-family: var(--font-mono); font-weight: 500; }
+  .pkg__meta strong.gold { color: var(--gold-300); }
+
+  .pkg__pax {
+    display: flex; margin-top: 14px; gap: 3px;
+  }
+  .pkg__pax span {
+    flex: 1; height: 6px; background: var(--ink-700); border-radius: 2px;
+  }
+  .pkg__pax span.filled { background: var(--gold-300); }
+
+  .pkg__actions {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: var(--hairline-soft);
+    display: flex; gap: 8px;
+  }
+  .pkg__actions a {
+    flex: 1; text-align: center;
+    text-decoration: none;
+    padding: 8px;
+    background: transparent;
+    border: var(--hairline-soft);
+    color: var(--ink-100);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .pkg__actions a:hover { color: var(--gold-300); border-color: var(--gold-300); }
+
+  /* Manifest */
+  .manifest-controls {
+    display: flex; gap: 12px; align-items: center; margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .manifest-controls select.input { width: auto; min-width: 320px; }
+  .seg {
+    display: inline-flex;
+    background: var(--ink-900); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 2px;
+  }
+  .seg span {
+    padding: 7px 14px;
+    color: var(--ink-200);
+    font-family: var(--font-mono);
+    font-size: 10.5px; letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-radius: 3px;
+  }
+  .seg span.is-active { background: var(--ink-700); color: var(--gold-300); }
+
+  /* Doc pills (manifest table) */
+  .doc-pills { display: flex; gap: 3px; }
+  .doc-pill-mini {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    display: grid; place-items: center;
+    font-family: var(--font-mono);
+    font-size: 9.5px; font-weight: 600;
+    border: 1px solid;
+  }
+  .doc-pill-mini.state-verified  { color: var(--emerald); border-color: rgba(74,143,109,0.5); background: rgba(74,143,109,0.08); }
+  .doc-pill-mini.state-submitted { color: var(--amber);   border-color: rgba(201,147,59,0.5); background: rgba(201,147,59,0.08); }
+  .doc-pill-mini.state-pending   { color: var(--ink-100); border-color: var(--ink-500); }
+  .doc-pill-mini.state-rejected  { color: var(--ruby);    border-color: rgba(181,86,74,0.5); background: rgba(181,86,74,0.08); }
+  .doc-pill-mini.state-expired   { color: var(--ruby);    border-color: var(--ruby);          background: rgba(181,86,74,0.15); }
+  .doc-pill-mini.state-missing   { color: var(--ink-300); border-color: var(--ink-500); border-style: dashed; }
+
+  /* Pay button + modal (reuse from agen-crm pattern) */
+  .btn-pay {
+    background: var(--gold-300); color: var(--ink-1000);
+    border: 0; padding: 6px 12px;
+    border-radius: var(--r-xs);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; cursor: pointer;
+    font-weight: 600; text-transform: uppercase;
+  }
+  .btn-pay:hover { background: var(--gold-200); }
+  .btn-pay:disabled { opacity: 0.4; cursor: not-allowed; background: var(--ink-700); color: var(--ink-200); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(10,9,8,0.75); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.is-open { display: flex; }
+  .modal {
+    background: var(--ink-900); border: var(--hairline-gold);
+    border-radius: var(--r-md); padding: 32px;
+    width: 100%; max-width: 480px;
+  }
+  .modal h2 {
+    font-family: var(--font-display); font-size: 24px;
+    color: var(--cream-100); margin: 0 0 6px; font-weight: 500;
+  }
+  .modal .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .modal .field { margin-bottom: 14px; }
+  .modal .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal .actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+  .modal select.input { background-color: var(--ink-1000); color: var(--cream-100); }
+  .modal .err {
+    background: rgba(176,68,68,0.08);
+    border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 10px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    margin-bottom: 16px; display: none;
+  }
+  .modal .err.is-visible { display: block; }
+  .modal .ok {
+    background: rgba(74,143,109,0.08);
+    border: 1px solid rgba(74,143,109,0.4);
+    color: var(--emerald);
+    padding: 10px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    margin-bottom: 16px;
+  }
+  .pay-summary {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 14px;
+    margin-bottom: 18px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+  }
+  .pay-summary .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .pay-summary .v { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin-top: 4px; }
+  .pay-summary .v.gold { color: var(--gold-300); }
+  .pay-summary .v.amber { color: var(--amber); }
+
+  /* Finance */
+  .fin-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 16px; margin-bottom: 24px;
+  }
+  .currency-card {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px;
+    position: relative; overflow: hidden;
+  }
+  .currency-card::before {
+    content: ""; position: absolute; inset: 0;
+    border-left: 4px solid var(--bar);
+    pointer-events: none;
+  }
+  .currency-card[data-cur="IDR"] { --bar: var(--currency-idr, var(--gold-300)); }
+  .currency-card[data-cur="USD"] { --bar: var(--currency-usd, var(--emerald)); }
+  .currency-card[data-cur="SAR"] { --bar: var(--currency-sar, var(--sapphire)); }
+  .currency-card .lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); }
+  .currency-card .val { font-family: var(--font-display); font-size: 32px; color: var(--cream-100); margin: 16px 0 6px; font-weight: 500; letter-spacing: -0.01em; }
+  .currency-card .val .u { font-family: var(--font-mono); font-size: 12px; color: var(--gold-300); margin-left: 4px; }
+  .currency-card .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+
+  /* Bunking */
+  .bunking-layout {
+    display: grid; grid-template-columns: 320px 1fr;
+    gap: 24px;
+  }
+  .bunking-side {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 20px;
+    max-height: 75vh; overflow-y: auto;
+    position: sticky; top: 80px; align-self: start;
+  }
+  .bunking-side h4 {
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--gold-300); margin: 0 0 14px;
+    display: flex; justify-content: space-between;
+  }
+  .ba-row {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 10px 12px;
+    margin-bottom: 6px;
+    display: grid; grid-template-columns: 1fr auto; gap: 8px;
+    align-items: center;
+  }
+  .ba-row .nm { font-size: 13px; color: var(--cream-100); line-height: 1.3; }
+  .ba-row .sx { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-top: 2px; letter-spacing: 0.04em; }
+  .ba-row button {
+    background: var(--gold-300); color: var(--ink-1000);
+    border: 0; padding: 5px 10px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 9.5px;
+    letter-spacing: 0.1em; cursor: pointer; font-weight: 600;
+  }
+  .ba-row button:hover { background: var(--gold-200); }
+  .ba-row.empty-state {
+    border-style: dashed; text-align: center;
+    color: var(--ink-200); font-family: var(--font-mono);
+    font-size: 11px; padding: 20px;
+  }
+
+  .bunking-main { display: flex; flex-direction: column; gap: 28px; }
+  .bunking-floor h3 {
+    font-family: var(--font-display); font-size: 22px;
+    color: var(--cream-100); margin: 0 0 12px; font-weight: 500;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .bunking-floor h3 .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; }
+  .rooms-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .room {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-sm); padding: 14px;
+    min-height: 160px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .room.full { border-color: var(--emerald); }
+  .room.partial { border-color: rgba(212,175,55,0.4); border-style: dashed; }
+  .room.empty { border-color: var(--ink-500); border-style: dashed; background: var(--ink-1000); }
+  .room__head { display: flex; justify-content: space-between; align-items: center; }
+  .room__no { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.08em; font-weight: 600; }
+  .room__type { font-family: var(--font-mono); font-size: 9px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .room__slots { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .room__slot {
+    padding: 6px 8px;
+    background: var(--ink-850);
+    border-radius: 3px;
+    font-size: 11.5px;
+    color: var(--cream-100);
+    display: flex; align-items: center; gap: 6px;
+    line-height: 1.2;
+  }
+  .room__slot .av {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--ink-700); border: 1px solid var(--gold-500);
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-size: 9px;
+    color: var(--gold-300); flex-shrink: 0;
+  }
+  .room__slot .sub { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); }
+  .room__slot button {
+    margin-left: auto; background: transparent;
+    border: 0; color: var(--ink-200); cursor: pointer;
+    font-family: var(--font-mono); font-size: 9.5px;
+    letter-spacing: 0.08em; padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .room__slot button:hover { color: var(--ruby); }
+  .room__slot.empty {
+    background: transparent;
+    color: var(--ink-300);
+    border: 1px dashed var(--ink-500);
+    font-family: var(--font-mono); font-size: 9.5px;
+    letter-spacing: 0.1em;
+    padding: 6px 8px;
+    justify-content: center;
+    text-transform: uppercase;
+  }
+  .room__cap { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-top: auto; text-align: right; }
+  .room__cap.full { color: var(--emerald); }
+
+  /* Stub */
+  .stub {
+    background: var(--ink-900); border: var(--hairline-soft);
+    border-style: dashed;
+    border-radius: var(--r-md);
+    padding: 80px 40px;
+    text-align: center;
+  }
+  .stub h2 {
+    font-family: var(--font-display); font-size: 32px;
+    color: var(--cream-100); margin: 0 0 12px; font-weight: 500;
+  }
+  .stub p {
+    font-family: var(--font-mono); font-size: 12px;
+    color: var(--ink-200); letter-spacing: 0.08em;
+    margin: 0; line-height: 1.7;
+  }
+  .stub code { color: var(--gold-300); }
+
+  @media (max-width: 1100px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .pkg-grid { grid-template-columns: repeat(2, 1fr); }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .status-bar { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body data-screen-label="02 Admin Dashboard">
+
+<%
+  function fmtAction(action) {
+    return ({
+      CREATE: 'membuat', UPDATE: 'memperbarui', DELETE: 'menghapus',
+      LOGIN: 'login', LOGOUT: 'logout', PASSWORD_CHANGE: 'mengubah password',
+      PRICE_CHANGE: 'mengubah harga', STATUS_CHANGE: 'mengubah status',
+      PAYMENT_RECEIVED: 'menerima pembayaran',
+    })[action] || action.toLowerCase();
+  }
+  function relTime(d) {
+    const diff = (Date.now() - new Date(d).getTime()) / 1000;
+    if (diff < 60) return Math.round(diff) + 'd lalu';
+    if (diff < 3600) return Math.round(diff / 60) + 'm lalu';
+    if (diff < 86400) return Math.round(diff / 3600) + 'j lalu';
+    if (diff < 86400 * 7) return Math.round(diff / 86400) + 'h lalu';
+    return fmt.dateShort(d);
+  }
+  function pct(p) { return Math.round(p) + '%'; }
+%>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="rail">
+    <a href="/" class="brand-mark rail__brand">
+      <span class="brand-mark__glyph">R</span>
+      <span class="brand-mark__name">Religio <em>Pro</em></span>
+    </a>
+
+    <nav class="rail__nav">
+      <div class="rail__group">Workspace</div>
+      <button class="rail__item <%= activeTab === 'overview' ? 'is-active' : '' %>" data-page="overview">
+        Overview
+      </button>
+      <button class="rail__item <%= activeTab === 'packages' ? 'is-active' : '' %>" data-page="packages">
+        Paket
+        <span class="count"><%= kpis.paketActiveCount %></span>
+      </button>
+      <button class="rail__item <%= activeTab === 'manifest' ? 'is-active' : '' %>" data-page="manifest">
+        Manifest
+        <% if (manifest) { %><span class="count"><%= manifest.bookings.length %></span><% } %>
+      </button>
+      <button class="rail__item <%= activeTab === 'bunking' ? 'is-active' : '' %>" data-page="bunking">
+        Bunking
+      </button>
+      <button class="rail__item <%= activeTab === 'finance' ? 'is-active' : '' %>" data-page="finance">
+        Finance
+      </button>
+
+      <div class="rail__group">Operasional</div>
+      <a href="/admin/bookings/new" class="rail__item" style="text-decoration:none;">
+        + Booking baru
+      </a>
+      <% if (['OWNER','SUPERADMIN','MANAJER_OPS'].includes(user.role)) { %>
+        <a href="/admin/payouts" class="rail__item" style="text-decoration:none;">
+          Komisi payout
+        </a>
+      <% } %>
+
+      <% if (['OWNER','SUPERADMIN','MANAJER_OPS'].includes(user.role)) { %>
+        <div class="rail__group">Data</div>
+        <a href="/admin/jemaah" class="rail__item" style="text-decoration:none;">
+          Jemaah
+        </a>
+      <% } %>
+
+      <% if (user.role === 'OWNER' || user.role === 'SUPERADMIN') { %>
+        <div class="rail__group">Settings</div>
+        <a href="/admin/users" class="rail__item" style="text-decoration:none;">
+          Users
+        </a>
+        <a href="/admin/audit" class="rail__item" style="text-decoration:none;">
+          Audit Log
+        </a>
+      <% } %>
+      <% if (['OWNER','SUPERADMIN','MANAJER_OPS'].includes(user.role)) { %>
+        <a href="/admin/notifications" class="rail__item" style="text-decoration:none;">
+          Notifikasi
+        </a>
+        <a href="/admin/payment-intents" class="rail__item" style="text-decoration:none;">
+          Payment Intents
+        </a>
+      <% } %>
+    </nav>
+
+    <div class="rail__user">
+      <div class="name"><%= user.fullName %></div>
+      <div class="role"><%= user.role %></div>
+      <form method="POST" action="/logout">
+        <button type="submit">Keluar</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar__crumb">
+        <span>RELIGIO PRO</span>
+        <span class="sep">/</span>
+        <span>ADMIN</span>
+        <span class="sep">/</span>
+        <span class="leaf" id="crumb-leaf">Overview</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);letter-spacing:0.1em;">
+        <%= fmt.dateLong(new Date()) %>
+      </div>
+    </div>
+
+    <!-- ===== OVERVIEW ===== -->
+    <section class="page <%= activeTab === 'overview' ? 'is-active' : '' %>" id="page-overview">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">HQ dashboard · ringkasan</span>
+            <h1>Kabar baik <em>hari ini</em>,<br><%= user.fullName.split(' ')[0] %>.</h1>
+          </div>
+          <div class="meta">
+            <strong style="color:var(--cream-100);"><%= kpis.bookingThisMonth %> booking bulan ini</strong><br>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.08em;">
+              <%= kpis.bookingToday %> BARU HARI INI · <%= kpis.leadCount24h %> LEAD 24J
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div class="kpi-grid">
+        <article class="kpi kpi--highlight">
+          <div class="kpi__head">
+            <span class="kpi__label">Revenue · LUNAS</span>
+          </div>
+          <div class="kpi__value"><%= fmt.rpShort(kpis.revenueLunas) %><span class="u">IDR</span></div>
+          <div class="kpi__sub">
+            <span class="kpi__delta">Dari <%= kpis.komisi.EARNED + kpis.komisi.PAID > 0 ? '' : '' %><%= Object.keys(statusBreakdown).reduce((acc, s) => acc + (s === 'LUNAS' ? statusBreakdown[s] : 0), 0) %> booking lunas</span>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi__head">
+            <span class="kpi__label">Potensi Hot</span>
+          </div>
+          <div class="kpi__value"><%= fmt.rpShort(kpis.potentialHot) %><span class="u">IDR</span></div>
+          <div class="kpi__sub">
+            <span class="kpi__delta muted">Sisa pelunasan booking aktif</span>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi__head">
+            <span class="kpi__label">Total Jemaah</span>
+          </div>
+          <div class="kpi__value"><%= kpis.jemaahCount %></div>
+          <div class="kpi__sub">
+            <span class="kpi__delta muted"><%= kpis.bookingCount %> booking · <%= kpis.agentCount %> agen aktif</span>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi__head">
+            <span class="kpi__label">Komisi terutang</span>
+          </div>
+          <div class="kpi__value"><%= fmt.rpShort(kpis.komisi.EARNED) %><span class="u">IDR</span></div>
+          <div class="kpi__sub">
+            <span class="kpi__delta muted">Earned, belum dibayar</span>
+          </div>
+        </article>
+      </div>
+
+      <!-- Status breakdown -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel__head">
+          <h3>Distribusi status booking</h3>
+          <span class="meta">TOTAL <%= kpis.bookingCount %></span>
+        </div>
+        <div class="status-bar">
+          <% const SB_STATUSES = ['PENDING','BOOKED','DP_PAID','PARTIAL','LUNAS','CANCELLED']; %>
+          <% SB_STATUSES.forEach(function(s) { %>
+            <div class="sb-cell <%= s === 'LUNAS' ? 'is-lunas' : (s === 'PENDING' ? 'is-pending' : (s === 'DP_PAID' ? 'is-dp' : '')) %>">
+              <div class="l"><%= s.replace('_',' ') %></div>
+              <div class="v"><%= statusBreakdown[s] || 0 %></div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Top paket -->
+        <div class="panel">
+          <div class="panel__head">
+            <h3>Paket aktif · isi terbesar</h3>
+            <span class="meta"><%= topPaket.length %> PAKET</span>
+          </div>
+          <% if (topPaket.length === 0) { %>
+            <div style="padding:40px 0;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">Belum ada paket aktif.</div>
+          <% } %>
+          <% topPaket.forEach(function(p) { %>
+            <div class="topp-row">
+              <div>
+                <div class="nm"><%= p.title %></div>
+                <div class="sx">DEP <%= fmt.date(p.departureDate).toUpperCase() %> · <%= p.durationDays %> HARI</div>
+                <div class="progress-bar"><i style="width:<%= p.fillPct %>%;"></i></div>
+              </div>
+              <div class="ku"><%= p.kursiTerisi %>/<%= p.kursiTotal %></div>
+              <div class="pct"><%= p.fillPct %>%</div>
+            </div>
+          <% }) %>
+        </div>
+
+        <!-- Activity -->
+        <div class="panel">
+          <div class="panel__head">
+            <h3>Aktivitas terkini</h3>
+            <span class="meta"><%= recentActivity.length %> ENTRI</span>
+          </div>
+          <div class="activity">
+            <% recentActivity.forEach(function(a) { %>
+              <div class="activity__row">
+                <div class="t"><%= relTime(a.createdAt) %></div>
+                <div class="e">
+                  <span class="who"><%= a.actorEmail || 'sistem' %></span>
+                  <%= fmtAction(a.action) %>
+                  <span class="ent"><%= a.entity %><% if (a.entityId) { %> <%= a.entityId.slice(-6) %><% } %></span>
+                </div>
+              </div>
+            <% }) %>
+            <% if (recentActivity.length === 0) { %>
+              <div style="padding:24px 0;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">Belum ada aktivitas.</div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Per-paket revenue trend (5ee) -->
+      <div class="panel">
+        <div class="panel__head">
+          <h3>Tren revenue per paket</h3>
+          <span class="meta">LUNAS · <%= revenueTrendRange.days %> HARI</span>
+        </div>
+        <% if (!paketRevenueTrend || paketRevenueTrend.length === 0) { %>
+          <div style="padding:24px 0;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">
+            Belum ada LUNAS booking di range yang dipilih.
+          </div>
+        <% } else { %>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <% paketRevenueTrend.forEach(function(p) {
+              const maxRev = Math.max(1, ...p.daily.map(function(d) { return d.revenue; }));
+              const W = 360, H = 36;
+              const stepX = (W - 4) / Math.max(1, p.daily.length - 1);
+              const points = p.daily.map(function(d, i) {
+                const y = H - 2 - (d.revenue / maxRev) * (H - 6);
+                return (2 + i * stepX).toFixed(1) + ',' + y.toFixed(1);
+              }).join(' ');
+              const areaPoints = '2,' + (H-2) + ' ' + points + ' ' + (2 + (p.daily.length - 1) * stepX).toFixed(1) + ',' + (H-2);
+            %>
+              <div style="display:grid;grid-template-columns:1fr <%= W %>px 130px;gap:16px;align-items:center;padding-bottom:14px;border-bottom:var(--hairline-soft);">
+                <div>
+                  <a href="/admin/paket/<%= p.slug %>/edit" style="color:var(--cream-100);text-decoration:none;font-weight:500;font-size:14px;line-height:1.3;display:block;">
+                    <%= p.title %>
+                  </a>
+                  <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:2px;">
+                    slug <%= p.slug %>
+                  </div>
+                </div>
+                <svg viewBox="0 0 <%= W %> <%= H %>" preserveAspectRatio="none" style="width:100%;height:<%= H %>px;display:block;">
+                  <polygon points="<%= areaPoints %>" fill="rgba(212,175,55,0.12)"/>
+                  <polyline points="<%= points %>" fill="none" stroke="var(--gold-300)" stroke-width="1.5"/>
+                </svg>
+                <div style="text-align:right;">
+                  <div style="font-family:var(--font-display);font-size:18px;color:var(--gold-300);font-weight:500;"><%= fmt.rpShort(p.total) %></div>
+                  <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">IDR · <%= p.daily.filter(function(d){return d.revenue>0;}).length %> hari aktif</div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Top agents -->
+      <div class="panel">
+        <div class="panel__head">
+          <h3>Performa agen</h3>
+          <span class="meta"><%= topAgents.length %> AGEN</span>
+        </div>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Agen</th>
+              <th class="num">Lead</th>
+              <th class="num">Conv %</th>
+              <th class="num">Lunas</th>
+              <th class="num">Aktif</th>
+              <th class="num">Revenue</th>
+              <th class="num">Komisi earned</th>
+              <th class="num">Komisi paid</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (topAgents.length === 0) { %>
+              <tr><td colspan="8" style="text-align:center;color:var(--ink-200);">Belum ada agen.</td></tr>
+            <% } %>
+            <% topAgents.forEach(function(a) { %>
+              <tr>
+                <td>
+                  <div class="nm"><%= a.displayName %></div>
+                  <div class="sx"><%= a.tier || 'Mitra' %> · slug <%= a.slug %></div>
+                </td>
+                <td class="num amt"><%= a.leadTotal %></td>
+                <td class="num amt <%= a.leadConvPct != null && a.leadConvPct >= 50 ? 'gold' : '' %>">
+                  <%= a.leadConvPct != null ? a.leadConvPct + '%' : '—' %>
+                </td>
+                <td class="num amt gold"><%= a.lunasCount %></td>
+                <td class="num amt"><%= a.activeCount %></td>
+                <td class="num amt"><%= fmt.rpFull(a.revenue) %></td>
+                <td class="num amt gold"><%= fmt.rpFull(a.komisiEarned) %></td>
+                <td class="num amt"><%= fmt.rpFull(a.komisiPaid) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Date range filter (affects global funnel + source breakdown only) -->
+      <%
+        const r = analytics.funnel.range;
+        const rFrom = r.from.toISOString().slice(0,10);
+        const rTo   = r.to.toISOString().slice(0,10);
+      %>
+      <div style="margin-top:32px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:8px;">
+          Filter analitik · <%= r.days %> hari (<%= fmt.dateShort(r.from) %> → <%= fmt.dateShort(r.to) %>)
+        </div>
+        <%- include('partials/date-range', { from: rFrom, to: rTo, basePath: '/admin' }) %>
+      </div>
+
+      <!-- Global lead source effectiveness -->
+      <% if (analytics.sourceBreakdown.length > 0) { %>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Sumber lead — efektivitas global</h3>
+            <span class="meta">SEMUA AGEN · TOTAL <%= analytics.funnel.leadsTotal %> LEAD</span>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Sumber</th>
+                <th class="num">Total</th>
+                <th class="num">Aktif</th>
+                <th class="num">Converted</th>
+                <th class="num">Lost</th>
+                <th class="num">Conv %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% analytics.sourceBreakdown.forEach(function(s) { %>
+                <tr>
+                  <td><span class="badge"><%= s.source %></span></td>
+                  <td class="num amt"><%= s.total %></td>
+                  <td class="num amt"><%= s.active %></td>
+                  <td class="num amt gold"><%= s.converted %></td>
+                  <td class="num amt" style="color:<%= s.lost > 0 ? 'var(--ruby)' : 'inherit' %>;"><%= s.lost %></td>
+                  <td class="num amt <%= s.conversionPct != null && s.conversionPct >= 30 ? 'gold' : '' %>">
+                    <%= s.conversionPct != null ? s.conversionPct + '%' : '—' %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+
+      <!-- Global funnel quick view -->
+      <div class="panel" style="margin-top:16px;">
+        <div class="panel__head">
+          <h3>Funnel global</h3>
+          <span class="meta">SEMUA AGEN</span>
+        </div>
+        <div class="status-bar">
+          <% const gf = analytics.funnel; %>
+          <% const stages = [
+            { l: 'Cold',      v: gf.lead.COLD },
+            { l: 'Warm',      v: gf.lead.WARM },
+            { l: 'Converted', v: gf.lead.CONVERTED },
+            { l: 'Lost',      v: gf.lead.LOST },
+            { l: 'Hot bk',    v: gf.bookingsHot },
+            { l: 'LUNAS',     v: gf.bookingsLunas },
+          ]; %>
+          <% stages.forEach(function(s, i) { %>
+            <div class="sb-cell <%= s.l === 'LUNAS' ? 'is-lunas' : (s.l === 'Lost' ? 'is-pending' : (s.l === 'Converted' ? 'is-dp' : '')) %>">
+              <div class="l"><%= s.l %></div>
+              <div class="v"><%= s.v %></div>
+            </div>
+          <% }) %>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin-top:12px;">
+          Konversi Lead→Booking: <strong style="color:var(--gold-300);"><%= gf.convertedFromLeadPct ?? '—' %>%</strong>
+          · Booking→LUNAS: <strong style="color:var(--emerald);"><%= gf.lunasFromBookingPct ?? '—' %>%</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PACKAGES ===== -->
+    <section class="page <%= activeTab === 'packages' ? 'is-active' : '' %>" id="page-packages">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <% const draftCount = paketList.filter(function(p) { return p.status === 'DRAFT'; }).length; %>
+            <% const closedCount = paketList.filter(function(p) { return p.status === 'CLOSED'; }).length; %>
+            <span class="eyebrow">
+              Paket Umroh · <%= kpis.paketActiveCount %> aktif<% if (draftCount) { %> · <%= draftCount %> draft<% } %><% if (closedCount) { %> · <%= closedCount %> closed<% } %>
+            </span>
+            <h1>Paket &amp; <em>program perjalanan</em></h1>
+          </div>
+          <a href="/admin/paket/new" class="btn btn--primary">+ Paket Baru</a>
+        </div>
+      </header>
+
+      <div class="pkg-grid">
+        <% if (paketList.length === 0) { %>
+          <div class="stub" style="grid-column:1/-1;">
+            <h2>Belum ada paket aktif</h2>
+            <p>Tambahkan paket via Prisma Studio atau seed.</p>
+          </div>
+        <% } %>
+        <% paketList.forEach(function(p) { %>
+          <% const featured = p.prices.find(function(pr) { return pr.isFeatured; }); %>
+          <% const statusBadge = p.status === 'ACTIVE' ? 'badge--emerald' : (p.status === 'DRAFT' ? 'badge--amber' : 'badge--ruby'); %>
+          <article class="pkg <%= featured && p.status === 'ACTIVE' ? 'pkg--gold' : '' %>" style="<%= p.status !== 'ACTIVE' ? 'opacity:0.85;' : '' %>">
+            <div class="pkg__hero">
+              <span class="badge <%= statusBadge %>"><%= p.status %></span>
+              <span class="badge"><%= p.durationDays %> Hari</span>
+              <% if (featured && p.status === 'ACTIVE') { %><span class="badge badge--solid-gold">FEATURED</span><% } %>
+            </div>
+            <div class="pkg__body">
+              <h4 class="pkg__title"><%= p.title %></h4>
+              <p class="pkg__sub">
+                DEP <%= fmt.date(p.departureDate).toUpperCase() %>
+                <% if (p.subtitle) { %> · <%= p.subtitle %><% } %>
+              </p>
+
+              <div class="pkg__price-row">
+                <% p.prices.slice(0, 3).forEach(function(pr) { %>
+                  <div class="pkg__price <%= pr.isFeatured ? 'is-recommended' : '' %>">
+                    <span class="room"><%= pr.kelas %></span>
+                    <div class="amt"><%= fmt.rpShort(pr.priceIdr) %></div>
+                  </div>
+                <% }) %>
+              </div>
+
+              <div class="pkg__meta">
+                <span>Kuota <strong><%= p.kursiTotal %></strong></span>
+                <span>Terisi <strong class="<%= p.fillPct >= 80 ? 'gold' : '' %>"><%= p.kursiTerisi %>/<%= p.kursiTotal %></strong></span>
+                <% const ratePct = p.komisiRate != null ? (Number(p.komisiRate.toString?.() ?? p.komisiRate) * 100).toFixed(2).replace(/\.?0+$/, '') : '6'; %>
+                <span>Komisi <strong class="gold"><%= ratePct %>%</strong></span>
+              </div>
+
+              <div class="pkg__pax">
+                <% for (let i = 0; i < 10; i++) { %>
+                  <span class="<%= i < Math.round(p.fillPct / 10) ? 'filled' : '' %>"></span>
+                <% } %>
+              </div>
+
+              <div class="pkg__actions">
+                <a href="/p/<%= p.slug %>" target="_blank">LANDING</a>
+                <a href="/admin?tab=manifest&manifestPaket=<%= p.slug %>">MANIFEST</a>
+                <a href="/admin/paket/<%= p.slug %>/edit">EDIT</a>
+              </div>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+
+    <!-- ===== MANIFEST ===== -->
+    <section class="page <%= activeTab === 'manifest' ? 'is-active' : '' %>" id="page-manifest">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Manifes Jemaah</span>
+            <h1>
+              <% if (manifest) { %>
+                <%= manifest.bookings.length %> jemaah, <em>satu kebenaran.</em>
+              <% } else { %>
+                <em>Pilih paket</em>
+              <% } %>
+            </h1>
+          </div>
+        </div>
+      </header>
+
+      <% if (paketList.length > 0) { %>
+        <form method="GET" action="/admin" class="manifest-controls">
+          <input type="hidden" name="tab" value="manifest">
+          <select name="manifestPaket" class="input" onchange="this.form.submit()">
+            <% paketList.forEach(function(p) { %>
+              <option value="<%= p.slug %>" <%= manifest && manifest.paket.slug === p.slug ? 'selected' : '' %>>
+                <%= p.title %> · DEP <%= fmt.dateShort(p.departureDate) %>
+              </option>
+            <% }) %>
+          </select>
+          <% if (manifest) { %>
+            <div class="seg">
+              <span class="is-active">Semua (<%= manifest.bookings.length %>)</span>
+              <span>Lunas (<%= manifest.statusCounts.LUNAS || 0 %>)</span>
+              <span>DP (<%= (manifest.statusCounts.DP_PAID || 0) + (manifest.statusCounts.PARTIAL || 0) %>)</span>
+              <span>Pending (<%= manifest.statusCounts.PENDING || 0 %>)</span>
+            </div>
+            <a href="/admin/manifest/<%= manifest.paket.slug %>/export.csv"
+               style="margin-left:auto;background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:8px 16px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;">
+              ⇩ Export CSV
+            </a>
+          <% } %>
+        </form>
+      <% } %>
+
+      <% if (!manifest) { %>
+        <div class="stub">
+          <h2>Belum ada paket aktif</h2>
+          <p>Tambahkan paket dulu untuk melihat manifesnya.</p>
+        </div>
+      <% } else { %>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th style="width:140px;">ID Booking</th>
+              <th>Nama</th>
+              <th>Dokumen</th>
+              <th>Kelas / PAX</th>
+              <th>Status</th>
+              <th class="num">Total</th>
+              <th class="num">Dibayar</th>
+              <th>Agen</th>
+              <th style="width:90px;text-align:right;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (manifest.bookings.length === 0) { %>
+              <tr><td colspan="9" style="text-align:center;color:var(--ink-200);">Belum ada booking untuk paket ini.</td></tr>
+            <% } %>
+            <% manifest.bookings.forEach(function(b) { %>
+              <%
+                const total = Number(b.totalAmount?.toString?.() ?? b.totalAmount) || 0;
+                const paid  = Number(b.paidAmount?.toString?.()  ?? b.paidAmount)  || 0;
+                const sisa  = Math.max(0, total - paid);
+                const closed = b.status === 'CANCELLED' || b.status === 'REFUNDED' || sisa <= 0;
+              %>
+              <tr>
+                <td>
+                  <a href="/admin/bookings/<%= b.id %>" class="id" style="text-decoration:none;"><%= b.bookingNo %></a>
+                </td>
+                <td>
+                  <a href="/admin/jemaah/<%= b.jemaahId %>/edit" style="color:var(--cream-100);text-decoration:none;font-weight:500;">
+                    <%= b.jemaah.fullName %>
+                  </a>
+                  <div class="sx"><%= b.jemaah.phone %></div>
+                </td>
+                <td>
+                  <div class="doc-pills">
+                    <% (b.jemaah.docPills || []).forEach(function(p) { %>
+                      <span class="doc-pill-mini state-<%= p.state %>" title="<%= p.type %>: <%= p.state %>"><%= p.label %></span>
+                    <% }) %>
+                  </div>
+                </td>
+                <td>
+                  <span style="color:var(--cream-100);"><%= b.kelas %></span>
+                  <div class="sx"><%= b.paxCount %> PAX</div>
+                </td>
+                <td>
+                  <%
+                    const cls = b.status === 'LUNAS' ? 'badge--emerald'
+                      : (b.status === 'CANCELLED' || b.status === 'REFUNDED') ? 'badge--ruby'
+                      : b.status === 'PENDING' ? 'badge--amber'
+                      : 'badge--gold';
+                  %>
+                  <span class="badge <%= cls %>"><%= b.status %></span>
+                  <% if (b.cancelRequested) { %>
+                    <span class="badge badge--amber" style="margin-top:4px;display:inline-block;" title="Jemaah minta pembatalan: <%= b.cancelRequestReason %>">REQ CANCEL</span>
+                  <% } %>
+                </td>
+                <td class="num amt"><%= fmt.rpFull(b.totalAmount) %></td>
+                <td class="num amt <%= paid >= total && total > 0 ? 'gold' : '' %>">
+                  <%= fmt.rpFull(b.paidAmount) %>
+                </td>
+                <td>
+                  <% if (b.agent) { %>
+                    <div class="nm" style="font-size:13px;"><%= b.agent.displayName %></div>
+                    <div class="sx">slug <%= b.agent.slug %></div>
+                  <% } else { %>
+                    <span class="sx">— Kantor Pusat —</span>
+                  <% } %>
+                </td>
+                <td style="text-align:right;">
+                  <button class="btn-pay"
+                    data-pay-booking="<%= b.id %>"
+                    data-pay-bookingno="<%= b.bookingNo %>"
+                    data-pay-name="<%= b.jemaah.fullName %>"
+                    data-pay-total="<%= total %>"
+                    data-pay-paid="<%= paid %>"
+                    data-pay-sisa="<%= sisa %>"
+                    <%= closed ? 'disabled' : '' %>>
+                    + BAYAR
+                  </button>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </section>
+
+    <!-- ===== BUNKING ===== -->
+    <section class="page <%= activeTab === 'bunking' ? 'is-active' : '' %>" id="page-bunking">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">
+              <% if (bunking) { %>
+                Bunking · <%= bunking.paket.title %>
+              <% } else { %>
+                Bunking
+              <% } %>
+            </span>
+            <h1>
+              <% if (bunking) { %>
+                <%= bunking.totals.occupied %>/<%= bunking.totals.capacity %> slot terisi,<br>
+                <em><%= bunking.totals.unassignedPax %> pax</em> menunggu.
+              <% } else { %>
+                Drag &amp; drop, <em>tanpa coret-coretan.</em>
+              <% } %>
+            </h1>
+          </div>
+        </div>
+      </header>
+
+      <% if (paketList.length > 0) { %>
+        <form method="GET" action="/admin" class="manifest-controls" style="margin-bottom:24px;">
+          <input type="hidden" name="tab" value="bunking">
+          <select name="bunkingPaket" class="input" onchange="this.form.submit()" style="min-width:320px;">
+            <% paketList.forEach(function(p) { %>
+              <option value="<%= p.slug %>" <%= bunking && bunking.paket.slug === p.slug ? 'selected' : '' %>>
+                <%= p.title %> · DEP <%= fmt.dateShort(p.departureDate) %>
+              </option>
+            <% }) %>
+          </select>
+          <% if (bunking) { %>
+            <div class="seg">
+              <span class="is-active"><%= bunking.totals.roomCount %> kamar</span>
+              <span><%= bunking.totals.capacity %> kapasitas</span>
+              <span><%= bunking.totals.occupied %> terisi</span>
+              <span><%= bunking.totals.unassignedPax %> belum</span>
+            </div>
+          <% } %>
+        </form>
+      <% } %>
+
+      <% if (!bunking) { %>
+        <div class="stub">
+          <h2>Pilih paket dulu</h2>
+          <p>Belum ada paket yang dapat dipilih.</p>
+        </div>
+      <% } else if (bunking.floors.length === 0) { %>
+        <div class="stub">
+          <h2>Belum ada kamar untuk paket ini</h2>
+          <p>Tambahkan kamar via <code>prisma/seed.js</code> atau Prisma Studio.<br>Editor kamar admin menyusul di step <code>5e.2</code>.</p>
+        </div>
+      <% } else { %>
+        <div class="bunking-layout">
+          <!-- Unassigned sidebar -->
+          <aside class="bunking-side">
+            <h4>UNASSIGNED <span><%= bunking.unassigned.length %></span></h4>
+            <% if (bunking.unassigned.length === 0) { %>
+              <div class="ba-row empty-state">Semua booking sudah di-assign.</div>
+            <% } %>
+            <% bunking.unassigned.forEach(function(b) { %>
+              <div class="ba-row" data-booking-id="<%= b.id %>" data-booking-no="<%= b.bookingNo %>" data-kelas="<%= b.kelas %>" data-pax="<%= b.paxCount %>" data-name="<%= b.jemaah.fullName %>">
+                <div>
+                  <div class="nm"><%= b.jemaah.fullName %></div>
+                  <div class="sx"><%= b.bookingNo %> · <%= b.kelas %> · <%= b.paxCount %> PAX</div>
+                </div>
+                <button type="button" data-assign>ASSIGN</button>
+              </div>
+            <% }) %>
+          </aside>
+
+          <!-- Floors -->
+          <div class="bunking-main">
+            <% bunking.floors.forEach(function(f) { %>
+              <div class="bunking-floor">
+                <h3>
+                  Lantai <%= f.floor ?? '—' %><% if (f.wing) { %> — Wing <%= f.wing %><% } %>
+                  <span class="meta"><%= f.rooms.length %> KAMAR</span>
+                </h3>
+                <div class="rooms-grid">
+                  <% f.rooms.forEach(function(r) { %>
+                    <% const state = r.occupied === 0 ? 'empty' : (r.occupied >= r.capacity ? 'full' : 'partial'); %>
+                    <div class="room <%= state %>">
+                      <div class="room__head">
+                        <span class="room__no"><%= r.roomNo %></span>
+                        <span class="room__type"><%= r.kelas %> · <%= r.capacity %>P</span>
+                      </div>
+                      <div class="room__slots">
+                        <% r.bookings.forEach(function(b) { %>
+                          <% for (let i = 0; i < b.paxCount; i++) { %>
+                            <div class="room__slot">
+                              <span class="av"><%= b.jemaah.fullName.charAt(0) %></span>
+                              <div style="min-width:0;">
+                                <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><%= b.jemaah.fullName %><% if (b.paxCount > 1) { %> <span class="sub">+<%= i + 1 %>/<%= b.paxCount %></span><% } %></div>
+                                <div class="sub"><%= b.bookingNo %></div>
+                              </div>
+                              <% if (i === 0) { %>
+                                <button type="button" data-unassign data-booking-id="<%= b.id %>" title="Lepas dari kamar">✕</button>
+                              <% } %>
+                            </div>
+                          <% } %>
+                        <% }) %>
+                        <% for (let i = 0; i < r.slotsLeft; i++) { %>
+                          <div class="room__slot empty">— SLOT KOSONG —</div>
+                        <% } %>
+                      </div>
+                      <div class="room__cap <%= state === 'full' ? 'full' : '' %>">
+                        <%= r.occupied %>/<%= r.capacity %> slot
+                      </div>
+                    </div>
+                  <% }) %>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+    </section>
+
+    <!-- ===== FINANCE ===== -->
+    <section class="page <%= activeTab === 'finance' ? 'is-active' : '' %>" id="page-finance">
+      <header class="page__head">
+        <div class="row">
+          <div>
+            <span class="eyebrow">Finance · kas &amp; arus</span>
+            <h1>Arus kas <em>multi-currency</em>.</h1>
+          </div>
+          <div class="meta">
+            <strong style="color:var(--cream-100);">Sisa piutang: <%= fmt.rpFull(finance.receivables) %></strong><br>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.08em;">
+              <%= finance.paymentLedger.length %> TRANSAKSI TERAKHIR
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Kas per currency -->
+      <div class="fin-grid">
+        <% ['IDR','USD','SAR'].forEach(function(cur) {
+          const row = finance.cashByCurrency.find(function(r) { return r.currency === cur; }) || { amount: 0, count: 0 };
+        %>
+          <div class="currency-card" data-cur="<%= cur %>">
+            <div class="lbl">Kas masuk · <%= cur %></div>
+            <div class="val">
+              <% if (cur === 'IDR') { %>
+                <%= fmt.rpShort(row.amount) %><span class="u">IDR</span>
+              <% } else { %>
+                <%= row.amount.toLocaleString('en-US') %><span class="u"><%= cur %></span>
+              <% } %>
+            </div>
+            <div class="meta"><%= row.count %> transaksi PAID</div>
+          </div>
+        <% }) %>
+      </div>
+
+      <!-- Receivables panel -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel__head">
+          <h3>Posisi piutang</h3>
+          <span class="meta">BOOKING AKTIF SAJA</span>
+        </div>
+        <div class="status-bar" style="grid-template-columns:repeat(3,1fr);">
+          <div class="sb-cell">
+            <div class="l">Total diterima</div>
+            <div class="v"><%= fmt.rpShort(finance.receivedTotal) %></div>
+          </div>
+          <div class="sb-cell is-pending">
+            <div class="l">Sisa piutang</div>
+            <div class="v"><%= fmt.rpShort(finance.receivables) %></div>
+          </div>
+          <div class="sb-cell is-lunas">
+            <div class="l">Komisi earned</div>
+            <div class="v"><%= fmt.rpShort(kpis.komisi.EARNED) %></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment ledger -->
+      <div class="panel">
+        <div class="panel__head">
+          <h3>Ledger pembayaran</h3>
+          <span class="meta"><%= finance.paymentLedger.length %> ENTRI</span>
+        </div>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Waktu</th>
+              <th>Booking</th>
+              <th>Jemaah</th>
+              <th>Metode</th>
+              <th class="num">Jumlah</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (finance.paymentLedger.length === 0) { %>
+              <tr><td colspan="6" style="text-align:center;color:var(--ink-200);">Belum ada pembayaran tercatat.</td></tr>
+            <% } %>
+            <% finance.paymentLedger.forEach(function(p) { %>
+              <% const pAmt = Number(p.amount?.toString?.() ?? p.amount) || 0; const isRefund = pAmt < 0; %>
+              <tr>
+                <td>
+                  <div style="color:var(--cream-100);"><%= fmt.date(p.paidAt || p.createdAt) %></div>
+                  <div class="sx"><%= new Date(p.paidAt || p.createdAt).toISOString().slice(11,16) %></div>
+                </td>
+                <td>
+                  <a href="/admin/bookings/<%= p.bookingId %>" class="id" style="text-decoration:none;"><%= p.booking.bookingNo %></a>
+                </td>
+                <td>
+                  <div class="nm"><%= p.booking.jemaah.fullName %></div>
+                  <div class="sx"><%= p.booking.paket.title.slice(0, 32) %><%= p.booking.paket.title.length > 32 ? '…' : '' %></div>
+                </td>
+                <td>
+                  <span class="badge"><%= p.method %></span>
+                </td>
+                <td class="num amt" style="<%= isRefund ? 'color:var(--ruby);' : 'color:var(--gold-300);' %>">
+                  <% if (p.currency === 'IDR') { %><%= isRefund ? '−' : '' %><%= fmt.rpFull(Math.abs(pAmt)) %><% } else { %><%= isRefund ? '−' : '' %><%= Math.abs(pAmt).toLocaleString('en-US') %> <%= p.currency %><% } %>
+                </td>
+                <td>
+                  <% const pcls = p.status === 'PAID' ? 'badge--emerald' : (p.status === 'FAILED' ? 'badge--ruby' : (p.status === 'REFUNDED' ? 'badge--ruby' : 'badge--amber')); %>
+                  <span class="badge <%= pcls %>"><%= p.status %></span>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Assign room modal -->
+<div class="modal-overlay" id="assign-modal" aria-hidden="true">
+  <div class="modal">
+    <h2>Assign ke Kamar</h2>
+    <div class="sub" id="assign-modal-sub">—</div>
+    <div class="err" id="assign-err"></div>
+
+    <form id="assign-form">
+      <input type="hidden" name="bookingId">
+      <div class="field">
+        <label class="label" for="af-room">Kamar tersedia *</label>
+        <select class="input" name="roomId" id="af-room" required>
+          <option value="">— pilih kamar —</option>
+        </select>
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:6px;letter-spacing:0.04em;">
+          Hanya kamar dengan kelas yang sama dan slot mencukupi yang ditampilkan.
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" id="assign-cancel">Batal</button>
+        <button type="submit" class="btn btn--primary">Assign</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Pay modal -->
+<div class="modal-overlay" id="pay-modal" aria-hidden="true">
+  <div class="modal">
+    <h2>Catat Pembayaran</h2>
+    <div class="sub" id="pay-modal-sub">—</div>
+
+    <div class="pay-summary">
+      <div><div class="l">Total</div><div class="v" id="pay-total">—</div></div>
+      <div><div class="l">Sudah dibayar</div><div class="v gold" id="pay-paid">—</div></div>
+      <div><div class="l">Sisa</div><div class="v amber" id="pay-sisa">—</div></div>
+    </div>
+
+    <div class="err" id="pay-err"></div>
+
+    <form id="pay-form">
+      <input type="hidden" name="bookingId">
+
+      <div class="field">
+        <label class="label" for="pf-amount">Jumlah (Rp) *</label>
+        <input class="input" type="number" name="amount" id="pf-amount" required min="1" step="1">
+      </div>
+
+      <div class="field-grid">
+        <div class="field">
+          <label class="label" for="pf-method">Metode *</label>
+          <select class="input" name="method" id="pf-method" required>
+            <option value="TRANSFER">Transfer Bank</option>
+            <option value="CASH">Cash</option>
+            <option value="VA">Virtual Account</option>
+            <option value="QRIS">QRIS</option>
+            <option value="EWALLET">E-Wallet</option>
+            <option value="CARD">Kartu Kredit</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="pf-cur">Currency</label>
+          <select class="input" name="currency" id="pf-cur">
+            <option value="IDR" selected>IDR</option>
+            <option value="USD">USD</option>
+            <option value="SAR">SAR</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="pf-notes">Catatan</label>
+        <input class="input" name="notes" id="pf-notes" maxlength="500"
+               placeholder="Mis. transfer dari rek BCA atas nama jemaah">
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" id="pay-cancel">Batal</button>
+        <button type="submit" class="btn btn--primary">Catat Pembayaran</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Page switcher
+  const items = document.querySelectorAll('.rail__item[data-page]');
+  const pages = document.querySelectorAll('.page');
+  const leaf = document.getElementById('crumb-leaf');
+  const labels = { overview: 'Overview', packages: 'Paket', manifest: 'Manifest', bunking: 'Bunking', finance: 'Finance' };
+
+  function activate(target) {
+    items.forEach((b) => b.classList.toggle('is-active', b.dataset.page === target));
+    pages.forEach((p) => p.classList.toggle('is-active', p.id === 'page-' + target));
+    if (leaf && labels[target]) leaf.textContent = labels[target];
+    // Update URL without reload for bookmarkability
+    const url = new URL(location.href);
+    url.searchParams.set('tab', target);
+    history.replaceState(null, '', url.toString());
+  }
+
+  items.forEach((btn) => {
+    btn.addEventListener('click', () => activate(btn.dataset.page));
+  });
+
+  // ===== Pay modal =====
+  const pModal = document.getElementById('pay-modal');
+  const pForm  = document.getElementById('pay-form');
+  const pErr   = document.getElementById('pay-err');
+  const pSub   = document.getElementById('pay-modal-sub');
+  const pTotal = document.getElementById('pay-total');
+  const pPaid  = document.getElementById('pay-paid');
+  const pSisa  = document.getElementById('pay-sisa');
+
+  const idr = (n) => 'Rp ' + Math.round(Number(n)).toLocaleString('id-ID');
+
+  function openPay(btn) {
+    const total = Number(btn.dataset.payTotal) || 0;
+    const paid  = Number(btn.dataset.payPaid)  || 0;
+    const sisa  = Number(btn.dataset.paySisa)  || 0;
+    pSub.textContent = btn.dataset.payBookingno + ' · ' + btn.dataset.payName;
+    pTotal.textContent = idr(total);
+    pPaid.textContent  = idr(paid);
+    pSisa.textContent  = idr(sisa);
+    pForm.elements.bookingId.value = btn.dataset.payBooking;
+    pForm.elements.amount.value    = sisa > 0 ? sisa : '';
+    pForm.elements.method.value    = 'TRANSFER';
+    pForm.elements.currency.value  = 'IDR';
+    pForm.elements.notes.value     = '';
+    pErr.classList.remove('is-visible');
+    pModal.classList.add('is-open');
+    setTimeout(() => pForm.elements.amount.focus(), 0);
+  }
+  function closePay() { pModal.classList.remove('is-open'); }
+
+  document.querySelectorAll('[data-pay-booking]').forEach((btn) => {
+    if (btn.disabled) return;
+    btn.addEventListener('click', () => openPay(btn));
+  });
+  document.getElementById('pay-cancel').addEventListener('click', closePay);
+  pModal.addEventListener('click', (e) => { if (e.target === pModal) closePay(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePay(); });
+
+  pForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    pErr.classList.remove('is-visible');
+    const fd = new FormData(pForm);
+    const body = {};
+    for (const [k, v] of fd.entries()) if (v !== '') body[k] = v;
+    try {
+      const r = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        pErr.textContent = j?.error?.message || 'Gagal mencatat pembayaran';
+        pErr.classList.add('is-visible');
+        return;
+      }
+      // Preserve current tab + manifest paket in reload URL
+      location.reload();
+    } catch {
+      pErr.textContent = 'Tidak dapat menghubungi server';
+      pErr.classList.add('is-visible');
+    }
+  });
+
+  // ===== Bunking: assign + unassign =====
+  <% if (bunking && bunking.floors.length > 0) { %>
+  const BUNKING_ROOMS = <%- JSON.stringify(bunking.floors.flatMap(function(f) { return f.rooms.map(function(r) { return { id: r.id, roomNo: r.roomNo, kelas: r.kelas, capacity: r.capacity, occupied: r.occupied, slotsLeft: r.slotsLeft, floor: r.floor, wing: r.wing }; }); })) %>;
+
+  const aModal = document.getElementById('assign-modal');
+  const aForm  = document.getElementById('assign-form');
+  const aErr   = document.getElementById('assign-err');
+  const aSub   = document.getElementById('assign-modal-sub');
+  const aRoom  = document.getElementById('af-room');
+
+  function openAssign(btn) {
+    const bookingId = btn.dataset.bookingId;
+    const kelas = btn.dataset.kelas;
+    const pax = Number(btn.dataset.pax);
+    const name = btn.dataset.name;
+    const bookingNo = btn.dataset.bookingNo;
+
+    aSub.textContent = `${bookingNo} · ${name} · ${kelas} · ${pax} PAX`;
+    aForm.elements.bookingId.value = bookingId;
+    aErr.classList.remove('is-visible');
+
+    // Populate dropdown: only rooms with matching kelas + enough slots
+    aRoom.innerHTML = '<option value="">— pilih kamar —</option>';
+    const eligible = BUNKING_ROOMS.filter((r) => r.kelas === kelas && r.slotsLeft >= pax);
+    if (eligible.length === 0) {
+      aRoom.innerHTML = '<option value="">Tidak ada kamar yang cocok</option>';
+    } else {
+      eligible.forEach((r) => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = `${r.roomNo} (lt ${r.floor ?? '—'}${r.wing ? ' · ' + r.wing : ''}) — sisa ${r.slotsLeft}/${r.capacity}`;
+        aRoom.appendChild(opt);
+      });
+    }
+    aModal.classList.add('is-open');
+  }
+
+  function closeAssign() { aModal.classList.remove('is-open'); }
+  document.getElementById('assign-cancel').addEventListener('click', closeAssign);
+  aModal.addEventListener('click', (e) => { if (e.target === aModal) closeAssign(); });
+
+  document.querySelectorAll('[data-assign]').forEach((btn) => {
+    btn.addEventListener('click', () => openAssign(btn.closest('[data-booking-id]')));
+  });
+
+  aForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    aErr.classList.remove('is-visible');
+    const fd = new FormData(aForm);
+    const body = { bookingId: fd.get('bookingId'), roomId: fd.get('roomId') };
+    if (!body.roomId) return;
+    try {
+      const r = await fetch('/api/bunking/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        aErr.textContent = j?.error?.message || 'Gagal assign';
+        aErr.classList.add('is-visible');
+        return;
+      }
+      location.reload();
+    } catch {
+      aErr.textContent = 'Tidak dapat menghubungi server';
+      aErr.classList.add('is-visible');
+    }
+  });
+
+  // Unassign (X button on each slot)
+  document.querySelectorAll('[data-unassign]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('Lepas booking ini dari kamar?')) return;
+      const bookingId = btn.dataset.bookingId;
+      try {
+        const r = await fetch('/api/bunking/unassign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          alert(j?.error?.message || 'Gagal unassign');
+          return;
+        }
+        location.reload();
+      } catch {
+        alert('Tidak dapat menghubungi server');
+      }
+    });
+  });
+  <% } %>
+</script>
+</body>
+</html>

@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — <%= b.bookingNo %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: end; gap: 24px; }
+  .head h1 {
+    font-family: var(--font-display); font-size: 36px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 .id {
+    font-family: var(--font-mono); font-size: 22px;
+    color: var(--gold-300); letter-spacing: 0.04em;
+    margin-right: 12px;
+  }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+  .head .status-tag {
+    padding: 6px 14px; font-family: var(--font-mono); font-size: 12px;
+    border-radius: 4px; letter-spacing: 0.14em; border: 1px solid;
+  }
+  .head .status-tag.pending   { color: var(--amber);   border-color: var(--amber); background: rgba(201,147,59,0.08); }
+  .head .status-tag.booked    { color: var(--sapphire); border-color: var(--sapphire); }
+  .head .status-tag.dp_paid   { color: var(--gold-300); border-color: var(--gold-300); }
+  .head .status-tag.partial   { color: var(--gold-300); border-color: rgba(212,175,55,0.5); }
+  .head .status-tag.lunas     { color: var(--emerald); border-color: var(--emerald); background: rgba(74,143,109,0.08); }
+  .head .status-tag.cancelled { color: var(--ruby);    border-color: var(--ruby);     background: rgba(181,86,74,0.08); }
+  .head .status-tag.refunded  { color: var(--ruby);    border-color: var(--ruby); }
+
+  .ok-banner, .err-banner {
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px;
+    margin-bottom: 20px;
+  }
+  .ok-banner { background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4); color: var(--emerald); }
+  .err-banner { background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4); color: var(--ruby); }
+
+  .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 24px;
+    margin-bottom: 18px;
+  }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 20px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 16px;
+    padding-bottom: 12px; border-bottom: var(--hairline-soft);
+  }
+  .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .info-item .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .info-item .v { font-family: var(--font-mono); font-size: 13px; color: var(--cream-100); margin-top: 4px; word-break: break-word; }
+  .info-item .v.gold { color: var(--gold-300); }
+  .info-item .v a { color: var(--gold-300); text-decoration: none; }
+  .info-item .v a:hover { text-decoration: underline; }
+
+  .money-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+    margin: 18px 0; padding: 18px;
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+  }
+  .money-row .cell { text-align: center; }
+  .money-row .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .money-row .v { font-family: var(--font-display); font-size: 24px; color: var(--cream-100); margin-top: 6px; font-weight: 500; }
+  .money-row .v.gold { color: var(--gold-300); }
+  .money-row .v.emerald { color: var(--emerald); }
+  .money-row .v.ruby { color: var(--ruby); }
+
+  .progress-bar {
+    height: 8px; background: var(--ink-700); border-radius: 4px; overflow: hidden;
+    margin-top: 12px;
+  }
+  .progress-bar > i { display: block; height: 100%; background: var(--gold-300); }
+  .progress-bar > i.full { background: var(--emerald); }
+
+  .tbl { width: 100%; border-collapse: collapse; }
+  .tbl thead th {
+    text-align: left; padding: 10px 12px;
+    background: var(--ink-1000);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-200); font-weight: 500;
+    border-bottom: var(--hairline);
+  }
+  .tbl tbody td {
+    padding: 10px 12px; border-bottom: var(--hairline-soft);
+    font-size: 13px; color: var(--cream-200);
+  }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl .num { text-align: right; font-family: var(--font-mono); }
+  .tbl .amt.gold { color: var(--gold-300); }
+  .tbl .id { font-family: var(--font-mono); color: var(--gold-300); font-size: 11px; }
+
+  /* Timeline */
+  .timeline { padding-left: 4px; }
+  .timeline__row {
+    padding: 10px 0;
+    border-left: 1px dashed var(--ink-500);
+    padding-left: 16px; margin-left: 8px;
+    position: relative;
+  }
+  .timeline__row::before {
+    content: '';
+    position: absolute; left: -5px; top: 16px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--gold-300); border: 2px solid var(--ink-1000);
+  }
+  .timeline__row.action-create::before  { background: var(--emerald); }
+  .timeline__row.action-update::before  { background: var(--gold-300); }
+  .timeline__row.action-status_change::before { background: var(--amber); }
+  .timeline__row.action-payment_received::before { background: var(--emerald); }
+  .timeline__row.action-delete::before  { background: var(--ruby); }
+  .timeline__row .t { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .timeline__row .a {
+    margin-top: 4px; font-family: var(--font-mono); font-size: 11px;
+    color: var(--cream-100); letter-spacing: 0.06em;
+  }
+  .timeline__row .who { color: var(--gold-300); }
+  .timeline__row .snap { font-size: 11px; color: var(--ink-100); margin-top: 4px; word-break: break-word; }
+
+  /* Actions panel */
+  .actions-panel { display: flex; flex-direction: column; gap: 12px; }
+  .actions-panel button, .actions-panel a {
+    width: 100%; padding: 14px 18px;
+    background: var(--ink-1000); border: var(--hairline-soft);
+    color: var(--cream-100); cursor: pointer;
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    text-decoration: none; text-align: left; display: block;
+  }
+  .actions-panel button:hover, .actions-panel a:hover { border-color: var(--gold-300); color: var(--gold-300); }
+  .actions-panel button.danger { color: var(--ruby); border-color: rgba(181,86,74,0.4); }
+  .actions-panel button.danger:hover { color: var(--ruby); border-color: var(--ruby); background: rgba(181,86,74,0.08); }
+  .actions-panel button.primary {
+    background: var(--gold-300); color: var(--ink-1000);
+    border-color: var(--gold-300); font-weight: 600;
+  }
+  .actions-panel button.primary:hover { background: var(--gold-200); }
+
+  /* Modal (Pay + Cancel) */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(10,9,8,0.75); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.is-open { display: flex; }
+  .modal {
+    background: var(--ink-900); border: var(--hairline-gold);
+    border-radius: var(--r-md); padding: 32px;
+    width: 100%; max-width: 480px;
+  }
+  .modal h2 {
+    font-family: var(--font-display); font-size: 22px;
+    color: var(--cream-100); margin: 0 0 6px; font-weight: 500;
+  }
+  .modal .sub-m {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-bottom: 18px;
+  }
+  .modal .field { margin-bottom: 14px; }
+  .modal .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+  .modal select.input { background-color: var(--ink-1000); color: var(--cream-100); }
+  .modal .err-m {
+    background: rgba(176,68,68,0.08);
+    border: 1px solid rgba(176,68,68,0.4);
+    color: var(--ruby);
+    padding: 10px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    margin-bottom: 14px; display: none;
+  }
+  .modal .err-m.is-visible { display: block; }
+
+  /* Inline notes form */
+  .notes-form { margin-top: 6px; }
+  .notes-form textarea {
+    width: 100%; min-height: 50px;
+    font-family: inherit; font-size: 13px;
+    color: var(--cream-100);
+    background: var(--ink-1000);
+    border: var(--hairline-soft); border-radius: var(--r-sm);
+    padding: 8px 12px;
+    resize: vertical;
+  }
+  .notes-form__actions {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 6px;
+  }
+  .notes-form__hint {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--ink-300); letter-spacing: 0.06em;
+  }
+  .notes-form__save {
+    background: transparent; border: 1px solid var(--gold-300);
+    color: var(--gold-300);
+    padding: 5px 14px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.12em; cursor: pointer; text-transform: uppercase;
+  }
+  .notes-form__save:hover { background: rgba(212,175,55,0.08); }
+
+  .cancel-note {
+    background: rgba(181,86,74,0.08); border: 1px solid rgba(181,86,74,0.3);
+    color: var(--ruby);
+    padding: 10px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    margin-bottom: 14px; line-height: 1.6;
+  }
+
+  @media (max-width: 1000px) { .grid-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body data-screen-label="02 Admin · Booking Detail">
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="/admin?tab=manifest&manifestPaket=<%= b.paket.slug %>">← KEMBALI KE MANIFEST</a>
+  </div>
+
+  <script>
+    (function () {
+      const u = new URL(location.href);
+      const ok = u.searchParams.get('ok');
+      const err = u.searchParams.get('err');
+      const banners = { cancelled: 'Booking dibatalkan.', notes: 'Catatan tersimpan.', transferred: 'Booking di-transfer ke agen baru.', created: 'Booking baru berhasil dibuat.', intent_cancelled: 'Payment intent di-cancel.' };
+      if (ok && banners[ok]) {
+        const el = document.createElement('div');
+        el.className = 'ok-banner';
+        el.textContent = banners[ok];
+        document.querySelector('.head').after(el);
+      }
+      if (err) {
+        const el = document.createElement('div');
+        el.className = 'err-banner';
+        el.textContent = decodeURIComponent(err);
+        document.querySelector('.head').after(el);
+      }
+    })();
+  </script>
+
+  <div class="head">
+    <div>
+      <h1>
+        <span class="id"><%= b.bookingNo %></span>
+        <em style="color:var(--gold-300);font-style:italic;"><%= b.paket.title %></em>
+      </h1>
+      <div class="sub">
+        DEP <%= fmt.dateLong(b.paket.departureDate) %> ·
+        Dibuat <%= fmt.dateLong(b.createdAt) %>
+      </div>
+    </div>
+    <div>
+      <span class="status-tag <%= b.status.toLowerCase() %>"><%= b.status %></span>
+    </div>
+  </div>
+
+  <%
+    const total = Number(b.totalAmount?.toString?.() ?? b.totalAmount) || 0;
+    const paid  = Number(b.paidAmount?.toString?.()  ?? b.paidAmount)  || 0;
+    const sisa  = Math.max(0, total - paid);
+    const pct   = total > 0 ? Math.round((paid / total) * 100) : 0;
+  %>
+
+  <div class="grid-2">
+    <div>
+      <% if (b.cancelRequested) { %>
+        <div style="background:rgba(201,147,59,0.08);border:1px solid var(--amber);color:var(--cream-100);padding:14px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;line-height:1.7;margin-bottom:18px;">
+          <strong style="color:var(--amber);">PERMINTAAN PEMBATALAN DARI JEMAAH</strong> · <%= fmt.dateLong(b.cancelRequestedAt) %><br>
+          Alasan: <em style="color:var(--cream-200);"><%= b.cancelRequestReason %></em><br>
+          <span style="color:var(--ink-200);">Konfirmasi dengan jemaah via WhatsApp, lalu klik "× CANCEL BOOKING" di kanan untuk memproses.</span>
+        </div>
+      <% } %>
+
+      <!-- Info -->
+      <div class="panel">
+        <h3>Info booking</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="l">Jemaah</div>
+            <div class="v gold">
+              <a href="/admin/jemaah/<%= b.jemaahId %>/edit"><%= b.jemaah.fullName %></a>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="l">Telepon</div>
+            <div class="v"><%= b.jemaah.phone %></div>
+          </div>
+          <div class="info-item">
+            <div class="l">Kelas</div>
+            <div class="v"><%= b.kelas %> · <%= b.paxCount %> PAX</div>
+          </div>
+          <div class="info-item">
+            <div class="l">Agen</div>
+            <div class="v">
+              <% if (b.agent) { %>
+                <%= b.agent.displayName %> <span style="color:var(--ink-200);">(<%= b.agent.slug %>)</span>
+              <% } else if (b.agentSlugCap) { %>
+                — slug <%= b.agentSlugCap %> tidak resolve —
+              <% } else { %>
+                — Kantor Pusat —
+              <% } %>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="l">Kamar</div>
+            <div class="v">
+              <% if (b.room) { %>
+                <span class="gold"><%= b.room.roomNo %></span>
+                · Lt <%= b.room.floor ?? '—' %><% if (b.room.wing) { %> · <%= b.room.wing %><% } %>
+              <% } else { %>
+                <span style="color:var(--ink-300);">— belum di-assign —</span>
+              <% } %>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="l">Booking fee</div>
+            <div class="v"><%= b.bookingFeeAt ? fmt.date(b.bookingFeeAt) : '—' %></div>
+          </div>
+          <% if (b.cancelledAt) { %>
+            <div class="info-item" style="grid-column: 1/-1;">
+              <div class="l">Dibatalkan</div>
+              <div class="v" style="color:var(--ruby);">
+                <%= fmt.dateLong(b.cancelledAt) %>
+                <% if (b.cancelReason) { %> — <%= b.cancelReason %><% } %>
+              </div>
+            </div>
+          <% } %>
+          <div class="info-item" style="grid-column: 1/-1;">
+            <div class="l">Catatan</div>
+            <% if (canEditNotes) { %>
+              <form method="POST" action="/admin/bookings/<%= b.id %>/notes" class="notes-form">
+                <textarea name="notes" class="input" maxlength="2000" rows="2"
+                          placeholder="Catatan internal — mis. preferensi makanan, kontak alternatif, dst."><%= b.notes || '' %></textarea>
+                <div class="notes-form__actions">
+                  <span class="notes-form__hint">max 2000 karakter · simpan untuk audit</span>
+                  <button type="submit" class="notes-form__save">SIMPAN</button>
+                </div>
+              </form>
+            <% } else { %>
+              <div class="v"><%= b.notes || '— tidak ada —' %></div>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="money-row">
+          <div class="cell">
+            <div class="l">Total</div>
+            <div class="v"><%= fmt.rpShort(total) %></div>
+          </div>
+          <div class="cell">
+            <div class="l">Sudah dibayar</div>
+            <div class="v <%= paid >= total && total > 0 ? 'emerald' : 'gold' %>"><%= fmt.rpShort(paid) %></div>
+          </div>
+          <div class="cell">
+            <div class="l">Sisa</div>
+            <div class="v <%= sisa === 0 ? 'emerald' : 'ruby' %>"><%= fmt.rpShort(sisa) %></div>
+          </div>
+        </div>
+        <div class="progress-bar"><i class="<%= pct >= 100 ? 'full' : '' %>" style="width:<%= Math.min(100, pct) %>%;"></i></div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin-top:6px;text-align:right;letter-spacing:0.08em;">
+          <%= pct %>% PAID
+        </div>
+      </div>
+
+      <!-- Payments -->
+      <div class="panel">
+        <h3>Riwayat pembayaran (<%= b.payments.length %>)</h3>
+        <% if (b.payments.length === 0) { %>
+          <div style="text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);padding:24px 0;">Belum ada pembayaran.</div>
+        <% } else { %>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Metode</th>
+                <th>Ref / VA</th>
+                <th>Status</th>
+                <th class="num">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% b.payments.forEach(function(p) { %>
+                <% const pAmt = Number(p.amount?.toString?.() ?? p.amount) || 0; const isRefund = pAmt < 0; %>
+                <tr>
+                  <td>
+                    <div style="color:var(--cream-100);"><%= fmt.date(p.paidAt || p.createdAt) %></div>
+                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);"><%= new Date(p.paidAt || p.createdAt).toISOString().slice(11,16) %></div>
+                  </td>
+                  <td><span class="badge"><%= p.method %></span></td>
+                  <td style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">
+                    <%= p.gatewayRef || p.vaNumber || (isRefund && p.notes ? p.notes.slice(0, 40) : '—') %>
+                  </td>
+                  <td>
+                    <% const cls = p.status === 'PAID' ? 'badge--emerald' : (p.status === 'FAILED' ? 'badge--ruby' : (p.status === 'REFUNDED' ? 'badge--ruby' : 'badge--amber')); %>
+                    <span class="badge <%= cls %>"><%= p.status %></span>
+                  </td>
+                  <td class="num amt" style="<%= isRefund ? 'color:var(--ruby);' : 'color:var(--gold-300);' %>">
+                    <% if (p.currency === 'IDR') { %><%= isRefund ? '−' : '' %><%= fmt.rpFull(Math.abs(pAmt)) %><% } else { %><%= isRefund ? '−' : '' %><%= Math.abs(pAmt).toLocaleString('en-US') %> <%= p.currency %><% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+
+      <!-- 5qq: Payment intents (online gateway history) -->
+      <% if (paymentIntents && paymentIntents.length > 0) { %>
+        <div class="panel">
+          <h3>Payment Intents (<%= paymentIntents.length %>)</h3>
+          <p style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin:0 0 14px;letter-spacing:0.06em;">
+            Online payment attempts via Midtrans. SETTLED rows link to the matching Payment.
+          </p>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Order ID</th>
+                <th>Status</th>
+                <th>Gateway</th>
+                <th class="num">Jumlah</th>
+                <th style="text-align:right;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% paymentIntents.forEach(function(it) { %>
+                <%
+                  const stCls = it.status === 'SETTLED' ? 'badge--emerald'
+                              : it.status === 'PENDING' ? 'badge--amber'
+                              : it.status === 'CREATED' ? 'badge--gold'
+                              : 'badge--ruby';
+                  const itAmt = Number(it.amount?.toString?.() ?? it.amount) || 0;
+                %>
+                <tr>
+                  <td>
+                    <div style="color:var(--cream-100);"><%= fmt.date(it.createdAt) %></div>
+                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);"><%= new Date(it.createdAt).toISOString().slice(11,16) %></div>
+                  </td>
+                  <td style="font-family:var(--font-mono);font-size:10.5px;color:var(--gold-300);"><%= it.orderId %></td>
+                  <td>
+                    <span class="badge <%= stCls %>"><%= it.status %></span>
+                    <% if (it.paymentId) { %>
+                      <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);margin-top:4px;">→ payment <%= it.paymentId.slice(-8) %></div>
+                    <% } %>
+                  </td>
+                  <td style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);">
+                    <%= it.gatewayStatus || '—' %>
+                  </td>
+                  <td class="num amt gold"><%= fmt.rpFull(itAmt) %></td>
+                  <td style="text-align:right;">
+                    <% if (canCancelIntent && (it.status === 'CREATED' || it.status === 'PENDING')) { %>
+                      <form method="POST" action="/admin/bookings/<%= b.id %>/intents/<%= it.id %>/cancel"
+                            style="display:inline;margin:0;"
+                            onsubmit="return confirm('Cancel intent ini? (Hanya gunakan kalau Snap session dead + Midtrans tidak kirim webhook)');">
+                        <button type="submit" style="background:transparent;border:1px solid rgba(181,86,74,0.5);color:var(--ruby);padding:4px 10px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;cursor:pointer;text-transform:uppercase;">CANCEL</button>
+                      </form>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+
+      <!-- Komisi -->
+      <% if (b.komisi.length > 0) { %>
+        <div class="panel">
+          <h3>Komisi (<%= b.komisi.length %>)</h3>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Status</th>
+                <th>Earned</th>
+                <th>Paid</th>
+                <th class="num">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% b.komisi.forEach(function(k) { %>
+                <tr>
+                  <td><%= fmt.date(k.createdAt) %></td>
+                  <td>
+                    <% const cls = k.status === 'EARNED' ? 'badge--gold' : (k.status === 'PAID' ? 'badge--emerald' : (k.status === 'CANCELLED' ? 'badge--ruby' : 'badge--amber')); %>
+                    <span class="badge <%= cls %>"><%= k.status %></span>
+                  </td>
+                  <td style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);"><%= k.earnedAt ? fmt.date(k.earnedAt) : '—' %></td>
+                  <td style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);"><%= k.paidAt ? fmt.date(k.paidAt) : '—' %></td>
+                  <td class="num amt gold"><%= fmt.rpFull(k.amount) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+    <div>
+      <!-- Actions -->
+      <div class="panel">
+        <h3>Aksi</h3>
+        <div class="actions-panel">
+          <% if (sisa > 0 && b.status !== 'CANCELLED' && b.status !== 'REFUNDED') { %>
+            <button type="button" class="primary" id="open-pay">+ CATAT PEMBAYARAN</button>
+          <% } %>
+          <% if (canTransfer) { %>
+            <button type="button" id="open-transfer">↪ TRANSFER AGEN</button>
+          <% } %>
+          <% if (canCancel) { %>
+            <button type="button" class="danger" id="open-cancel">× CANCEL BOOKING</button>
+          <% } %>
+          <% if (canRefund) { %>
+            <button type="button" class="danger" id="open-refund">↩ ISSUE REFUND</button>
+          <% } %>
+          <a href="/admin?tab=manifest&manifestPaket=<%= b.paket.slug %>">KE MANIFEST</a>
+          <a href="/admin?tab=bunking&bunkingPaket=<%= b.paket.slug %>">KE BUNKING</a>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="panel">
+        <h3>Timeline (<%= b.history.length %>)</h3>
+        <% if (b.history.length === 0) { %>
+          <div style="text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);padding:18px 0;">Tidak ada riwayat audit.</div>
+        <% } %>
+        <div class="timeline">
+          <% b.history.forEach(function(h) { %>
+            <div class="timeline__row action-<%= h.action.toLowerCase() %>">
+              <div class="t"><%= fmt.date(h.createdAt) %> · <%= new Date(h.createdAt).toISOString().slice(11,16) %></div>
+              <div class="a">
+                <%= h.action %>
+                <% if (h.actorEmail) { %> · <span class="who"><%= h.actorEmail %></span><% } %>
+              </div>
+              <% if (h.after && Object.keys(h.after).length) { %>
+                <%
+                  // Render a compact summary of the change
+                  const after = h.after;
+                  const parts = [];
+                  if (after.status) parts.push('status=' + after.status);
+                  if (after.paidAmount != null) parts.push('paid=' + (after.paidAmount).toLocaleString('id-ID'));
+                  if (after.method) parts.push(after.method);
+                  if (after.roomNo) parts.push('kamar=' + after.roomNo);
+                  if (after.cancelReason) parts.push('reason=' + after.cancelReason);
+                  if (after.bookingNo) parts.push('no=' + after.bookingNo);
+                %>
+                <% if (parts.length) { %>
+                  <div class="snap"><%= parts.join(' · ') %></div>
+                <% } %>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Transfer agen modal -->
+<% if (canTransfer) { %>
+<div class="modal-overlay" id="transfer-modal" aria-hidden="true">
+  <div class="modal">
+    <h2>Transfer Agen</h2>
+    <div class="sub-m">
+      <%= b.bookingNo %> · saat ini:
+      <% if (b.agent) { %><strong style="color:var(--gold-300);"><%= b.agent.displayName %></strong> (<%= b.agent.slug %>)<% } else { %>— Kantor Pusat —<% } %>
+    </div>
+
+    <div class="cancel-note" style="color:var(--ink-100);border-color:rgba(212,175,55,0.3);background:rgba(212,175,55,0.05);">
+      <strong style="color:var(--gold-300);">CATATAN:</strong><br>
+      • <code>agentSlugCap</code> (URL asal) <strong>tidak diubah</strong> — historical trail aman<br>
+      • Komisi PENDING ikut agen baru (atau dihapus kalau ke Kantor Pusat)<br>
+      • Komisi EARNED tetap di agen asal kecuali kamu centang opsi di bawah<br>
+      • Komisi PAID/CANCELLED tidak disentuh
+    </div>
+
+    <form method="POST" action="/admin/bookings/<%= b.id %>/transfer-agent">
+      <div class="field">
+        <label class="label" for="tf-to">Pindahkan ke *</label>
+        <select class="input" name="toAgentId" id="tf-to" required>
+          <option value="">— Kantor Pusat (hapus agen) —</option>
+          <% agents.forEach(function(a) { %>
+            <option value="<%= a.id %>" <%= b.agentId === a.id ? 'disabled' : '' %>>
+              <%= a.displayName %> (slug: <%= a.slug %>)<%= b.agentId === a.id ? ' — agen saat ini' : '' %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label" for="tf-reason">Alasan transfer *</label>
+        <textarea class="input" id="tf-reason" name="reason" required minlength="3" maxlength="2000" rows="3"
+                  placeholder="Mis. agen asal resign, permintaan jemaah, dll."></textarea>
+      </div>
+
+      <div class="field" style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" name="includeEarnedKomisi" id="tf-earn" style="accent-color:var(--gold-300);">
+        <label for="tf-earn" style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.06em;cursor:pointer;">
+          Transfer juga komisi EARNED yang belum dibayar (default: tetap di agen asal)
+        </label>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" id="transfer-close">Batal</button>
+        <button type="submit" class="btn btn--primary">Konfirmasi Transfer</button>
+      </div>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<!-- Refund modal -->
+<% if (canRefund) { %>
+<div class="modal-overlay" id="refund-modal" aria-hidden="true">
+  <div class="modal">
+    <h2>Issue Refund</h2>
+    <div class="sub-m"><%= b.bookingNo %> · <%= b.jemaah.fullName %> · sisa paid <%= fmt.rpFull(paid) %></div>
+
+    <div class="cancel-note">
+      <strong>HEADS UP:</strong><br>
+      • Membuat Payment baru dengan jumlah negatif (status REFUNDED)<br>
+      • paidAmount booking berkurang sesuai jumlah refund<br>
+      • Refund penuh (sisa = 0) → status booking jadi REFUNDED (terminal)<br>
+      • Refund partial tetap CANCELLED — bisa di-refund berulang sampai paid = 0
+    </div>
+
+    <div class="err-m" id="refund-err"></div>
+
+    <form id="refund-form">
+      <input type="hidden" name="bookingId" value="<%= b.id %>">
+
+      <div class="field">
+        <label class="label" for="rf-amount">Jumlah refund (Rp) *</label>
+        <input class="input" type="number" name="amount" id="rf-amount" required min="1" max="<%= paid %>" step="1" value="<%= paid %>">
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:6px;">
+          Max <%= fmt.rpFull(paid) %>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="rf-method">Metode *</label>
+        <select class="input" name="method" id="rf-method" required>
+          <option value="TRANSFER">Transfer Bank</option>
+          <option value="CASH">Cash</option>
+          <option value="VA">Virtual Account</option>
+          <option value="QRIS">QRIS</option>
+          <option value="EWALLET">E-Wallet</option>
+          <option value="CARD">Reverse Kartu Kredit</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label" for="rf-reason">Alasan refund *</label>
+        <textarea class="input" id="rf-reason" name="reason" required minlength="3" maxlength="2000" rows="3" placeholder="Mis. nasabah minta refund, biaya admin dipotong 10%, dll."></textarea>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" id="refund-close">Batal</button>
+        <button type="submit" class="btn btn--danger">Konfirmasi Refund</button>
+      </div>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<!-- Cancel modal -->
+<% if (canCancel) { %>
+<div class="modal-overlay" id="cancel-modal" aria-hidden="true">
+  <div class="modal">
+    <h2>Cancel Booking</h2>
+    <div class="sub-m"><%= b.bookingNo %> · <%= b.jemaah.fullName %></div>
+
+    <div class="cancel-note">
+      <strong>HEADS UP:</strong><br>
+      • Booking jadi status CANCELLED + alasan dicatat<br>
+      • Kursi (<%= b.paxCount %> pax) dilepas kembali ke kuota paket<br>
+      • Jika ada room assignment, di-unassign<br>
+      • Komisi EARNED di-cancel (PAID tetap)<br>
+      • Pembayaran TIDAK di-refund (gunakan flow refund terpisah)
+    </div>
+
+    <form id="cancel-form" method="POST" action="/admin/bookings/<%= b.id %>/cancel">
+      <div class="field">
+        <label class="label" for="cf-reason">Alasan pembatalan *</label>
+        <textarea class="input" id="cf-reason" name="reason" required minlength="3" maxlength="2000" rows="3" placeholder="Mis. permintaan jemaah, masalah dokumen, dll."></textarea>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" id="cancel-close">Batal</button>
+        <button type="submit" class="btn btn--danger">Konfirmasi Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<script>
+  // Pay modal — for the booking detail page we redirect to manifest tab + open Pay there.
+  // Simplest: open the existing Pay modal in the admin dashboard via querystring trick? For now, just navigate.
+  const payBtn = document.getElementById('open-pay');
+  if (payBtn) {
+    payBtn.addEventListener('click', () => {
+      // Trigger the admin manifest tab where Pay modal lives
+      location.href = '/admin?tab=manifest&manifestPaket=<%= b.paket.slug %>#pay-<%= b.id %>';
+    });
+  }
+
+  const cancelBtn = document.getElementById('open-cancel');
+  const cancelModal = document.getElementById('cancel-modal');
+  const cancelClose = document.getElementById('cancel-close');
+  if (cancelBtn && cancelModal) {
+    cancelBtn.addEventListener('click', () => {
+      cancelModal.classList.add('is-open');
+      setTimeout(() => document.getElementById('cf-reason').focus(), 0);
+    });
+    cancelClose.addEventListener('click', () => cancelModal.classList.remove('is-open'));
+    cancelModal.addEventListener('click', (e) => {
+      if (e.target === cancelModal) cancelModal.classList.remove('is-open');
+    });
+  }
+
+  // Refund modal
+  const refundBtn = document.getElementById('open-refund');
+  const refundModal = document.getElementById('refund-modal');
+  const refundClose = document.getElementById('refund-close');
+  const refundForm = document.getElementById('refund-form');
+  const refundErr = document.getElementById('refund-err');
+  if (refundBtn && refundModal) {
+    refundBtn.addEventListener('click', () => {
+      refundErr.classList.remove('is-visible');
+      refundModal.classList.add('is-open');
+      setTimeout(() => document.getElementById('rf-reason').focus(), 0);
+    });
+    refundClose.addEventListener('click', () => refundModal.classList.remove('is-open'));
+    refundModal.addEventListener('click', (e) => {
+      if (e.target === refundModal) refundModal.classList.remove('is-open');
+    });
+
+    refundForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      refundErr.classList.remove('is-visible');
+      const fd = new FormData(refundForm);
+      const body = {};
+      for (const [k, v] of fd.entries()) if (v !== '') body[k] = v;
+      try {
+        const r = await fetch('/api/refunds', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          refundErr.textContent = j?.error?.message || 'Gagal issue refund';
+          refundErr.classList.add('is-visible');
+          return;
+        }
+        location.reload();
+      } catch {
+        refundErr.textContent = 'Tidak dapat menghubungi server';
+        refundErr.classList.add('is-visible');
+      }
+    });
+  }
+
+  // Transfer modal
+  const transferBtn = document.getElementById('open-transfer');
+  const transferModal = document.getElementById('transfer-modal');
+  const transferClose = document.getElementById('transfer-close');
+  if (transferBtn && transferModal) {
+    transferBtn.addEventListener('click', () => {
+      transferModal.classList.add('is-open');
+      setTimeout(() => document.getElementById('tf-to').focus(), 0);
+    });
+    transferClose.addEventListener('click', () => transferModal.classList.remove('is-open'));
+    transferModal.addEventListener('click', (e) => {
+      if (e.target === transferModal) transferModal.classList.remove('is-open');
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (cancelModal) cancelModal.classList.remove('is-open');
+      if (refundModal) refundModal.classList.remove('is-open');
+      if (transferModal) transferModal.classList.remove('is-open');
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — <%= p.payoutNo %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+
+  .head { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: end; }
+  .head h1 { font-family: var(--font-display); font-size: 36px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .id { font-family: var(--font-mono); font-size: 22px; color: var(--gold-300); letter-spacing: 0.04em; }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px; }
+
+  .ok-banner { background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4); color: var(--emerald); padding: 12px 16px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; margin-bottom: 20px; }
+
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 24px; margin-bottom: 18px; }
+  .panel h3 { font-family: var(--font-display); font-size: 20px; color: var(--cream-100); margin: 0 0 16px; padding-bottom: 12px; border-bottom: var(--hairline-soft); }
+
+  .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .info-item .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .info-item .v { font-family: var(--font-mono); font-size: 13px; color: var(--cream-100); margin-top: 4px; word-break: break-word; }
+  .info-item .v.gold { color: var(--gold-300); }
+  .info-item .v.large { font-family: var(--font-display); font-size: 28px; color: var(--emerald); font-weight: 500; margin-top: 6px; }
+
+  .tbl { width: 100%; border-collapse: collapse; }
+  .tbl thead th { text-align: left; padding: 10px 12px; background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); font-weight: 500; border-bottom: var(--hairline); }
+  .tbl tbody td { padding: 11px 12px; border-bottom: var(--hairline-soft); font-size: 13px; color: var(--cream-200); }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl .num { text-align: right; font-family: var(--font-mono); }
+  .tbl .amt.gold { color: var(--gold-300); }
+  .tbl .id { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); }
+  .tbl .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); }
+  .tbl a { color: inherit; text-decoration: none; }
+</style>
+</head>
+<body data-screen-label="02 Admin · Payout Detail">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/admin/payouts">← KEMBALI KE PAYOUTS</a>
+  </div>
+
+  <script>
+    (function () {
+      const u = new URL(location.href);
+      if (u.searchParams.get('ok') === 'created') {
+        const el = document.createElement('div');
+        el.className = 'ok-banner';
+        el.textContent = 'Payout berhasil dibuat. Semua komisi EARNED untuk agen ini sudah jadi PAID.';
+        document.querySelector('.crumb').after(el);
+      }
+    })();
+  </script>
+
+  <div class="head">
+    <div>
+      <h1>
+        <span class="id"><%= p.payoutNo %></span>
+        <em>· <%= p.agent.displayName %></em>
+      </h1>
+      <div class="sub">Dibayarkan <%= fmt.dateLong(p.paidAt) %> · oleh <%= p.paidBy?.email || '—' %></div>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="panel">
+    <h3>Ringkasan</h3>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="l">Total dibayar</div>
+        <div class="v large"><%= fmt.rpFull(p.amount) %></div>
+      </div>
+      <div class="info-item">
+        <div class="l">Metode</div>
+        <div class="v gold"><%= p.method %></div>
+      </div>
+      <div class="info-item">
+        <div class="l">Nomor referensi</div>
+        <div class="v"><%= p.reference || '—' %></div>
+      </div>
+      <div class="info-item">
+        <div class="l">Agen</div>
+        <div class="v gold"><%= p.agent.displayName %> (<%= p.agent.slug %>)</div>
+      </div>
+      <div class="info-item">
+        <div class="l">WhatsApp</div>
+        <div class="v"><%= p.agent.whatsapp || '—' %></div>
+      </div>
+      <div class="info-item">
+        <div class="l">Jumlah komisi</div>
+        <div class="v"><%= p.komisi.length %> baris</div>
+      </div>
+    </div>
+    <% if (p.notes) { %>
+      <div style="margin-top:18px;padding-top:14px;border-top:var(--hairline-soft);">
+        <div class="l" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;">Catatan</div>
+        <div style="font-family:var(--font-mono);font-size:13px;color:var(--cream-200);margin-top:6px;line-height:1.7;"><%= p.notes %></div>
+      </div>
+    <% } %>
+  </div>
+
+  <!-- Komisi rows -->
+  <div class="panel">
+    <h3>Detail komisi (<%= p.komisi.length %>)</h3>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Booking</th>
+          <th>Jemaah</th>
+          <th>Paket</th>
+          <th class="num">Jumlah</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% p.komisi.forEach(function(k) { %>
+          <tr>
+            <td>
+              <a href="/admin/bookings/<%= k.bookingId %>" class="id"><%= k.booking.bookingNo %></a>
+            </td>
+            <td>
+              <div class="nm"><%= k.booking.jemaah.fullName %></div>
+            </td>
+            <td>
+              <div class="sx" style="color:var(--cream-200);"><%= k.booking.paket.title %></div>
+            </td>
+            <td class="num amt gold"><%= fmt.rpFull(k.amount) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

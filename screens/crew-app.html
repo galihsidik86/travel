@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — Crew &amp; Muthawwif App</title>
+<link rel="stylesheet" href="../shared/tokens.css">
+<style>
+  body { min-height: 100vh; }
+
+  /* Stage layout */
+  .stage {
+    min-height: 100vh;
+    padding: 56px 48px 120px;
+    background:
+      radial-gradient(60% 50% at 20% 0%, rgba(212,175,55,0.05), transparent 60%),
+      radial-gradient(50% 50% at 90% 90%, rgba(181,86,74,0.04), transparent 60%),
+      var(--ink-950);
+  }
+
+  .stage__top {
+    max-width: 1640px;
+    margin: 0 auto 64px;
+    display: flex; align-items: end; justify-content: space-between;
+    padding-bottom: 32px;
+    border-bottom: var(--hairline-soft);
+  }
+  .stage__top h1 {
+    font-family: var(--font-display);
+    font-size: 64px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--cream-100);
+    letter-spacing: -0.02em;
+    margin: 14px 0 0;
+  }
+  .stage__top h1 em { font-style: italic; color: var(--gold-300); }
+  .stage__top .meta { text-align: right; color: var(--ink-100); font-size: 13.5px; max-width: 320px; line-height: 1.55; }
+
+  /* phones rail */
+  .phones {
+    max-width: 1840px;
+    margin: 0 auto;
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    overflow-x: auto;
+    padding-bottom: 32px;
+  }
+
+  /* phone */
+  .phone-cell { width: 360px; flex-shrink: 0; }
+  .phone-cell__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold-300);
+    margin-bottom: 6px;
+  }
+  .phone-cell__name {
+    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--cream-100);
+    margin: 0 0 4px;
+    font-weight: 500;
+  }
+  .phone-cell__desc { font-size: 12.5px; color: var(--ink-200); margin-bottom: 24px; line-height: 1.45; }
+
+  .phone {
+    width: 360px; height: 760px;
+    background: var(--ink-950);
+    border-radius: 44px;
+    border: 10px solid #1A1815;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 32px 80px -32px rgba(0,0,0,0.8), inset 0 0 0 1px #2A2620;
+  }
+  .phone__notch {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    width: 100px; height: 28px;
+    background: #050403;
+    border-radius: 14px;
+    z-index: 10;
+  }
+  .phone__screen {
+    width: 100%; height: 100%;
+    padding-top: 48px;
+    overflow-y: auto;
+    background: var(--ink-1000);
+    display: flex; flex-direction: column;
+  }
+
+  /* status bar */
+  .sbar {
+    position: absolute; top: 12px; left: 0; right: 0;
+    z-index: 11;
+    display: flex; justify-content: space-between;
+    padding: 0 28px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--cream-200);
+    letter-spacing: 0.04em;
+  }
+
+  /* Header */
+  .ph-head { padding: 16px 18px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: var(--hairline-soft); }
+  .ph-head__title { display: flex; align-items: center; gap: 10px; }
+  .ph-head__title .av {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--ink-800);
+    border: 1px solid var(--gold-300);
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--gold-300);
+  }
+  .ph-head__title .nm { font-family: var(--font-display); font-size: 15px; color: var(--cream-100); line-height: 1; }
+  .ph-head__title .role { font-family: var(--font-mono); font-size: 9px; color: var(--gold-300); letter-spacing: 0.14em; margin-top: 2px; }
+  .ph-head__signal { font-family: var(--font-mono); font-size: 9.5px; color: var(--emerald); letter-spacing: 0.1em; display: flex; align-items: center; gap: 4px; }
+  .ph-head__signal::before { content: ""; width: 6px; height: 6px; background: var(--emerald); border-radius: 50%; }
+
+  /* Bottom nav */
+  .ph-nav {
+    margin-top: auto;
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    border-top: var(--hairline-soft);
+    background: var(--ink-1000);
+    padding: 10px 6px 12px;
+  }
+  .ph-nav button {
+    background: none; border: 0; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--ink-300);
+    padding: 6px 4px;
+    font-family: var(--font-mono);
+    font-size: 9px; letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .ph-nav button.is-active { color: var(--gold-300); }
+  .ph-nav button svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+
+  /* Common content blocks */
+  .ph-body { padding: 18px; display: flex; flex-direction: column; gap: 14px; flex: 1; overflow-y: auto; }
+  .ph-eyebrow { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-300); }
+  .ph-title { font-family: var(--font-display); font-size: 26px; line-height: 1.1; color: var(--cream-100); font-weight: 500; letter-spacing: -0.01em; margin: 6px 0 0; }
+  .ph-card { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 16px; }
+  .ph-card--gold { border-color: rgba(212,175,55,0.4); }
+  .ph-card--sos { background: linear-gradient(135deg, var(--ruby-soft), var(--ink-1000)); border-color: var(--ruby); }
+  .ph-card__lbl { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); }
+
+  /* HOME screen specific */
+  .stat-big {
+    font-family: var(--font-display);
+    font-size: 48px; line-height: 1;
+    color: var(--cream-100);
+    font-weight: 500;
+    margin-top: 4px;
+  }
+  .stat-big .u { font-family: var(--font-mono); font-size: 13px; color: var(--ink-300); }
+
+  .pulse-dot {
+    width: 8px; height: 8px;
+    background: var(--ruby);
+    border-radius: 50%;
+    animation: pulse 1.4s infinite ease-in-out;
+    display: inline-block;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(181,86,74,0.6); }
+    50% { transform: scale(1.4); opacity: 0.5; box-shadow: 0 0 0 8px rgba(181,86,74,0); }
+  }
+
+  /* Manifest screen */
+  .seg-tabs {
+    display: flex;
+    background: var(--ink-900);
+    border-radius: var(--r-sm);
+    padding: 3px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .seg-tabs button {
+    flex: 1;
+    background: none; border: 0; color: var(--ink-200);
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .seg-tabs button.is-active { background: var(--ink-700); color: var(--gold-300); }
+
+  .manifest-list { display: flex; flex-direction: column; gap: 6px; }
+  .mf-row {
+    display: grid; grid-template-columns: 36px 1fr auto;
+    align-items: center; gap: 12px;
+    padding: 10px 12px;
+    background: var(--ink-900); border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+  }
+  .mf-row .av {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--ink-800);
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    font-size: 12px;
+    color: var(--gold-300);
+    border: 1px solid var(--gold-500);
+  }
+  .mf-row .nm { font-size: 13px; color: var(--cream-100); line-height: 1.1; }
+  .mf-row .sb { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); margin-top: 2px; letter-spacing: 0.05em; }
+  .mf-row.checked .av { border-color: var(--emerald); color: var(--emerald); }
+  .mf-row.checked { border-left: 2px solid var(--emerald); }
+  .mf-row.pending { border-left: 2px solid var(--amber); }
+  .mf-tick {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--ink-500);
+    display: grid; place-items: center;
+    color: var(--ink-300);
+  }
+  .mf-row.checked .mf-tick { background: var(--emerald); border-color: var(--emerald); color: var(--ink-950); }
+
+  /* Tracker / Map */
+  .map {
+    width: 100%; height: 280px;
+    background: var(--ink-900);
+    border-radius: var(--r-md);
+    border: var(--hairline);
+    position: relative;
+    overflow: hidden;
+  }
+  .map::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(212,175,55,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(212,175,55,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .map::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(40% 30% at 50% 50%, rgba(212,175,55,0.18), transparent 60%);
+  }
+  .map__landmark {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 56px; height: 56px;
+    border: 1.5px solid var(--gold-300);
+    background: var(--ink-950);
+    display: grid; place-items: center;
+    color: var(--gold-300);
+    border-radius: 4px;
+    z-index: 2;
+  }
+  .map__landmark .lbl {
+    position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    font-family: var(--font-mono); font-size: 9px;
+    color: var(--gold-300); letter-spacing: 0.14em; white-space: nowrap;
+  }
+  .map__pin {
+    position: absolute;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--emerald);
+    border: 2px solid var(--ink-1000);
+    box-shadow: 0 0 0 0 rgba(74,143,109,0.6);
+    z-index: 3;
+  }
+  .map__pin.sos { background: var(--ruby); animation: pulse 1.4s infinite; }
+  .map__pin.you {
+    background: var(--gold-300); border-color: var(--ink-1000);
+    width: 14px; height: 14px;
+  }
+  .map__pin.you::after {
+    content: ""; position: absolute; inset: -8px;
+    border-radius: 50%;
+    border: 1px solid var(--gold-300);
+    opacity: 0.6;
+  }
+
+  .map__legend {
+    position: absolute; bottom: 10px; left: 10px;
+    background: rgba(10,9,8,0.85);
+    backdrop-filter: blur(6px);
+    border: var(--hairline-soft);
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex; flex-direction: column; gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--ink-100);
+    letter-spacing: 0.04em;
+  }
+  .map__legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+  /* SOS */
+  .sos-hero {
+    background: linear-gradient(135deg, var(--ruby-soft), var(--ink-1000));
+    border: 1px solid var(--ruby);
+    border-radius: var(--r-md);
+    padding: 18px;
+  }
+  .sos-hero .timer {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: #E69089;
+    letter-spacing: 0.14em;
+  }
+  .sos-hero .name {
+    font-family: var(--font-display);
+    font-size: 24px;
+    color: var(--cream-100);
+    margin-top: 8px;
+    font-weight: 500;
+    line-height: 1.1;
+  }
+  .sos-hero .seen {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-100);
+    margin-top: 8px;
+    letter-spacing: 0.06em;
+  }
+  .sos-hero .actions { display: flex; gap: 8px; margin-top: 14px; }
+  .sos-hero .actions .btn { flex: 1; justify-content: center; }
+
+  .alert-list { display: flex; flex-direction: column; gap: 8px; }
+  .alert-row {
+    padding: 12px 14px;
+    background: var(--ink-900);
+    border: var(--hairline-soft);
+    border-radius: var(--r-sm);
+    display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  }
+  .alert-row__icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: var(--amber);
+    background: var(--amber-soft);
+    border: 1px solid rgba(201,147,59,0.4);
+    font-family: var(--font-display);
+  }
+  .alert-row__nm { font-size: 12.5px; color: var(--cream-100); line-height: 1.2; }
+  .alert-row__sb { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); margin-top: 2px; }
+
+  /* Comms */
+  .chat { display: flex; flex-direction: column; gap: 6px; }
+  .ch {
+    max-width: 80%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+  .ch.in { background: var(--ink-800); color: var(--cream-200); align-self: flex-start; border-bottom-left-radius: 2px; }
+  .ch.out { background: var(--gold-500); color: var(--cream-50); align-self: flex-end; border-bottom-right-radius: 2px; }
+  .ch__meta { font-family: var(--font-mono); font-size: 9px; color: var(--ink-300); margin-top: 2px; }
+  .ch.out .ch__meta { text-align: right; color: var(--gold-100); }
+
+  .quick-replies { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .quick-reply {
+    padding: 6px 10px;
+    background: var(--ink-900);
+    border: 1px solid var(--gold-500);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--gold-200);
+    letter-spacing: 0.06em;
+  }
+  .composer {
+    margin-top: auto;
+    padding: 10px 12px;
+    background: var(--ink-900);
+    border-top: var(--hairline-soft);
+    display: flex; gap: 8px; align-items: center;
+  }
+  .composer input {
+    flex: 1; background: var(--ink-1000);
+    border: var(--hairline-soft); border-radius: 999px;
+    padding: 8px 14px; color: var(--cream-200);
+    font-size: 12px; outline: 0;
+  }
+  .composer .send {
+    width: 32px; height: 32px;
+    background: var(--gold-300); color: var(--ink-950);
+    border: 0; border-radius: 50%;
+    display: grid; place-items: center;
+    font-weight: bold;
+  }
+
+  /* small util */
+  .row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .stage__bottom {
+    max-width: 1640px;
+    margin: 64px auto 0;
+    padding-top: 32px;
+    border-top: var(--hairline-soft);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+  }
+  .stage__bottom .point .num { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.18em; }
+  .stage__bottom .point h4 { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 8px 0 8px; font-weight: 500; }
+  .stage__bottom .point p { font-size: 13.5px; color: var(--ink-100); line-height: 1.55; margin: 0; }
+</style>
+</head>
+<body data-screen-label="04 Crew App">
+
+<div class="stage">
+  <div class="stage__top">
+    <div>
+      <a class="brand-mark" href="../index.html" style="text-decoration:none;">
+        <span class="brand-mark__glyph">R</span>
+        <span class="brand-mark__name">Religio <em>Pro</em></span>
+      </a>
+      <p class="eyebrow" style="margin-top:32px;">05 · Crew &amp; Muthawwif App · iOS</p>
+      <h1>Lapangan tetap <em>tenang.</em><br>Sistem yang siaga.</h1>
+    </div>
+    <div class="meta">
+      Untuk Tour Leader &amp; Muthawwif di Tanah Suci. Lima screen utama — manifest, live tracker, SOS, alert, comms — semua terhubung ke database pusat secara real-time.
+    </div>
+  </div>
+
+  <div class="phones">
+
+    <!-- ============ PHONE 1: HOME ============ -->
+    <div class="phone-cell">
+      <div class="phone-cell__label">01 · TODAY</div>
+      <h3 class="phone-cell__name">Home / Hari ini</h3>
+      <p class="phone-cell__desc">Manifest bus, lokasi jadwal, dan satu alert prioritas.</p>
+
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="sbar"><span>14:32</span><span>● 5G · ﷼</span></div>
+
+        <div class="phone__screen">
+          <div class="ph-head">
+            <div class="ph-head__title">
+              <div class="av">MY</div>
+              <div>
+                <div class="nm">M. Yusuf</div>
+                <div class="role">TOUR LEADER · BUS 03</div>
+              </div>
+            </div>
+            <span class="ph-head__signal">ON DUTY</span>
+          </div>
+
+          <div class="ph-body">
+            <div>
+              <span class="ph-eyebrow">Kamis · 23 Mei 2026 · Makkah</span>
+              <h2 class="ph-title">Selamat siang,<br>Ust. Yusuf.</h2>
+            </div>
+
+            <div class="ph-card ph-card--gold">
+              <div class="ph-card__lbl">Bus 03 · Manifes</div>
+              <div style="display:flex;justify-content:space-between;align-items:end;margin-top:8px;">
+                <span class="stat-big">22<span class="u">/24</span></span>
+                <span style="font-family:var(--font-mono);font-size:10px;color:var(--amber);letter-spacing:0.1em;">2 BELUM CHECK-IN</span>
+              </div>
+              <div style="height:3px;background:var(--ink-700);border-radius:2px;margin-top:14px;overflow:hidden;">
+                <div style="width:92%;height:100%;background:var(--gold-300);"></div>
+              </div>
+              <button class="btn btn--outline-gold btn--sm" style="width:100%;justify-content:center;margin-top:14px;">Buka Manifest →</button>
+            </div>
+
+            <div class="ph-card ph-card--sos">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="pulse-dot"></span>
+                <span style="font-family:var(--font-mono);font-size:10px;color:#E69089;letter-spacing:0.14em;">SOS AKTIF · 00:42</span>
+              </div>
+              <div style="font-family:var(--font-display);font-size:20px;color:var(--cream-100);margin-top:8px;line-height:1.1;">Ibu Khadijah Lestari</div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-100);margin-top:6px;letter-spacing:0.06em;">LAST SEEN · MASJIDIL HARAM · GATE 79</div>
+              <button class="btn btn--danger" style="width:100%;justify-content:center;margin-top:12px;">Buka detail SOS</button>
+            </div>
+
+            <div class="ph-card">
+              <div class="ph-card__lbl">Jadwal berikutnya</div>
+              <div style="display:flex;justify-content:space-between;align-items:end;margin-top:10px;">
+                <div>
+                  <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);line-height:1.1;">Ziarah Masjid Quba</div>
+                  <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:4px;letter-spacing:0.06em;">BERANGKAT 15:30 WAS · 58 MENIT</div>
+                </div>
+                <span style="font-family:var(--font-display);font-size:28px;color:var(--gold-300);">15:30</span>
+              </div>
+            </div>
+
+            <div class="row-2col">
+              <div class="ph-card">
+                <div class="ph-card__lbl">Suhu Makkah</div>
+                <div style="font-family:var(--font-display);font-size:30px;color:var(--cream-100);margin-top:6px;">38°C</div>
+              </div>
+              <div class="ph-card">
+                <div class="ph-card__lbl">Sholat berikutnya</div>
+                <div style="font-family:var(--font-display);font-size:22px;color:var(--cream-100);margin-top:6px;line-height:1.1;">Ashar<br><span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">15:42</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ph-nav">
+            <button class="is-active">
+              <svg viewBox="0 0 24 24"><path d="M4 21 V10 L12 4 L20 10 V21 H4 Z"/></svg>
+              Home
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M4 4 H20 V20 H4 Z M4 9 H20 M9 9 V20"/></svg>
+              Manifest
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M12 2 C8 4 6 6 6 11 C6 16 9 19 12 22 C15 19 18 16 18 11 C18 6 16 4 12 2 Z M12 11 L12 11.01"/></svg>
+              Tracker
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7 V12 M12 16 V16.01"/></svg>
+              Alerts
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M5 5 H19 V16 H10 L5 20 Z"/></svg>
+              Chat
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PHONE 2: MANIFEST ============ -->
+    <div class="phone-cell">
+      <div class="phone-cell__label">02 · MANIFEST</div>
+      <h3 class="phone-cell__name">Absensi &amp; Manifest</h3>
+      <p class="phone-cell__desc">Tap untuk check-in. Sinkron real-time ke HQ.</p>
+
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="sbar"><span>14:32</span><span>● 5G · ﷼</span></div>
+
+        <div class="phone__screen">
+          <div class="ph-head">
+            <div class="ph-head__title">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="color:var(--gold-300);font-size:18px;">‹</span>
+                <div>
+                  <div class="nm">Bus 03 · Manifes</div>
+                  <div class="role">ZIARAH QUBA · 15:30</div>
+                </div>
+              </div>
+            </div>
+            <span class="ph-head__signal">22/24</span>
+          </div>
+
+          <div class="ph-body">
+            <div class="seg-tabs">
+              <button class="is-active">SEMUA (24)</button>
+              <button>HADIR (22)</button>
+              <button>BELUM (2)</button>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span class="ph-eyebrow">A · Lansia/Prioritas</span>
+              <button style="background:none;border:0;color:var(--gold-300);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;">CHECK ALL</button>
+            </div>
+
+            <div class="manifest-list">
+              <div class="mf-row checked">
+                <div class="av">KL</div>
+                <div>
+                  <div class="nm">Hj. Khadijah Lestari</div>
+                  <div class="sb">P · 71 · KURSI 04A · ♿ KURSI RODA</div>
+                </div>
+                <div class="mf-tick">✓</div>
+              </div>
+              <div class="mf-row checked">
+                <div class="av">HS</div>
+                <div>
+                  <div class="nm">Hj. Hartini Susanto</div>
+                  <div class="sb">P · 64 · KURSI 04B</div>
+                </div>
+                <div class="mf-tick">✓</div>
+              </div>
+              <div class="mf-row checked">
+                <div class="av">JW</div>
+                <div>
+                  <div class="nm">H. Joko Wibowo</div>
+                  <div class="sb">L · 67 · KURSI 05A</div>
+                </div>
+                <div class="mf-tick">✓</div>
+              </div>
+              <div class="mf-row pending">
+                <div class="av">SR</div>
+                <div>
+                  <div class="nm">Hj. Siti Rahmah</div>
+                  <div class="sb">P · 68 · KURSI 05B · BELUM HADIR</div>
+                </div>
+                <div class="mf-tick">○</div>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+              <span class="ph-eyebrow">B · Reguler</span>
+              <span style="font-family:var(--font-mono);font-size:9px;color:var(--ink-200);">19/20 HADIR</span>
+            </div>
+
+            <div class="manifest-list">
+              <div class="mf-row checked">
+                <div class="av">AF</div>
+                <div>
+                  <div class="nm">Ahmad Fauzi</div>
+                  <div class="sb">L · 58 · KURSI 12A</div>
+                </div>
+                <div class="mf-tick">✓</div>
+              </div>
+              <div class="mf-row checked">
+                <div class="av">RS</div>
+                <div>
+                  <div class="nm">Ridho Salman</div>
+                  <div class="sb">L · 41 · KURSI 12B</div>
+                </div>
+                <div class="mf-tick">✓</div>
+              </div>
+              <div class="mf-row checked">
+                <div class="av">YK</div>
+                <div>
+                  <div class="nm">Yusuf Karim</div>
+                  <div class="sb">L · 55 · KURSI 13A</div>
+                </div>
+                <div class="mf-tick">✓</div>
+              </div>
+              <div class="mf-row pending">
+                <div class="av">UN</div>
+                <div>
+                  <div class="nm">Umar Nasrullah</div>
+                  <div class="sb">L · 49 · KURSI 13B · BELUM HADIR</div>
+                </div>
+                <div class="mf-tick">○</div>
+              </div>
+            </div>
+
+            <button class="btn btn--primary" style="width:100%;justify-content:center;margin-top:auto;">Lapor Ke HQ &amp; Berangkatkan</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PHONE 3: TRACKER ============ -->
+    <div class="phone-cell">
+      <div class="phone-cell__label">03 · LIVE TRACKER</div>
+      <h3 class="phone-cell__name">Live GPS Tracker</h3>
+      <p class="phone-cell__desc">Lokasi jemaah real-time. SOS muncul otomatis.</p>
+
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="sbar"><span>14:32</span><span>● 5G · ﷼</span></div>
+
+        <div class="phone__screen">
+          <div class="ph-head">
+            <div class="ph-head__title">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="color:var(--gold-300);font-size:18px;">‹</span>
+                <div>
+                  <div class="nm">Live Tracker</div>
+                  <div class="role">24 JEMAAH · MAKKAH</div>
+                </div>
+              </div>
+            </div>
+            <span class="ph-head__signal">LIVE</span>
+          </div>
+
+          <div class="ph-body">
+            <div class="map">
+              <div class="map__landmark">
+                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="1.5"><path d="M3 9 L21 9 M5 9 L5 20 L19 20 L19 9 M9 20 L9 13 L15 13 L15 20 M12 3 L21 9 L3 9 Z"/></svg>
+                <span class="lbl">MASJIDIL HARAM</span>
+              </div>
+              <div class="map__pin" style="top:25%;left:30%;"></div>
+              <div class="map__pin" style="top:30%;left:65%;"></div>
+              <div class="map__pin" style="top:65%;left:25%;"></div>
+              <div class="map__pin" style="top:70%;left:55%;"></div>
+              <div class="map__pin" style="top:45%;left:38%;"></div>
+              <div class="map__pin" style="top:38%;left:72%;"></div>
+              <div class="map__pin sos" style="top:18%;left:48%;"></div>
+              <div class="map__pin you" style="top:80%;left:38%;"></div>
+
+              <div class="map__legend">
+                <div><i style="background:var(--emerald);"></i>Jemaah aman · 23</div>
+                <div><i style="background:var(--ruby);"></i>SOS aktif · 1</div>
+                <div><i style="background:var(--gold-300);"></i>Posisi Anda</div>
+              </div>
+            </div>
+
+            <div class="ph-card ph-card--sos">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="pulse-dot"></span>
+                <span style="font-family:var(--font-mono);font-size:10px;color:#E69089;letter-spacing:0.14em;">SOS · BU KHADIJAH · 00:42</span>
+              </div>
+              <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--cream-200);margin-top:8px;letter-spacing:0.04em;">
+                JARAK · 240 METER<br>
+                LAST · MASJIDIL HARAM GATE 79<br>
+                AKURASI · ±8 METER
+              </div>
+              <div style="display:flex;gap:6px;margin-top:12px;">
+                <button class="btn btn--danger btn--sm" style="flex:1;justify-content:center;">Hubungi</button>
+                <button class="btn btn--ghost btn--sm" style="flex:1;justify-content:center;">Rute →</button>
+              </div>
+            </div>
+
+            <div class="ph-card">
+              <div class="ph-card__lbl">Jemaah aktif</div>
+              <div style="display:flex;justify-content:space-between;margin-top:8px;">
+                <div>
+                  <div style="font-family:var(--font-display);font-size:24px;color:var(--cream-100);">23</div>
+                  <div style="font-family:var(--font-mono);font-size:9px;color:var(--emerald);">DALAM ZONA</div>
+                </div>
+                <div>
+                  <div style="font-family:var(--font-display);font-size:24px;color:var(--ruby);">1</div>
+                  <div style="font-family:var(--font-mono);font-size:9px;color:var(--ruby);">DI LUAR ZONA</div>
+                </div>
+                <div>
+                  <div style="font-family:var(--font-display);font-size:24px;color:var(--cream-100);">240m</div>
+                  <div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-200);">RADIUS</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ph-nav">
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M4 21 V10 L12 4 L20 10 V21 H4 Z"/></svg>
+              Home
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M4 4 H20 V20 H4 Z M4 9 H20 M9 9 V20"/></svg>
+              Manifest
+            </button>
+            <button class="is-active">
+              <svg viewBox="0 0 24 24"><path d="M12 2 C8 4 6 6 6 11 C6 16 9 19 12 22 C15 19 18 16 18 11 C18 6 16 4 12 2 Z M12 11 L12 11.01"/></svg>
+              Tracker
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7 V12 M12 16 V16.01"/></svg>
+              Alerts
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M5 5 H19 V16 H10 L5 20 Z"/></svg>
+              Chat
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PHONE 4: ALERTS / SOS DETAIL ============ -->
+    <div class="phone-cell">
+      <div class="phone-cell__label">04 · ALERTS</div>
+      <h3 class="phone-cell__name">Alerts &amp; SOS</h3>
+      <p class="phone-cell__desc">Prioritas otomatis. Audit log permanen.</p>
+
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="sbar"><span>14:32</span><span>● 5G · ﷼</span></div>
+
+        <div class="phone__screen">
+          <div class="ph-head">
+            <div class="ph-head__title">
+              <div>
+                <div class="nm">Alerts</div>
+                <div class="role">8 PERLU TINDAKAN</div>
+              </div>
+            </div>
+            <span class="ph-head__signal" style="color:var(--amber);">8 BARU</span>
+          </div>
+
+          <div class="ph-body">
+
+            <div class="sos-hero">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="pulse-dot"></span>
+                <span class="timer">SOS · BERLANGSUNG 00:42</span>
+              </div>
+              <div class="name">Hj. Khadijah Lestari</div>
+              <div class="seen">LAST SEEN · MASJIDIL HARAM<br>GATE 79 · 14:32 WAS · ±8 M</div>
+              <div class="actions">
+                <button class="btn btn--danger btn--sm">Hubungi</button>
+                <button class="btn btn--ghost btn--sm" style="border-color:var(--ruby);color:#E69089;">Buka peta</button>
+              </div>
+            </div>
+
+            <span class="ph-eyebrow" style="margin-top:6px;">Perlu tindakan</span>
+
+            <div class="alert-list">
+              <div class="alert-row">
+                <div class="alert-row__icon">!</div>
+                <div>
+                  <div class="alert-row__nm">2 jemaah belum check-in Bus 03</div>
+                  <div class="alert-row__sb">Berangkat ziarah Quba dalam 58 menit</div>
+                </div>
+                <span style="color:var(--ink-200);">›</span>
+              </div>
+              <div class="alert-row">
+                <div class="alert-row__icon">℞</div>
+                <div>
+                  <div class="alert-row__nm">Pak Hadi · butuh insulin</div>
+                  <div class="alert-row__sb">Tertinggal di kamar 414 · perlu antar</div>
+                </div>
+                <span style="color:var(--ink-200);">›</span>
+              </div>
+              <div class="alert-row">
+                <div class="alert-row__icon" style="color:var(--sapphire);background:var(--sapphire-soft);border-color:rgba(74,111,143,0.4);">i</div>
+                <div>
+                  <div class="alert-row__nm">Suhu Makkah mencapai 39°C</div>
+                  <div class="alert-row__sb">Saran: distribusi air ekstra · 13:45</div>
+                </div>
+                <span style="color:var(--ink-200);">›</span>
+              </div>
+            </div>
+
+            <span class="ph-eyebrow" style="margin-top:8px;">Hari ini · diselesaikan</span>
+
+            <div class="alert-list">
+              <div class="alert-row" style="opacity:0.6;">
+                <div class="alert-row__icon" style="color:var(--emerald);background:var(--emerald-soft);border-color:rgba(74,143,109,0.4);">✓</div>
+                <div>
+                  <div class="alert-row__nm">Bus 03 ke Masjidil Haram</div>
+                  <div class="alert-row__sb">Tiba 12:18 · 24 jemaah</div>
+                </div>
+                <span style="font-family:var(--font-mono);font-size:9px;color:var(--ink-200);">12:18</span>
+              </div>
+              <div class="alert-row" style="opacity:0.6;">
+                <div class="alert-row__icon" style="color:var(--emerald);background:var(--emerald-soft);border-color:rgba(74,143,109,0.4);">✓</div>
+                <div>
+                  <div class="alert-row__nm">Pelaporan zuhur berjamaah</div>
+                  <div class="alert-row__sb">23 hadir · 1 izin sakit</div>
+                </div>
+                <span style="font-family:var(--font-mono);font-size:9px;color:var(--ink-200);">12:40</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ph-nav">
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M4 21 V10 L12 4 L20 10 V21 H4 Z"/></svg>
+              Home
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M4 4 H20 V20 H4 Z M4 9 H20 M9 9 V20"/></svg>
+              Manifest
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M12 2 C8 4 6 6 6 11 C6 16 9 19 12 22 C15 19 18 16 18 11 C18 6 16 4 12 2 Z M12 11 L12 11.01"/></svg>
+              Tracker
+            </button>
+            <button class="is-active">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7 V12 M12 16 V16.01"/></svg>
+              Alerts
+            </button>
+            <button>
+              <svg viewBox="0 0 24 24"><path d="M5 5 H19 V16 H10 L5 20 Z"/></svg>
+              Chat
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PHONE 5: COMMS / CHAT ============ -->
+    <div class="phone-cell">
+      <div class="phone-cell__label">05 · COMMS</div>
+      <h3 class="phone-cell__name">Chat HQ &amp; Jemaah</h3>
+      <p class="phone-cell__desc">Saluran terpusat — bukan WA pribadi.</p>
+
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="sbar"><span>14:32</span><span>● 5G · ﷼</span></div>
+
+        <div class="phone__screen">
+          <div class="ph-head">
+            <div class="ph-head__title">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="color:var(--gold-300);font-size:18px;">‹</span>
+                <div class="av" style="background:linear-gradient(135deg, var(--gold-400), var(--gold-200));color:var(--ink-950);border-color:var(--gold-300);">HQ</div>
+                <div>
+                  <div class="nm">HQ Jakarta</div>
+                  <div class="role">3 ADMIN ONLINE</div>
+                </div>
+              </div>
+            </div>
+            <span style="color:var(--gold-300);font-size:16px;">⋮</span>
+          </div>
+
+          <div class="ph-body" style="padding-bottom:0;">
+
+            <div class="chat">
+              <div style="text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-300);letter-spacing:0.14em;margin:6px 0;">— 23 MEI · KAMIS —</div>
+
+              <div class="ch in">
+                Pagi ust. Yusuf, bagaimana kondisi Bus 03 untuk ziarah Quba?
+                <div class="ch__meta">HQ · Pak Hamzah · 11:08</div>
+              </div>
+              <div class="ch out">
+                Pagi pak. Manifest 22/24 — Bu Siti dan Pak Umar belum hadir di lobi. Saya cek kamar mereka dulu.
+                <div class="ch__meta">14:18 · ✓✓</div>
+              </div>
+              <div class="ch in">
+                Baik. Tolong update segera. Suhu di Madinah hari ini 41°C — bawa air ekstra.
+                <div class="ch__meta">HQ · Pak Hamzah · 14:19</div>
+              </div>
+
+              <div style="background:var(--ink-1000);border:1px solid var(--ruby);border-radius:8px;padding:10px;margin:8px 0;">
+                <div style="font-family:var(--font-mono);font-size:9.5px;color:#E69089;letter-spacing:0.14em;display:flex;align-items:center;gap:6px;">
+                  <span class="pulse-dot" style="width:6px;height:6px;"></span>
+                  SOS DITERIMA · 14:30
+                </div>
+                <div style="font-size:12.5px;color:var(--cream-100);margin-top:4px;">Hj. Khadijah Lestari menekan tombol SOS · Masjidil Haram Gate 79</div>
+              </div>
+
+              <div class="ch out">
+                Sedang ke arah Bu Khadijah. ETA 4 menit.
+                <div class="ch__meta">14:31 · ✓✓</div>
+              </div>
+              <div class="ch in">
+                Hati-hati ust. Kabari saya begitu ketemu.
+                <div class="ch__meta">HQ · Pak Hamzah · 14:31</div>
+              </div>
+            </div>
+
+            <div class="quick-replies">
+              <div class="quick-reply">SUDAH KETEMU</div>
+              <div class="quick-reply">JEMAAH AMAN</div>
+              <div class="quick-reply">PERLU AMBULANS</div>
+            </div>
+          </div>
+
+          <div class="composer">
+            <input placeholder="Ketik balasan…">
+            <button class="send">▶</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM ANNOTATIONS -->
+  <div class="stage__bottom">
+    <div class="point">
+      <span class="num">CORE LOOP</span>
+      <h4>Manifest → Tracker → Alert → Resolve</h4>
+      <p>Crew memulai hari dari Bus Manifest. GPS tracker dijalankan otomatis ketika manifes "berangkat". Setiap anomali (SOS, jemaah keluar zona) muncul di Alert dengan prioritas terurut.</p>
+    </div>
+    <div class="point">
+      <span class="num">DATA SYNC</span>
+      <h4>Real-time ke HQ &amp; Owner Dashboard</h4>
+      <p>Setiap check-in, SOS, atau update manifest langsung tercermin di Web Admin (Owner) dan Portal Agen yang relevan. Tidak ada lagi laporan H+1 via WhatsApp pribadi.</p>
+    </div>
+    <div class="point">
+      <span class="num">FALLBACK</span>
+      <h4>Bekerja saat sinyal lemah</h4>
+      <p>Cache lokal menyimpan manifest hari berjalan. SOS dikirim via SMS gateway jika 4G/5G tidak tersedia. Setiap aksi memiliki audit log yang sinkron saat sinyal kembali.</p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

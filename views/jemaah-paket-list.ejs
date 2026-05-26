@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Pilih paket · <%= user.fullName %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { margin-bottom: 28px; }
+  .head h1 { font-family: var(--font-display); font-size: 36px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+  .card {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 22px;
+    display: flex; flex-direction: column; gap: 12px;
+    transition: border-color var(--dur-fast);
+  }
+  .card:hover { border-color: var(--gold-300); }
+  .card__badge {
+    display: inline-block;
+    padding: 3px 8px;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    border-radius: 3px; border: 1px solid;
+    align-self: flex-start;
+  }
+  .card__badge.booked { color: var(--emerald); border-color: rgba(74,143,109,0.5); background: rgba(74,143,109,0.08); }
+  .card__title { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 0; font-weight: 500; }
+  .card__sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; }
+  .card__meta {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    padding: 12px; background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); margin-top: 4px;
+  }
+  .card__meta .l { font-family: var(--font-mono); font-size: 9px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .card__meta .v { font-family: var(--font-mono); font-size: 12px; color: var(--cream-100); margin-top: 2px; }
+  .card__meta .v.gold { color: var(--gold-300); }
+  .card__price { margin-top: 4px; }
+  .card__price .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.1em; }
+  .card__price .v { font-family: var(--font-display); font-size: 22px; color: var(--gold-300); font-weight: 500; margin-top: 2px; }
+  .card__price .u { font-family: var(--font-mono); font-size: 11px; color: var(--ink-100); margin-left: 6px; }
+  .progress { height: 6px; background: var(--ink-700); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .progress > i { display: block; height: 100%; background: var(--gold-300); }
+  .progress > i.full { background: var(--emerald); }
+  .card__cta {
+    margin-top: auto;
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 14px; border-top: var(--hairline-soft);
+  }
+  .card__cta a.book {
+    background: var(--gold-300); color: var(--ink-1000);
+    border: 0; padding: 8px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.12em; cursor: pointer; font-weight: 600;
+    text-decoration: none; text-transform: uppercase;
+  }
+  .card__cta a.book:hover { background: var(--gold-200); }
+  .card__cta .sx { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); }
+
+  .empty {
+    padding: 40px; text-align: center;
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-200);
+    border: 1px dashed var(--ink-500); border-radius: var(--r-md);
+  }
+</style>
+</head>
+<body data-screen-label="04 Portal Jemaah · Paket">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/saya">← KEMBALI KE PORTAL</a>
+  </div>
+
+  <div class="head">
+    <h1>Paket <em>tersedia</em></h1>
+    <div class="sub"><%= paketList.length %> paket aktif · semua sudah pre-fill nama + telepon Anda saat booking</div>
+  </div>
+
+  <% if (paketList.length === 0) { %>
+    <div class="empty">Belum ada paket aktif. Cek kembali lain waktu.</div>
+  <% } else { %>
+    <div class="grid">
+      <% paketList.forEach(function(p) { %>
+        <article class="card">
+          <% if (p.myBookings.length > 0) { %>
+            <span class="card__badge booked">✓ ANDA SUDAH BOOKING (<%= p.myBookings.length %>)</span>
+          <% } %>
+
+          <h3 class="card__title"><%= p.title %></h3>
+          <div class="card__sub">
+            DEP <%= fmt.dateShort(p.departureDate).toUpperCase() %>
+            · <%= p.durationDays %> HARI
+            <% if (p.subtitle) { %><br><%= p.subtitle %><% } %>
+          </div>
+
+          <div class="card__meta">
+            <div>
+              <div class="l">Sisa kursi</div>
+              <div class="v <%= p.slotsLeft <= 5 ? 'gold' : '' %>"><%= p.slotsLeft %> / <%= p.kursiTotal %></div>
+            </div>
+            <div>
+              <div class="l">Terisi</div>
+              <div class="v"><%= p.fillPct %>%</div>
+            </div>
+          </div>
+
+          <% if (p.minPrice) { %>
+            <div class="card__price">
+              <div class="l">Mulai dari (<%= p.minPrice.kelas %>)</div>
+              <div class="v">Rp <%= fmt.rpShort(p.minPrice.priceIdr) %><span class="u">/ pax</span></div>
+            </div>
+          <% } %>
+
+          <div class="progress">
+            <i class="<%= p.fillPct >= 100 ? 'full' : '' %>" style="width:<%= Math.min(100, p.fillPct) %>%;"></i>
+          </div>
+
+          <div class="card__cta">
+            <% if (p.slotsLeft <= 0) { %>
+              <span class="sx" style="color:var(--ruby);">PENUH</span>
+              <span class="card__cta a.book" style="background:var(--ink-700);color:var(--ink-300);padding:8px 16px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;font-weight:600;text-transform:uppercase;cursor:not-allowed;">PENUH</span>
+            <% } else if (p.myBookings.length > 0) { %>
+              <span class="sx">Anda sudah punya <%= p.myBookings.length %> booking</span>
+              <a href="/p/<%= p.slug %>" class="book">BOOK LAGI</a>
+            <% } else { %>
+              <span class="sx">Pre-fill aktif</span>
+              <a href="/p/<%= p.slug %>" class="book">BOOK SEKARANG</a>
+            <% } %>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+</body>
+</html>

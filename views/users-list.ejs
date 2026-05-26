@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Users · Admin</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head {
+    display: flex; justify-content: space-between; align-items: end;
+    margin-bottom: 28px;
+  }
+  .head h1 {
+    font-family: var(--font-display); font-size: 40px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+
+  .filter-bar {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .filter-bar .input { width: auto; }
+  .filter-bar .input.search { min-width: 280px; }
+
+  .tbl {
+    width: 100%; border-collapse: collapse;
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); overflow: hidden;
+  }
+  .tbl thead th {
+    text-align: left; padding: 14px 16px;
+    background: var(--ink-1000);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-200); font-weight: 500;
+    border-bottom: var(--hairline);
+  }
+  .tbl tbody td {
+    padding: 14px 16px; border-bottom: var(--hairline-soft);
+    font-size: 13.5px; color: var(--cream-200); vertical-align: middle;
+  }
+  .tbl tbody tr:hover td { background: var(--ink-850); }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; letter-spacing: 0.04em; }
+  .tbl .role-tag {
+    padding: 3px 8px; font-family: var(--font-mono); font-size: 10px;
+    background: var(--ink-1000); border: var(--hairline-soft);
+    color: var(--ink-100); border-radius: 3px;
+    letter-spacing: 0.1em;
+  }
+  .tbl .role-tag.owner      { color: var(--gold-300); border-color: rgba(212,175,55,0.4); }
+  .tbl .role-tag.superadmin { color: var(--gold-300); border-color: rgba(212,175,55,0.3); }
+  .tbl .role-tag.agen       { color: var(--sapphire); border-color: rgba(74,111,143,0.3); }
+  .tbl .role-tag.kasir      { color: var(--emerald); border-color: rgba(74,143,109,0.3); }
+  .tbl .role-tag.jemaah     { color: var(--ink-200); }
+  .tbl .status-tag {
+    padding: 3px 8px; font-family: var(--font-mono); font-size: 10px;
+    border-radius: 3px; letter-spacing: 0.1em;
+    background: var(--ink-1000); border: 1px solid var(--ink-500); color: var(--ink-100);
+  }
+  .tbl .status-tag.active    { color: var(--emerald); border-color: rgba(74,143,109,0.4); }
+  .tbl .status-tag.suspended { color: var(--ruby); border-color: rgba(181,86,74,0.4); }
+  .tbl .status-tag.pending_verification { color: var(--amber); border-color: rgba(201,147,59,0.4); }
+  .tbl a.edit-btn {
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-100); padding: 6px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none;
+  }
+  .tbl a.edit-btn:hover { color: var(--gold-300); border-color: var(--gold-300); }
+  .empty {
+    padding: 40px; text-align: center;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body data-screen-label="02 Admin · Users">
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="/admin">← KEMBALI KE DASHBOARD</a>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1>Users &amp; <em>peran</em></h1>
+      <div class="sub"><%= users.length %> user · <%= user.role %> session</div>
+    </div>
+    <a href="/admin/users/new" class="btn btn--primary">+ User Baru</a>
+  </div>
+
+  <form method="GET" action="/admin/users" class="filter-bar">
+    <input class="input search" type="search" name="q" placeholder="Cari email / nama…"
+           value="<%= search %>">
+    <select class="input" name="role" onchange="this.form.submit()">
+      <option value="ALL" <%= role === 'ALL' ? 'selected' : '' %>>Semua peran</option>
+      <% META.ROLES.forEach(function(r) { %>
+        <option value="<%= r %>" <%= role === r ? 'selected' : '' %>><%= r %></option>
+      <% }) %>
+    </select>
+    <select class="input" name="status" onchange="this.form.submit()">
+      <option value="ALL" <%= status === 'ALL' ? 'selected' : '' %>>Semua status</option>
+      <% META.STATUSES.forEach(function(s) { %>
+        <option value="<%= s %>" <%= status === s ? 'selected' : '' %>><%= s %></option>
+      <% }) %>
+    </select>
+    <button type="submit" class="btn btn--ghost btn--sm">Filter</button>
+    <% if (search || role !== 'ALL' || status !== 'ALL') { %>
+      <a href="/admin/users" style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);text-decoration:none;letter-spacing:0.08em;">RESET</a>
+    <% } %>
+  </form>
+
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th>Nama / Email</th>
+        <th>Peran</th>
+        <th>Status</th>
+        <th>Profil</th>
+        <th>Last login</th>
+        <th style="text-align:right;width:120px;">Aksi</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (users.length === 0) { %>
+        <tr><td colspan="6" class="empty">Tidak ada user yang cocok dengan filter.</td></tr>
+      <% } %>
+      <% users.forEach(function(u) { %>
+        <tr>
+          <td>
+            <div class="nm"><%= u.fullName %></div>
+            <div class="sx"><%= u.email %><% if (u.phone) { %> · <%= u.phone %><% } %></div>
+          </td>
+          <td><span class="role-tag <%= u.role.toLowerCase() %>"><%= u.role %></span></td>
+          <td><span class="status-tag <%= u.status.toLowerCase() %>"><%= u.status %></span></td>
+          <td>
+            <% if (u.agent) { %>
+              <%
+                const ovr = u.agent.komisiRateOverride;
+                const ovrPct = ovr != null ? (Number(ovr.toString?.() ?? ovr) * 100).toFixed(2).replace(/\.?0+$/, '') : null;
+              %>
+              <div class="sx" style="color:var(--cream-200);">
+                slug <strong style="color:var(--gold-300);"><%= u.agent.slug %></strong><%= u.agent.tier ? ' · ' + u.agent.tier : '' %><%
+                  if (ovrPct) { %> · <strong style="color:var(--amber);">override <%= ovrPct %>%</strong><% }
+                %>
+              </div>
+            <% } else if (u.staff) { %>
+              <div class="sx" style="color:var(--cream-200);"><%= u.staff.department || '—' %> · <%= u.staff.position || '—' %></div>
+            <% } else if (u.crew) { %>
+              <div class="sx" style="color:var(--cream-200);"><%= u.crew.languages || '—' %> · <%= u.crew.experience ?? '—' %>th</div>
+            <% } else { %>
+              <span class="sx">—</span>
+            <% } %>
+          </td>
+          <td>
+            <% if (u.lastLoginAt) { %>
+              <div class="sx" style="color:var(--cream-200);"><%= fmt.date(u.lastLoginAt) %></div>
+            <% } else { %>
+              <span class="sx">never</span>
+            <% } %>
+          </td>
+          <td style="text-align:right;">
+            <a href="/admin/users/<%= u.id %>/edit" class="edit-btn">EDIT</a>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

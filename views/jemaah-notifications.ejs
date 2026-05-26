@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Notifikasi Saya</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 18px; margin-bottom: 28px;
+    border-bottom: var(--hairline-soft);
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+  }
+  .topbar .who { color: var(--gold-300); }
+  .topbar .nav { display: flex; gap: 10px; }
+  .topbar a, .topbar button {
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-100); cursor: pointer; text-decoration: none;
+    padding: 6px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .topbar a:hover, .topbar button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+
+  .head { margin-bottom: 24px; }
+  .head h1 {
+    font-family: var(--font-display); font-size: 32px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em; margin-top: 8px;
+  }
+  .head .sub a { color: var(--gold-300); text-decoration: none; }
+  .head .sub a:hover { text-decoration: underline; }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .row {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 16px 20px;
+    display: grid; grid-template-columns: 1fr auto; gap: 14px;
+    position: relative;
+  }
+  /* 5rr: unread accent — gold left edge until next visit clears the badge */
+  .row.unread { border-left: 3px solid var(--gold-300); padding-left: 18px; }
+  .row .unread-dot {
+    position: absolute; top: 14px; right: 14px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--gold-300);
+  }
+  .row .meta-line {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .row .type {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .row .subject {
+    font-family: var(--font-display); font-size: 16px; color: var(--cream-100);
+    font-weight: 500; margin: 4px 0;
+  }
+  .row .body {
+    color: var(--cream-200); font-size: 12.5px; line-height: 1.55;
+    white-space: pre-line;
+  }
+  .row .err {
+    margin-top: 8px;
+    background: rgba(176,68,68,0.06); border: 1px solid rgba(176,68,68,0.25);
+    color: var(--ruby); padding: 6px 10px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10.5px;
+  }
+  .row .time {
+    text-align: right;
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .row .time .sx { color: var(--ink-300); font-size: 9.5px; margin-top: 4px; }
+
+  .status-tag {
+    padding: 3px 8px; font-family: var(--font-mono); font-size: 9.5px;
+    border-radius: 3px; letter-spacing: 0.1em; border: 1px solid;
+  }
+  .status-tag.pending { color: var(--amber); border-color: rgba(201,147,59,0.4); }
+  .status-tag.sent    { color: var(--emerald); border-color: rgba(74,143,109,0.4); }
+  .status-tag.failed  { color: var(--ruby); border-color: rgba(181,86,74,0.4); }
+  .status-tag.skipped { color: var(--ink-300); border-color: var(--ink-500); }
+
+  .channel-tag {
+    padding: 2px 7px; font-family: var(--font-mono); font-size: 9.5px;
+    border-radius: 3px; letter-spacing: 0.1em;
+    border: 1px solid var(--ink-500); color: var(--ink-100);
+  }
+  .channel-tag.email { color: var(--sapphire); border-color: rgba(74,111,143,0.4); }
+  .channel-tag.wa    { color: #8FCBAA; border-color: rgba(74,143,109,0.4); }
+
+  .empty {
+    border: 1px dashed var(--ink-500); border-radius: var(--r-md);
+    padding: 40px; text-align: center;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); line-height: 1.7;
+  }
+  .empty a { color: var(--gold-300); text-decoration: none; }
+</style>
+</head>
+<body data-screen-label="04 Portal Jemaah · Notifikasi">
+<div class="wrap">
+
+  <div class="topbar">
+    <div>JEMAAH · <span class="who"><%= user.email %></span></div>
+    <div class="nav">
+      <a href="/saya">← Dashboard</a>
+      <a href="/saya/profile">Profil &amp; dokumen</a>
+      <form method="POST" action="/logout" style="display:inline;margin:0;">
+        <button type="submit">Keluar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="head">
+    <h1>Notifikasi <em>saya</em></h1>
+    <div class="sub">
+      <%= notifications.length %> notifikasi terakhir.
+      Atur preferensi channel di <a href="/saya/profile">Profil &amp; dokumen</a> (panel "Preferensi notifikasi").
+    </div>
+  </div>
+
+  <% if (notifications.length === 0) { %>
+    <div class="empty">
+      Belum ada notifikasi.<br>
+      Setelah Anda booking / bayar / refund, log lengkapnya muncul di sini.
+    </div>
+  <% } else { %>
+    <div class="list">
+      <% notifications.forEach(function(n) { %>
+        <%# 5rr: n.readAt is null on first load post-markAllRead → highlight. After reload, all have readAt set. %>
+        <div class="row<%= n.readAt ? '' : ' unread' %>">
+          <% if (!n.readAt) { %><span class="unread-dot" title="Baru"></span><% } %>
+          <div>
+            <div class="meta-line">
+              <span class="channel-tag <%= n.channel.toLowerCase() %>"><%= n.channel %></span>
+              <span class="status-tag <%= n.status.toLowerCase() %>"><%= n.status %></span>
+              <span class="type"><%= n.type.replace(/_/g, ' ') %></span>
+            </div>
+            <% if (n.subject) { %>
+              <div class="subject"><%= n.subject %></div>
+            <% } %>
+            <div class="body"><%= (n.body || '').slice(0, 600) %><% if ((n.body || '').length > 600) { %>…<% } %></div>
+            <% if (n.error && n.status !== 'SENT') { %>
+              <div class="err"><%= n.error %></div>
+            <% } %>
+          </div>
+          <div class="time">
+            <%= fmt.dateShort(n.createdAt) %>
+            <% if (n.sentAt) { %>
+              <div class="sx">terkirim <%= fmt.dateShort(n.sentAt) %></div>
+            <% } %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+</body>
+</html>

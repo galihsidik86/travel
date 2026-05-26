@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — End-to-End Solusi Digital untuk Travel Umroh</title>
+<link rel="stylesheet" href="../shared/tokens.css">
+<style>
+  body { overflow-x: hidden; }
+
+  /* Nav */
+  .nav {
+    position: sticky; top: 0;
+    z-index: 50;
+    backdrop-filter: blur(18px);
+    background: rgba(10,9,8,0.78);
+    border-bottom: var(--hairline-soft);
+  }
+  .nav__inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 18px 32px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .nav__links {
+    display: flex; gap: 36px;
+    font-size: 13.5px;
+    color: var(--ink-100);
+  }
+  .nav__links a { color: inherit; text-decoration: none; transition: color var(--dur-fast); }
+  .nav__links a:hover { color: var(--gold-300); }
+  .nav__cta { display: flex; gap: 12px; align-items: center; }
+
+  /* Hero */
+  .hero {
+    position: relative;
+    padding: 120px 32px 100px;
+    max-width: 1280px;
+    margin: 0 auto;
+    overflow: hidden;
+  }
+  .hero__bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(60% 50% at 70% 20%, rgba(212,175,55,0.08), transparent 60%),
+      radial-gradient(40% 40% at 20% 80%, rgba(74,143,109,0.04), transparent 60%);
+  }
+  .hero__bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(212,175,55,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(212,175,55,0.04) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  .hero__content { position: relative; }
+  .hero__eyebrow { margin-bottom: 32px; display: flex; align-items: center; gap: 16px; }
+  .hero__eyebrow .line { height: 1px; width: 64px; background: var(--gold-300); opacity: 0.5; }
+
+  .hero__title {
+    font-family: var(--font-display);
+    font-size: clamp(64px, 9vw, 132px);
+    font-weight: 400;
+    line-height: 0.92;
+    letter-spacing: -0.022em;
+    color: var(--cream-100);
+    margin: 0;
+  }
+  .hero__title em { font-style: italic; color: var(--gold-300); }
+
+  .hero__row {
+    margin-top: 56px;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 64px;
+    align-items: end;
+  }
+  .hero__lede {
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--cream-200);
+    max-width: 560px;
+  }
+  .hero__lede strong { color: var(--gold-300); font-weight: 500; }
+  .hero__ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  .hero__rule {
+    margin-top: 64px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    padding-top: 40px;
+    border-top: var(--hairline-soft);
+  }
+  .hero__stat dt {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-200);
+    margin-bottom: 10px;
+  }
+  .hero__stat dd {
+    font-family: var(--font-display);
+    font-size: 36px;
+    color: var(--cream-100);
+    margin: 0;
+    line-height: 1;
+  }
+  .hero__stat dd .u {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--gold-300);
+    margin-left: 4px;
+  }
+
+  /* Section base */
+  .section {
+    padding: 120px 32px;
+    max-width: 1280px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .section--narrow { max-width: 1080px; }
+  .section--wide { max-width: 100%; padding: 120px 32px; }
+
+  .section__head {
+    margin-bottom: 64px;
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 64px;
+  }
+  .section__head h2 {
+    font-family: var(--font-display);
+    font-size: clamp(40px, 5vw, 64px);
+    font-weight: 500;
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    color: var(--cream-100);
+    margin: 16px 0 0;
+  }
+  .section__head h2 em { font-style: italic; color: var(--gold-300); }
+  .section__head p {
+    color: var(--ink-100);
+    font-size: 17px;
+    line-height: 1.6;
+    margin: 0;
+    align-self: end;
+  }
+
+  /* Challenges (4 box) */
+  .challenges {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--ink-500);
+    border: var(--hairline);
+  }
+  .challenge {
+    background: var(--ink-900);
+    padding: 40px 32px;
+    position: relative;
+    min-height: 320px;
+    display: flex; flex-direction: column;
+  }
+  .challenge__num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ruby);
+    letter-spacing: 0.16em;
+    opacity: 0.9;
+  }
+  .challenge h4 {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1.15;
+    color: var(--cream-100);
+    margin: 16px 0 16px;
+    letter-spacing: -0.01em;
+  }
+  .challenge p { font-size: 14px; color: var(--ink-100); line-height: 1.6; margin: 0 0 auto; }
+  .challenge__symbol {
+    margin-top: 32px;
+    width: 32px; height: 32px;
+    color: var(--ruby);
+    opacity: 0.6;
+  }
+  .challenge__symbol svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 1.4; }
+
+  /* Statement */
+  .statement {
+    padding: 140px 32px;
+    text-align: center;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .statement__quote {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: clamp(40px, 6vw, 80px);
+    line-height: 1.1;
+    color: var(--cream-100);
+    margin: 0;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+  }
+  .statement__quote em { color: var(--gold-300); font-style: italic; }
+  .statement__attr {
+    margin-top: 40px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gold-300);
+  }
+
+  /* Architecture diagram */
+  .arch {
+    background: var(--ink-1000);
+    padding: 80px;
+    border: var(--hairline);
+    border-radius: var(--r-xl);
+    position: relative;
+  }
+  .arch__hub {
+    margin: 0 auto;
+    width: 220px;
+    aspect-ratio: 1;
+    border: 1px solid var(--gold-300);
+    border-radius: 50%;
+    display: grid; place-items: center;
+    text-align: center;
+    background: radial-gradient(circle at center, rgba(212,175,55,0.12), transparent 70%);
+    position: relative;
+  }
+  .arch__hub::before, .arch__hub::after {
+    content: ""; position: absolute;
+    border: 1px solid var(--gold-300);
+    border-radius: 50%;
+    opacity: 0.2;
+  }
+  .arch__hub::before { inset: -20px; }
+  .arch__hub::after { inset: -50px; opacity: 0.1; }
+  .arch__hub div {
+    position: relative; z-index: 2;
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--cream-100);
+  }
+  .arch__hub div .l { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em; color: var(--gold-300); margin-bottom: 8px; text-transform: uppercase; }
+  .arch__hub div .b { font-size: 32px; line-height: 1; }
+
+  .arch__platforms {
+    margin-top: 80px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
+  .arch__plat {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-lg);
+    padding: 28px;
+    position: relative;
+  }
+  .arch__plat::before {
+    content: "";
+    position: absolute; left: 50%; top: -56px;
+    width: 1px; height: 56px;
+    background: linear-gradient(to bottom, var(--gold-300), transparent);
+    opacity: 0.5;
+  }
+  .arch__plat .ico {
+    width: 40px; height: 40px;
+    border: 1px solid var(--gold-300);
+    border-radius: var(--r-sm);
+    display: grid; place-items: center;
+    color: var(--gold-300);
+    margin-bottom: 18px;
+  }
+  .arch__plat .ico svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+  .arch__plat h5 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--cream-100);
+    margin: 0 0 4px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+  .arch__plat .who {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--gold-300);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .arch__plat p {
+    font-size: 13.5px;
+    color: var(--ink-100);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* Features (alternating) */
+  .feature {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+    padding: 80px 0;
+    border-bottom: var(--hairline-soft);
+  }
+  .feature:last-child { border-bottom: 0; }
+  .feature__text .num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--gold-300);
+    letter-spacing: 0.18em;
+  }
+  .feature__text h3 {
+    font-family: var(--font-display);
+    font-size: clamp(36px, 4vw, 52px);
+    font-weight: 500;
+    line-height: 1.1;
+    color: var(--cream-100);
+    margin: 16px 0 24px;
+    letter-spacing: -0.015em;
+  }
+  .feature__text h3 em { font-style: italic; color: var(--gold-300); }
+  .feature__text p {
+    font-size: 17px;
+    color: var(--ink-100);
+    line-height: 1.6;
+    margin: 0 0 32px;
+  }
+  .feature__list {
+    list-style: none;
+    padding: 0; margin: 0;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .feature__list li {
+    display: grid; grid-template-columns: 28px 1fr; gap: 16px;
+    align-items: start;
+    padding-bottom: 18px;
+    border-bottom: var(--hairline-soft);
+  }
+  .feature__list li:last-child { border-bottom: 0; }
+  .feature__list .check {
+    width: 22px; height: 22px;
+    color: var(--gold-300);
+  }
+  .feature__list .check svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 1.5; }
+  .feature__list strong { display: block; color: var(--cream-100); font-weight: 500; font-size: 15px; margin-bottom: 4px; }
+  .feature__list span { color: var(--ink-100); font-size: 13.5px; line-height: 1.55; }
+
+  /* Feature visuals */
+  .feature__visual { position: relative; }
+  .mock {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-lg);
+    padding: 32px;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+  }
+  .mock--gold { border-color: rgba(212,175,55,0.4); }
+
+  /* Sales mock */
+  .mock-sales { padding: 0; overflow: hidden; }
+  .mock-sales__head {
+    padding: 18px 24px;
+    border-bottom: var(--hairline-soft);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .mock-sales__head h6 { font-family: var(--font-display); font-size: 20px; margin: 0; color: var(--cream-100); font-weight: 500; }
+  .mock-sales__lead {
+    padding: 18px 24px;
+    display: grid; grid-template-columns: 36px 1fr auto; gap: 14px;
+    border-bottom: var(--hairline-soft);
+    align-items: center;
+  }
+  .mock-sales__lead:last-child { border-bottom: 0; }
+  .mock-sales__lead .avatar { width: 36px; height: 36px; font-size: 13px; }
+  .mock-sales__lead .name { font-size: 14px; color: var(--cream-100); }
+  .mock-sales__lead .sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; letter-spacing: 0.06em; }
+
+  /* Doc mock */
+  .mock-doc { padding: 24px; }
+  .mock-doc__row {
+    padding: 14px 16px;
+    background: var(--ink-850);
+    border-left: 3px solid var(--emerald);
+    border-radius: 0 var(--r-sm) var(--r-sm) 0;
+    display: grid; grid-template-columns: 1fr auto; gap: 16px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .mock-doc__row.warning { border-left-color: var(--amber); }
+  .mock-doc__row.danger { border-left-color: var(--ruby); }
+  .mock-doc__row .n { font-size: 14px; color: var(--cream-100); }
+  .mock-doc__row .s { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+
+  /* Finance mock */
+  .mock-fin { display: flex; flex-direction: column; gap: 1px; background: var(--ink-500); border-radius: var(--r-md); overflow: hidden; }
+  .mock-fin__row {
+    background: var(--ink-900);
+    padding: 18px 22px;
+    display: grid; grid-template-columns: 6px 1fr auto; gap: 16px; align-items: center;
+  }
+  .mock-fin__bar { width: 6px; height: 32px; border-radius: 2px; }
+  .mock-fin__row .lbl { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; }
+  .mock-fin__row .val { font-family: var(--font-display); font-size: 24px; color: var(--cream-100); margin-top: 4px; }
+  .mock-fin__row .fx { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+
+  /* Security */
+  .security {
+    background: var(--ink-1000);
+    padding: 96px 64px;
+    border: var(--hairline);
+    border-radius: var(--r-xl);
+    position: relative;
+    overflow: hidden;
+  }
+  .security::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(40% 50% at 90% 0%, rgba(212,175,55,0.06), transparent 60%);
+    pointer-events: none;
+  }
+  .security__grid {
+    margin-top: 56px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 32px;
+    position: relative;
+  }
+  .security__item .ico {
+    width: 56px; height: 56px;
+    border: 1px solid var(--gold-300);
+    color: var(--gold-300);
+    display: grid; place-items: center;
+    border-radius: var(--r-sm);
+    margin-bottom: 20px;
+    background: radial-gradient(circle at top left, rgba(212,175,55,0.12), transparent 60%);
+  }
+  .security__item .ico svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+  .security__item h5 { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 0 0 8px; font-weight: 500; }
+  .security__item .tech { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); letter-spacing: 0.14em; text-transform: uppercase; }
+  .security__item p { font-size: 13.5px; color: var(--ink-100); line-height: 1.55; margin: 12px 0 0; }
+
+  /* Comparison table */
+  .compare {
+    border: var(--hairline);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+  }
+  .compare__row {
+    display: grid;
+    grid-template-columns: 60px 1fr 1.4fr 1.4fr;
+    border-top: var(--hairline-soft);
+  }
+  .compare__row:first-child { border-top: 0; background: var(--ink-1000); }
+  .compare__row:first-child > div {
+    padding: 24px 24px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-200);
+  }
+  .compare__row:first-child .gold { color: var(--gold-300); }
+  .compare__cell { padding: 28px 24px; border-left: var(--hairline-soft); }
+  .compare__cell:first-child { border-left: 0; }
+  .compare__cell.num {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--gold-300);
+    letter-spacing: 0.14em;
+    align-content: center;
+  }
+  .compare__cell.label h6 { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 0; font-weight: 500; }
+  .compare__cell.bad { color: var(--ink-100); font-size: 14px; line-height: 1.5; }
+  .compare__cell.bad::before { content: "✕"; color: var(--ruby); margin-right: 8px; font-weight: 700; }
+  .compare__cell.good { color: var(--cream-100); font-size: 14px; line-height: 1.5; }
+  .compare__cell.good::before { content: "✓"; color: var(--gold-300); margin-right: 8px; font-weight: 700; }
+
+  /* Plans / Hosting */
+  .plans {
+    display: grid;
+    grid-template-columns: 1fr 1.05fr;
+    gap: 24px;
+  }
+  .plan {
+    background: var(--ink-900);
+    border: var(--hairline);
+    border-radius: var(--r-lg);
+    padding: 48px 40px;
+    position: relative;
+  }
+  .plan--gold {
+    border-color: var(--gold-300);
+    background:
+      radial-gradient(60% 60% at 100% 0%, rgba(212,175,55,0.06), transparent 70%),
+      var(--ink-900);
+  }
+  .plan .tag {
+    position: absolute; top: 16px; right: 16px;
+  }
+  .plan h4 {
+    font-family: var(--font-display);
+    font-size: 32px;
+    margin: 0;
+    color: var(--cream-100);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+  .plan .desc { color: var(--ink-100); font-size: 14px; margin-top: 8px; }
+  .plan__specs {
+    margin-top: 32px;
+    display: flex; flex-direction: column; gap: 0;
+  }
+  .plan__spec {
+    display: grid; grid-template-columns: 1fr 1.4fr;
+    padding: 16px 0;
+    border-top: var(--hairline-soft);
+    align-items: baseline;
+  }
+  .plan__spec:first-child { border-top: 0; }
+  .plan__spec .l {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    color: var(--ink-200);
+    letter-spacing: 0.14em;
+  }
+  .plan__spec .v { font-size: 14px; color: var(--cream-100); line-height: 1.5; }
+
+  /* Roadmap steps */
+  .roadmap {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--ink-500);
+    border: var(--hairline);
+  }
+  .roadmap__step {
+    background: var(--ink-900);
+    padding: 40px 32px;
+    position: relative;
+  }
+  .roadmap__step .step-num {
+    font-family: var(--font-display);
+    font-size: 60px;
+    color: var(--gold-300);
+    line-height: 1;
+    font-weight: 400;
+    opacity: 0.9;
+  }
+  .roadmap__step h5 {
+    font-family: var(--font-display);
+    font-size: 24px;
+    color: var(--cream-100);
+    margin: 16px 0 12px;
+    font-weight: 500;
+  }
+  .roadmap__step p { font-size: 13.5px; color: var(--ink-100); line-height: 1.55; margin: 0; }
+
+  /* Final CTA */
+  .final {
+    text-align: center;
+    padding: 160px 32px;
+    position: relative;
+    background:
+      radial-gradient(50% 60% at 50% 50%, rgba(212,175,55,0.06), transparent 70%);
+  }
+  .final::before, .final::after {
+    content: "";
+    position: absolute; top: 50%;
+    width: 80px; height: 1px;
+    background: var(--gold-300);
+    opacity: 0.4;
+  }
+  .final::before { left: 32px; }
+  .final::after { right: 32px; }
+
+  .final h2 {
+    font-family: var(--font-display);
+    font-size: clamp(52px, 7vw, 96px);
+    line-height: 1;
+    color: var(--cream-100);
+    margin: 0 0 32px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+  .final h2 em { font-style: italic; color: var(--gold-300); }
+  .final p { font-size: 17px; color: var(--ink-100); max-width: 600px; margin: 0 auto 48px; line-height: 1.6; }
+
+  /* Footer */
+  .foot {
+    border-top: var(--hairline-soft);
+    padding: 56px 32px;
+  }
+  .foot__inner {
+    max-width: 1280px; margin: 0 auto;
+    display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 64px;
+  }
+  .foot p { color: var(--ink-100); font-size: 13.5px; line-height: 1.6; max-width: 320px; margin: 16px 0 0; }
+  .foot h6 { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-300); margin: 0 0 16px; }
+  .foot ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+  .foot ul a { color: var(--ink-100); text-decoration: none; }
+  .foot ul a:hover { color: var(--gold-300); }
+  .foot__bot { max-width: 1280px; margin: 56px auto 0; padding-top: 24px; border-top: var(--hairline-soft); display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; color: var(--ink-300); letter-spacing: 0.08em; }
+</style>
+</head>
+<body data-screen-label="01 Landing">
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav__inner">
+    <a href="../index.html" class="brand-mark">
+      <span class="brand-mark__glyph">R</span>
+      <span class="brand-mark__name">Religio <em>Pro</em></span>
+    </a>
+    <div class="nav__links">
+      <a href="#sistem">Sistem</a>
+      <a href="#fitur">Fitur</a>
+      <a href="#keamanan">Keamanan</a>
+      <a href="#implementasi">Implementasi</a>
+      <a href="#langkah">Langkah</a>
+    </div>
+    <div class="nav__cta">
+      <a class="btn btn--ghost btn--sm" href="../index.html">Hub</a>
+      <a class="btn btn--primary btn--sm" href="#langkah">Jadwalkan Demo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero__bg"></div>
+  <div class="hero__content">
+    <div class="hero__eyebrow">
+      <span class="eyebrow">Religio Pro · Proposal Sistem · Mei 2026</span>
+      <span class="line"></span>
+      <span class="eyebrow" style="color:var(--ink-200);">Untuk travel umroh kelas middle-up</span>
+    </div>
+    <h1 class="hero__title">Satu sistem.<br>Empat platform.<br><em>Nol kesalahan</em> manual.</h1>
+
+    <div class="hero__row">
+      <p class="hero__lede">
+        RELIGIO PRO adalah ekosistem digital terpadu untuk travel umroh &amp; tour religi. Satu database pusat menyinkronkan Web Admin, Portal Agen, Aplikasi Crew, dan Premium Jemaah App — <strong>secara real-time, akurat, dan termonitor dari mana saja.</strong>
+      </p>
+      <div class="hero__ctas">
+        <a class="btn btn--primary btn--lg" href="#langkah">Jadwalkan Demo Live</a>
+        <a class="btn btn--ghost btn--lg" href="#sistem">Lihat Arsitektur</a>
+      </div>
+    </div>
+
+    <dl class="hero__rule">
+      <div class="hero__stat"><dt>Platform peran</dt><dd>4</dd></div>
+      <div class="hero__stat"><dt>Mata uang audit</dt><dd>IDR · USD · SAR</dd></div>
+      <div class="hero__stat"><dt>Standar enkripsi</dt><dd>AES<span class="u">-256</span></dd></div>
+      <div class="hero__stat"><dt>Implementasi</dt><dd>3<span class="u">–14 hari</span></dd></div>
+    </dl>
+  </div>
+</section>
+
+<!-- CHALLENGES -->
+<section class="section" id="masalah">
+  <header class="section__head">
+    <div>
+      <p class="eyebrow">01 — Empat tantangan terbesar</p>
+      <h2>Apa yang sedang <em>menghambat</em> pertumbuhan Anda?</h2>
+    </div>
+    <p>Mayoritas travel middle-up di Indonesia masih berjuang dengan sistem yang terpisah-pisah, manual, dan rawan kesalahan. Akibatnya, bukan hanya operasional yang terganggu — reputasi perusahaan dan kepuasan jemaah ikut menjadi taruhannya.</p>
+  </header>
+  <div class="challenges">
+    <article class="challenge">
+      <span class="challenge__num">01</span>
+      <h4>Kebocoran Data &amp; Dokumen</h4>
+      <p>Manifes, paspor, SISKOPATUH, dan visa masih dikelola via Excel manual yang tersebar di banyak komputer.</p>
+      <div class="challenge__symbol"><svg viewBox="0 0 24 24"><path d="M6 4 H18 V20 H6 Z M9 8 H15 M9 12 H15 M9 16 H13 M4 4 L20 20"/></svg></div>
+    </article>
+    <article class="challenge">
+      <span class="challenge__num">02</span>
+      <h4>Drama Operasional Lapangan</h4>
+      <p>Jemaah tersesat, pembagian bus dan kamar berantakan, komunikasi lapangan lambat &amp; terfragmentasi.</p>
+      <div class="challenge__symbol"><svg viewBox="0 0 24 24"><path d="M3 11 V8 L5 8 L7 4 L17 4 L19 8 L21 8 V11 M5 17 H19 V11 H5 Z"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/></svg></div>
+    </article>
+    <article class="challenge">
+      <span class="challenge__num">03</span>
+      <h4>Sales &amp; Agen Kurang Produktif</h4>
+      <p>Leads tidak di-follow up, konflik antar agen karena pencatatan komisi manual dan tidak transparan.</p>
+      <div class="challenge__symbol"><svg viewBox="0 0 24 24"><path d="M3 11 H21 M5 7 C5 5 6 4 8 4 H16 C18 4 19 5 19 7 V17 C19 19 18 20 16 20 H8 C6 20 5 19 5 17 Z M9 14 H15"/></svg></div>
+    </article>
+    <article class="challenge">
+      <span class="challenge__num">04</span>
+      <h4>Keuangan Multi-Mata Uang</h4>
+      <p>Rekonsiliasi IDR, USD, dan SAR dilakukan manual — rawan selisih, lambat, dan rentan fraud internal.</p>
+      <div class="challenge__symbol"><svg viewBox="0 0 24 24"><path d="M12 2 V22 M5 9 L12 2 L19 9 M19 15 L12 22 L5 15"/></svg></div>
+    </article>
+  </div>
+</section>
+
+<!-- STATEMENT -->
+<section class="statement">
+  <p class="statement__quote">"Satu Sistem.<br>Empat Platform.<br><em>Nol Kesalahan Manual.</em>"</p>
+  <p class="statement__attr">— Prinsip Operasi RELIGIO PRO</p>
+</section>
+
+<!-- ARCHITECTURE -->
+<section class="section" id="sistem">
+  <header class="section__head">
+    <div>
+      <p class="eyebrow">02 — Arsitektur multi-platform</p>
+      <h2>Satu database pusat.<br>Empat <em>permukaan peran.</em></h2>
+    </div>
+    <p>RELIGIO PRO membagi sistem menjadi empat tampilan peran yang masing-masing dirancang sesuai kebutuhan penggunanya — namun terhubung secara real-time. Perubahan di satu platform langsung tercermin di semua platform.</p>
+  </header>
+
+  <div class="arch">
+    <div class="arch__hub">
+      <div>
+        <span class="l">Central Database</span>
+        <span class="b">Religio Core</span>
+      </div>
+    </div>
+    <div class="arch__platforms">
+      <article class="arch__plat">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 12 L7 8 L11 12 L17 6 L21 10"/><path d="M3 18 L21 18"/></svg></span>
+        <div class="who">Owner &amp; Direksi</div>
+        <h5>Web Admin &amp; HQ Dashboard</h5>
+        <p>Kendali penuh: pembuatan paket, manifes grup, manajemen dokumen, audit log transaksi, dan grafik analisis bisnis.</p>
+      </article>
+      <article class="arch__plat">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 11 H21 M5 7 C5 5 6 4 8 4 H16 C18 4 19 5 19 7 V17 C19 19 18 20 16 20 H8 C6 20 5 19 5 17 Z"/></svg></span>
+        <div class="who">Agen · KBIH · Sales</div>
+        <h5>Portal Agen &amp; Sales CRM</h5>
+        <p>Pantau kuota kursi, kunci leads, dan lacak komisi secara transparan dan real-time dari mana saja.</p>
+      </article>
+      <article class="arch__plat">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 11 V8 L5 8 L7 4 L17 4 L19 8 L21 8 V11 M5 17 H19 V11 H5 Z"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/></svg></span>
+        <div class="who">Tour Leader · Tanah Suci</div>
+        <h5>Aplikasi Crew &amp; Muthawwif</h5>
+        <p>Kelola absensi jemaah, pelaporan manifes bus, dan penanganan situasi darurat di lapangan.</p>
+      </article>
+      <article class="arch__plat">
+        <span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"/></svg></span>
+        <div class="who">Jemaah Premium</div>
+        <h5>Premium Jemaah App</h5>
+        <p>Panduan ibadah, jadwal perjalanan, SOS tracker, dan komunikasi langsung dengan pembimbing.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="fitur">
+  <header class="section__head">
+    <div>
+      <p class="eyebrow">03 — Fitur unggulan</p>
+      <h2>Empat keunggulan yang <em>membedakan.</em></h2>
+    </div>
+    <p>Setiap modul dirancang untuk menggantikan satu titik nyeri spesifik di bisnis travel umroh. Tidak ada fitur kosmetik.</p>
+  </header>
+
+  <!-- A. Sales Accelerator -->
+  <article class="feature">
+    <div class="feature__text">
+      <span class="num">A · SALES ACCELERATOR</span>
+      <h3>Mesin penggerak <em>omzet</em> yang tidak pernah tidur.</h3>
+      <p>Setiap leads dari media sosial atau pameran otomatis terkunci. Setiap agen punya landing page sendiri. Komisi dihitung &amp; dibayar real-time.</p>
+      <ul class="feature__list">
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Smart Leads Tracker</strong><span>Notifikasi follow-up harian di HP sales — tidak ada satu pun calon jemaah yang terlewat.</span></div>
+        </li>
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Instant Marketing Kit</strong><span>Setiap paket otomatis menghasilkan landing page elegan dengan nama &amp; nomor WA agen.</span></div>
+        </li>
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Komisi Otomatis &amp; Berjenjang</strong><span>Begitu jemaah melunasi, komisi langsung masuk wallet digital agen secara transparan — zero konflik.</span></div>
+        </li>
+      </ul>
+    </div>
+    <div class="feature__visual">
+      <div class="mock mock-sales mock--gold">
+        <div class="mock-sales__head">
+          <h6>Hot Leads · Hari Ini</h6>
+          <span class="badge badge--gold">14 · IDR 540 Jt</span>
+        </div>
+        <div class="mock-sales__lead">
+          <div class="avatar">HS</div>
+          <div>
+            <div class="name">Bu Hartini Susanto</div>
+            <div class="sub">QUAD PLUS AQSA · 2 PAX · F/U H+1</div>
+          </div>
+          <span class="badge badge--gold">Agen Bandung</span>
+        </div>
+        <div class="mock-sales__lead">
+          <div class="avatar">JW</div>
+          <div>
+            <div class="name">Pak Joko Wibowo</div>
+            <div class="sub">TRIPLE · 4 PAX · SUDAH DP 30%</div>
+          </div>
+          <span class="badge badge--emerald badge--dot">DP Masuk</span>
+        </div>
+        <div class="mock-sales__lead">
+          <div class="avatar">KR</div>
+          <div>
+            <div class="name">Keluarga Rahman</div>
+            <div class="sub">VVIP · 6 PAX · MENUNGGU INVOICE</div>
+          </div>
+          <span class="badge badge--amber badge--dot">H-2</span>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- B. Premium Jemaah -->
+  <article class="feature">
+    <div class="feature__visual">
+      <div class="mock" style="background:linear-gradient(180deg, var(--ink-900), var(--ink-1000));">
+        <div class="eyebrow" style="margin-bottom:8px;">Putaran 4 dari 7 · Thawaf</div>
+        <div class="font-arabic" style="font-size:38px;color:var(--gold-200);text-align:right;line-height:1.5;">رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً</div>
+        <div style="font-family:var(--font-display);font-style:italic;font-size:18px;color:var(--cream-100);text-align:right;margin-top:8px;">"Rabbanā ātinā fid-dunyā ḥasanah wa fil-ākhirati ḥasanah…"</div>
+        <div style="display:flex;align-items:center;gap:14px;margin-top:24px;">
+          <button class="btn btn--icon btn--outline-gold" style="width:48px;height:48px;border-radius:50%;border-width:1.5px;">▶</button>
+          <div style="flex:1;height:3px;background:var(--ink-700);border-radius:2px;position:relative;">
+            <div style="position:absolute;left:0;top:0;height:100%;width:62%;background:var(--gold-300);border-radius:2px;"></div>
+          </div>
+          <span class="font-mono" style="font-size:12px;color:var(--ink-200);">01:24</span>
+        </div>
+        <hr class="divider-gold" style="margin:28px 0;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <div class="eyebrow" style="font-size:10px;">Lokasi</div>
+            <div style="font-family:var(--font-display);font-size:20px;color:var(--cream-100);margin-top:4px;">Masjidil Haram</div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">Gate 79 · 14:32 WAS</div>
+          </div>
+          <div>
+            <div class="eyebrow" style="font-size:10px;">Tour leader</div>
+            <div style="font-family:var(--font-display);font-size:20px;color:var(--cream-100);margin-top:4px;">Ust. M. Yusuf</div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--emerald);">● Online · 24m away</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="feature__text">
+      <span class="num">B · PREMIUM JEMAAH EXPERIENCE</span>
+      <h3>Ibadah <em>tenang.</em><br>Pelayanan VVIP.</h3>
+      <p>Memberikan pengalaman ibadah kelas dunia yang membuat jemaah merasa aman, nyaman, dan eksklusif sejak mendaftar hingga kembali ke tanah air.</p>
+      <ul class="feature__list">
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Smart Audio Guide &amp; Doa Digital</strong><span>Panduan doa dengan audio muthawwif otomatis saat Thawaf &amp; Sa'i — sangat membantu jemaah lansia.</span></div>
+        </li>
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Live Tracker &amp; Tombol SOS</strong><span>Posisi jemaah terpantau real-time di peta Tour Leader. Tekan SOS, lokasi langsung dikirim ke pendamping.</span></div>
+        </li>
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Timeline &amp; Push Notification</strong><span>"Bus ziarah Madinah berangkat 15 menit lagi" — keterlambatan jadwal menjadi masa lalu.</span></div>
+        </li>
+      </ul>
+    </div>
+  </article>
+
+  <!-- C. Documents -->
+  <article class="feature">
+    <div class="feature__text">
+      <span class="num">C · MANIFES &amp; DOKUMEN PINTAR</span>
+      <h3>Zero <em>human error</em><br>untuk logistik &amp; regulasi.</h3>
+      <p>Menghilangkan kesalahan manusia dalam pengurusan dokumen keimigrasian, Kemenag, dan logistik kamar/bus.</p>
+      <ul class="feature__list">
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Pelacak Status Dokumen</strong><span>Memantau suntik meningitis, paspor min 7 bulan, nomor SISKOPATUH, hingga status visa.</span></div>
+        </li>
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Surat Rekomendasi Otomatis</strong><span>Cetak surat rekomendasi paspor imigrasi &amp; Kemenag secara massal hanya dengan satu klik.</span></div>
+        </li>
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Bunking Drag &amp; Drop</strong><span>Pembagian kamar hotel &amp; kursi bus berdasarkan keluarga — tanpa kertas coret-coretan.</span></div>
+        </li>
+      </ul>
+    </div>
+    <div class="feature__visual">
+      <div class="mock mock-doc">
+        <div class="eyebrow" style="margin-bottom:14px;">Status Dokumen · 124 Jemaah</div>
+        <div class="mock-doc__row">
+          <div><div class="n">Paspor — Ahmad Fauzi</div><div class="s">A12345678 · BERLAKU 14 NOV 2027</div></div>
+          <span class="badge badge--emerald badge--dot">Valid</span>
+        </div>
+        <div class="mock-doc__row">
+          <div><div class="n">SISKOPATUH — Grup G-PRO-481</div><div class="s">NOMOR REG 2026/PROVIN/03/0481</div></div>
+          <span class="badge badge--emerald badge--dot">Terdaftar</span>
+        </div>
+        <div class="mock-doc__row warning">
+          <div><div class="n">Suntik Meningitis — 7 jemaah</div><div class="s">BELUM DIUNGGAH · TENGGAT 14 HARI</div></div>
+          <span class="badge badge--amber badge--dot">Tertunda</span>
+        </div>
+        <div class="mock-doc__row danger">
+          <div><div class="n">Visa Umroh — Khadijah Lestari</div><div class="s">PERLU RE-SUBMIT · FOTO PASPOR BLUR</div></div>
+          <span class="badge badge--ruby badge--dot">Tolak</span>
+        </div>
+        <div class="mock-doc__row">
+          <div><div class="n">Rekomendasi Imigrasi — 124 jemaah</div><div class="s">SIAP CETAK MASSAL</div></div>
+          <a class="btn btn--outline-gold btn--sm">Cetak →</a>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- D. Finance -->
+  <article class="feature">
+    <div class="feature__visual">
+      <div class="mock-fin">
+        <div class="mock-fin__row">
+          <div class="mock-fin__bar" style="background:var(--currency-idr);"></div>
+          <div><div class="lbl">IDR · RUPIAH (PRIMARY)</div><div class="val">Rp 12.840.500.000</div></div>
+          <span class="badge badge--gold">Primary</span>
+        </div>
+        <div class="mock-fin__row">
+          <div class="mock-fin__bar" style="background:var(--currency-usd);"></div>
+          <div><div class="lbl">USD · DOLLAR</div><div class="val">$ 808,420.55</div></div>
+          <span class="fx">1 = 15.880</span>
+        </div>
+        <div class="mock-fin__row">
+          <div class="mock-fin__bar" style="background:var(--currency-sar);"></div>
+          <div><div class="lbl">SAR · RIYAL</div><div class="val">﷼ 3.032.180</div></div>
+          <span class="fx">1 = 4.234</span>
+        </div>
+        <div class="mock-fin__row" style="background:var(--ink-1000);">
+          <div></div>
+          <div>
+            <div class="lbl" style="color:var(--gold-300);">AUDIT LOG · 7 HARI TERAKHIR</div>
+            <div style="font-family:var(--font-mono);font-size:12px;color:var(--ink-100);line-height:1.65;margin-top:6px;">
+              <span style="color:var(--gold-300);">14:22</span>  Diskon Rp 500K diterapkan oleh Sr. Lia<br>
+              <span style="color:var(--gold-300);">11:08</span>  Pengeluaran katering ﷼ 24,000 — Mansoor Catering<br>
+              <span style="color:var(--gold-300);">09:41</span>  Pelunasan masuk · Bu Hartini · Rp 38,5 Jt
+            </div>
+          </div>
+          <span></span>
+        </div>
+      </div>
+    </div>
+    <div class="feature__text">
+      <span class="num">D · KEUANGAN MULTI-CURRENCY</span>
+      <h3>Bebas drama.<br><em>Bebas fraud.</em></h3>
+      <p>Mesin akuntansi canggih yang mempermudah kerja bendahara dan akuntan perusahaan — IDR, USD, dan SAR dalam satu pandangan.</p>
+      <ul class="feature__list">
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Skema Pembayaran Fleksibel</strong><span>Harga berbasis Quad/Triple/Double · DP, cicilan, atau lunas via VA, QRIS, e-wallet, kartu kredit.</span></div>
+        </li>
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Konfirmasi Otomatis</strong><span>Pengingat WA/Email sebelum jatuh tempo. Status "Lunas" langsung — tanpa foto bukti transfer.</span></div>
+        </li>
+        <li>
+          <span class="check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12 L11 15 L16 9"/></svg></span>
+          <div><strong>Audit Log Permanen</strong><span>Pengeluaran di Arab Saudi dicatat dengan kurs harian — log tidak dapat dihapus, mencegah fraud internal.</span></div>
+        </li>
+      </ul>
+    </div>
+  </article>
+</section>
+
+<!-- SECURITY -->
+<section class="section" id="keamanan">
+  <header class="section__head">
+    <div>
+      <p class="eyebrow">04 — Keamanan &amp; tata kelola</p>
+      <h2>Data jemaah adalah <em>aset</em><br>paling berharga Anda.</h2>
+    </div>
+    <p>RELIGIO PRO menerapkan standar keamanan teknologi tertinggi — RBAC, audit log permanen, enkripsi AES-256, dan kepatuhan penuh terhadap UU Perlindungan Data Pribadi Indonesia.</p>
+  </header>
+  <div class="security">
+    <div class="security__grid">
+      <article class="security__item">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M12 2 L20 6 V12 C20 17 16 21 12 22 C8 21 4 17 4 12 V6 Z"/></svg></span>
+        <span class="tech">Access Management</span>
+        <h5>RBAC</h5>
+        <p>Role-Based Access Control — hak akses dibatasi ketat per peran: Owner, Manajer Ops, Kasir, Sales, Agen, hingga Muthawwif.</p>
+      </article>
+      <article class="security__item">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M4 4 H20 V20 H4 Z M4 9 H20 M8 14 L11 17 L16 12"/></svg></span>
+        <span class="tech">Log System</span>
+        <h5>Audit Log Permanen</h5>
+        <p>Setiap perubahan harga, diskon kustom, atau modifikasi manifes dicatat — beserta timestamp yang tidak dapat dihapus.</p>
+      </article>
+      <article class="security__item">
+        <span class="ico"><svg viewBox="0 0 24 24"><rect x="6" y="10" width="12" height="10"/><path d="M9 10 V7 C9 5 10 4 12 4 C14 4 15 5 15 7 V10"/></svg></span>
+        <span class="tech">AES-256 Encryption</span>
+        <h5>Enkripsi End-to-End</h5>
+        <p>Foto KTP, paspor, dan data keuangan dienkripsi end-to-end dengan standar perbankan internasional.</p>
+      </article>
+      <article class="security__item">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M5 4 H19 V14 L12 20 L5 14 Z"/><path d="M9 11 L11 13 L15 9"/></svg></span>
+        <span class="tech">Regulatory Compliance</span>
+        <h5>Kepatuhan UU PDP</h5>
+        <p>Dibangun sesuai Undang-Undang Perlindungan Data Pribadi Indonesia — memastikan perusahaan terhindar dari sanksi regulasi.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARE -->
+<section class="section">
+  <header class="section__head">
+    <div>
+      <p class="eyebrow">05 — Tanpa vs Dengan</p>
+      <h2>Perbedaan yang <em>terasa</em><br>sejak hari pertama.</h2>
+    </div>
+    <p>Banyak software hadir dengan janji yang sama. Berikut yang membedakan RELIGIO PRO dari solusi yang sudah ada.</p>
+  </header>
+  <div class="compare">
+    <div class="compare__row">
+      <div></div>
+      <div>Area</div>
+      <div>Tanpa RELIGIO PRO</div>
+      <div class="gold">Dengan RELIGIO PRO</div>
+    </div>
+    <div class="compare__row">
+      <div class="compare__cell num">01</div>
+      <div class="compare__cell label"><h6>Leads &amp; Follow Up</h6></div>
+      <div class="compare__cell bad">Tersebar di WA, Excel, dan kertas — sering lupa ditindaklanjuti.</div>
+      <div class="compare__cell good">Setiap leads otomatis terkunci, jadwal follow up dikirim ke HP sales setiap hari.</div>
+    </div>
+    <div class="compare__row">
+      <div class="compare__cell num">02</div>
+      <div class="compare__cell label"><h6>Komisi Agen</h6></div>
+      <div class="compare__cell bad">Dihitung manual di akhir bulan — sering terjadi sengketa.</div>
+      <div class="compare__cell good">Real-time, transparan, langsung masuk wallet digital agen begitu jemaah lunas.</div>
+    </div>
+    <div class="compare__row">
+      <div class="compare__cell num">03</div>
+      <div class="compare__cell label"><h6>Dokumen Jemaah</h6></div>
+      <div class="compare__cell bad">Paspor kadaluarsa baru ketahuan H-3 keberangkatan.</div>
+      <div class="compare__cell good">Sistem memperingatkan jauh hari sebelum dokumen bermasalah.</div>
+    </div>
+    <div class="compare__row">
+      <div class="compare__cell num">04</div>
+      <div class="compare__cell label"><h6>Posisi Jemaah di Tanah Suci</h6></div>
+      <div class="compare__cell bad">Tour Leader hanya mengandalkan HP pribadi dan voice call.</div>
+      <div class="compare__cell good">Live GPS tracking, SOS button, komunikasi terpusat dalam satu aplikasi.</div>
+    </div>
+    <div class="compare__row">
+      <div class="compare__cell num">05</div>
+      <div class="compare__cell label"><h6>Laporan Keuangan</h6></div>
+      <div class="compare__cell bad">Bendahara rekonsiliasi manual berhari-hari.</div>
+      <div class="compare__cell good">Real-time multi-mata uang (IDR/USD/SAR) dengan audit log permanen.</div>
+    </div>
+  </div>
+</section>
+
+<!-- IMPLEMENTATION -->
+<section class="section" id="implementasi">
+  <header class="section__head">
+    <div>
+      <p class="eyebrow">06 — Implementasi &amp; infrastruktur</p>
+      <h2>Dua skema pemasangan,<br>satu <em>standar mutu.</em></h2>
+    </div>
+    <p>Pilih sesuai skala bisnis dan kesiapan infrastruktur IT Anda. Tim kami mendampingi penuh hingga sistem berjalan lancar dan tim Anda mahir menggunakannya.</p>
+  </header>
+  <div class="plans">
+    <div class="plan">
+      <h4>Skema 1 · Shared Hosting</h4>
+      <p class="desc">Cocok untuk travel menengah yang baru mulai mendigitalkan operasi.</p>
+      <div class="plan__specs">
+        <div class="plan__spec"><span class="l">Waktu Pemasangan</span><span class="v">3 – 5 hari kerja</span></div>
+        <div class="plan__spec"><span class="l">Penyimpanan</span><span class="v">Server shared yang sudah ada</span></div>
+        <div class="plan__spec"><span class="l">Keamanan &amp; Backup</span><span class="v">cPanel standar, backup mingguan</span></div>
+        <div class="plan__spec"><span class="l">Kelebihan</span><span class="v">Biaya awal lebih efisien</span></div>
+      </div>
+    </div>
+    <div class="plan plan--gold">
+      <span class="tag"><span class="badge badge--solid-gold">Rekomendasi</span></span>
+      <h4>Skema 2 · Self-Hosted VPS</h4>
+      <p class="desc">Untuk travel middle-up dengan ratusan hingga ribuan jemaah per musim.</p>
+      <div class="plan__specs">
+        <div class="plan__spec"><span class="l">Waktu Pemasangan</span><span class="v">7 – 14 hari kerja (termasuk optimasi)</span></div>
+        <div class="plan__spec"><span class="l">Penyimpanan</span><span class="v">Server dedicated berkecepatan tinggi</span></div>
+        <div class="plan__spec"><span class="l">Keamanan &amp; Backup</span><span class="v">Kontrol penuh, firewall ketat, backup harian otomatis</span></div>
+        <div class="plan__spec"><span class="l">Kelebihan</span><span class="v">Performa maksimal saat high season umroh/haji</span></div>
+      </div>
+    </div>
+  </div>
+  <p style="text-align:center;margin-top:40px;color:var(--ink-200);font-size:13.5px;">Aplikasi Mobile (Android &amp; iOS) menggunakan teknologi Capacitor/PWA — siap didistribusikan via QR Code atau website resmi.</p>
+</section>
+
+<!-- ROADMAP -->
+<section class="section" id="langkah">
+  <header class="section__head">
+    <div>
+      <p class="eyebrow">07 — Langkah selanjutnya</p>
+      <h2>Empat langkah dari demo<br>ke <em>go-live</em>.</h2>
+    </div>
+    <p>Kami memahami bahwa setiap travel memiliki keunikan operasional. Karena itu kami selalu mulai dari demo &amp; needs assessment — tanpa komitmen apapun.</p>
+  </header>
+  <div class="roadmap">
+    <article class="roadmap__step">
+      <div class="step-num">01</div>
+      <h5>Jadwalkan Demo</h5>
+      <p>Sesi live 60 menit yang disesuaikan dengan alur bisnis &amp; tantangan spesifik perusahaan Anda.</p>
+    </article>
+    <article class="roadmap__step">
+      <div class="step-num">02</div>
+      <h5>Needs Assessment</h5>
+      <p>Analisis mendalam terhadap alur operasional saat ini, kebutuhan dokumen, dan target pertumbuhan.</p>
+    </article>
+    <article class="roadmap__step">
+      <div class="step-num">03</div>
+      <h5>Proposal Teknis</h5>
+      <p>Dokumen teknis &amp; penawaran harga yang disesuaikan — tersedia terpisah atas permintaan resmi.</p>
+    </article>
+    <article class="roadmap__step">
+      <div class="step-num">04</div>
+      <h5>Onboarding &amp; Go-Live</h5>
+      <p>Implementasi didampingi penuh tim teknis hingga sistem berjalan lancar dan seluruh tim mahir.</p>
+    </article>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final">
+  <p class="eyebrow" style="margin-bottom:32px;">RELIGIO Pro</p>
+  <h2>Siap membawa bisnis travel Anda<br>ke <em>level berikutnya?</em></h2>
+  <p>Hubungi tim kami untuk demo gratis tanpa komitmen. Kami akan menunjukkan persis bagaimana RELIGIO PRO bekerja sesuai alur bisnis Anda.</p>
+  <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+    <a class="btn btn--primary btn--lg" href="#">Hubungi via WhatsApp</a>
+    <a class="btn btn--outline-gold btn--lg" href="#">Kirim Email</a>
+  </div>
+  <p style="margin-top:48px;font-family:var(--font-mono);font-size:12px;color:var(--ink-200);letter-spacing:0.14em;">
+    WA · 0857 1569 0293     |     EMAIL · info.sosmartpro@gmail.com
+  </p>
+</section>
+
+<!-- FOOTER -->
+<footer class="foot">
+  <div class="foot__inner">
+    <div>
+      <a href="../index.html" class="brand-mark">
+        <span class="brand-mark__glyph">R</span>
+        <span class="brand-mark__name">Religio <em>Pro</em></span>
+      </a>
+      <p>End-to-End Solusi Digital untuk Travel Umroh &amp; Tour Religi. Manajemen Operasional · Akselerasi Sales · Keuangan Jemaah Premium.</p>
+    </div>
+    <div>
+      <h6>Sistem</h6>
+      <ul>
+        <li><a href="admin-dashboard.html">Web Admin</a></li>
+        <li><a href="agen-crm.html">Portal Agen</a></li>
+        <li><a href="crew-app.html">Crew App</a></li>
+        <li><a href="jemaah-app.html">Jemaah App</a></li>
+      </ul>
+    </div>
+    <div>
+      <h6>Resources</h6>
+      <ul>
+        <li><a href="../design-system.html">Design System</a></li>
+        <li><a href="../index.html">Hub</a></li>
+        <li><a href="#">Dokumentasi API</a></li>
+        <li><a href="#">Kebijakan PDP</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot__bot">
+    <span>© 2026 RELIGIO PRO · TIM PRODUCT</span>
+    <span>v1.0 · 23 MEI 2026</span>
+  </div>
+</footer>
+
+</body>
+</html>
