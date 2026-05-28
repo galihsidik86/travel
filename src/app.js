@@ -92,11 +92,14 @@ export function createApp() {
   app.use('/api/paket', paketJsonRouter);
   app.use('/api/booking', bookingRouter);
   app.use('/api/leads', leadsRouter);
-  app.use('/api/payments', paymentsRouter);
-  app.use('/api/refunds', refundsRouter);
   // 5pp: payment gateway (mounts /api/payments/intent + /api/payments/midtrans/webhook
   // + /payments/midtrans/fake). Defines its full paths so it's mounted at root.
+  // MUST come BEFORE paymentsRouter — that router has `router.use(requireAuth, …)`
+  // which would intercept any /api/payments/* prefix and 401 the webhook before
+  // signature verify ever runs.
   app.use('/', paymentGatewayRouter);
+  app.use('/api/payments', paymentsRouter);
+  app.use('/api/refunds', refundsRouter);
   app.use('/api/admin/jobs', jobsRouter);
   app.use('/api/bunking', bunkingRouter);
   app.use('/api/jemaah', jemaahDocsRouter);

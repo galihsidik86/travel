@@ -53,7 +53,7 @@ The static design package is still served — visit `/`, `/screens/paket-detail.
 
 ### Route mounting order
 
-Mount **nested admin sub-paths BEFORE** the generic `/admin` router, otherwise Express short-circuits on prefix match and the catch-all handler can swallow nested URLs. Same rule for `/api/paket/:slug/{hotels,days,rooms}` mounting before the public `paketJsonRouter`. Current order in `src/app.js`:
+Mount **nested admin sub-paths BEFORE** the generic `/admin` router, otherwise Express short-circuits on prefix match and the catch-all handler can swallow nested URLs. Same rule for `/api/paket/:slug/{hotels,days,rooms}` mounting before the public `paketJsonRouter`. **And: `paymentGatewayRouter` MUST mount BEFORE `paymentsRouter`** — the latter has `router.use(requireAuth, requireRole(...))` which intercepts any `/api/payments/*` prefix and 401s the Midtrans webhook before its signature verify ever runs (caught by HTTP integration tests). Current order in `src/app.js`:
 
 ```
 /api/paket            → paketChildrenRouter (admin JSON CRUD)
