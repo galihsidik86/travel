@@ -154,6 +154,16 @@
     color: var(--ink-200); letter-spacing: 0.06em;
     padding: 6px 0;
   }
+
+  @media (max-width: 720px) {
+    .grid-3 { grid-template-columns: 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .doc-row__form { grid-template-columns: 1fr; }
+    .doc-row__form > * { width: 100%; }
+    /* Type-pref panel is currently 2 cols, single inline grid; force 1 col on mobile */
+    .panel > div[style*="grid-template-columns:1fr 1fr"] { display: block !important; }
+    .panel > div[style*="grid-template-columns:1fr 1fr"] > label { margin-bottom: 8px; }
+  }
 </style>
 </head>
 <body data-screen-label="04 Portal Jemaah · Profil">

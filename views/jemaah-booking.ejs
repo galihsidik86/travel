@@ -119,6 +119,13 @@
     margin-top: 18px;
   }
   .help-card .who { color: var(--gold-300); }
+
+  @media (max-width: 720px) {
+    .info-grid { grid-template-columns: 1fr; }
+    .money-row { grid-template-columns: 1fr; padding: 14px; }
+    .money-row .cell + .cell { padding-top: 10px; border-top: var(--hairline-soft); }
+    .money-row .v { font-size: 22px; }
+  }
 </style>
 </head>
 <body data-screen-label="04 Portal Jemaah · Detail">

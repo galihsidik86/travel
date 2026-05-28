@@ -351,3 +351,56 @@ body {
 }
 .ornament-corners::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
 .ornament-corners::after  { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+/* ============================================================
+   Mobile baseline (≤ 720px). Per-page <style> blocks can still
+   override; this catches the common gotchas globally.
+   ============================================================ */
+@media (max-width: 720px) {
+  :root {
+    /* Tighter outer rhythm so 32-40px-padded containers don't eat
+       the viewport on a 375px phone. */
+    --page-pad-mobile: 16px;
+  }
+
+  body { -webkit-text-size-adjust: 100%; }
+
+  /* Hero display text — clamp so per-page 36-40px <h1> doesn't ship
+     line-break-of-doom on a phone. */
+  h1 { font-size: clamp(22px, 7vw, 32px); line-height: 1.15; }
+  h2 { font-size: clamp(18px, 5.5vw, 24px); }
+  h3 { font-size: clamp(16px, 4.5vw, 20px); }
+
+  /* Buttons + inputs slightly tighter */
+  .btn { padding: 9px 14px; font-size: 11px; }
+  .btn--sm { padding: 6px 10px; }
+
+  /* Tables: stack into a horizontal-scroll block. Per-page .scroll-x
+     wrappers are still preferred (they preserve <thead> sticky); this
+     is the fallback when a template doesn't have one. Opt out per-page
+     by adding class .tbl--unscoped to the <table>. */
+  table { display: block; overflow-x: auto; white-space: nowrap; max-width: 100%; }
+  table.tbl--unscoped { display: table; overflow: visible; white-space: normal; }
+
+  /* Common 2-col form grids collapse to single column on mobile. */
+  .grid-2, .form-grid { grid-template-columns: 1fr !important; }
+
+  /* Most views wrap content in `.wrap { padding: 32px 40px 80px; }`.
+     The 40px horizontal eats ~80px of a 375px viewport. Compress to
+     a phone-friendly inset. Per-page styles loaded AFTER tokens.css
+     can override if they need a different value. */
+  .wrap { padding-left: var(--page-pad-mobile, 16px) !important; padding-right: var(--page-pad-mobile, 16px) !important; padding-top: 20px !important; }
+
+  /* Hero blocks (.hero) — phone-shrink the inner padding too. */
+  .hero { padding: 24px 20px !important; }
+
+  /* Topbars built from flex commonly need wrap on mobile so the nav
+     buttons stack below the user identity instead of overflowing. */
+  .topbar { flex-wrap: wrap !important; gap: 10px !important; }
+}
+
+/* Very-tight viewport (≤ 400px) — phone size */
+@media (max-width: 400px) {
+  :root { --page-pad-mobile: 12px; }
+  .btn { padding: 8px 12px; }
+}

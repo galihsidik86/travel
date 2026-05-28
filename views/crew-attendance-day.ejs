@@ -61,6 +61,17 @@
 
   .mark-meta { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-300); letter-spacing: 0.04em; margin-top: 4px; }
   .empty { padding: 40px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+
+  @media (max-width: 720px) {
+    /* Row form: stack checkbox + notes + button vertically on mobile */
+    .row-form { flex-direction: column; align-items: stretch; gap: 8px; }
+    .row-form .notes { width: 100%; min-width: 0; }
+    .row-form button { width: 100%; }
+    .tbl thead { display: none; }
+    .tbl tbody td { display: block; padding: 6px 12px; border-bottom: 0; }
+    .tbl tbody tr { display: block; padding: 12px 0; border-bottom: var(--hairline-soft); }
+    .tbl tbody tr:hover td { background: transparent; }
+  }
 </style>
 </head>
 <body data-screen-label="05 Crew · Attendance Day">

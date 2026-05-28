@@ -54,6 +54,15 @@
   .doc-pill.state-missing   { color: var(--ink-300); border-color: var(--ink-500); border-style: dashed; }
 
   .empty { padding: 40px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+
+  @media (max-width: 720px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .head { flex-direction: column; align-items: stretch; }
+    .head .head-actions, .head > div:last-child { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tbl { font-size: 11.5px; }
+    .tbl thead th { padding: 8px 10px; }
+    .tbl tbody td { padding: 8px 10px; }
+  }
 </style>
 </head>
 <body data-screen-label="05 Crew · Manifest">

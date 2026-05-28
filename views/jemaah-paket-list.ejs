@@ -69,6 +69,11 @@
     font-family: var(--font-mono); font-size: 11px; color: var(--ink-200);
     border: 1px dashed var(--ink-500); border-radius: var(--r-md);
   }
+
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: 1fr; gap: 12px; }
+    .card .meta { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body data-screen-label="04 Portal Jemaah · Paket">

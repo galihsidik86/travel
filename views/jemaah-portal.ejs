@@ -145,6 +145,16 @@
     color: var(--ink-200); line-height: 1.7;
   }
   .empty code { color: var(--gold-300); }
+
+  @media (max-width: 720px) {
+    .hero { padding: 28px 22px; }
+    .hero h1 { font-size: 28px; }
+    .claim-form { grid-template-columns: 1fr; }
+    .claim-form button { width: 100%; }
+    /* booking row stacks on phone: title-block, status, price each take a row */
+    .booking-row { grid-template-columns: 1fr; gap: 10px; padding: 14px 16px; }
+    .booking-row .price { text-align: left; }
+  }
 </style>
 </head>
 <body data-screen-label="04 Portal Jemaah">
