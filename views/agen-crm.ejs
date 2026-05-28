@@ -714,6 +714,46 @@
           Belum ada baris komisi.<br>
           Komisi otomatis tercatat saat booking jemaah Anda mencapai status <code>LUNAS</code>.
         </div>
+      <% } else { %>
+        <!-- Personal komisi pipeline — proportional stack of nilai by status -->
+        <div class="panel-an" style="margin-top:24px;">
+          <div class="panel-an__head">
+            <h3>Pipeline komisi Anda</h3>
+            <span class="meta">NILAI IDR · LIFETIME</span>
+          </div>
+          <%
+            const AGEN_KOM_PIPELINE = [
+              { key: 'pending',   label: 'Pending',   cls: 's-partial',   swatch: 'gold-200' },
+              { key: 'earned',    label: 'Earned',    cls: 's-pending',   swatch: 'amber'    },
+              { key: 'paid',      label: 'Paid',      cls: 's-lunas',     swatch: 'emerald'  },
+              { key: 'cancelled', label: 'Cancelled', cls: 's-cancelled', swatch: 'ruby'     },
+            ];
+            const AGEN_KP_ROWS = AGEN_KOM_PIPELINE
+              .map((s) => ({ ...s, amount: komisi[s.key] || 0 }))
+              .filter((r) => r.amount > 0);
+          %>
+          <div class="chart-stack" role="img" aria-label="Pipeline komisi agen">
+            <% AGEN_KP_ROWS.forEach(function(r) {
+              const pct = Math.max(0.5, (r.amount / komisi.total) * 100);
+            %>
+              <div class="seg <%= r.cls %>"
+                   style="width:<%= pct %>%;"
+                   title="<%= r.label %>: <%= fmt.rpFull(r.amount) %> (<%= Math.round((r.amount / komisi.total) * 100) %>%)"></div>
+            <% }) %>
+          </div>
+          <div class="chart-legend">
+            <% AGEN_KP_ROWS.forEach(function(r) {
+              const pct = Math.round((r.amount / komisi.total) * 100);
+            %>
+              <span class="item">
+                <span class="swatch" style="background: var(--<%= r.swatch %>);"></span>
+                <%= r.label %>
+                <span class="count"><%= fmt.rpShort(r.amount) %></span>
+                <span class="pct"><%= pct %>%</span>
+              </span>
+            <% }) %>
+          </div>
+        </div>
       <% } %>
 
       <!-- Riwayat payout -->
@@ -783,34 +823,50 @@
 
       <%- include('partials/date-range', { from: rFrom, to: rTo, basePath: '/agen' }) %>
 
-      <!-- Funnel -->
+      <!-- Funnel — SVG descending-width chart (shared primitive with /admin) -->
       <div class="panel-an">
         <div class="panel-an__head">
           <h3>Funnel konversi</h3>
         </div>
         <%
           const f = analytics.funnel;
-          const stages = [
-            { label: 'Cold', value: f.lead.COLD, color: 'var(--ink-500)' },
-            { label: 'Warm', value: f.lead.WARM, color: 'var(--sapphire)' },
-            { label: 'Converted', value: f.lead.CONVERTED, color: 'var(--amber)' },
-            { label: 'Hot booking', value: f.bookingsHot, color: 'var(--gold-300)' },
-            { label: 'LUNAS', value: f.bookingsLunas, color: 'var(--emerald)' },
+          const funnelStages = [
+            { l: 'Cold lead',   v: f.lead.COLD,       color: 'var(--ink-300)'  },
+            { l: 'Warm lead',   v: f.lead.WARM,       color: 'var(--sapphire)' },
+            { l: 'Converted',   v: f.lead.CONVERTED,  color: 'var(--amber)'    },
+            { l: 'Hot booking', v: f.bookingsHot,     color: 'var(--gold-300)' },
+            { l: 'LUNAS',       v: f.bookingsLunas,   color: 'var(--emerald)'  },
           ];
-          const maxStage = Math.max(1, ...stages.map(s => s.value));
+          const FN_TOP = funnelStages[0].v;
+          const FW = 520, FH = 280;
+          const stageH = FH / funnelStages.length;
+          const minStageWidth = 60;
+          const maxStageWidth = FW - 20;
         %>
-        <div class="funnel">
-          <% stages.forEach(function(s, i) { %>
-            <div class="funnel__stage">
-              <div class="funnel__lbl"><%= s.label %></div>
-              <div class="funnel__bar-wrap">
-                <div class="funnel__bar" style="width:<%= Math.max(8, Math.round((s.value / maxStage) * 100)) %>%;background:<%= s.color %>;"></div>
-              </div>
-              <div class="funnel__val"><%= s.value %></div>
-            </div>
-          <% }) %>
-        </div>
-        <div class="funnel__notes">
+        <% if (FN_TOP === 0) { %>
+          <div class="empty">Belum ada lead di range ini.</div>
+        <% } else { %>
+          <svg class="chart-funnel" viewBox="0 0 <%= FW %> <%= FH %>" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Funnel konversi agen">
+            <% funnelStages.forEach(function(s, i) {
+              const ratio = s.v / FN_TOP;
+              const w = Math.max(minStageWidth, ratio * maxStageWidth);
+              const x = (FW - w) / 2;
+              const y = i * stageH + 4;
+              const h = stageH - 8;
+              const pct = Math.round((s.v / FN_TOP) * 100);
+            %>
+              <g>
+                <rect class="stage-bar" x="<%= x.toFixed(1) %>" y="<%= y.toFixed(1) %>" width="<%= w.toFixed(1) %>" height="<%= h.toFixed(1) %>" rx="3" fill="<%= s.color %>" fill-opacity="0.65" stroke="<%= s.color %>" stroke-width="1">
+                  <title><%= s.l %>: <%= s.v %> (<%= pct %>% dari Cold)</title>
+                </rect>
+                <text class="stage-label" x="14" y="<%= (y + h/2).toFixed(1) %>" text-anchor="start"><%= s.l %></text>
+                <text class="stage-count" x="<%= (FW/2).toFixed(1) %>" y="<%= (y + h/2 - 4).toFixed(1) %>" text-anchor="middle"><%= s.v %></text>
+                <text class="stage-pct" x="<%= (FW/2).toFixed(1) %>" y="<%= (y + h/2 + 10).toFixed(1) %>" text-anchor="middle"><%= pct %>%</text>
+              </g>
+            <% }) %>
+          </svg>
+        <% } %>
+        <div class="funnel__notes" style="margin-top:14px;">
           Hilang/LOST: <strong><%= f.lead.LOST %></strong> lead
           <% if (f.leadLossPct != null) { %>(<%= f.leadLossPct %>% dari total)<% } %>
         </div>

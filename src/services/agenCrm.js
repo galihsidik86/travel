@@ -72,9 +72,10 @@ export async function getAgentDashboard(agentId, opts = {}) {
     pending: sumIdr(komisiRows.filter((k) => k.status === 'PENDING'), 'amount'),
     earned: sumIdr(komisiRows.filter((k) => k.status === 'EARNED'), 'amount'),
     paid: sumIdr(komisiRows.filter((k) => k.status === 'PAID'), 'amount'),
+    cancelled: sumIdr(komisiRows.filter((k) => k.status === 'CANCELLED'), 'amount'),
   };
   komisi.wallet = komisi.earned; // belum dibayar tapi sudah locked
-  komisi.total = komisi.pending + komisi.earned + komisi.paid;
+  komisi.total = komisi.pending + komisi.earned + komisi.paid + komisi.cancelled;
 
   const kpis = {
     bookingsThisMonth,
