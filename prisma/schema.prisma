@@ -262,9 +262,28 @@ model JemaahProfile {
 
   bookings        Booking[]
   documents       JemaahDocument[]
+  notifTypePrefs  JemaahNotifPref[]
 
   @@index([phone])
   @@index([passportExpiry])
+}
+
+// Per-type notif opt-out. Absence = enabled (default opt-in).
+// Composite PK (jemaahId, type) makes the toggle a natural upsert.
+//
+// Interaction with per-channel opt-out (JemaahProfile.notifEmail/notifWa):
+//   Both apply independently — a row is SKIPPED if EITHER the channel is
+//   opted out OR this type is disabled. Per-type wins for the skip-reason
+//   text (more actionable for the jemaah).
+model JemaahNotifPref {
+  jemaahId  String
+  jemaah    JemaahProfile     @relation(fields: [jemaahId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  enabled   Boolean           @default(true)
+  updatedAt DateTime          @updatedAt
+
+  @@id([jemaahId, type])
+  @@index([jemaahId])
 }
 
 model StaffProfile {

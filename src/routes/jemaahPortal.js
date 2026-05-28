@@ -16,6 +16,7 @@ import {
   updateMyProfile, submitMyDoc, deleteMyDoc,
   listAvailablePaket, requestCancelByJemaah,
   listMyNotifications, countUnreadForUser, markAllReadForUser,
+  setMyNotifTypePrefs, getMyNotifTypePrefs, JEMAAH_NOTIF_TYPES,
 } from '../services/jemaahPortal.js';
 import { DOC_TYPES, DOC_STATUSES, DOC_PILL } from '../services/jemaahDocs.js';
 import { META as JEMAAH_META } from '../services/jemaahAdmin.js';
@@ -143,10 +144,12 @@ router.get(
       passportExpiry: profile.passportExpiry?.toISOString().slice(0, 10) || '',
       birthDate: profile.birthDate?.toISOString().slice(0, 10) || '',
     };
+    const notifTypePrefs = await getMyNotifTypePrefs(req.user.id);
     res.render('jemaah-profile', {
       user: req.user, target, error: null,
       DOC_TYPES, DOC_STATUSES, DOC_PILL,
       META: JEMAAH_META,
+      notifTypePrefs, JEMAAH_NOTIF_TYPES,
     });
   }),
 );
@@ -167,12 +170,19 @@ router.post(
       notifWa: req.body?.notifWa ?? false,
       notifEmail: req.body?.notifEmail ?? false,
     };
-    const updated = await updateMyProfile({
-      req,
-      actor: { id: req.user.id, email: req.user.email, role: req.user.role },
-      userId: req.user.id, input,
-    });
-    res.json({ jemaah: updated });
+    const actor = { id: req.user.id, email: req.user.email, role: req.user.role };
+    const updated = await updateMyProfile({ req, actor, userId: req.user.id, input });
+
+    // Per-type notif prefs (same checkbox normalisation — unchecked = false).
+    // Form field name convention: notifType_<TYPE>=on (checkbox semantics).
+    const typePrefs = {};
+    for (const t of JEMAAH_NOTIF_TYPES) {
+      const raw = req.body?.[`notifType_${t}`];
+      typePrefs[t] = (raw === 'on' || raw === true || raw === 'true');
+    }
+    const typeState = await setMyNotifTypePrefs({ req, actor, userId: req.user.id, prefs: typePrefs });
+
+    res.json({ jemaah: updated, notifTypePrefs: typeState });
   }),
 );
 

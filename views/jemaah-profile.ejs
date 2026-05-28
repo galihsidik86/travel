@@ -258,12 +258,35 @@
       <div style="display:flex;flex-direction:column;gap:10px;">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
           <input type="checkbox" name="notifWa" <%= target.notifWa !== false ? 'checked' : '' %> value="on" style="accent-color:var(--gold-300);width:18px;height:18px;">
-          <span>Kirim notifikasi via <strong style="color:var(--gold-300);">WhatsApp</strong> (booking, pembayaran, refund)</span>
+          <span>Kirim notifikasi via <strong style="color:var(--gold-300);">WhatsApp</strong> (semua jenis)</span>
         </label>
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
           <input type="checkbox" name="notifEmail" <%= target.notifEmail !== false ? 'checked' : '' %> value="on" style="accent-color:var(--gold-300);width:18px;height:18px;">
-          <span>Kirim notifikasi via <strong style="color:var(--gold-300);">Email</strong> (konfirmasi booking + receipts)</span>
+          <span>Kirim notifikasi via <strong style="color:var(--gold-300);">Email</strong> (semua jenis)</span>
         </label>
+      </div>
+
+      <div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--ink-700);">
+        <p class="sub" style="margin-top:0;">Filter per jenis notifikasi. Yang dimatikan tetap masuk channel apa pun, tapi jenis itu tidak dikirim.</p>
+        <%
+          const TYPE_LABELS = {
+            BOOKING_CREATED:  'Booking dibuat',
+            PAYMENT_RECEIVED: 'Pembayaran masuk',
+            BOOKING_LUNAS:    'Booking LUNAS',
+            REFUND_ISSUED:    'Refund diproses',
+            DOC_VERIFIED:     'Dokumen di-verifikasi admin',
+          };
+        %>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;">
+          <% (typeof JEMAAH_NOTIF_TYPES !== 'undefined' ? JEMAAH_NOTIF_TYPES : []).forEach(function(t) { %>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);">
+              <input type="checkbox" name="notifType_<%= t %>"
+                     <%= (notifTypePrefs && notifTypePrefs[t] !== false) ? 'checked' : '' %>
+                     value="on" style="accent-color:var(--gold-300);width:16px;height:16px;">
+              <span><%= TYPE_LABELS[t] || t %></span>
+            </label>
+          <% }) %>
+        </div>
       </div>
     </div>
 

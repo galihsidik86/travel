@@ -48,16 +48,27 @@ export async function enqueueNotification({
   relatedEntity, relatedEntityId,
 }) {
   try {
-    // 5jj: jemaah opt-out check
+    // 5jj (per-channel) + per-type opt-out checks. Per-type wins for the
+    // reason text — it's more actionable for the jemaah ("you turned off
+    // payment notifs" vs the more general "you turned off WA").
     let optOutReason = null;
     if (recipientUserId) {
       const profile = await db.jemaahProfile.findFirst({
         where: { userId: recipientUserId },
-        select: { notifEmail: true, notifWa: true },
+        select: {
+          id: true, notifEmail: true, notifWa: true,
+          notifTypePrefs: { where: { type }, select: { enabled: true } },
+        },
       });
       if (profile) {
+        // Per-channel
         if (channel === 'EMAIL' && !profile.notifEmail) optOutReason = 'recipient opted out of EMAIL notifications';
         if (channel === 'WA' && !profile.notifWa) optOutReason = 'recipient opted out of WA notifications';
+        // Per-type — overrides reason if explicitly disabled
+        const typePref = profile.notifTypePrefs?.[0];
+        if (typePref && typePref.enabled === false) {
+          optOutReason = `recipient opted out of ${type} notifications`;
+        }
       }
     }
 

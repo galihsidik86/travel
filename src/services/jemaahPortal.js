@@ -235,6 +235,85 @@ export async function updateMyProfile({ req, actor, userId, input }) {
   return updated;
 }
 
+/**
+ * Per-type notif preferences a jemaah is allowed to toggle from /saya/profile.
+ * Admin-only notif types (CANCEL_REQUESTED, PAYMENT_SETTLED_ADMIN) are NOT
+ * exposed — those go to staff and the jemaah has no agency over them.
+ * PAYOUT_CREATED is for agents, not jemaah.
+ */
+export const JEMAAH_NOTIF_TYPES = [
+  'BOOKING_CREATED',
+  'PAYMENT_RECEIVED',
+  'BOOKING_LUNAS',
+  'REFUND_ISSUED',
+  'DOC_VERIFIED',
+];
+
+/**
+ * Bulk-upsert per-type preferences. `prefs` is `{ TYPE: boolean }`. Unknown
+ * keys silently ignored (defence against arbitrary inputs from the form).
+ * Returns the resulting full state for the jemaah (defaults filled in for
+ * missing rows since the model treats absence as "enabled").
+ */
+export async function setMyNotifTypePrefs({ req, actor, userId, prefs }) {
+  const profile = await loadOwnProfile(userId);
+  const validEntries = Object.entries(prefs || {})
+    .filter(([type]) => JEMAAH_NOTIF_TYPES.includes(type));
+  const beforeRows = await db.jemaahNotifPref.findMany({
+    where: { jemaahId: profile.id },
+    select: { type: true, enabled: true },
+  });
+  const beforeMap = new Map(beforeRows.map((r) => [r.type, r.enabled]));
+
+  // Upsert each in a transaction so the audit-after snapshot is consistent.
+  const changed = [];
+  await db.$transaction(async (tx) => {
+    for (const [type, raw] of validEntries) {
+      const enabled = !!raw;
+      const prev = beforeMap.get(type) ?? true;       // default: enabled
+      if (prev === enabled) continue;                  // no-op skip
+      await tx.jemaahNotifPref.upsert({
+        where: { jemaahId_type: { jemaahId: profile.id, type } },
+        update: { enabled },
+        create: { jemaahId: profile.id, type, enabled },
+      });
+      changed.push({ type, prev, next: enabled });
+    }
+  });
+
+  if (changed.length > 0) {
+    await audit({
+      req, actor,
+      action: 'UPDATE', entity: 'JemaahProfile', entityId: profile.id,
+      before: { notifTypePrefs: Object.fromEntries(changed.map((c) => [c.type, c.prev])) },
+      after: { notifTypePrefs: Object.fromEntries(changed.map((c) => [c.type, c.next])) },
+    });
+  }
+
+  // Return full state for UI re-render: every JEMAAH_NOTIF_TYPES key with
+  // its current value (default true).
+  const afterRows = await db.jemaahNotifPref.findMany({
+    where: { jemaahId: profile.id },
+    select: { type: true, enabled: true },
+  });
+  const afterMap = new Map(afterRows.map((r) => [r.type, r.enabled]));
+  return Object.fromEntries(JEMAAH_NOTIF_TYPES.map((t) => [t, afterMap.get(t) ?? true]));
+}
+
+/**
+ * Read-only helper for the profile page: returns the current type-pref map
+ * with defaults filled in.
+ */
+export async function getMyNotifTypePrefs(userId) {
+  const profile = await loadOwnProfile(userId);
+  const rows = await db.jemaahNotifPref.findMany({
+    where: { jemaahId: profile.id },
+    select: { type: true, enabled: true },
+  });
+  const map = new Map(rows.map((r) => [r.type, r.enabled]));
+  return Object.fromEntries(JEMAAH_NOTIF_TYPES.map((t) => [t, map.get(t) ?? true]));
+}
+
 const SelfDocSchema = z.object({
   type: z.enum(DOC_TYPES),
   refNumber: z.preprocess((v) => (v === '' || v == null ? undefined : v), z.string().max(190).optional()),

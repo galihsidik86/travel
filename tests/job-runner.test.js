@@ -114,7 +114,12 @@ describe('getJobFreshness', () => {
   });
 
   test('stale run (>2× expected interval) → ok:false', async (t) => {
-    // expire-intents expected 10min — make a "successful" run 30min old
+    // expire-intents expected 10min — make a "successful" run 30min old.
+    // Snapshot any pre-existing rows (e.g. from local `npm run job:...`
+    // during dev) and restore them after — keeps the test deterministic
+    // without losing real cron history.
+    const preExisting = await db.jobRun.findMany({ where: { name: 'expire-intents' } });
+    await db.jobRun.deleteMany({ where: { name: 'expire-intents' } });
     const fakeAgeMs = 30 * 60_000;
     const row = await db.jobRun.create({
       data: {
@@ -124,7 +129,12 @@ describe('getJobFreshness', () => {
         ok: true, durationMs: 1000,
       },
     });
-    t.after(() => db.jobRun.deleteMany({ where: { id: row.id } }));
+    t.after(async () => {
+      await db.jobRun.deleteMany({ where: { id: row.id } });
+      for (const r of preExisting) {
+        await db.jobRun.create({ data: r }).catch(() => {});
+      }
+    });
 
     const fresh = await getJobFreshness();
     const ei = fresh.find((f) => f.name === 'expire-intents');
