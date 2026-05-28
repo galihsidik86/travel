@@ -3,6 +3,7 @@ import { env } from './env.js';
 import { disconnectDb } from './lib/db.js';
 import { startNotifWorker, stopNotifWorker } from './lib/notifWorker.js';
 import { bootstrapNotifSenders } from './lib/notifBootstrap.js';
+import { stopRateLimit } from './middleware/rateLimit.js';
 
 const app = createApp();
 bootstrapNotifSenders();
@@ -27,6 +28,7 @@ const shutdown = (signal) => {
   console.log(`\n${signal} received — closing server…`);
   stopNotifWorker();
   server.close(async () => {
+    await stopRateLimit();   // close Redis client / clear GC interval
     await disconnectDb();
     console.log('Closed cleanly.');
     process.exit(0);

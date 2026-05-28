@@ -14,6 +14,11 @@ const Schema = z.object({
   COOKIE_DOMAIN: z.string().default('localhost'),
   COOKIE_SECURE: z.coerce.boolean().default(false),
 
+  // Production rate limit backend. When set, rateLimit() uses Redis (multi-
+  // instance safe). When absent, falls back to in-memory bucket (single-
+  // instance only). Format: redis://[user:pass@]host:port[/db] or rediss://
+  REDIS_URL: z.string().min(1).optional(),
+
   // 5pp — Midtrans payment gateway. All optional. When MIDTRANS_SERVER_KEY
   // is absent the gateway service runs in *fake mode*: it still produces
   // intents (with a synthetic snap token + a local /payments/midtrans/fake

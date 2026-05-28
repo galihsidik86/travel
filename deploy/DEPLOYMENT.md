@@ -41,6 +41,7 @@ Copy `.env.example` → `.env` and fill:
 | `COOKIE_DOMAIN` | e.g. `religio.pro` | yes (prod) |
 | `PORT` | default 3000 | optional |
 | `NOTIF_WORKER_DISABLED` | `true` if cron/systemd drives notifs (recommended in prod — see step 5) | recommended |
+| `REDIS_URL` | e.g. `redis://localhost:6379` — when set, rate-limiter uses Redis (multi-instance safe). Unset = in-memory (single-instance only). Fails open on Redis errors. | recommended for multi-instance |
 | `MIDTRANS_SERVER_KEY` / `MIDTRANS_CLIENT_KEY` / `MIDTRANS_PRODUCTION` | gateway live mode | when Midtrans is live |
 | `FONNTE_TOKEN` / `FONNTE_BASE_URL` | WA delivery (Indonesian provider) | when WA is live |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` / `SMTP_SECURE` | email delivery | when email is live |

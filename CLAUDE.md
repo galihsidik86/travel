@@ -79,7 +79,7 @@ Mount **nested admin sub-paths BEFORE** the generic `/admin` router, otherwise E
 - **Helpers**: `src/lib/jwt.js`, `src/lib/auth.js`, `src/lib/audit.js` (append-only writer — **never updates or deletes**).
 - **Middleware**: `requireAuth`, `requireRole(...roles)`, `optionalAuth` in `src/middleware/auth.js`. Use `requireAuth` *before* `requireRole(...)`.
 - **Async routes**: wrap with `asyncHandler(fn)` from `src/lib/asyncHandler.js` (Express 4 doesn't catch rejected promises).
-- **Rate limit**: in-memory token bucket in `src/middleware/rateLimit.js`. Login: 10/min/IP, register: 5/min/IP. Swap for Redis later.
+- **Rate limit**: `src/middleware/rateLimit.js` with a pluggable store (`src/lib/rateLimitStore.js`). When `REDIS_URL` env is set → Redis store (atomic `INCR + PEXPIRE` via `MULTI`, multi-instance safe). Unset → in-memory fixed-window bucket (single-instance only). **Fails open on store errors** — a Redis outage logs a warning but allows the request through, so a flaky cache never locks legitimate users out of login. Login: 10/min/IP, register: 5/min/IP. Store kind logged at first use (`[rateLimit] store = Redis ...`). Closed cleanly on SIGINT/SIGTERM via `stopRateLimit()`.
 - **JSON API** (`/api/auth/*`): `POST /register` (public, creates JEMAAH only), `POST /login`, `POST /logout`, `GET /me`. Login uses generic "Email atau password salah" regardless of email existence.
 - **HTML login** (`src/routes/authWeb.js`): `GET /login`, `POST /login` (form-encoded), `POST /logout`. After login, redirects by role:
   - `AGEN` → `/agen`
