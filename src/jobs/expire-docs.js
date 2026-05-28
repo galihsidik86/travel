@@ -4,15 +4,16 @@
 // errors and reports them; CLI prints them but does not abort.
 import { db } from '../lib/db.js';
 import { expireOverdueDocuments } from '../services/expireDocs.js';
+import { runJob } from '../lib/jobRunner.js';
 
 const startedAt = new Date();
 console.log(`[expire-docs] start ${startedAt.toISOString()}`);
 
 try {
-  const result = await expireOverdueDocuments({
+  const result = await runJob('expire-docs', () => expireOverdueDocuments({
     actor: { email: 'system' }, // Role intentionally omitted; not in enum
     now: startedAt,
-  });
+  }));
   console.log(`[expire-docs] scanned=${result.scanned} expired=${result.expired} errors=${result.errors.length}`);
   for (const e of result.errors) console.warn(`  ! ${e.docId}: ${e.error}`);
   const tookMs = Date.now() - startedAt.getTime();

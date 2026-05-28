@@ -335,6 +335,8 @@ Three ops jobs, all sharing the same pattern: pure service in `src/services/`, t
 
 All three are **idempotent** — re-running on an empty queue is a no-op. Terminal statuses are always skipped (e.g. `expire-intents` never touches SETTLED/CANCELLED/FAILED — the 5pp "terminal frozen" invariant).
 
+**Job-run logging + `/api/health` freshness**. Both the CLI scripts and the HTTP triggers route through `runJob(name, fn)` in `src/lib/jobRunner.js` — writes a `JobRun` row on start, patches it on finish with `ok` + `durationMs` + derived counters (`scanned`, `affected` from `expired`/`sent`, `errors`). `/api/health` calls `getJobFreshness()` which returns the latest successful run per known job + an `ok` flag derived from `age <= 2 × EXPECTED_INTERVAL_MS[name]`. Aggregate `status` flips to `"degraded"` when DB is down OR any job is stale — external uptime monitors can alert on that single field. **Tests deliberately bypass `runJob` and call services directly**, so test fixtures never pollute the freshness log.
+
 Production deployment artifacts live in `deploy/` (see `deploy/DEPLOYMENT.md`):
 - `deploy/crontab.example` — drop into `/etc/cron.d/religio-pro`
 - `deploy/systemd/religio-{expire-docs,expire-intents,send-notifications}.{service,timer}` — systemd alternative (preferred on modern hosts; uses `OnUnitInactiveSec` to prevent overlap, sandboxing flags for least-privilege)

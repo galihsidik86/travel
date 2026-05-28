@@ -5,6 +5,7 @@
 import { db } from '../lib/db.js';
 import { processPendingNotifications } from '../services/notifications.js';
 import { bootstrapNotifSenders } from '../lib/notifBootstrap.js';
+import { runJob } from '../lib/jobRunner.js';
 
 bootstrapNotifSenders();
 
@@ -12,7 +13,7 @@ const startedAt = new Date();
 console.log(`[send-notifications] start ${startedAt.toISOString()}`);
 
 try {
-  const result = await processPendingNotifications();
+  const result = await runJob('send-notifications', () => processPendingNotifications());
   console.log(`[send-notifications] processed=${result.processed} sent=${result.sent} failed=${result.failed} skipped=${result.skipped}`);
   const tookMs = Date.now() - startedAt.getTime();
   console.log(`[send-notifications] done in ${tookMs}ms`);

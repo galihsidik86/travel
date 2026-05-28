@@ -762,6 +762,34 @@ model Notification {
   @@index([createdAt])
 }
 
+// ─── JobRun (ops job execution log; powers /api/health freshness) ────
+//
+// One row per CLI/HTTP-triggered run of an ops job (expire-docs,
+// expire-intents, send-notifications, etc.). Tests don't write here —
+// they call services directly, bypassing the runJob wrapper.
+model JobRun {
+  id          String   @id @default(cuid())
+  name        String   // 'expire-docs' | 'expire-intents' | 'send-notifications'
+  startedAt   DateTime @default(now())
+  finishedAt  DateTime?
+  ok          Boolean  @default(false)
+
+  // Generic counters — interpretation depends on job:
+  //   scanned  — rows considered (e.g. notif queue length)
+  //   affected — rows changed (expired, sent, ...)
+  //   errors   — per-row failure count (job itself still succeeded)
+  scanned     Int?
+  affected    Int?
+  errors      Int      @default(0)
+
+  durationMs  Int?
+  detail      Json?    // job-specific extra (e.g. sent/failed/skipped breakdown)
+  error       String?  @db.Text  // populated when ok=false (job itself threw)
+
+  @@index([name, finishedAt])
+  @@index([startedAt])
+}
+
 // ─── Audit (permanent, no deletes) ───────────────────────────
 
 model AuditLog {
