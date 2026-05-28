@@ -738,6 +738,53 @@
         <% } %>
       </div>
 
+      <!-- Komisi pipeline — money distribution by status (proportional stack) -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel__head">
+          <h3>Pipeline komisi</h3>
+          <span class="meta">NILAI IDR · SEMUA AGEN</span>
+        </div>
+        <%
+          const KOM_PIPELINE = [
+            { key: 'PENDING',   label: 'Pending',   cls: 's-partial',   swatch: 'gold-200' },
+            { key: 'EARNED',    label: 'Earned',    cls: 's-pending',   swatch: 'amber'    },
+            { key: 'PAID',      label: 'Paid',      cls: 's-lunas',     swatch: 'emerald'  },
+            { key: 'CANCELLED', label: 'Cancelled', cls: 's-cancelled', swatch: 'ruby'     },
+          ];
+          const KP_TOTAL = KOM_PIPELINE.reduce((acc, s) => acc + (kpis.komisi[s.key] || 0), 0);
+          const KP_ROWS = KOM_PIPELINE
+            .map((s) => ({ ...s, amount: kpis.komisi[s.key] || 0 }))
+            .filter((r) => r.amount > 0);
+        %>
+        <% if (KP_TOTAL === 0) { %>
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);padding:16px 0;">
+            Belum ada komisi ter-record.
+          </div>
+        <% } else { %>
+          <div class="chart-stack" role="img" aria-label="Pipeline komisi">
+            <% KP_ROWS.forEach(function(r) {
+              const pct = Math.max(0.5, (r.amount / KP_TOTAL) * 100);
+            %>
+              <div class="seg <%= r.cls %>"
+                   style="width:<%= pct %>%;"
+                   title="<%= r.label %>: <%= fmt.rpFull(r.amount) %> (<%= Math.round((r.amount / KP_TOTAL) * 100) %>%)"></div>
+            <% }) %>
+          </div>
+          <div class="chart-legend">
+            <% KP_ROWS.forEach(function(r) {
+              const pct = Math.round((r.amount / KP_TOTAL) * 100);
+            %>
+              <span class="item">
+                <span class="swatch" style="background: var(--<%= r.swatch %>);"></span>
+                <%= r.label %>
+                <span class="count"><%= fmt.rpShort(r.amount) %></span>
+                <span class="pct"><%= pct %>%</span>
+              </span>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+
       <div class="grid-2">
         <!-- Top paket -->
         <div class="panel">
@@ -829,6 +876,40 @@
           </div>
         <% } %>
       </div>
+
+      <!-- Top agents revenue — horizontal bars (visual scan) -->
+      <% const topAgentsForChart = topAgents.filter((a) => a.revenue > 0).slice(0, 6);
+         const maxAgentRev = Math.max(1, ...topAgentsForChart.map((a) => a.revenue));
+      %>
+      <% if (topAgentsForChart.length > 0) { %>
+        <div class="panel">
+          <div class="panel__head">
+            <h3>Revenue per agen</h3>
+            <span class="meta">TOP <%= topAgentsForChart.length %> · LUNAS</span>
+          </div>
+          <div class="chart-bars-h">
+            <% topAgentsForChart.forEach(function(a) {
+              const pct = Math.max(1, (a.revenue / maxAgentRev) * 100);
+            %>
+              <div class="row">
+                <div class="lbl">
+                  <%= a.displayName %>
+                  <span class="sx"><%= a.tier || 'Mitra' %> · <%= a.lunasCount %> lunas</span>
+                </div>
+                <div class="track" title="<%= fmt.rpFull(a.revenue) %> IDR">
+                  <div class="fill" style="width:<%= pct %>%;"></div>
+                </div>
+                <div class="val">
+                  <%= fmt.rpShort(a.revenue) %><span class="u">IDR</span>
+                  <% if (a.komisiEarned > 0) { %>
+                    <span class="sx">komisi <%= fmt.rpShort(a.komisiEarned) %></span>
+                  <% } %>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
 
       <!-- Top agents -->
       <div class="panel">

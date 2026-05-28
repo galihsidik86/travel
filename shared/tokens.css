@@ -476,3 +476,52 @@ body {
   letter-spacing: 0.06em;
   dominant-baseline: middle;
 }
+
+/* Horizontal bar chart — one .row per item, fill width proportional. */
+.chart-bars-h { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.chart-bars-h .row {
+  display: grid; grid-template-columns: 180px 1fr 150px;
+  gap: 14px; align-items: center;
+}
+.chart-bars-h .row .lbl {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--cream-100); letter-spacing: 0.04em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chart-bars-h .row .lbl .sx {
+  display: block; color: var(--ink-200);
+  font-size: 9px; letter-spacing: 0.12em;
+  text-transform: uppercase; margin-top: 2px;
+}
+.chart-bars-h .row .track {
+  height: 20px; background: var(--ink-1000);
+  border: var(--hairline-soft); border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.chart-bars-h .row .fill {
+  height: 100%; background: var(--gold-300);
+  transition: width 240ms ease;
+}
+.chart-bars-h .row .fill.f-emerald  { background: var(--emerald);  }
+.chart-bars-h .row .fill.f-amber    { background: var(--amber);    }
+.chart-bars-h .row .fill.f-gold-200 { background: var(--gold-200); }
+.chart-bars-h .row .fill.f-ruby     { background: var(--ruby);     }
+.chart-bars-h .row .fill.f-sapphire { background: var(--sapphire); }
+.chart-bars-h .row .val {
+  font-family: var(--font-display); font-size: 16px;
+  color: var(--gold-300); text-align: right; font-weight: 500;
+}
+.chart-bars-h .row .val .u {
+  font-family: var(--font-mono); font-size: 9px;
+  color: var(--ink-200); margin-left: 4px; letter-spacing: 0.1em;
+}
+.chart-bars-h .row .val .sx {
+  display: block; font-family: var(--font-mono); font-size: 10px;
+  color: var(--ink-200); margin-top: 2px;
+}
+
+@media (max-width: 720px) {
+  .chart-bars-h .row { grid-template-columns: 1fr; gap: 4px; }
+  .chart-bars-h .row .val { text-align: left; }
+  .chart-bars-h .row .val .sx { display: inline; margin-left: 8px; }
+}
