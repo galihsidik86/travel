@@ -133,6 +133,81 @@
     </div>
   </div>
 
+  <!-- Activity sparkline + per-action breakdown -->
+  <%
+    const act = activity;
+    const maxCount = Math.max(1, ...act.daily.map(function(d) { return d.count; }));
+    const SW = 1320, SH = 80, SP = 6;
+    const stepX = (SW - SP * 2) / Math.max(1, act.daily.length - 1);
+    const linePoints = act.daily.map(function(d, i) {
+      const y = SH - SP - (d.count / maxCount) * (SH - SP * 2);
+      return (SP + i * stepX).toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    const areaPoints = SP + ',' + (SH - SP) + ' '
+      + linePoints + ' '
+      + (SP + (act.daily.length - 1) * stepX).toFixed(1) + ',' + (SP + (SH - SP * 2)).toFixed(1);
+    // Per-action totals — display top 6
+    const actEntries = Object.entries(act.actionTotals)
+      .sort(function(a, b) { return b[1] - a[1]; })
+      .slice(0, 8);
+    function colorForAction(a) {
+      const map = {
+        CREATE: 'var(--emerald)',
+        UPDATE: 'var(--gold-300)',
+        DELETE: 'var(--ruby)',
+        LOGIN: 'var(--sapphire)',
+        LOGOUT: 'var(--ink-300)',
+        PASSWORD_CHANGE: 'var(--amber)',
+        PAYMENT_RECEIVED: 'var(--emerald)',
+        STATUS_CHANGE: 'var(--gold-200)',
+      };
+      return map[a] || 'var(--ink-200)';
+    }
+  %>
+  <div style="background:var(--ink-900);border:var(--hairline);border-radius:var(--r-md);padding:18px 22px;margin-bottom:18px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+      <div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.14em;text-transform:uppercase;">Aktivitas · <%= act.rangeDays %> hari</div>
+        <div style="font-family:var(--font-display);font-size:22px;color:var(--cream-100);margin-top:4px;font-weight:500;">
+          <span style="color:var(--gold-300);"><%= act.totalCount %></span> entri
+        </div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.06em;">
+        <%= fmt.dateShort(act.rangeFrom) %> → <%= fmt.dateShort(act.rangeTo) %>
+      </div>
+    </div>
+    <% if (act.totalCount === 0) { %>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);padding:16px 0;">
+        Tidak ada aktivitas di rentang ini.
+      </div>
+    <% } else { %>
+      <svg viewBox="0 0 <%= SW %> <%= SH %>" preserveAspectRatio="none" style="width:100%;height:<%= SH %>px;display:block;">
+        <polygon points="<%= areaPoints %>" fill="rgba(212,175,55,0.10)"/>
+        <polyline points="<%= linePoints %>" fill="none" stroke="var(--gold-300)" stroke-width="1.5"/>
+        <% act.daily.forEach(function(d, i) {
+          if (d.count === 0) return;
+          const y = SH - SP - (d.count / maxCount) * (SH - SP * 2);
+          const x = SP + i * stepX;
+        %>
+          <circle cx="<%= x.toFixed(1) %>" cy="<%= y.toFixed(1) %>" r="2.2" fill="var(--gold-300)">
+            <title><%= d.date %>: <%= d.count %> entri</title>
+          </circle>
+        <% }) %>
+      </svg>
+      <% if (actEntries.length > 0) { %>
+        <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:12px;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);letter-spacing:0.04em;">
+          <% actEntries.forEach(function(e) { %>
+            <span style="display:inline-flex;align-items:center;gap:6px;">
+              <span style="width:8px;height:8px;border-radius:2px;background:<%= colorForAction(e[0]) %>;"></span>
+              <%= e[0] %>
+              <span style="color:var(--cream-100);font-weight:600;"><%= e[1] %></span>
+            </span>
+          <% }) %>
+        </div>
+      <% } %>
+    <% } %>
+  </div>
+
   <form method="GET" action="/admin/audit" class="filter-bar">
     <div class="field-mini">
       <span class="lbl">Entity</span>

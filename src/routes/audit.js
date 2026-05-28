@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
-import { listAudits, getAuditById, ENTITIES, ACTIONS } from '../services/auditLog.js';
+import { listAudits, getAuditActivity, getAuditById, ENTITIES, ACTIONS } from '../services/auditLog.js';
 
 const router = Router();
 
@@ -19,9 +19,13 @@ router.get(
       to: req.query.to || '',
       page: req.query.page || 1,
     };
-    const result = await listAudits(filters);
+    const [result, activity] = await Promise.all([
+      listAudits(filters),
+      getAuditActivity(filters),
+    ]);
     res.render('audit-list', {
       user: req.user, ...result,
+      activity,
       filters, ENTITIES, ACTIONS,
     });
   }),
