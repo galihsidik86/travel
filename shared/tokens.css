@@ -404,3 +404,75 @@ body {
   :root { --page-pad-mobile: 12px; }
   .btn { padding: 8px 12px; }
 }
+
+/* ============================================================
+   Chart primitives — proportional stack + SVG funnel.
+   Used by admin dashboard; safe to reuse in agen-crm.
+   ============================================================ */
+
+/* Stacked horizontal bar — one .seg per category, width = pct.
+   Hovering over a segment shows its title (browser-native tooltip). */
+.chart-stack {
+  display: flex; width: 100%; height: 28px;
+  background: var(--ink-1000);
+  border: var(--hairline-soft);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  margin-top: 6px;
+}
+.chart-stack .seg {
+  height: 100%;
+  border-right: 1px solid var(--ink-1000);
+  transition: filter 120ms ease;
+  cursor: help;
+}
+.chart-stack .seg:last-child { border-right: 0; }
+.chart-stack .seg:hover { filter: brightness(1.25); }
+/* Semantic colors — matches status badge palette */
+.chart-stack .seg.s-pending   { background: var(--amber); }
+.chart-stack .seg.s-booked    { background: var(--sapphire); }
+.chart-stack .seg.s-dp        { background: var(--gold-300); }
+.chart-stack .seg.s-partial   { background: var(--gold-200); }
+.chart-stack .seg.s-lunas     { background: var(--emerald); }
+.chart-stack .seg.s-cancelled { background: var(--ruby); opacity: 0.7; }
+.chart-stack .seg.s-refunded  { background: var(--ruby); opacity: 0.4; }
+.chart-stack .seg.s-cold      { background: var(--ink-300); }
+.chart-stack .seg.s-warm      { background: var(--amber); }
+.chart-stack .seg.s-converted { background: var(--emerald); }
+.chart-stack .seg.s-lost      { background: var(--ruby); }
+.chart-stack .seg.s-hot       { background: var(--gold-300); }
+
+/* Legend rendered below the stack */
+.chart-legend {
+  display: flex; flex-wrap: wrap; gap: 10px 16px;
+  margin-top: 12px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--ink-200); letter-spacing: 0.04em;
+}
+.chart-legend .item { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend .swatch { width: 10px; height: 10px; border-radius: 2px; }
+.chart-legend .count { color: var(--cream-100); font-weight: 600; }
+.chart-legend .pct { color: var(--ink-300); margin-left: 2px; }
+
+/* SVG funnel chart */
+.chart-funnel { width: 100%; max-width: 520px; }
+.chart-funnel .stage-bar { transition: fill 120ms ease; }
+.chart-funnel .stage-bar:hover { fill-opacity: 0.85; }
+.chart-funnel .stage-label {
+  fill: var(--cream-100);
+  font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: 0.08em;
+  dominant-baseline: middle;
+}
+.chart-funnel .stage-count {
+  fill: var(--cream-100);
+  font-family: var(--font-display); font-size: 16px;
+  font-weight: 500;
+  dominant-baseline: middle;
+}
+.chart-funnel .stage-pct {
+  fill: var(--ink-200);
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.06em;
+  dominant-baseline: middle;
+}

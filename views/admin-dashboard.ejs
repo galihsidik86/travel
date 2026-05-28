@@ -682,21 +682,60 @@
         </article>
       </div>
 
-      <!-- Status breakdown -->
+      <!-- Status breakdown — proportional stacked bar + legend -->
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel__head">
           <h3>Distribusi status booking</h3>
           <span class="meta">TOTAL <%= kpis.bookingCount %></span>
         </div>
-        <div class="status-bar">
-          <% const SB_STATUSES = ['PENDING','BOOKED','DP_PAID','PARTIAL','LUNAS','CANCELLED']; %>
-          <% SB_STATUSES.forEach(function(s) { %>
-            <div class="sb-cell <%= s === 'LUNAS' ? 'is-lunas' : (s === 'PENDING' ? 'is-pending' : (s === 'DP_PAID' ? 'is-dp' : '')) %>">
-              <div class="l"><%= s.replace('_',' ') %></div>
-              <div class="v"><%= statusBreakdown[s] || 0 %></div>
-            </div>
-          <% }) %>
-        </div>
+        <%
+          const SB_STATUSES = [
+            { key: 'PENDING',   cls: 's-pending'   },
+            { key: 'BOOKED',    cls: 's-booked'    },
+            { key: 'DP_PAID',   cls: 's-dp'        },
+            { key: 'PARTIAL',   cls: 's-partial'   },
+            { key: 'LUNAS',     cls: 's-lunas'     },
+            { key: 'CANCELLED', cls: 's-cancelled' },
+            { key: 'REFUNDED',  cls: 's-refunded'  },
+          ];
+          const SB_TOTAL = SB_STATUSES.reduce((acc, s) => acc + (statusBreakdown[s.key] || 0), 0);
+          const SB_ROWS = SB_STATUSES
+            .map((s) => ({ ...s, count: statusBreakdown[s.key] || 0 }))
+            .filter((r) => r.count > 0);
+        %>
+        <% if (SB_TOTAL === 0) { %>
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);padding:16px 0;">
+            Belum ada booking ter-record.
+          </div>
+        <% } else { %>
+          <div class="chart-stack" role="img" aria-label="Distribusi status booking">
+            <% SB_ROWS.forEach(function(r) {
+              const pct = Math.max(0.5, (r.count / SB_TOTAL) * 100);
+            %>
+              <div class="seg <%= r.cls %>"
+                   style="width:<%= pct %>%;"
+                   title="<%= r.key.replace('_',' ') %>: <%= r.count %> (<%= Math.round((r.count / SB_TOTAL) * 100) %>%)"></div>
+            <% }) %>
+          </div>
+          <div class="chart-legend">
+            <% SB_ROWS.forEach(function(r) {
+              const pct = Math.round((r.count / SB_TOTAL) * 100);
+            %>
+              <span class="item">
+                <span class="swatch" style="background: var(--<%=
+                  r.cls === 's-pending'   ? 'amber'    :
+                  r.cls === 's-booked'    ? 'sapphire' :
+                  r.cls === 's-dp'        ? 'gold-300' :
+                  r.cls === 's-partial'   ? 'gold-200' :
+                  r.cls === 's-lunas'     ? 'emerald'  :
+                  'ruby' %>);"></span>
+                <%= r.key.replace('_', ' ') %>
+                <span class="count"><%= r.count %></span>
+                <span class="pct"><%= pct %>%</span>
+              </span>
+            <% }) %>
+          </div>
+        <% } %>
       </div>
 
       <div class="grid-2">
@@ -884,32 +923,58 @@
         </div>
       <% } %>
 
-      <!-- Global funnel quick view -->
+      <!-- Global funnel — SVG visualization with descending widths -->
       <div class="panel" style="margin-top:16px;">
         <div class="panel__head">
           <h3>Funnel global</h3>
           <span class="meta">SEMUA AGEN</span>
         </div>
-        <div class="status-bar">
-          <% const gf = analytics.funnel; %>
-          <% const stages = [
-            { l: 'Cold',      v: gf.lead.COLD },
-            { l: 'Warm',      v: gf.lead.WARM },
-            { l: 'Converted', v: gf.lead.CONVERTED },
-            { l: 'Lost',      v: gf.lead.LOST },
-            { l: 'Hot bk',    v: gf.bookingsHot },
-            { l: 'LUNAS',     v: gf.bookingsLunas },
-          ]; %>
-          <% stages.forEach(function(s, i) { %>
-            <div class="sb-cell <%= s.l === 'LUNAS' ? 'is-lunas' : (s.l === 'Lost' ? 'is-pending' : (s.l === 'Converted' ? 'is-dp' : '')) %>">
-              <div class="l"><%= s.l %></div>
-              <div class="v"><%= s.v %></div>
-            </div>
-          <% }) %>
-        </div>
-        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin-top:12px;">
-          Konversi Lead→Booking: <strong style="color:var(--gold-300);"><%= gf.convertedFromLeadPct ?? '—' %>%</strong>
-          · Booking→LUNAS: <strong style="color:var(--emerald);"><%= gf.lunasFromBookingPct ?? '—' %>%</strong>
+        <%
+          const gf = analytics.funnel;
+          // Funnel proper: leads → warm/hot bookings → LUNAS. Cold + Warm
+          // are entry stages; Lost is a side-channel (shown at bottom).
+          const funnelStages = [
+            { l: 'Cold lead',  v: gf.lead.COLD,       color: 'var(--ink-300)' },
+            { l: 'Warm lead',  v: gf.lead.WARM,       color: 'var(--amber)'   },
+            { l: 'Converted',  v: gf.lead.CONVERTED,  color: 'var(--gold-300)' },
+            { l: 'Hot booking',v: gf.bookingsHot,     color: 'var(--sapphire)' },
+            { l: 'LUNAS',      v: gf.bookingsLunas,   color: 'var(--emerald)'  },
+          ];
+          const fmax = Math.max(1, ...funnelStages.map((s) => s.v));
+          const FW = 480, ROW_H = 32, GAP = 6;
+          const FH = funnelStages.length * (ROW_H + GAP);
+        %>
+        <% if (gf.leadsTotal === 0 && gf.bookingsTotal === 0) { %>
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);padding:16px 0;">
+            Belum ada data untuk rentang ini.
+          </div>
+        <% } else { %>
+          <svg class="chart-funnel" viewBox="0 0 <%= FW %> <%= FH %>" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Funnel konversi lead ke LUNAS">
+            <% funnelStages.forEach(function(s, i) {
+              const w = Math.max(40, (s.v / fmax) * FW);
+              const x = (FW - w) / 2;
+              const y = i * (ROW_H + GAP);
+              const pct = (i === 0 || fmax === 0) ? null : Math.round((s.v / funnelStages[0].v) * 100);
+            %>
+              <rect class="stage-bar" x="<%= x %>" y="<%= y %>" width="<%= w %>" height="<%= ROW_H %>"
+                    rx="3" ry="3" fill="<%= s.color %>" fill-opacity="0.75"
+                    stroke="<%= s.color %>" stroke-width="1">
+                <title><%= s.l %>: <%= s.v %><% if (pct != null) { %> (<%= pct %>% dari Cold)<% } %></title>
+              </rect>
+              <text class="stage-label" x="8" y="<%= y + ROW_H / 2 %>"><%= s.l %></text>
+              <text class="stage-count" x="<%= FW - 8 %>" y="<%= y + ROW_H / 2 %>" text-anchor="end"><%= s.v %></text>
+              <% if (pct != null) { %>
+                <text class="stage-pct" x="<%= FW - 50 %>" y="<%= y + ROW_H / 2 %>" text-anchor="end"><%= pct %>%</text>
+              <% } %>
+            <% }) %>
+          </svg>
+        <% } %>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin-top:14px;">
+          Lead → Booking: <strong style="color:var(--gold-300);"><%= gf.convertedFromLeadPct ?? '—' %>%</strong>
+          · Booking → LUNAS: <strong style="color:var(--emerald);"><%= gf.lunasFromBookingPct ?? '—' %>%</strong>
+          <% if (gf.lead.LOST > 0) { %>
+            · Lead LOST: <strong style="color:var(--ruby);"><%= gf.lead.LOST %></strong>
+          <% } %>
         </div>
       </div>
     </section>
