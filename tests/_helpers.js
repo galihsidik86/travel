@@ -121,12 +121,34 @@ export async function tempPaket(t, tag, { dayCount = 0 } = {}) {
     await db.payment.deleteMany({ where: { booking: { paketId: paket.id } } });
     await db.komisi.deleteMany({ where: { booking: { paketId: paket.id } } });
     await db.booking.deleteMany({ where: { paketId: paket.id } });
+    await db.room.deleteMany({ where: { paketId: paket.id } });
     await db.paketDay.deleteMany({ where: { paketId: paket.id } });
     await db.paketCrew.deleteMany({ where: { paketId: paket.id } });
     await db.paketHarga.deleteMany({ where: { paketId: paket.id } });
     await db.paket.deleteMany({ where: { id: paket.id } });
   });
   return paket;
+}
+
+/**
+ * Make a Room under the given paket. Default kelas=QUAD capacity=4.
+ * Cleanup runs before paket cleanup (registration order); paket cleanup
+ * also defensively wipes rooms by paketId so order doesn't bite.
+ */
+export async function tempRoom(t, paket, { roomNo, kelas = 'QUAD', capacity = 4, floor = 1, wing = null } = {}) {
+  const room = await db.room.create({
+    data: {
+      paketId: paket.id,
+      roomNo: roomNo || `R-${Math.random().toString(36).slice(2, 7)}`,
+      kelas, capacity, floor, wing,
+    },
+  });
+  t.after(async () => {
+    // Free any bookings pointing at this room first (FK)
+    await db.booking.updateMany({ where: { roomId: room.id }, data: { roomId: null } });
+    await db.room.deleteMany({ where: { id: room.id } });
+  });
+  return room;
 }
 
 /**
