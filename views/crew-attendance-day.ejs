@@ -6,6 +6,7 @@
 <title>RELIGIO PRO — Absensi Hari <%= day.dayNumber %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
 <%- include('partials/pwa-head') %>
+<script src="/shared/attendance-queue.js" defer></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
@@ -63,6 +64,41 @@
   .mark-meta { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-300); letter-spacing: 0.04em; margin-top: 4px; }
   .empty { padding: 40px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
 
+  /* Connection + queue indicators */
+  .net-banner {
+    display: none; padding: 10px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11.5px; margin-bottom: 14px;
+    letter-spacing: 0.04em; line-height: 1.5;
+  }
+  .net-banner.offline {
+    display: block;
+    background: rgba(201,147,59,0.10); border: 1px solid rgba(201,147,59,0.45);
+    color: var(--amber);
+  }
+  .net-banner.syncing {
+    display: block;
+    background: rgba(74,111,143,0.08); border: 1px solid rgba(74,111,143,0.4);
+    color: var(--sapphire);
+  }
+  .net-banner b { color: inherit; font-weight: 600; }
+
+  /* Per-row sync pill — sits inside .row-form, shows state of the most
+     recent submission. */
+  .sync-pill {
+    display: none; align-self: center;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+    padding: 4px 8px; border-radius: 3px; border: 1px solid; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .sync-pill.show { display: inline-block; }
+  .sync-pill.queued  { color: var(--amber);   border-color: rgba(201,147,59,0.5);  background: rgba(201,147,59,0.08); }
+  .sync-pill.syncing { color: var(--sapphire); border-color: rgba(74,111,143,0.45); background: rgba(74,111,143,0.06); }
+  .sync-pill.ok      { color: var(--emerald); border-color: rgba(74,143,109,0.5);  background: rgba(74,143,109,0.08); }
+  .sync-pill.error   { color: var(--ruby);    border-color: rgba(181,86,74,0.5);   background: rgba(181,86,74,0.08); }
+
+  /* Whole-row queued accent */
+  .tbl tbody tr.has-queued td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+
   @media (max-width: 720px) {
     /* Card-per-row layout: each jemaah becomes a vertical block, the
        hidden <thead> labels collapse, and the form widens for thumbs. */
@@ -99,7 +135,10 @@
   }
 </style>
 </head>
-<body data-screen-label="05 Crew · Attendance Day">
+<body data-screen-label="05 Crew · Attendance Day"
+      data-user-name="<%= user.fullName || user.email %>"
+      data-paket-slug="<%= paket.slug %>"
+      data-day-id="<%= day.id %>">
 <div class="wrap">
   <div class="crumb">
     <a href="/crew/paket/<%= paket.slug %>/attendance">← KEMBALI KE OVERVIEW ABSENSI</a>
@@ -119,6 +158,7 @@
     </div>
   <% } %>
 
+  <div id="net-banner" class="net-banner" role="status"></div>
   <div id="ok-banner" class="ok-banner">Tersimpan.</div>
 
   <% if (bookings.length === 0) { %>
@@ -143,21 +183,27 @@
             <td><%= b.kelas %></td>
             <td><%= b.room?.roomNo || '—' %></td>
             <td>
-              <form class="row-form" method="POST" action="/crew/paket/<%= paket.slug %>/attendance/<%= day.id %>/<%= b.id %>">
+              <form class="row-form" method="POST"
+                    action="/crew/paket/<%= paket.slug %>/attendance/<%= day.id %>/<%= b.id %>"
+                    data-booking-id="<%= b.id %>"
+                    data-booking-no="<%= b.bookingNo %>">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <label class="toggle-wrap">
                   <input type="checkbox" name="present" value="on" <%= b.mark?.present ? 'checked' : '' %>>
-                  <span><%= b.mark?.present ? 'Hadir' : (b.mark ? 'Tidak hadir' : 'Belum ditandai') %></span>
+                  <span class="toggle-label"><%= b.mark?.present ? 'Hadir' : (b.mark ? 'Tidak hadir' : 'Belum ditandai') %></span>
                 </label>
                 <input class="notes" type="text" name="notes" maxlength="500"
                        inputmode="text" autocomplete="off"
                        placeholder="Catatan (opsional, mis. alasan absen)"
                        value="<%= b.mark?.notes || '' %>">
                 <button type="submit">Simpan</button>
+                <span class="sync-pill" aria-live="polite"></span>
               </form>
-              <% if (b.mark) { %>
-                <div class="mark-meta">terakhir: <%= fmt.date(b.mark.markedAt) %> oleh <%= b.mark.markedBy?.fullName || '—' %></div>
-              <% } %>
+              <div class="mark-meta">
+                <% if (b.mark) { %>
+                  terakhir: <%= fmt.date(b.mark.markedAt) %> oleh <%= b.mark.markedBy?.fullName || '—' %>
+                <% } %>
+              </div>
             </td>
           </tr>
         <% }) %>
@@ -171,10 +217,176 @@
     const u = new URL(location.href);
     if (u.searchParams.get('ok') === 'saved') {
       document.getElementById('ok-banner').classList.add('is-visible');
-      // Clear ?ok=saved from URL after a moment so a refresh doesn't re-show
       history.replaceState(null, '', location.pathname);
       setTimeout(() => document.getElementById('ok-banner').classList.remove('is-visible'), 2500);
     }
+  })();
+
+  // ── Offline-friendly attendance submit ────────────────────────────
+  // No-JS fallback: standard form POST → server 302 → ?ok=saved (above).
+  // With JS: intercept submit, optimistic fetch, queue on failure.
+  (function () {
+    if (!('fetch' in window) || !window.AttendanceQueue) return;
+    const Q = window.AttendanceQueue;
+    const banner = document.getElementById('net-banner');
+    const userName = document.body.dataset.userName || 'Anda';
+
+    function setPill(form, state, label) {
+      const pill = form.querySelector('.sync-pill');
+      if (!pill) return;
+      pill.className = 'sync-pill show ' + state;
+      pill.textContent = label;
+    }
+    function clearPill(form) {
+      const pill = form.querySelector('.sync-pill');
+      if (pill) pill.className = 'sync-pill';
+    }
+    function setRowQueued(form, on) {
+      const tr = form.closest('tr');
+      if (tr) tr.classList.toggle('has-queued', !!on);
+    }
+    function updateRowFromSubmit(form, present, notes, when) {
+      const label = form.querySelector('.toggle-label');
+      if (label) label.textContent = present ? 'Hadir' : 'Tidak hadir';
+      const meta = form.parentElement?.querySelector('.mark-meta');
+      if (meta) {
+        const t = when || new Date();
+        const ts = t.toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+        meta.textContent = 'terakhir: ' + ts + ' oleh ' + userName;
+      }
+    }
+
+    function readForm(form) {
+      const fd = new FormData(form);
+      const csrf = fd.get('_csrf') || '';
+      const present = !!form.querySelector('input[name=present]')?.checked;
+      const notes = fd.get('notes') || '';
+      return { csrf, present, notes };
+    }
+
+    function payloadFor({ csrf, present, notes }) {
+      const p = { _csrf: csrf, notes: String(notes) };
+      if (present) p.present = 'on';
+      return p;
+    }
+
+    async function submitOnline(form, { csrf, present, notes }) {
+      const body = new URLSearchParams();
+      for (const [k, v] of Object.entries(payloadFor({ csrf, present, notes }))) {
+        body.append(k, v);
+      }
+      const res = await fetch(form.action, {
+        method: 'POST',
+        credentials: 'same-origin',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+    }
+
+    function renderBanner(pendingCount, online) {
+      if (!online) {
+        banner.className = 'net-banner offline';
+        banner.innerHTML = '<b>Mode offline.</b> Tandai jemaah seperti biasa — perubahan disimpan di perangkat dan otomatis terkirim saat koneksi kembali.';
+        return;
+      }
+      if (pendingCount > 0) {
+        banner.className = 'net-banner syncing';
+        banner.innerHTML = '<b>Menyinkronkan…</b> ' + pendingCount + ' perubahan menunggu kirim.';
+        return;
+      }
+      banner.className = 'net-banner'; // hidden by default
+      banner.textContent = '';
+    }
+
+    async function refreshBanner() {
+      const n = await Q.countPending();
+      renderBanner(n, navigator.onLine);
+    }
+
+    // Map queue items back onto their .row-form so each row shows its state.
+    async function paintFormStatesFromQueue() {
+      const items = await Q.list();
+      // Clear any previously-queued markers; we'll re-mark from the truth.
+      document.querySelectorAll('form.row-form .sync-pill.queued, form.row-form .sync-pill.syncing, form.row-form .sync-pill.error')
+        .forEach((p) => (p.className = 'sync-pill'));
+      document.querySelectorAll('tr.has-queued').forEach((tr) => tr.classList.remove('has-queued'));
+
+      const bySlug = document.body.dataset.paketSlug;
+      const byDay = document.body.dataset.dayId;
+      for (const it of items) {
+        if (!it.url) continue;
+        // url pattern: /crew/paket/<slug>/attendance/<dayId>/<bookingId>
+        const segs = it.url.split('/').filter(Boolean);
+        const idx = segs.indexOf('attendance');
+        if (idx < 0 || segs.length < idx + 3) continue;
+        const slug = segs[idx - 1];
+        const dayId = segs[idx + 1];
+        const bookingId = segs[idx + 2];
+        if (slug !== bySlug || dayId !== byDay) continue;
+        const form = document.querySelector('form.row-form[data-booking-id="' + bookingId + '"]');
+        if (!form) continue;
+        const state = it.status === 'failed' ? 'error' : (it.status === 'syncing' ? 'syncing' : 'queued');
+        const label = state === 'error' ? 'Gagal sinkron' : (state === 'syncing' ? 'Mengirim…' : 'Menunggu sinkron');
+        setPill(form, state, label);
+        setRowQueued(form, state !== 'error');
+      }
+    }
+
+    // Form intercept
+    document.querySelectorAll('form.row-form').forEach((form) => {
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const { csrf, present, notes } = readForm(form);
+
+        // Optimistic UI: flip label immediately
+        updateRowFromSubmit(form, present, notes);
+
+        if (!navigator.onLine) {
+          // Queue right away — no point trying fetch when navigator says offline.
+          await Q.enqueue({
+            url: form.action,
+            payload: payloadFor({ csrf, present, notes }),
+            label: form.dataset.bookingNo || form.dataset.bookingId,
+          });
+          setPill(form, 'queued', 'Menunggu sinkron');
+          setRowQueued(form, true);
+          refreshBanner();
+          return;
+        }
+
+        // Online: try once, queue on network/server error.
+        setPill(form, 'syncing', 'Mengirim…');
+        try {
+          await submitOnline(form, { csrf, present, notes });
+          setPill(form, 'ok', 'Tersimpan');
+          setRowQueued(form, false);
+          setTimeout(() => clearPill(form), 1800);
+        } catch (err) {
+          await Q.enqueue({
+            url: form.action,
+            payload: payloadFor({ csrf, present, notes }),
+            label: form.dataset.bookingNo || form.dataset.bookingId,
+          });
+          setPill(form, 'queued', 'Menunggu sinkron');
+          setRowQueued(form, true);
+          refreshBanner();
+        }
+      });
+    });
+
+    // Online/offline events
+    window.addEventListener('offline', refreshBanner);
+    window.addEventListener('online', refreshBanner);
+
+    // Queue change → repaint banner + form states
+    Q.onChange(() => { refreshBanner(); paintFormStatesFromQueue(); });
+
+    // Boot
+    refreshBanner();
+    paintFormStatesFromQueue();
+    Q.startAutoFlush({ intervalMs: 20_000 });
   })();
 </script>
 </body>

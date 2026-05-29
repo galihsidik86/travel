@@ -10,7 +10,7 @@
 //
 // Cache busting: bump CACHE_VERSION to invalidate every entry on next activation.
 
-const CACHE_VERSION = 'rp-v1';
+const CACHE_VERSION = 'rp-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 
@@ -18,6 +18,7 @@ const PRECACHE_URLS = [
   '/shared/tokens.css',
   '/shared/csrf.js',
   '/shared/pwa.js',
+  '/shared/attendance-queue.js',
   '/shared/icon.svg',
   '/shared/offline.html',
 ];
