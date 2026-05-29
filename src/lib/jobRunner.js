@@ -73,6 +73,7 @@ export const EXPECTED_INTERVAL_MS = {
   'expire-docs': 24 * 60 * 60_000,        // daily
   'expire-intents': 10 * 60_000,          // every 10 min
   'send-notifications': 2 * 60_000,       // every 2 min
+  'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };
 
 /**

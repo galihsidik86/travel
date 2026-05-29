@@ -325,15 +325,31 @@ Online payment via Midtrans Snap (hosted checkout). `src/lib/midtrans.js` is the
 
 ## Maintenance jobs
 
-Three ops jobs, all sharing the same pattern: pure service in `src/services/`, thin CLI wrapper in `src/jobs/` that disconnects Prisma and exits, plus an OWNER-only HTTP trigger under `/api/admin/jobs/*` for manual runs.
+Four ops jobs, all sharing the same pattern: pure service in `src/services/`, thin CLI wrapper in `src/jobs/` that disconnects Prisma and exits, plus an OWNER-only HTTP trigger under `/api/admin/jobs/*` for manual runs.
 
 | Job | CLI | HTTP trigger | Service | What it does |
 |-----|-----|--------------|---------|--------------|
 | expire-docs | `npm run job:expire-docs` | `POST /api/admin/jobs/expire-docs` | `expireOverdueDocuments` | `JemaahDocument` rows with `expiresAt < now` and non-EXPIRED status → EXPIRED + audit |
 | expire-intents (5uu) | `npm run job:expire-intents` | `POST /api/admin/jobs/expire-intents` | `expireStaleIntents` | `PaymentIntent` rows with `expiresAt < now` and status IN (CREATED, PENDING) → EXPIRED + audit |
 | send-notifications | `npm run job:send-notifications` | `POST /api/admin/jobs/send-notifications` | `processPendingNotifications` | Dispatch all PENDING notifs + FAILED rows whose backoff window elapsed (5nn) |
+| prune | `npm run job:prune` | `POST /api/admin/jobs/prune` | `pruneRetentionWindows` | Weekly bounded-growth sweep — see "Data retention" below |
 
-All three are **idempotent** — re-running on an empty queue is a no-op. Terminal statuses are always skipped (e.g. `expire-intents` never touches SETTLED/CANCELLED/FAILED — the 5pp "terminal frozen" invariant).
+All four are **idempotent** — re-running on an empty queue is a no-op. Terminal statuses are always skipped (e.g. `expire-intents` never touches SETTLED/CANCELLED/FAILED — the 5pp "terminal frozen" invariant).
+
+### Data retention (pruning policy)
+
+The `prune` job in `src/services/retention.js` bounds growth on operational tables. **Defaults are conservative; tune via env vars** (`RETENTION_NOTIF_SENT_DAYS` etc.). What gets touched:
+
+- **Notification** — SENT + SKIPPED rows older than 90 days, plus FAILED rows that are terminal (`nextRetryAt=null` OR `attemptCount >= 5`) older than 180 days.
+- **JobRun** — rows older than 90 days. `/api/health` only needs the latest successful run per job; older rows are observability noise.
+- **PaymentIntent** — terminal-failed rows (EXPIRED / CANCELLED / FAILED) older than 365 days. **SETTLED intents are NEVER pruned** — they tie 1:1 to a Payment row.
+
+**Never pruned** (compliance, financial, append-only):
+- `AuditLog`. If volume eventually becomes a problem, archive to cold storage (S3 etc.) — never delete in place.
+- `Payment`. Append-only invariant.
+- `Booking`, `Komisi`, `KomisiPayout`, `Lead`, `Incident`, `AttendanceMark`. Trip + financial + ops history.
+
+The sweep itself writes a single audit row per run (`entity=Retention`, `entityId=YYYY-MM-DD`) **only when something was actually deleted** — no-op runs don't pollute the audit log. Per-row deletes are intentionally NOT audited; that would defeat the bounded-growth purpose.
 
 **Job-run logging + `/api/health` freshness**. Both the CLI scripts and the HTTP triggers route through `runJob(name, fn)` in `src/lib/jobRunner.js` — writes a `JobRun` row on start, patches it on finish with `ok` + `durationMs` + derived counters (`scanned`, `affected` from `expired`/`sent`, `errors`). `/api/health` calls `getJobFreshness()` which returns the latest successful run per known job + an `ok` flag derived from `age <= 2 × EXPECTED_INTERVAL_MS[name]`. Aggregate `status` flips to `"degraded"` when DB is down OR any job is stale — external uptime monitors can alert on that single field. **Tests deliberately bypass `runJob` and call services directly**, so test fixtures never pollute the freshness log.
 

@@ -33,6 +33,23 @@ sudo -u religio npx prisma generate
 
 Copy `.env.example` → `.env` and fill:
 
+### Retention windows (optional)
+
+The weekly `npm run job:prune` sweep bounds growth on Notification /
+JobRun / failed PaymentIntent. Defaults are 90 / 90 / 180 / 365 days
+and live in `src/services/retention.js`. Override via env vars:
+
+- `RETENTION_NOTIF_SENT_DAYS` (default 90)
+- `RETENTION_NOTIF_FAILED_DAYS` (default 180)
+- `RETENTION_JOB_RUN_DAYS` (default 90)
+- `RETENTION_INTENT_FAILED_DAYS` (default 365)
+
+**AuditLog and Payment are NEVER pruned** — compliance + financial
+history. If audit volume becomes a problem, archive to cold storage
+(S3 etc.) rather than delete in place.
+
+### Environment variables
+
 | Var | Purpose | Required |
 |-----|---------|----------|
 | `DATABASE_URL` | Prisma connection string | yes |

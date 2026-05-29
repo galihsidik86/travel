@@ -588,6 +588,7 @@ model Booking {
   @@index([agentId])
   @@index([status])
   @@index([jemaahId])
+  @@index([jemaahUserId])
   @@index([createdAt])
   @@index([roomId])
 }
@@ -654,6 +655,10 @@ model PaymentIntent {
 
   @@index([bookingId])
   @@index([status])
+  // Drives /admin/payment-intents global list (createdAt desc) + the
+  // expire-intents sweep (status IN (CREATED, PENDING) AND expiresAt < now).
+  @@index([createdAt])
+  @@index([status, expiresAt])
 }
 
 enum PaymentIntentStatus {
@@ -891,4 +896,7 @@ model AuditLog {
   @@index([actorUserId])
   @@index([createdAt])
   @@index([action])
+  // 5gg / activity sparkline + per-entity audit drill-downs benefit from a
+  // compound (entity, createdAt) — filter by entity, sort by time in one pass.
+  @@index([entity, createdAt])
 }

@@ -7,6 +7,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { expireOverdueDocuments } from '../services/expireDocs.js';
 import { processPendingNotifications } from '../services/notifications.js';
 import { expireStaleIntents } from '../services/expireIntents.js';
+import { pruneRetentionWindows } from '../services/retention.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -36,6 +37,17 @@ router.post(
   '/expire-intents',
   asyncHandler(async (req, res) => {
     const result = await runJob('expire-intents', () => expireStaleIntents({
+      req,
+      actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+    }));
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/prune',
+  asyncHandler(async (req, res) => {
+    const result = await runJob('prune', () => pruneRetentionWindows({
       req,
       actor: { id: req.user.id, email: req.user.email, role: req.user.role },
     }));
