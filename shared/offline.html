@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Tidak terhubung</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body {
+    background: var(--ink-1000);
+    min-height: 100dvh;
+    display: grid; place-items: center;
+    padding: 24px;
+  }
+  .card {
+    max-width: 420px; text-align: center;
+    background: var(--ink-900); border: var(--hairline-gold);
+    border-radius: var(--r-xl); padding: 40px 28px;
+  }
+  .card .eyebrow {
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold-300); margin-bottom: 14px;
+  }
+  .card h1 {
+    font-family: var(--font-display); font-size: 30px;
+    font-weight: 500; color: var(--cream-100);
+    margin: 0 0 14px; letter-spacing: -0.015em;
+  }
+  .card h1 em { font-style: italic; color: var(--gold-300); }
+  .card p {
+    font-family: var(--font-sans); font-size: 14px;
+    color: var(--ink-100); line-height: 1.6; margin: 0 0 24px;
+  }
+  .card button {
+    background: var(--gold-300); color: var(--ink-1000);
+    border: 0; padding: 12px 22px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    cursor: pointer; font-weight: 600;
+  }
+  .card button:hover { background: var(--gold-200); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="eyebrow">Religio Pro</div>
+    <h1>Tidak <em>terhubung</em></h1>
+    <p>Sambungan internet sedang putus. Halaman ini akan otomatis muncul saat koneksi pulih, atau coba muat ulang dari sini.</p>
+    <button onclick="location.reload()">Muat ulang</button>
+  </div>
+</body>
+</html>

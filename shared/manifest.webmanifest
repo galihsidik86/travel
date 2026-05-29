@@ -1,0 +1,47 @@
+{
+  "name": "Religio Pro — Portal Jemaah",
+  "short_name": "Religio Pro",
+  "description": "Portal jemaah & crew Religio Pro — kelola booking, dokumen, dan absensi paket umroh/haji.",
+  "lang": "id",
+  "start_url": "/saya",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050403",
+  "theme_color": "#0A0908",
+  "categories": ["travel", "lifestyle"],
+  "icons": [
+    {
+      "src": "/shared/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/shared/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Booking saya",
+      "short_name": "Booking",
+      "url": "/saya",
+      "description": "Lihat status booking + pembayaran"
+    },
+    {
+      "name": "Profil & dokumen",
+      "short_name": "Profil",
+      "url": "/saya/profile",
+      "description": "Edit profil + upload dokumen perjalanan"
+    },
+    {
+      "name": "Notifikasi",
+      "short_name": "Notif",
+      "url": "/saya/notifications",
+      "description": "Inbox pemberitahuan"
+    }
+  ]
+}

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Notifikasi Saya</title>
 <link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
@@ -109,7 +110,7 @@
   .empty a { color: var(--gold-300); text-decoration: none; }
 </style>
 </head>
-<body data-screen-label="04 Portal Jemaah · Notifikasi">
+<body data-screen-label="04 Portal Jemaah · Notifikasi" class="has-m-tabs">
 <div class="wrap">
 
   <div class="topbar">
@@ -168,5 +169,6 @@
     </div>
   <% } %>
 </div>
+<%- include('partials/mobile-tabs') %>
 </body>
 </html>

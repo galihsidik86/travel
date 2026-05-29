@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Profil saya · <%= user.fullName %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
 <script src="/shared/csrf.js"></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
@@ -166,7 +167,7 @@
   }
 </style>
 </head>
-<body data-screen-label="04 Portal Jemaah · Profil">
+<body data-screen-label="04 Portal Jemaah · Profil" class="has-m-tabs">
 <div class="wrap">
   <div class="crumb">
     <a href="/saya">← KEMBALI KE PORTAL</a>
@@ -540,5 +541,6 @@
     }
   });
 </script>
+<%- include('partials/mobile-tabs') %>
 </body>
 </html>

@@ -406,6 +406,41 @@ body {
 }
 
 /* ============================================================
+   Mobile bottom tab bar (.m-tabs) — sticky nav for jemaah
+   portal. Hidden on desktop; appears on ≤ 720px. Includes
+   safe-area-inset-bottom so iOS home-indicator doesn't overlap.
+   ============================================================ */
+.m-tabs { display: none; }
+@media (max-width: 720px) {
+  .m-tabs {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: rgba(10, 9, 8, 0.94);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px) saturate(140%);
+    border-top: 1px solid rgba(212, 175, 55, 0.18);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  .m-tabs a {
+    display: grid; place-items: center; gap: 2px;
+    padding: 6px 4px; border-radius: var(--r-sm);
+    text-decoration: none;
+    color: var(--ink-100);
+    font-family: var(--font-mono); font-size: 9.5px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    transition: color 120ms ease, background 120ms ease;
+    min-height: 48px; /* tap target */
+  }
+  .m-tabs a svg { color: inherit; opacity: 0.85; }
+  .m-tabs a.is-active { color: var(--gold-300); }
+  .m-tabs a.is-active svg { opacity: 1; }
+  .m-tabs a:active { background: rgba(212, 175, 55, 0.06); }
+
+  /* Reserve room at page-bottom so content isn't covered by the bar. */
+  body.has-m-tabs { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ============================================================
    Chart primitives — proportional stack + SVG funnel.
    Used by admin dashboard; safe to reuse in agen-crm.
    ============================================================ */
