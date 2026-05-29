@@ -41,7 +41,7 @@ export async function recordPayment({ req, actor, bookingId, amount, method, cur
     where: { id: bookingId },
     include: {
       agent: { select: { id: true, komisiRateOverride: true } },
-      paket: { select: { komisiRate: true } },
+      paket: { select: { id: true, komisiRate: true } },
     },
   });
   if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
@@ -85,10 +85,24 @@ export async function recordPayment({ req, actor, bookingId, amount, method, cur
   if (reachedLunas && booking.agent?.id) {
     const existing = await db.komisi.findFirst({ where: { bookingId: booking.id } });
     if (!existing) {
-      // Precedence (5v): agent.komisiRateOverride > paket.komisiRate > DEFAULT
+      // Precedence (stage 14 → 5v):
+      //   AgentPaketKomisi(agentId, paketId).rate   (most specific)
+      //   > agent.komisiRateOverride
+      //   > paket.komisiRate
+      //   > DEFAULT_KOMISI_RATE                     (safety fallback)
+      // The rate at this moment is locked into Komisi.amount — never
+      // recomputed when these underlying values change later.
+      let matrixRate = null;
+      if (booking.paket?.id) {
+        const matrix = await db.agentPaketKomisi.findUnique({
+          where: { agentId_paketId: { agentId: booking.agent.id, paketId: booking.paket.id } },
+          select: { rate: true },
+        });
+        matrixRate = toNumber(matrix?.rate);
+      }
       const override = toNumber(booking.agent.komisiRateOverride);
       const paketRate = toNumber(booking.paket?.komisiRate);
-      const rate = override ?? paketRate ?? DEFAULT_KOMISI_RATE;
+      const rate = matrixRate ?? override ?? paketRate ?? DEFAULT_KOMISI_RATE;
       const komisiAmount = Math.round(totalAmount * rate);
       komisi = await db.komisi.create({
         data: {

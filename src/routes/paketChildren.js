@@ -9,6 +9,7 @@ import {
   addRoom, updateRoom, deleteRoom,
 } from '../services/paketAdmin.js';
 import { assignCrewToPaket, unassignCrewFromPaket } from '../services/crewPortal.js';
+import { setPaketOverride, clearPaketOverride } from '../services/agentPaketKomisi.js';
 
 const router = Router({ mergeParams: true });
 
@@ -129,6 +130,30 @@ router.delete(
     await unassignCrewFromPaket({
       req, actor: actorFrom(req),
       paketSlug: req.params.slug, userId: req.params.userId,
+    });
+    res.json({ ok: true });
+  }),
+);
+
+// ── Per-agent komisi overrides (stage 14) ────────────────────
+// PUT semantics: idempotent upsert keyed on (agentId, paketSlug).
+router.put(
+  '/:slug/komisi-overrides',
+  asyncHandler(async (req, res) => {
+    const row = await setPaketOverride({
+      req, actor: actorFrom(req),
+      paketSlug: req.params.slug,
+      input: { agentId: req.body?.agentId, rate: req.body?.rate },
+    });
+    res.json({ override: row });
+  }),
+);
+router.delete(
+  '/:slug/komisi-overrides/:agentId',
+  asyncHandler(async (req, res) => {
+    await clearPaketOverride({
+      req, actor: actorFrom(req),
+      paketSlug: req.params.slug, agentId: req.params.agentId,
     });
     res.json({ ok: true });
   }),

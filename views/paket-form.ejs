@@ -655,6 +655,59 @@
       </div>
     <% } %>
 
+    <!-- ====== Per-agent komisi override (stage 14) ====== -->
+    <% if (mode === 'edit' && Array.isArray(availableAgents)) { %>
+      <div class="panel">
+        <h3>Komisi override per agen</h3>
+        <p class="sub">
+          Default komisi paket ini = <strong><%= paket.komisiRatePct || '6' %>%</strong>.
+          Tambahkan baris di sini jika seorang agen punya rate berbeda untuk paket ini saja
+          (rate per-paket × per-agen menang atas <em>komisiRateOverride</em> agen dan
+          <em>komisiRate</em> paket). Komisi yang sudah EARNED tidak ikut berubah.
+        </p>
+
+        <div id="kom-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+          <% if (paketOverrides.length === 0) { %>
+            <div id="kom-empty" style="padding:16px;border:1px dashed var(--ink-500);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">
+              Belum ada override per-agen.
+            </div>
+          <% } else { %>
+            <% paketOverrides.forEach(function(o) { %>
+              <div class="kom-row" data-agent-id="<%= o.agent.id %>"
+                   style="display:grid;grid-template-columns:1fr 110px 80px;gap:12px;align-items:center;padding:10px 14px;background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);">
+                <div>
+                  <div style="color:var(--cream-100);font-size:13px;"><%= o.agent.displayName %></div>
+                  <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--gold-300);"><%= o.agent.slug %></div>
+                </div>
+                <div style="font-family:var(--font-mono);font-size:13px;color:var(--cream-100);text-align:right;">
+                  <span class="kom-rate-display"><%= (Number(o.rate.toString()) * 100).toFixed(2).replace(/\.?0+$/, '') %></span>%
+                </div>
+                <button type="button" class="kom-remove" style="background:transparent;border:1px solid rgba(181,86,74,0.5);color:var(--ruby);padding:6px 8px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;cursor:pointer;text-transform:uppercase;">HAPUS</button>
+              </div>
+            <% }) %>
+          <% } %>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 110px auto;gap:10px;align-items:end;">
+          <div>
+            <label class="label" for="kom-agent" style="display:block;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Agen</label>
+            <select id="kom-agent" class="input" style="width:100%;background-color:var(--ink-900);color:var(--cream-100);">
+              <option value="">— pilih agen —</option>
+              <% availableAgents.forEach(function(a) { %>
+                <option value="<%= a.id %>"><%= a.displayName %> · <%= a.slug %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="kom-rate" style="display:block;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Rate (%)</label>
+            <input id="kom-rate" class="input" type="number" min="0" max="100" step="0.01" placeholder="mis. 15">
+          </div>
+          <button type="button" id="kom-add-btn" class="btn btn--primary">Set</button>
+        </div>
+        <div id="kom-err" style="display:none;margin-top:10px;color:var(--ruby);font-family:var(--font-mono);font-size:11px;"></div>
+      </div>
+    <% } %>
+
     <!-- ====== Footer ====== -->
     <div class="form-footer">
       <div class="left">
@@ -1168,6 +1221,74 @@
           if (!r.ok) {
             const j = await r.json().catch(() => ({}));
             showErr(j?.error?.message || 'Unassign gagal');
+            btn.disabled = false;
+            return;
+          }
+          location.reload();
+        } catch {
+          showErr('Tidak dapat menghubungi server');
+          btn.disabled = false;
+        }
+      });
+    });
+  })();
+</script>
+<% } %>
+
+<%# stage 14: komisi-override panel JS %>
+<% if (mode === 'edit' && Array.isArray(availableAgents)) { %>
+<script>
+  (function () {
+    const slug = <%- JSON.stringify(paket.slug) %>;
+    const addBtn = document.getElementById('kom-add-btn');
+    const agentSel = document.getElementById('kom-agent');
+    const rateInp = document.getElementById('kom-rate');
+    const err = document.getElementById('kom-err');
+    function showErr(msg) { err.textContent = msg; err.style.display = 'block'; }
+    function hideErr() { err.style.display = 'none'; }
+
+    addBtn.addEventListener('click', async () => {
+      hideErr();
+      const agentId = agentSel.value;
+      const ratePct = parseFloat(rateInp.value);
+      if (!agentId) { showErr('Pilih agen dulu'); return; }
+      if (!Number.isFinite(ratePct) || ratePct < 0 || ratePct > 100) {
+        showErr('Rate harus 0-100');
+        return;
+      }
+      addBtn.disabled = true;
+      try {
+        const r = await fetch('/api/paket/' + encodeURIComponent(slug) + '/komisi-overrides', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId, rate: ratePct / 100 }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          showErr(j?.error?.message || 'Gagal menyimpan override');
+          addBtn.disabled = false;
+          return;
+        }
+        location.reload();
+      } catch {
+        showErr('Tidak dapat menghubungi server');
+        addBtn.disabled = false;
+      }
+    });
+
+    document.querySelectorAll('.kom-remove').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const row = btn.closest('[data-agent-id]');
+        const agentId = row?.dataset.agentId;
+        if (!agentId || !confirm('Hapus override komisi ini? Komisi yang sudah EARNED tetap tidak berubah.')) return;
+        btn.disabled = true;
+        try {
+          const r = await fetch('/api/paket/' + encodeURIComponent(slug) + '/komisi-overrides/' + encodeURIComponent(agentId), {
+            method: 'DELETE',
+          });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            showErr(j?.error?.message || 'Gagal hapus');
             btn.disabled = false;
             return;
           }

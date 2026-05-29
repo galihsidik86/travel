@@ -107,14 +107,23 @@ router.get(
     if (!paket || paket.deletedAt) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
     // 5oo: crew panel data
     const { listAvailableCrew, listAssignedCrewForPaket } = await import('../services/crewPortal.js');
-    const [availableCrew, assignedCrew] = await Promise.all([
+    // Stage 14: per-agent komisi overrides for this paket
+    const { listPaketOverrides } = await import('../services/agentPaketKomisi.js');
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
+      db.agentProfile.findMany({
+        where: { user: { status: 'ACTIVE', deletedAt: null } },
+        select: { id: true, slug: true, displayName: true },
+        orderBy: { slug: 'asc' },
+      }),
+      listPaketOverrides(req.params.slug),
     ]);
     res.render('paket-form', {
       user: req.user, mode: 'edit', paket: paketToForm(paket),
       errors: {}, formError: null,
       availableCrew, assignedCrew,
+      availableAgents, paketOverrides,
     });
   }),
 );
