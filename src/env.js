@@ -55,3 +55,26 @@ if (!parsed.success) {
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === 'production';
 export const isDev = env.NODE_ENV === 'development';
+
+// Production-mode hard requirements. The base schema keeps these optional so
+// dev/test can boot with a half-filled .env, but a live deploy that skips any
+// of these would be unsafe — fail fast at boot.
+if (isProd) {
+  const prodIssues = [];
+  if (!env.DATABASE_URL) prodIssues.push('DATABASE_URL is required');
+  if (!env.JWT_SECRET) prodIssues.push('JWT_SECRET is required (min 32 chars)');
+  if (env.COOKIE_DOMAIN === 'localhost') {
+    prodIssues.push('COOKIE_DOMAIN=localhost is unsafe in production — set to your public domain');
+  }
+  if (!env.COOKIE_SECURE) {
+    prodIssues.push('COOKIE_SECURE must be true behind HTTPS');
+  }
+  if (env.MIDTRANS_PRODUCTION && (!env.MIDTRANS_SERVER_KEY || !env.MIDTRANS_CLIENT_KEY)) {
+    prodIssues.push('MIDTRANS_PRODUCTION=true requires both MIDTRANS_SERVER_KEY and MIDTRANS_CLIENT_KEY');
+  }
+  if (prodIssues.length > 0) {
+    console.error('Invalid production environment configuration:');
+    for (const msg of prodIssues) console.error(`  - ${msg}`);
+    process.exit(1);
+  }
+}

@@ -30,3 +30,6 @@ MAILTO=""
 
 # Every 2 minutes — dispatch PENDING + retry-due FAILED notifications
 */2  * * * *  religio  cd /srv/religio-pro && npm run job:send-notifications >> /var/log/religio/notif.log          2>&1
+
+# Nightly 01:15 — mysqldump + gzip + 14-day rotation. See deploy/backup.example.sh.
+15 1  * * *   religio  /srv/religio-pro/deploy/backup.sh                     >> /var/log/religio/backup.log         2>&1

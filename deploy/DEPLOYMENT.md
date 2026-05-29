@@ -107,7 +107,34 @@ sudo systemctl restart cron   # or `crond` on RHEL
 for notifs — otherwise the in-process worker AND cron both dispatch, and
 you'll see double-tick patterns in `notif.log`.
 
-## 6. Log rotation
+## 6. Database backups
+
+Copy `deploy/backup.example.sh` → `/srv/religio-pro/deploy/backup.sh`,
+make it executable, and let cron run it nightly (the cron entry is
+already in `deploy/crontab.example`).
+
+```bash
+sudo cp deploy/backup.example.sh /srv/religio-pro/deploy/backup.sh
+sudo chmod +x /srv/religio-pro/deploy/backup.sh
+sudo install -d -o religio -g religio /var/backups/religio-pro
+sudo -u religio /srv/religio-pro/deploy/backup.sh   # one-off verification
+```
+
+What it does: parses `DATABASE_URL` from `.env`, runs `mysqldump
+--single-transaction` (consistent InnoDB snapshot, no write lock), gzips
+the output to `/var/backups/religio-pro/<db>_<UTC-timestamp>.sql.gz`,
+and prunes dumps older than 14 days (`RETAIN_DAYS` env var to override).
+
+Off-host shipping (S3 / rsync to remote) is intentionally out of scope —
+wrap the script if you need that; it prints the dump file path on stdout.
+
+Restore (manual):
+
+```bash
+gunzip -c religio_pro_2026-05-29_18-15.sql.gz | mysql -u root -p religio_pro
+```
+
+## 7. Log rotation
 
 ```bash
 sudo cp deploy/logrotate.example /etc/logrotate.d/religio-pro
@@ -115,7 +142,7 @@ sudo cp deploy/logrotate.example /etc/logrotate.d/religio-pro
 sudo logrotate --debug /etc/logrotate.d/religio-pro
 ```
 
-## 7. Reverse proxy + TLS (Caddy/nginx)
+## 8. Reverse proxy + TLS (Caddy/nginx)
 
 Behind any TLS-terminating reverse proxy. The app listens on `127.0.0.1`
 internally; proxy forwards `/*` to it. Ensure:
@@ -124,7 +151,21 @@ internally; proxy forwards `/*` to it. Ensure:
 - `X-Forwarded-Proto` is set so secure-cookie checks work
 - WebSocket forwarding NOT required (no WS endpoints)
 
-## 8. Verifying everything ran
+## 9. Verifying everything ran
+
+Use the bundled pre-launch smoke runner — it hits a running instance
+(no DB access), checks `/api/health`, CSRF cookie mint, sensitive-path
+block, and bogus-login rejection. Add `SMOKE_USER`/`SMOKE_PASS` for an
+authenticated probe.
+
+```bash
+node scripts/smoke-launch.js --base https://staging.religio.pro
+SMOKE_USER=ops@religio.pro SMOKE_PASS=... \
+SMOKE_PAKET_SLUG=ramadhan-aqsa-2026 \
+  node scripts/smoke-launch.js --base https://religio.pro
+```
+
+Manual cross-checks:
 
 ```bash
 # Web up?
@@ -140,7 +181,7 @@ sudo -u religio npx prisma studio  # or query directly:
 #   SELECT status, COUNT(*) FROM Notification GROUP BY status;
 ```
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
@@ -152,7 +193,7 @@ sudo -u religio npx prisma studio  # or query directly:
 | `EPERM rename query_engine` on `prisma generate` | dev `--watch` holds the DLL | stop server, regenerate, restart |
 | Webhook signature failures (Midtrans) | wrong `MIDTRANS_SERVER_KEY` or production/sandbox mismatch | verify key in Midtrans dashboard matches `.env`; check `MIDTRANS_PRODUCTION` |
 
-## 10. Updating the deploy
+## 11. Updating the deploy
 
 ```bash
 cd /srv/religio-pro
