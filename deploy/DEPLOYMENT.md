@@ -63,10 +63,14 @@ present, so a missing line tells you you're still on console.
 
 ```bash
 sudo cp deploy/systemd/religio-pro-web.service /etc/systemd/system/
-# (web unit not yet shipped — see "TODO" below for a minimal example)
 sudo systemctl daemon-reload
 sudo systemctl enable --now religio-pro-web
 ```
+
+The shipped unit runs `npm run start` as `religio`, sandboxes via
+`ProtectSystem=strict` + `ProtectHome=true` + `PrivateTmp=true`, and grants
+write access only to `/var/log/religio`, `private/`, and `uploads/`. Adjust
+`ReadWritePaths=` if your `DATABASE_URL` or upload dir lives elsewhere.
 
 ### Option B — process manager (PM2 etc.)
 
@@ -160,30 +164,15 @@ sudo systemctl restart religio-pro-web
 # timers auto-pick up the new code on next fire — no restart needed
 ```
 
-## TODO (not yet shipped)
+## Future work
 
-- **Web `.service` unit** for systemd — sample below; adapt to your supervisor:
-
-```ini
-[Unit]
-Description=Religio Pro web server
-After=network-online.target mariadb.service
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=religio
-WorkingDirectory=/srv/religio-pro
-EnvironmentFile=/srv/religio-pro/.env
-ExecStart=/usr/bin/npm run start
-Restart=on-failure
-RestartSec=5
-StandardOutput=append:/var/log/religio/web.log
-StandardError=append:/var/log/religio/web.log
-
-[Install]
-WantedBy=multi-user.target
-```
-
-- Health-endpoint extension surfacing **last-successful-run timestamp per job** for external uptime alerting
-- Redis-backed rate limit (currently in-memory — multi-instance unsafe)
+- **Mobile crew/jemaah apps** — `screens/crew-app.html` + `screens/jemaah-app.html`
+  are still static mockups. SOS/chat from the crew mockup is the next
+  deliberate follow-up.
+- **Per-paket × per-agent komisi matrix** — currently the rate chain is
+  per-agent OR per-paket. A `AgentPaketKomisi(agentId, paketId, rate)` join
+  table would let "ahmad-w gets 15% on VVIP only" without code changes.
+- **Server-side document thumbnails** — `/saya/profile` + `/admin/jemaah` doc
+  panels render full images scaled by CSS. Fine at current 8 MB cap + typical
+  per-jemaah doc counts; if it ever becomes a bottleneck, add `sharp`/`jimp`
+  cached thumbs at `private/docs/<jemaahId>/thumbs/`.

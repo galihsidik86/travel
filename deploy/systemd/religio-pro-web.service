@@ -1,0 +1,26 @@
+[Unit]
+Description=Religio Pro — web server (Express + Prisma)
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=religio
+Group=religio
+WorkingDirectory=/srv/religio-pro
+EnvironmentFile=/srv/religio-pro/.env
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/religio/web.log
+StandardError=append:/var/log/religio/web.log
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/religio /srv/religio-pro/private /srv/religio-pro/uploads
+
+[Install]
+WantedBy=multi-user.target
