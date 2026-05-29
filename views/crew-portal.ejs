@@ -87,6 +87,20 @@
     font-family: var(--font-mono); font-size: 11px;
     color: var(--ink-200); line-height: 1.7;
   }
+
+  @media (max-width: 720px) {
+    .paket-card {
+      grid-template-columns: 1fr auto;
+      grid-template-areas: "title pax" "cta cta";
+      gap: 10px 14px; padding: 16px 18px;
+    }
+    .paket-card > div:first-child { grid-area: title; }
+    .paket-card .pax { grid-area: pax; }
+    .paket-card .cta {
+      grid-area: cta; text-align: center; padding: 10px;
+      min-height: 44px; display: flex; align-items: center; justify-content: center;
+    }
+  }
 </style>
 </head>
 <body data-screen-label="05 Crew · Home">

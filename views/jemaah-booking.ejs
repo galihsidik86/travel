@@ -122,10 +122,20 @@
   .help-card .who { color: var(--gold-300); }
 
   @media (max-width: 720px) {
+    .head { flex-direction: column; align-items: stretch; gap: 12px; }
+    .head .status-tag { align-self: flex-start; }
     .info-grid { grid-template-columns: 1fr; }
     .money-row { grid-template-columns: 1fr; padding: 14px; }
     .money-row .cell + .cell { padding-top: 10px; border-top: var(--hairline-soft); }
+    .money-row .cell { text-align: left; }
     .money-row .v { font-size: 22px; }
+    .panel { padding: 18px 16px; }
+    .panel h3 { font-size: 17px; }
+    /* Make any "Bayar online" / cancel / refund buttons full-width tap targets */
+    .panel a[style*="background:var(--gold"], .panel button[style*="background:var(--gold"] {
+      display: block !important; text-align: center; min-height: 48px;
+      padding: 14px 16px !important;
+    }
   }
 </style>
 </head>

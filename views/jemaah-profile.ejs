@@ -161,6 +161,12 @@
     .grid-2 { grid-template-columns: 1fr; }
     .doc-row__form { grid-template-columns: 1fr; }
     .doc-row__form > * { width: 100%; }
+    .doc-row__form .input { padding: 10px 12px; font-size: 13px; min-height: 44px; }
+    .doc-row__form .doc-save, .doc-row__form .doc-del { min-height: 44px; padding: 10px 14px; font-size: 11px; }
+    .doc-row__file { gap: 8px; }
+    .doc-row__file a.dl, .doc-row__file .file-up, .doc-row__file .file-del { min-height: 36px; padding: 8px 12px; }
+    .footer-row { flex-direction: column; align-items: stretch; gap: 12px; }
+    .footer-row .btn { min-height: 44px; }
     /* Type-pref panel is currently 2 cols, single inline grid; force 1 col on mobile */
     .panel > div[style*="grid-template-columns:1fr 1fr"] { display: block !important; }
     .panel > div[style*="grid-template-columns:1fr 1fr"] > label { margin-bottom: 8px; }

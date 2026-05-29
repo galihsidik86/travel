@@ -151,10 +151,13 @@
     .hero { padding: 28px 22px; }
     .hero h1 { font-size: 28px; }
     .claim-form { grid-template-columns: 1fr; }
-    .claim-form button { width: 100%; }
+    .claim-form button { width: 100%; min-height: 44px; }
     /* booking row stacks on phone: title-block, status, price each take a row */
     .booking-row { grid-template-columns: 1fr; gap: 10px; padding: 14px 16px; }
     .booking-row .price { text-align: left; }
+    /* Hide redundant top-bar nav links — bottom-nav (.m-tabs) covers them */
+    .topnav-link { display: none !important; }
+    .topbar button { min-height: 40px; }
   }
 </style>
 </head>
@@ -164,8 +167,8 @@
   <div class="topbar">
     <div>JEMAAH · <span class="who"><%= user.email %></span></div>
     <div style="display:flex;gap:10px;align-items:center;">
-      <a href="/saya/paket" style="background:transparent;border:var(--hairline-soft);color:var(--ink-100);text-decoration:none;padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;">Lihat paket</a>
-      <a href="/saya/notifications" style="background:transparent;border:var(--hairline-soft);color:var(--ink-100);text-decoration:none;padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;position:relative;display:inline-flex;align-items:center;gap:8px;">
+      <a href="/saya/paket" class="topnav-link" style="background:transparent;border:var(--hairline-soft);color:var(--ink-100);text-decoration:none;padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;">Lihat paket</a>
+      <a href="/saya/notifications" class="topnav-link" style="background:transparent;border:var(--hairline-soft);color:var(--ink-100);text-decoration:none;padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;position:relative;display:inline-flex;align-items:center;gap:8px;">
         Notifikasi
         <% if (typeof unreadCount !== 'undefined' && unreadCount > 0) { %>
           <span title="<%= unreadCount %> notifikasi baru"
@@ -174,7 +177,7 @@
           </span>
         <% } %>
       </a>
-      <a href="/saya/profile" style="background:transparent;border:var(--hairline-soft);color:var(--ink-100);text-decoration:none;padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;">Profil &amp; dokumen</a>
+      <a href="/saya/profile" class="topnav-link" style="background:transparent;border:var(--hairline-soft);color:var(--ink-100);text-decoration:none;padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;">Profil &amp; dokumen</a>
       <form method="POST" action="/logout">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <button type="submit">Keluar</button>

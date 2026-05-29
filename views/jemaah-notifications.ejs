@@ -108,6 +108,20 @@
     color: var(--ink-200); line-height: 1.7;
   }
   .empty a { color: var(--gold-300); text-decoration: none; }
+
+  @media (max-width: 720px) {
+    /* Hide nav links — bottom-nav (.m-tabs) covers Dashboard + Profil */
+    .topbar .nav a { display: none; }
+    .topbar .nav { gap: 6px; }
+    .topbar button { min-height: 36px; }
+    .row {
+      grid-template-columns: 1fr;
+      gap: 8px; padding: 14px 16px;
+    }
+    .row .time { text-align: left; }
+    .row.unread { padding-left: 14px; }
+    .row .unread-dot { top: 12px; right: 14px; }
+  }
 </style>
 </head>
 <body data-screen-label="04 Portal Jemaah · Notifikasi" class="has-m-tabs">
