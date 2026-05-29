@@ -1,0 +1,3 @@
+{
+  "body": "🚨 *{{typeLabel}}* — laporan crew\n\n*Crew:* {{crewName}}\n*Paket:* {{paketTitle}}\n*Lokasi:* {{locationLabel}}\n*Pesan:* {{messageBlock}}\n\nBuka dashboard: {{adminLink}}"
+}

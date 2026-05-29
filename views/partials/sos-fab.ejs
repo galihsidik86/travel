@@ -1,0 +1,117 @@
+<%# Floating SOS button + modal. Only renders for MUTHAWWIF on /crew/* pages. %>
+<%# Caller may set `paketSlug` if the page knows which paket is in context. %>
+<button class="sos-fab" type="button" aria-label="Kirim SOS"
+        onclick="document.getElementById('sos-modal').showModal()">
+  <span class="sos-fab__dot"></span>
+  <span class="sos-fab__lbl">SOS</span>
+</button>
+
+<dialog id="sos-modal" class="sos-modal">
+  <form method="POST" action="/crew/sos" class="sos-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% if (typeof paketSlug !== 'undefined' && paketSlug) { %>
+      <input type="hidden" name="paketSlug" value="<%= paketSlug %>">
+    <% } %>
+    <div class="sos-modal__head">
+      <div>
+        <div class="sos-modal__eyebrow">Laporan darurat</div>
+        <h2>Kirim sinyal <em>SOS</em></h2>
+        <p class="sos-modal__sub">Admin Religio Pro akan menerima email + WA dalam hitungan detik. Hanya gunakan untuk hal genting.</p>
+      </div>
+      <button type="button" class="sos-modal__close"
+              onclick="document.getElementById('sos-modal').close()">×</button>
+    </div>
+
+    <label class="sos-field">
+      <span>Jenis insiden</span>
+      <select name="type" required>
+        <option value="SOS" selected>SOS — Darurat / nyawa</option>
+        <option value="MEDICAL">Medis (luka, sakit)</option>
+        <option value="LOST_JEMAAH">Jemaah hilang / terpisah</option>
+        <option value="SECURITY">Keamanan (pencurian, kekerasan)</option>
+        <option value="LOGISTICAL">Logistik (bus, hotel, makanan)</option>
+        <option value="OTHER">Lain-lain</option>
+      </select>
+    </label>
+
+    <label class="sos-field">
+      <span>Lokasi saat ini (opsional)</span>
+      <input type="text" name="locationLabel" maxlength="200" autocomplete="off"
+             placeholder="mis. Masjid Nabawi gate 21, atau Hotel Andalus">
+    </label>
+
+    <label class="sos-field">
+      <span>Apa yang terjadi? (singkat)</span>
+      <textarea name="message" maxlength="2000" rows="4"
+                placeholder="Mis. 'Bu Khadijah pingsan di pelataran Masjid Bilal, kondisi sadar tapi lemah, perlu ambulans.'"></textarea>
+    </label>
+
+    <div class="sos-modal__actions">
+      <button type="button" class="sos-modal__cancel"
+              onclick="document.getElementById('sos-modal').close()">Batal</button>
+      <button type="submit" class="sos-modal__send">KIRIM SOS</button>
+    </div>
+  </form>
+</dialog>
+
+<style>
+  .sos-fab {
+    position: fixed; right: 18px; bottom: 84px; z-index: 60;
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--ruby); color: var(--cream-100);
+    border: 2px solid rgba(255,255,255,0.18);
+    box-shadow: 0 14px 36px rgba(181,86,74,0.45), 0 4px 12px rgba(0,0,0,0.4);
+    cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+    animation: sos-pulse 2.6s ease-out infinite;
+  }
+  .sos-fab:hover { background: #C46259; }
+  .sos-fab__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cream-100); margin-bottom: 4px; box-shadow: 0 0 8px rgba(255,255,255,0.7); }
+  .sos-fab__lbl { letter-spacing: 0.2em; }
+  @keyframes sos-pulse {
+    0%   { box-shadow: 0 14px 36px rgba(181,86,74,0.45), 0 0 0 0 rgba(181,86,74,0.6); }
+    70%  { box-shadow: 0 14px 36px rgba(181,86,74,0.45), 0 0 0 16px rgba(181,86,74,0); }
+    100% { box-shadow: 0 14px 36px rgba(181,86,74,0.45), 0 0 0 0 rgba(181,86,74,0); }
+  }
+
+  .sos-modal { width: min(440px, calc(100vw - 32px)); padding: 0; background: transparent; border: 0; }
+  .sos-modal::backdrop { background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); }
+  .sos-form {
+    background: var(--ink-900); border: 1px solid var(--ruby); border-radius: var(--r-lg);
+    padding: 22px 22px 18px;
+    display: flex; flex-direction: column; gap: 14px;
+    color: var(--cream-100);
+  }
+  .sos-modal__head { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+  .sos-modal__eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ruby); }
+  .sos-modal__head h2 { font-family: var(--font-display); font-size: 24px; font-weight: 500; margin: 4px 0 6px; color: var(--cream-100); letter-spacing: -0.015em; }
+  .sos-modal__head h2 em { font-style: italic; color: var(--ruby); }
+  .sos-modal__sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-100); line-height: 1.55; margin: 0; }
+  .sos-modal__close {
+    background: transparent; border: 0; color: var(--ink-200);
+    font-size: 24px; line-height: 1; cursor: pointer; padding: 0 4px; flex-shrink: 0;
+  }
+  .sos-modal__close:hover { color: var(--cream-100); }
+  .sos-field { display: flex; flex-direction: column; gap: 6px; }
+  .sos-field > span {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200);
+  }
+  .sos-field input, .sos-field select, .sos-field textarea {
+    background: var(--ink-1000); color: var(--cream-100); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 10px 12px; font-size: 13px; font-family: inherit;
+  }
+  .sos-field textarea { resize: vertical; min-height: 84px; }
+  .sos-modal__actions { display: flex; gap: 10px; margin-top: 4px; }
+  .sos-modal__cancel, .sos-modal__send {
+    flex: 1; padding: 12px 16px; min-height: 46px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; cursor: pointer;
+  }
+  .sos-modal__cancel {
+    background: transparent; border: var(--hairline-soft); color: var(--ink-100);
+  }
+  .sos-modal__cancel:hover { color: var(--cream-100); border-color: var(--ink-100); }
+  .sos-modal__send {
+    background: var(--ruby); color: var(--cream-100); border: 0;
+  }
+  .sos-modal__send:hover { background: #C46259; }
+</style>

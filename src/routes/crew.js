@@ -8,6 +8,7 @@ import {
   listAssignedPaket, getAssignedManifest, buildCrewManifestCsv,
   listAttendanceDays, getAttendanceGrid, setAttendanceMark,
 } from '../services/crewPortal.js';
+import { createIncident, listMyIncidents } from '../services/incidents.js';
 
 const router = Router();
 
@@ -18,8 +19,31 @@ router.use(requireAuth, requireRole('MUTHAWWIF'));
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const paketList = await listAssignedPaket(req.user.id);
-    res.render('crew-portal', { user: req.user, paketList });
+    const [paketList, myIncidents] = await Promise.all([
+      listAssignedPaket(req.user.id),
+      listMyIncidents(req.user.id, { limit: 10 }),
+    ]);
+    res.render('crew-portal', { user: req.user, paketList, myIncidents });
+  }),
+);
+
+// SOS / incident report. Form-encoded POST so the static <form> works without
+// JS too. Returns redirect with ?sos=sent for the success banner; JSON
+// caller can read the resulting Location header for the page redirect.
+router.post(
+  '/sos',
+  asyncHandler(async (req, res) => {
+    const incident = await createIncident({
+      req,
+      crewUser: req.user,
+      input: {
+        type: req.body?.type || 'SOS',
+        paketSlug: req.body?.paketSlug || null,
+        message: req.body?.message || null,
+        locationLabel: req.body?.locationLabel || null,
+      },
+    });
+    res.redirect(`/crew?sos=sent&id=${encodeURIComponent(incident.id)}`);
   }),
 );
 

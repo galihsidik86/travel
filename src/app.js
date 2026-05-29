@@ -28,6 +28,7 @@ import auditRouter from './routes/audit.js';
 import jobsRouter from './routes/jobs.js';
 import notificationsRouter from './routes/notifications.js';
 import paymentIntentsRouter from './routes/paymentIntents.js';
+import incidentsRouter from './routes/incidents.js';
 import paymentsRouter from './routes/payments.js';
 import paymentGatewayRouter from './routes/paymentGateway.js';
 import refundsRouter from './routes/refunds.js';
@@ -129,6 +130,7 @@ export function createApp() {
   app.use('/admin/audit', auditRouter);
   app.use('/admin/notifications', notificationsRouter);
   app.use('/admin/payment-intents', paymentIntentsRouter);
+  app.use('/admin/incidents', incidentsRouter);
   app.use('/admin', adminRouter);
 
   // Static — existing design package (index.html, screens/, shared/, uploads/)

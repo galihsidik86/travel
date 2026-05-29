@@ -71,6 +71,7 @@ export async function tempMuthawwif(t, tag, { status = 'ACTIVE' } = {}) {
   t.after(async () => {
     await db.paketCrew.deleteMany({ where: { userId: user.id } });
     await db.attendanceMark.deleteMany({ where: { markedByUserId: user.id } });
+    await db.incident.deleteMany({ where: { createdById: user.id } });
     await db.user.deleteMany({ where: { id: user.id } });
   });
   return user;
@@ -89,6 +90,9 @@ export async function tempUser(t, tag, { role = 'OWNER', status = 'ACTIVE', dele
     },
   });
   t.after(async () => {
+    // Admin users can be ack/resolve actor on incidents — clear those first.
+    await db.incident.updateMany({ where: { ackedById: user.id }, data: { ackedById: null } });
+    await db.incident.updateMany({ where: { resolvedById: user.id }, data: { resolvedById: null } });
     await db.user.deleteMany({ where: { id: user.id } });
   });
   return user;

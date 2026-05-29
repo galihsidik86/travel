@@ -1,0 +1,4 @@
+{
+  "subject": "[{{severityTag}}] {{typeLabel}} dari crew: {{crewName}}",
+  "body": "URGENT — laporan dari lapangan.\n\nJenis: {{typeLabel}}\nCrew: {{crewName}} ({{crewEmail}}{{crewPhoneNote}})\nPaket: {{paketTitle}}\nLokasi: {{locationLabel}}\nWaktu: {{createdAtFormatted}}\n\nPesan dari crew:\n{{messageBlock}}\n\nMohon segera diack di dashboard:\n{{adminLink}}\n\n— sistem Religio Pro"
+}

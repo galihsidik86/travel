@@ -1,0 +1,13 @@
+/*
+  Warnings:
+
+  - The primary key for the `jemaahnotifpref` table will be changed. If it partially fails, the table could be left without primary key constraint.
+
+*/
+-- AlterTable
+ALTER TABLE `jemaahnotifpref` DROP PRIMARY KEY,
+    MODIFY `type` ENUM('BOOKING_CREATED', 'PAYMENT_RECEIVED', 'BOOKING_LUNAS', 'REFUND_ISSUED', 'CANCEL_REQUESTED', 'PAYMENT_SETTLED_ADMIN', 'PAYOUT_CREATED', 'DOC_VERIFIED', 'INCIDENT_REPORTED', 'GENERIC') NOT NULL,
+    ADD PRIMARY KEY (`jemaahId`, `type`);
+
+-- AlterTable
+ALTER TABLE `notification` MODIFY `type` ENUM('BOOKING_CREATED', 'PAYMENT_RECEIVED', 'BOOKING_LUNAS', 'REFUND_ISSUED', 'CANCEL_REQUESTED', 'PAYMENT_SETTLED_ADMIN', 'PAYOUT_CREATED', 'DOC_VERIFIED', 'INCIDENT_REPORTED', 'GENERIC') NOT NULL;

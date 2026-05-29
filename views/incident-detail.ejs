@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Insiden <%= incident.id.slice(0,8) %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { display: flex; justify-content: space-between; align-items: end; margin-bottom: 22px; gap: 18px; flex-wrap: wrap; }
+  .head h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-top: 8px; letter-spacing: 0.1em; }
+
+  .ok-banner { padding: 12px 16px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; margin-bottom: 18px; background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4); color: var(--emerald); }
+
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 22px; margin-bottom: 18px; }
+  .panel h3 { font-family: var(--font-display); font-size: 19px; font-weight: 500; color: var(--cream-100); margin: 0 0 14px; padding-bottom: 10px; border-bottom: var(--hairline-soft); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .info .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .info .v { font-family: var(--font-mono); font-size: 13px; color: var(--cream-100); margin-top: 4px; word-break: break-word; }
+  .info .v.gold { color: var(--gold-300); }
+  .message-block {
+    background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm);
+    padding: 14px 16px; white-space: pre-line; color: var(--cream-100);
+    font-size: 13.5px; line-height: 1.6;
+  }
+
+  .status-tag { padding: 4px 10px; font-family: var(--font-mono); font-size: 11px; border-radius: 4px; letter-spacing: 0.12em; border: 1px solid; display: inline-block; }
+  .status-tag.open     { color: var(--ruby);    border-color: var(--ruby);    background: rgba(181,86,74,0.10); }
+  .status-tag.acked    { color: var(--amber);   border-color: var(--amber);   background: rgba(201,147,59,0.08); }
+  .status-tag.resolved { color: var(--emerald); border-color: var(--emerald); background: rgba(74,143,109,0.08); }
+  .type-tag { padding: 4px 10px; font-family: var(--font-mono); font-size: 11px; border-radius: 4px; letter-spacing: 0.12em; border: 1px solid var(--ink-500); color: var(--ink-100); display: inline-block; }
+  .type-tag.sos { color: var(--ruby); border-color: var(--ruby); font-weight: 600; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .actions button {
+    padding: 12px 18px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; font-weight: 600;
+    min-height: 44px;
+  }
+  .actions .btn-ack {
+    background: var(--amber); color: var(--ink-1000); border: 0;
+  }
+  .actions .btn-ack:hover { background: var(--gold-300); }
+  .actions .btn-resolve {
+    background: var(--emerald); color: var(--ink-1000); border: 0;
+  }
+  .actions .btn-resolve:hover { background: #5ca685; }
+
+  textarea.input { width: 100%; min-height: 90px; padding: 12px 14px; resize: vertical; font-family: inherit; font-size: 13px; background: var(--ink-1000); color: var(--cream-100); border: var(--hairline-soft); border-radius: var(--r-sm); }
+
+  .timeline { display: flex; flex-direction: column; gap: 14px; padding: 6px 0; }
+  .tl { display: grid; grid-template-columns: 16px 1fr; gap: 12px; align-items: start; position: relative; }
+  .tl .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ink-500); margin-top: 6px; }
+  .tl.created .dot { background: var(--ruby); }
+  .tl.acked .dot   { background: var(--amber); }
+  .tl.resolved .dot{ background: var(--emerald); }
+  .tl .when { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.08em; }
+  .tl .what { color: var(--cream-100); font-size: 13px; margin-top: 2px; }
+  .tl .by { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); }
+
+  @media (max-width: 720px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .head { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body data-screen-label="02 Admin · Insiden Detail">
+<div class="wrap">
+  <div class="crumb"><a href="/admin/incidents">← KEMBALI KE DAFTAR INSIDEN</a></div>
+
+  <% if (flash?.ack) { %>
+    <div class="ok-banner">Insiden di-acknowledge.</div>
+  <% } else if (flash?.resolved) { %>
+    <div class="ok-banner">Insiden ditandai resolved.</div>
+  <% } %>
+
+  <div class="head">
+    <div>
+      <h1><em><%= typeLabels[incident.type] || incident.type %></em></h1>
+      <div class="sub">
+        <%= incident.id %> · dikirim <%= fmt.date(incident.createdAt) %>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <span class="type-tag <%= incident.type === 'SOS' ? 'sos' : '' %>"><%= incident.type %></span>
+      <span class="status-tag <%= incident.status.toLowerCase() %>"><%= incident.status %></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Detail</h3>
+    <div class="grid-2 info">
+      <div>
+        <div class="l">Crew</div>
+        <div class="v gold"><%= incident.createdBy?.fullName || '—' %></div>
+        <div class="v" style="font-size:11.5px; color:var(--ink-200);"><%= incident.createdBy?.email %><% if (incident.createdBy?.phone) { %> · <%= incident.createdBy.phone %><% } %></div>
+      </div>
+      <div>
+        <div class="l">Paket</div>
+        <% if (incident.paket) { %>
+          <div class="v"><a href="/admin/paket/<%= incident.paket.slug %>/edit" style="color:var(--gold-300); text-decoration:none;"><%= incident.paket.title %></a></div>
+        <% } else { %>
+          <div class="v" style="color:var(--ink-300);">(tidak terkait paket)</div>
+        <% } %>
+      </div>
+      <div>
+        <div class="l">Lokasi</div>
+        <div class="v"><%= incident.locationLabel || '—' %></div>
+      </div>
+      <div>
+        <div class="l">Waktu kejadian</div>
+        <div class="v"><%= fmt.date(incident.createdAt) %></div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;">
+      <div class="l" style="font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px;">Pesan dari crew</div>
+      <div class="message-block"><%= incident.message || '(tidak ada pesan tambahan)' %></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Timeline</h3>
+    <div class="timeline">
+      <div class="tl created">
+        <div class="dot"></div>
+        <div>
+          <div class="when"><%= fmt.date(incident.createdAt) %></div>
+          <div class="what">Insiden dilaporkan</div>
+          <div class="by">oleh <%= incident.createdBy?.fullName || incident.createdBy?.email || '—' %></div>
+        </div>
+      </div>
+      <% if (incident.ackedAt) { %>
+        <div class="tl acked">
+          <div class="dot"></div>
+          <div>
+            <div class="when"><%= fmt.date(incident.ackedAt) %></div>
+            <div class="what">Di-acknowledge</div>
+            <div class="by">oleh <%= incident.ackedBy?.fullName || incident.ackedBy?.email || '—' %></div>
+          </div>
+        </div>
+      <% } %>
+      <% if (incident.resolvedAt) { %>
+        <div class="tl resolved">
+          <div class="dot"></div>
+          <div>
+            <div class="when"><%= fmt.date(incident.resolvedAt) %></div>
+            <div class="what">Resolved<% if (incident.resolution) { %>: <%= incident.resolution %><% } %></div>
+            <div class="by">oleh <%= incident.resolvedBy?.fullName || incident.resolvedBy?.email || '—' %></div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (incident.status !== 'RESOLVED') { %>
+    <div class="panel">
+      <h3>Aksi</h3>
+      <% if (incident.status === 'OPEN') { %>
+        <p style="font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-200); margin: 0 0 12px;">
+          Ack dulu agar crew tahu tim sudah menerima sinyal, lalu resolve setelah masalah ditangani.
+        </p>
+        <form method="POST" action="/admin/incidents/<%= incident.id %>/ack" style="display:inline-block;">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn-ack">Ack — tim sudah lihat</button>
+        </form>
+      <% } %>
+      <form method="POST" action="/admin/incidents/<%= incident.id %>/resolve" style="margin-top:16px;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label style="display:block; font-family:var(--font-mono); font-size:10px; color:var(--ink-200); letter-spacing:0.14em; text-transform:uppercase; margin-bottom:6px;">Resolusi (wajib, min 3 char)</label>
+        <textarea class="input" name="resolution" maxlength="2000" placeholder="Apa yang dilakukan untuk menutup insiden ini? Mis. 'Jemaah ditemukan di masjid Bilal, kembali ke hotel jam 22.40.'"></textarea>
+        <div class="actions">
+          <button type="submit" class="btn-resolve">Tandai resolved</button>
+        </div>
+      </form>
+    </div>
+  <% } %>
+</div>
+</body>
+</html>

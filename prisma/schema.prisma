@@ -63,11 +63,11 @@ enum HotelCity {
 }
 
 enum BookingStatus {
-  PENDING       // baru daftar
-  BOOKED        // booking fee dibayar
-  DP_PAID       // DP minimum lunas
-  PARTIAL       // sebagian cicilan
-  LUNAS         // pelunasan selesai
+  PENDING // baru daftar
+  BOOKED // booking fee dibayar
+  DP_PAID // DP minimum lunas
+  PARTIAL // sebagian cicilan
+  LUNAS // pelunasan selesai
   CANCELLED
   REFUNDED
 }
@@ -96,23 +96,23 @@ enum Currency {
 }
 
 enum KomisiStatus {
-  PENDING       // booking belum lunas
-  EARNED        // booking lunas, komisi tercatat
-  PAID          // sudah ditransfer ke wallet agen
+  PENDING // booking belum lunas
+  EARNED // booking lunas, komisi tercatat
+  PAID // sudah ditransfer ke wallet agen
   CANCELLED
 }
 
 enum NotificationChannel {
   EMAIL
-  WA          // WhatsApp
-  CONSOLE     // dev/dry-run only — never use in production
+  WA // WhatsApp
+  CONSOLE // dev/dry-run only — never use in production
 }
 
 enum NotificationStatus {
   PENDING
   SENT
   FAILED
-  SKIPPED      // intentionally not dispatched (e.g. recipient missing)
+  SKIPPED // intentionally not dispatched (e.g. recipient missing)
 }
 
 enum NotificationType {
@@ -120,11 +120,12 @@ enum NotificationType {
   PAYMENT_RECEIVED
   BOOKING_LUNAS
   REFUND_ISSUED
-  CANCEL_REQUESTED        // jemaah → admin (5ii)
-  PAYMENT_SETTLED_ADMIN   // gateway settlement → admin fan-out (5yy)
+  CANCEL_REQUESTED // jemaah → admin (5ii)
+  PAYMENT_SETTLED_ADMIN // gateway settlement → admin fan-out (5yy)
   PAYOUT_CREATED
   DOC_VERIFIED
-  GENERIC                 // catch-all for ad-hoc notifs
+  INCIDENT_REPORTED // crew SOS / emergency → admin fan-out
+  GENERIC // catch-all for ad-hoc notifs
 }
 
 enum DocumentType {
@@ -139,18 +140,18 @@ enum DocumentType {
 }
 
 enum DocumentStatus {
-  PENDING        // di-track, perlu jemaah submit
-  SUBMITTED      // jemaah sudah upload/serahkan, perlu staff verifikasi
-  VERIFIED       // staff sudah verifikasi
-  REJECTED       // staff tolak, perlu re-submit
-  EXPIRED        // dokumen lewat masa berlaku
+  PENDING // di-track, perlu jemaah submit
+  SUBMITTED // jemaah sudah upload/serahkan, perlu staff verifikasi
+  VERIFIED // staff sudah verifikasi
+  REJECTED // staff tolak, perlu re-submit
+  EXPIRED // dokumen lewat masa berlaku
 }
 
 enum LeadStatus {
   COLD
   WARM
-  CONVERTED      // sudah jadi Booking
-  LOST           // tidak jadi
+  CONVERTED // sudah jadi Booking
+  LOST // tidak jadi
 }
 
 enum LeadSource {
@@ -185,84 +186,87 @@ enum AuditAction {
 // ─── Identity ────────────────────────────────────────────────
 
 model User {
-  id            String     @id @default(cuid())
-  email         String     @unique
-  passwordHash  String
-  role          Role
-  status        UserStatus @default(ACTIVE)
-  fullName      String
-  phone         String?
-  lastLoginAt   DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  deletedAt     DateTime?
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  role         Role
+  status       UserStatus @default(ACTIVE)
+  fullName     String
+  phone        String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
 
-  agent         AgentProfile?
-  jemaah        JemaahProfile?
-  staff         StaffProfile?
-  crew          CrewProfile?
+  agent  AgentProfile?
+  jemaah JemaahProfile?
+  staff  StaffProfile?
+  crew   CrewProfile?
 
-  auditLogs     AuditLog[]  @relation("AuditActor")
-  bookings      Booking[]   @relation("BookingJemaahUser")
-  paketCreated  Paket[]     @relation("PaketCreator")
-  docsVerified  JemaahDocument[] @relation("DocumentVerifier")
-  payoutsPaid   KomisiPayout[]   @relation("PayoutPaidBy")
-  crewAssignments PaketCrew[]   @relation("CrewAssignedToPaket")
-  attendanceMarks AttendanceMark[] @relation("AttendanceMarkedBy")
+  auditLogs         AuditLog[]       @relation("AuditActor")
+  bookings          Booking[]        @relation("BookingJemaahUser")
+  paketCreated      Paket[]          @relation("PaketCreator")
+  docsVerified      JemaahDocument[] @relation("DocumentVerifier")
+  payoutsPaid       KomisiPayout[]   @relation("PayoutPaidBy")
+  crewAssignments   PaketCrew[]      @relation("CrewAssignedToPaket")
+  attendanceMarks   AttendanceMark[] @relation("AttendanceMarkedBy")
+  incidentsCreated  Incident[]       @relation("IncidentCreator")
+  incidentsAcked    Incident[]       @relation("IncidentAcker")
+  incidentsResolved Incident[]       @relation("IncidentResolver")
 
   @@index([role])
   @@index([deletedAt])
 }
 
 model AgentProfile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // dipakai di URL /p/<paketSlug>?a=<slug>
-  slug        String   @unique
-  displayName String
-  igHandle    String?
-  whatsapp    String
-  bio         String?  @db.Text
-  tier        String?
-  joinedAt    DateTime @default(now())
-  isVerified  Boolean  @default(false)
+  slug               String   @unique
+  displayName        String
+  igHandle           String?
+  whatsapp           String
+  bio                String?  @db.Text
+  tier               String?
+  joinedAt           DateTime @default(now())
+  isVerified         Boolean  @default(false)
   // Optional per-agent komisi rate; when set, wins over Paket.komisiRate (5v)
   komisiRateOverride Decimal? @db.Decimal(5, 4)
 
-  bookings    Booking[] @relation("BookingAgent")
-  komisi      Komisi[]
-  payouts     KomisiPayout[]
-  leads       Lead[]
+  bookings Booking[]      @relation("BookingAgent")
+  komisi   Komisi[]
+  payouts  KomisiPayout[]
+  leads    Lead[]
 
   @@index([slug])
 }
 
 model JemaahProfile {
-  id              String     @id @default(cuid())
-  userId          String?    @unique
-  user            User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id     String  @id @default(cuid())
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  fullName        String
-  nik             String?    @unique
-  passportNo      String?    @unique
-  passportExpiry  DateTime?
-  birthDate       DateTime?
-  gender          String?
-  phone           String
-  email           String?
-  address         String?    @db.Text
+  fullName         String
+  nik              String?   @unique
+  passportNo       String?   @unique
+  passportExpiry   DateTime?
+  birthDate        DateTime?
+  gender           String?
+  phone            String
+  email            String?
+  address          String?   @db.Text
   emergencyContact String?
-  notes           String?    @db.Text
+  notes            String?   @db.Text
 
   // Notif opt-out per channel (5jj). Defaults to opt-in (true).
-  notifEmail      Boolean    @default(true)
-  notifWa         Boolean    @default(true)
+  notifEmail Boolean @default(true)
+  notifWa    Boolean @default(true)
 
-  bookings        Booking[]
-  documents       JemaahDocument[]
-  notifTypePrefs  JemaahNotifPref[]
+  bookings       Booking[]
+  documents      JemaahDocument[]
+  notifTypePrefs JemaahNotifPref[]
 
   @@index([phone])
   @@index([passportExpiry])
@@ -277,29 +281,29 @@ model JemaahProfile {
 //   text (more actionable for the jemaah).
 model JemaahNotifPref {
   jemaahId  String
-  jemaah    JemaahProfile     @relation(fields: [jemaahId], references: [id], onDelete: Cascade)
+  jemaah    JemaahProfile    @relation(fields: [jemaahId], references: [id], onDelete: Cascade)
   type      NotificationType
-  enabled   Boolean           @default(true)
-  updatedAt DateTime          @updatedAt
+  enabled   Boolean          @default(true)
+  updatedAt DateTime         @updatedAt
 
   @@id([jemaahId, type])
   @@index([jemaahId])
 }
 
 model StaffProfile {
-  id          String  @id @default(cuid())
-  userId      String  @unique
-  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department  String?
-  position    String?
+  id         String  @id @default(cuid())
+  userId     String  @unique
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department String?
+  position   String?
 }
 
 model CrewProfile {
-  id          String  @id @default(cuid())
-  userId      String  @unique
-  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  languages   String?
-  experience  Int?
+  id         String  @id @default(cuid())
+  userId     String  @unique
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  languages  String?
+  experience Int?
 }
 
 // 5oo: M2M between Paket and MUTHAWWIF users — drives the crew portal manifest.
@@ -321,41 +325,41 @@ model PaketCrew {
 // ─── Paket ───────────────────────────────────────────────────
 
 model Paket {
-  id              String       @id @default(cuid())
-  slug            String       @unique
+  id              String  @id @default(cuid())
+  slug            String  @unique
   title           String
   subtitle        String?
-  heroTitleHtml   String?      @db.Text  // trusted HTML with <em> & <br>; admin-curated
-  arabicTagline   String?      @db.Text
-  translitTagline String?      @db.Text
+  heroTitleHtml   String? @db.Text // trusted HTML with <em> & <br>; admin-curated
+  arabicTagline   String? @db.Text
+  translitTagline String? @db.Text
 
-  departureDate   DateTime
-  returnDate      DateTime
-  durationDays    Int
+  departureDate DateTime
+  returnDate    DateTime
+  durationDays  Int
 
-  airline         String?
-  airlineCode     String?
-  routeFrom       String?
-  routeTo         String?
+  airline     String?
+  airlineCode String?
+  routeFrom   String?
+  routeTo     String?
 
-  heroDescription String?      @db.LongText
+  heroDescription String? @db.LongText
   inclusions      Json
   exclusions      Json
   trustBadges     Json?
 
-  kursiTotal      Int          @default(45)
-  kursiTerisi     Int          @default(0)
+  kursiTotal       Int       @default(45)
+  kursiTerisi      Int       @default(0)
   manifestClosesAt DateTime?
-  komisiRate      Decimal      @default(0.06) @db.Decimal(5, 4)  // 0.0000-1.0000; agent komisi % on LUNAS
+  komisiRate       Decimal   @default(0.06) @db.Decimal(5, 4) // 0.0000-1.0000; agent komisi % on LUNAS
 
-  status          PaketStatus  @default(DRAFT)
-  publishedAt     DateTime?
+  status      PaketStatus @default(DRAFT)
+  publishedAt DateTime?
 
-  createdById     String?
-  createdBy       User?        @relation("PaketCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  deletedAt       DateTime?
+  createdById String?
+  createdBy   User?     @relation("PaketCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
   hotels          PaketHotel[]
   prices          PaketHarga[]
@@ -363,6 +367,7 @@ model Paket {
   bookings        Booking[]
   rooms           Room[]
   crewAssignments PaketCrew[]
+  incidents       Incident[]
 
   @@index([slug])
   @@index([status])
@@ -371,29 +376,29 @@ model Paket {
 }
 
 model PaketHotel {
-  id          String     @id @default(cuid())
-  paketId     String
-  paket       Paket      @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  paketId String
+  paket   Paket  @relation(fields: [paketId], references: [id], onDelete: Cascade)
 
   city        HotelCity
   name        String
   stars       Int
   distance    String?
-  description String?    @db.Text
+  description String?   @db.Text
   nights      Int
-  order       Int        @default(0)
+  order       Int       @default(0)
 
   @@index([paketId])
 }
 
 model PaketHarga {
-  id            String     @id @default(cuid())
-  paketId       String
-  paket         Paket      @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  paketId String
+  paket   Paket  @relation(fields: [paketId], references: [id], onDelete: Cascade)
 
   kelas         KamarClass
-  label         String?               // "Suite Eksekutif", "Dua / kamar", dst.
-  caption       String?               // "Sharing 2 jemaah · untuk pasangan suami-istri"
+  label         String? // "Suite Eksekutif", "Dua / kamar", dst.
+  caption       String? // "Sharing 2 jemaah · untuk pasangan suami-istri"
   priceIdr      Decimal    @db.Decimal(15, 2)
   cicilanIdr    Decimal?   @db.Decimal(15, 2)
   cicilanMonths Int?
@@ -405,19 +410,19 @@ model PaketHarga {
 }
 
 model PaketDay {
-  id              String   @id @default(cuid())
+  id              String  @id @default(cuid())
   paketId         String
-  paket           Paket    @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  paket           Paket   @relation(fields: [paketId], references: [id], onDelete: Cascade)
   dayNumber       Int
   dayRange        String?
   dateLabel       String?
   monthLabel      String?
   title           String
-  description     String   @db.Text
+  description     String  @db.Text
   tags            Json?
-  highlight       Boolean  @default(false)
+  highlight       Boolean @default(false)
   pembimbingTitle String?
-  pembimbingNote  String?  @db.Text
+  pembimbingNote  String? @db.Text
 
   attendanceMarks AttendanceMark[]
 
@@ -433,42 +438,94 @@ model PaketDay {
 // cascade isn't strictly required — paket admins won't typically delete days
 // after a trip starts. Both cascades kept for cleanup safety.
 model AttendanceMark {
-  id              String     @id @default(cuid())
-  bookingId       String
-  booking         Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  paketDayId      String
-  paketDay        PaketDay   @relation(fields: [paketDayId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  bookingId  String
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  paketDayId String
+  paketDay   PaketDay @relation(fields: [paketDayId], references: [id], onDelete: Cascade)
 
-  present         Boolean    @default(true)
-  notes           String?    @db.Text
+  present Boolean @default(true)
+  notes   String? @db.Text
 
-  markedByUserId  String
-  markedBy        User       @relation("AttendanceMarkedBy", fields: [markedByUserId], references: [id])
-  markedAt        DateTime   @default(now())
+  markedByUserId String
+  markedBy       User     @relation("AttendanceMarkedBy", fields: [markedByUserId], references: [id])
+  markedAt       DateTime @default(now())
 
   @@unique([bookingId, paketDayId])
   @@index([paketDayId])
   @@index([bookingId])
 }
 
+// ─── Crew incidents (SOS / emergency alerts) ────────────────
+//
+// Lightweight ticketing for in-field emergencies raised by MUTHAWWIF
+// during a trip. Status machine: OPEN → ACKED → RESOLVED. Notif fan-out
+// to ACTIVE OWNER/SUPERADMIN/MANAJER_OPS happens on creation (admin gets
+// pinged the moment the SOS arrives, ack stays internal — no jemaah-side
+// notif since jemaah might be the subject of the incident).
+
+enum IncidentType {
+  SOS // life-threatening
+  MEDICAL // health emergency
+  LOST_JEMAAH // jemaah missing
+  SECURITY // theft / assault / harassment
+  LOGISTICAL // transport / hotel breakdown
+  OTHER
+}
+
+enum IncidentStatus {
+  OPEN
+  ACKED
+  RESOLVED
+}
+
+model Incident {
+  id String @id @default(cuid())
+
+  paketId String?
+  paket   Paket?  @relation(fields: [paketId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User   @relation("IncidentCreator", fields: [createdById], references: [id])
+
+  type          IncidentType
+  message       String?      @db.Text
+  locationLabel String?
+
+  status       IncidentStatus @default(OPEN)
+  ackedById    String?
+  ackedBy      User?          @relation("IncidentAcker", fields: [ackedById], references: [id], onDelete: SetNull)
+  ackedAt      DateTime?
+  resolvedById String?
+  resolvedBy   User?          @relation("IncidentResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?
+  resolution   String?        @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([createdById, createdAt])
+  @@index([paketId, createdAt])
+}
+
 // ─── Bunking (room assignment) ───────────────────────────────
 
 model Room {
-  id          String      @id @default(cuid())
-  paketId     String
-  paket       Paket       @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  paketId String
+  paket   Paket  @relation(fields: [paketId], references: [id], onDelete: Cascade)
 
-  roomNo      String       // mis. "M-401" / "M-501"
-  floor       Int?         // 4, 5, ...
-  wing        String?      // "Selatan" / "Utara"
-  kelas       KamarClass
-  capacity    Int         // QUAD=4 / TRIPLE=3 / DOUBLE=2 / VVIP=1 (atau custom)
-  notes       String?     @db.Text
+  roomNo   String // mis. "M-401" / "M-501"
+  floor    Int? // 4, 5, ...
+  wing     String? // "Selatan" / "Utara"
+  kelas    KamarClass
+  capacity Int // QUAD=4 / TRIPLE=3 / DOUBLE=2 / VVIP=1 (atau custom)
+  notes    String?    @db.Text
 
-  bookings    Booking[]
+  bookings Booking[]
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([paketId, roomNo])
   @@index([paketId])
@@ -478,53 +535,53 @@ model Room {
 // ─── Booking & Payment ───────────────────────────────────────
 
 model Booking {
-  id            String        @id @default(cuid())
-  bookingNo     String        @unique
+  id        String @id @default(cuid())
+  bookingNo String @unique
 
-  paketId       String
-  paket         Paket         @relation(fields: [paketId], references: [id])
+  paketId String
+  paket   Paket  @relation(fields: [paketId], references: [id])
 
-  jemaahId      String
-  jemaah        JemaahProfile @relation(fields: [jemaahId], references: [id])
+  jemaahId String
+  jemaah   JemaahProfile @relation(fields: [jemaahId], references: [id])
 
-  jemaahUserId  String?
-  jemaahUser    User?         @relation("BookingJemaahUser", fields: [jemaahUserId], references: [id], onDelete: SetNull)
+  jemaahUserId String?
+  jemaahUser   User?   @relation("BookingJemaahUser", fields: [jemaahUserId], references: [id], onDelete: SetNull)
 
   // capture dari ?a=<slug>
-  agentId       String?
-  agent         AgentProfile? @relation("BookingAgent", fields: [agentId], references: [id])
-  agentSlugCap  String?       // snapshot slug saat booking (untuk audit kalau slug berubah)
+  agentId      String?
+  agent        AgentProfile? @relation("BookingAgent", fields: [agentId], references: [id])
+  agentSlugCap String? // snapshot slug saat booking (untuk audit kalau slug berubah)
 
   // bunking assignment (NULL = belum di-assign ke kamar)
-  roomId        String?
-  room          Room?         @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  roomId String?
+  room   Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
 
-  kelas         KamarClass
-  paxCount      Int           @default(1)
-  notes         String?       @db.Text
+  kelas    KamarClass
+  paxCount Int        @default(1)
+  notes    String?    @db.Text
 
-  totalAmount   Decimal       @db.Decimal(15, 2)
-  paidAmount    Decimal       @default(0) @db.Decimal(15, 2)
-  currency      Currency      @default(IDR)
+  totalAmount Decimal  @db.Decimal(15, 2)
+  paidAmount  Decimal  @default(0) @db.Decimal(15, 2)
+  currency    Currency @default(IDR)
 
-  status        BookingStatus @default(PENDING)
-  bookingFeeAt  DateTime?
-  dpDueAt       DateTime?
-  lunasDueAt    DateTime?
-  cancelledAt   DateTime?
-  cancelReason  String?       @db.Text
+  status       BookingStatus @default(PENDING)
+  bookingFeeAt DateTime?
+  dpDueAt      DateTime?
+  lunasDueAt   DateTime?
+  cancelledAt  DateTime?
+  cancelReason String?       @db.Text
 
   // Jemaah-initiated cancel request (5ff) — admin still has to approve via cancelBooking.
-  cancelRequested      Boolean   @default(false)
-  cancelRequestedAt    DateTime?
-  cancelRequestReason  String?   @db.Text
+  cancelRequested     Boolean   @default(false)
+  cancelRequestedAt   DateTime?
+  cancelRequestReason String?   @db.Text
 
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  payments      Payment[]
-  komisi        Komisi[]
-  paymentIntents PaymentIntent[]
+  payments        Payment[]
+  komisi          Komisi[]
+  paymentIntents  PaymentIntent[]
   attendanceMarks AttendanceMark[]
 
   @@index([paketId])
@@ -536,30 +593,30 @@ model Booking {
 }
 
 model Payment {
-  id            String        @id @default(cuid())
-  bookingId     String
-  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
-  amount        Decimal       @db.Decimal(15, 2)
-  currency      Currency      @default(IDR)
-  exchangeRate  Decimal?      @db.Decimal(15, 6)
-  amountIdrEq   Decimal?      @db.Decimal(15, 2)
+  amount       Decimal  @db.Decimal(15, 2)
+  currency     Currency @default(IDR)
+  exchangeRate Decimal? @db.Decimal(15, 6)
+  amountIdrEq  Decimal? @db.Decimal(15, 2)
 
-  method        PaymentMethod
-  gatewayRef    String?       @unique
-  vaNumber      String?
+  method     PaymentMethod
+  gatewayRef String?       @unique
+  vaNumber   String?
 
-  status        PaymentStatus @default(PENDING)
-  paidAt        DateTime?
-  expiresAt     DateTime?
+  status    PaymentStatus @default(PENDING)
+  paidAt    DateTime?
+  expiresAt DateTime?
 
-  notes         String?       @db.Text
+  notes String? @db.Text
 
   // 5pp: back-reference to PaymentIntent (nullable — direct admin-recorded payments have none)
-  intent        PaymentIntent?
+  intent PaymentIntent?
 
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([bookingId])
   @@index([status])
@@ -571,61 +628,61 @@ model Payment {
 // Separate from `Payment` because intents can fail without ever producing a
 // money movement; keeping them apart preserves the append-only invariant on Payment.
 model PaymentIntent {
-  id              String              @id @default(cuid())
-  bookingId       String
-  booking         Booking             @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
-  provider        String              @default("MIDTRANS")
-  orderId         String              @unique  // what we send to Midtrans; format: PI-<intentId>
-  snapToken       String?             @db.Text
-  snapRedirectUrl String?             @db.Text
+  provider        String  @default("MIDTRANS")
+  orderId         String  @unique // what we send to Midtrans; format: PI-<intentId>
+  snapToken       String? @db.Text
+  snapRedirectUrl String? @db.Text
 
-  amount          Decimal             @db.Decimal(15, 2)
-  currency        String              @default("IDR")
+  amount   Decimal @db.Decimal(15, 2)
+  currency String  @default("IDR")
 
-  status          PaymentIntentStatus @default(CREATED)
-  gatewayStatus   String?             // raw status from Midtrans (e.g. "settlement", "pending", "deny")
-  gatewayPayload  Json?               // last webhook payload — debug + audit
+  status         PaymentIntentStatus @default(CREATED)
+  gatewayStatus  String? // raw status from Midtrans (e.g. "settlement", "pending", "deny")
+  gatewayPayload Json? // last webhook payload — debug + audit
 
-  paymentId       String?             @unique // FK once SETTLED → matching Payment row
-  payment         Payment?            @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  paymentId String?  @unique // FK once SETTLED → matching Payment row
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
-  expiresAt       DateTime?
+  expiresAt DateTime?
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([bookingId])
   @@index([status])
 }
 
 enum PaymentIntentStatus {
-  CREATED      // intent registered, snap token returned, awaiting jemaah action
-  PENDING      // jemaah triggered payment, gateway still confirming
-  SETTLED      // gateway confirmed, Payment materialized (terminal happy path)
-  EXPIRED      // intent expired before jemaah completed payment
-  CANCELLED    // operator/jemaah cancelled before settlement
-  FAILED       // gateway returned denial / charge failure
+  CREATED // intent registered, snap token returned, awaiting jemaah action
+  PENDING // jemaah triggered payment, gateway still confirming
+  SETTLED // gateway confirmed, Payment materialized (terminal happy path)
+  EXPIRED // intent expired before jemaah completed payment
+  CANCELLED // operator/jemaah cancelled before settlement
+  FAILED // gateway returned denial / charge failure
 }
 
 model Komisi {
-  id          String        @id @default(cuid())
-  bookingId   String
-  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  agentId     String
-  agent       AgentProfile  @relation(fields: [agentId], references: [id])
+  id        String       @id @default(cuid())
+  bookingId String
+  booking   Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  agentId   String
+  agent     AgentProfile @relation(fields: [agentId], references: [id])
 
-  amount      Decimal       @db.Decimal(15, 2)
-  currency    Currency      @default(IDR)
-  status      KomisiStatus  @default(PENDING)
-  earnedAt    DateTime?
-  paidAt      DateTime?
+  amount   Decimal      @db.Decimal(15, 2)
+  currency Currency     @default(IDR)
+  status   KomisiStatus @default(PENDING)
+  earnedAt DateTime?
+  paidAt   DateTime?
 
   // Disbursement bundle (5x) — populated when admin runs a payout
-  payoutId    String?
-  payout      KomisiPayout? @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+  payoutId String?
+  payout   KomisiPayout? @relation(fields: [payoutId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   @@index([agentId])
   @@index([bookingId])
@@ -636,24 +693,24 @@ model Komisi {
 // Bundle of komisi rows paid out together (5x).
 // payoutNo scheme: PO-YYYY-NNNNN (mirrors RP-YYYY-NNNNN bookingNo).
 model KomisiPayout {
-  id          String       @id @default(cuid())
-  payoutNo    String       @unique
-  agentId     String
-  agent       AgentProfile @relation(fields: [agentId], references: [id])
+  id       String       @id @default(cuid())
+  payoutNo String       @unique
+  agentId  String
+  agent    AgentProfile @relation(fields: [agentId], references: [id])
 
-  amount      Decimal      @db.Decimal(15, 2)   // snapshot at creation
-  currency    Currency     @default(IDR)
-  method      String                              // "TRANSFER" / "CASH" / "EWALLET" / "QRIS" — free string for ops flexibility
-  reference   String?                             // bank transfer ref / receipt no.
-  notes       String?      @db.Text
+  amount    Decimal  @db.Decimal(15, 2) // snapshot at creation
+  currency  Currency @default(IDR)
+  method    String // "TRANSFER" / "CASH" / "EWALLET" / "QRIS" — free string for ops flexibility
+  reference String? // bank transfer ref / receipt no.
+  notes     String?  @db.Text
 
-  paidAt      DateTime     @default(now())
-  paidById    String?
-  paidBy      User?        @relation("PayoutPaidBy", fields: [paidById], references: [id], onDelete: SetNull)
+  paidAt   DateTime @default(now())
+  paidById String?
+  paidBy   User?    @relation("PayoutPaidBy", fields: [paidById], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime     @default(now())
+  createdAt DateTime @default(now())
 
-  komisi      Komisi[]
+  komisi Komisi[]
 
   @@index([agentId])
   @@index([paidAt])
@@ -662,34 +719,34 @@ model KomisiPayout {
 // ─── Jemaah documents (visa, paspor, sertifikat) ─────────────
 
 model JemaahDocument {
-  id            String          @id @default(cuid())
-  jemaahId      String
-  jemaah        JemaahProfile   @relation(fields: [jemaahId], references: [id], onDelete: Cascade)
+  id       String        @id @default(cuid())
+  jemaahId String
+  jemaah   JemaahProfile @relation(fields: [jemaahId], references: [id], onDelete: Cascade)
 
-  type          DocumentType
-  status        DocumentStatus  @default(PENDING)
+  type   DocumentType
+  status DocumentStatus @default(PENDING)
 
-  refNumber     String?         // nomor visa/sertifikat/dst.
-  expiresAt     DateTime?       // untuk dokumen yang punya masa berlaku
-  notes         String?         @db.Text
+  refNumber String? // nomor visa/sertifikat/dst.
+  expiresAt DateTime? // untuk dokumen yang punya masa berlaku
+  notes     String?   @db.Text
 
   // 5mm: file attachment. One file per doc — re-upload replaces the previous one.
   // Path is relative to project root (e.g. "private/docs/<jemaahId>/<docId>__paspor.pdf").
-  filePath        String?
-  fileName        String?         // original sanitised basename, used for download Content-Disposition
-  fileSize        Int?            // bytes
-  mimeType        String?
-  fileUploadedAt  DateTime?
+  filePath       String?
+  fileName       String? // original sanitised basename, used for download Content-Disposition
+  fileSize       Int? // bytes
+  mimeType       String?
+  fileUploadedAt DateTime?
 
-  submittedAt   DateTime?
-  verifiedAt    DateTime?
-  verifiedById  String?
-  verifiedBy    User?           @relation("DocumentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  submittedAt  DateTime?
+  verifiedAt   DateTime?
+  verifiedById String?
+  verifiedBy   User?     @relation("DocumentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
 
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([jemaahId, type])    // 1 doc per type per jemaah
+  @@unique([jemaahId, type]) // 1 doc per type per jemaah
   @@index([jemaahId])
   @@index([status])
   @@index([type])
@@ -698,17 +755,17 @@ model JemaahDocument {
 // ─── CRM Leads (pre-booking) ─────────────────────────────────
 
 model Lead {
-  id            String      @id @default(cuid())
-  agentId       String
-  agent         AgentProfile @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  id      String       @id @default(cuid())
+  agentId String
+  agent   AgentProfile @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
-  fullName      String
-  phone         String
-  email         String?
-  notes         String?     @db.Text
+  fullName String
+  phone    String
+  email    String?
+  notes    String? @db.Text
 
-  source        LeadSource  @default(OTHER)
-  status        LeadStatus  @default(COLD)
+  source LeadSource @default(OTHER)
+  status LeadStatus @default(COLD)
 
   // Interest (optional — agen mungkin belum tahu)
   interestedPaketSlug String?
@@ -717,16 +774,16 @@ model Lead {
   estValueIdr         Decimal?    @db.Decimal(15, 2)
 
   // Tracking
-  score         Int?         // 0-100, dipakai untuk progress bar di kartu
-  followUpAt    DateTime?
+  score      Int? // 0-100, dipakai untuk progress bar di kartu
+  followUpAt DateTime?
 
   // Konversi ke Booking (untuk audit kalau sudah convert)
   convertedAt        DateTime?
-  convertedBookingId String?     @unique
+  convertedBookingId String?   @unique
 
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  deletedAt     DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([agentId, status])
   @@index([followUpAt])
@@ -736,48 +793,48 @@ model Lead {
 // ─── Notifications (queue + dispatch log) ────────────────────
 
 model Notification {
-  id              String              @id @default(cuid())
-  type            NotificationType
-  channel         NotificationChannel
-  status          NotificationStatus  @default(PENDING)
+  id      String              @id @default(cuid())
+  type    NotificationType
+  channel NotificationChannel
+  status  NotificationStatus  @default(PENDING)
 
   recipientEmail  String?
-  recipientPhone  String?             // for WA
-  recipientUserId String?             // 5ll: optional link to User so /saya/notifications can filter to the jemaah's own rows
-  subject         String?             @db.Text
-  body            String              @db.Text
-  payload         Json?               // structured data for templating
+  recipientPhone  String? // for WA
+  recipientUserId String? // 5ll: optional link to User so /saya/notifications can filter to the jemaah's own rows
+  subject         String? @db.Text
+  body            String  @db.Text
+  payload         Json? // structured data for templating
 
   // Optional link to source entity for cross-reference
-  relatedEntity   String?             // 'Booking' / 'Payment' / 'KomisiPayout' / ...
+  relatedEntity   String? // 'Booking' / 'Payment' / 'KomisiPayout' / ...
   relatedEntityId String?
 
-  sentAt          DateTime?
-  error           String?             @db.Text     // populated when status=FAILED
+  sentAt DateTime?
+  error  String?   @db.Text // populated when status=FAILED
 
   // 5nn: retry-with-backoff state.
   //   attemptCount: 0 before first dispatch; incremented after each FAILED attempt.
   //   nextRetryAt:  scheduled time of the next attempt; null when terminal (SENT/SKIPPED, or FAILED at max attempts).
   //   lastAttemptAt: stamp of the most recent dispatch (success or failure).
-  attemptCount    Int                 @default(0)
-  nextRetryAt     DateTime?
-  lastAttemptAt   DateTime?
+  attemptCount  Int       @default(0)
+  nextRetryAt   DateTime?
+  lastAttemptAt DateTime?
 
   // 5rr: read receipt for the jemaah-side inbox. Null = unread. Stamped on
   // first visit to /saya/notifications. Independent of dispatch status —
   // a SKIPPED row can still be "read" by the jemaah seeing it in their inbox.
-  readAt          DateTime?
+  readAt DateTime?
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([type])
   @@index([channel])
   @@index([relatedEntity, relatedEntityId])
   @@index([recipientUserId, createdAt])
-  @@index([recipientUserId, readAt])  // 5rr: drives the unread-badge count query
-  @@index([status, nextRetryAt])   // 5nn: drives the "ready to retry" query
+  @@index([recipientUserId, readAt]) // 5rr: drives the unread-badge count query
+  @@index([status, nextRetryAt]) // 5nn: drives the "ready to retry" query
   @@index([createdAt])
 }
 
@@ -787,23 +844,23 @@ model Notification {
 // expire-intents, send-notifications, etc.). Tests don't write here —
 // they call services directly, bypassing the runJob wrapper.
 model JobRun {
-  id          String   @id @default(cuid())
-  name        String   // 'expire-docs' | 'expire-intents' | 'send-notifications'
-  startedAt   DateTime @default(now())
-  finishedAt  DateTime?
-  ok          Boolean  @default(false)
+  id         String    @id @default(cuid())
+  name       String // 'expire-docs' | 'expire-intents' | 'send-notifications'
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  ok         Boolean   @default(false)
 
   // Generic counters — interpretation depends on job:
   //   scanned  — rows considered (e.g. notif queue length)
   //   affected — rows changed (expired, sent, ...)
   //   errors   — per-row failure count (job itself still succeeded)
-  scanned     Int?
-  affected    Int?
-  errors      Int      @default(0)
+  scanned  Int?
+  affected Int?
+  errors   Int  @default(0)
 
-  durationMs  Int?
-  detail      Json?    // job-specific extra (e.g. sent/failed/skipped breakdown)
-  error       String?  @db.Text  // populated when ok=false (job itself threw)
+  durationMs Int?
+  detail     Json? // job-specific extra (e.g. sent/failed/skipped breakdown)
+  error      String? @db.Text // populated when ok=false (job itself threw)
 
   @@index([name, finishedAt])
   @@index([startedAt])
@@ -812,23 +869,23 @@ model JobRun {
 // ─── Audit (permanent, no deletes) ───────────────────────────
 
 model AuditLog {
-  id          String       @id @default(cuid())
+  id          String  @id @default(cuid())
   actorUserId String?
-  actor       User?        @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
-  actorEmail  String?      // snapshot kalau user dihapus
+  actor       User?   @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorEmail  String? // snapshot kalau user dihapus
   actorRole   Role?
 
-  action      AuditAction
-  entity      String
-  entityId    String?
+  action   AuditAction
+  entity   String
+  entityId String?
 
-  before      Json?
-  after       Json?
+  before Json?
+  after  Json?
 
-  ip          String?
-  userAgent   String?      @db.Text
+  ip        String?
+  userAgent String? @db.Text
 
-  createdAt   DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   @@index([entity, entityId])
   @@index([actorUserId])

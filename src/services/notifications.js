@@ -384,6 +384,74 @@ export async function notifyCancelRequested({ booking, reason, requestedByEmail 
   ));
 }
 
+/**
+ * Crew SOS / emergency incident fan-out (admin-targeted). Triggered by
+ * createIncident. EMAIL + WA both fire so admins are reachable on whichever
+ * channel they're glued to. One row per (admin × channel) so each delivery
+ * can be retried independently.
+ *
+ * Severity is implicit in `type`: SOS → CRITICAL, everything else → HIGH.
+ * The template prefixes the subject with [CRITICAL] / [URGENT] so triage
+ * order is obvious in the inbox.
+ */
+export async function notifyIncidentCreated({ incident, crew, paket }) {
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+    },
+    select: { email: true, phone: true },
+  });
+  if (admins.length === 0) return;
+
+  const TYPE_LABEL = {
+    SOS: 'SOS — Life-threatening',
+    MEDICAL: 'Medical emergency',
+    LOST_JEMAAH: 'Jemaah hilang / terpisah',
+    SECURITY: 'Insiden keamanan',
+    LOGISTICAL: 'Masalah logistik',
+    OTHER: 'Insiden lain',
+  };
+  const severityTag = incident.type === 'SOS' ? 'CRITICAL' : 'URGENT';
+  const vars = {
+    typeLabel: TYPE_LABEL[incident.type] || incident.type,
+    severityTag,
+    crewName: crew?.fullName ?? '-',
+    crewEmail: crew?.email ?? '-',
+    crewPhoneNote: crew?.phone ? ` · ${crew.phone}` : '',
+    paketTitle: paket?.title ?? '(tidak terkait paket)',
+    locationLabel: incident.locationLabel ?? '-',
+    createdAtFormatted: new Date(incident.createdAt).toLocaleString('id-ID', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }),
+    messageBlock: incident.message ? incident.message : '(tidak ada pesan)',
+    adminLink: `/admin/incidents/${incident.id}`,
+  };
+
+  // Email fan-out (one per admin with email)
+  const email = renderTemplate('INCIDENT_REPORTED', 'EMAIL', vars);
+  const wa = renderTemplate('INCIDENT_REPORTED', 'WA', vars);
+  await Promise.all(admins.flatMap((a) => {
+    const out = [];
+    if (a.email) out.push(enqueueNotification({
+      type: 'INCIDENT_REPORTED', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject: email.subject, body: email.body,
+      payload: { incidentId: incident.id, type: incident.type, severityTag },
+      relatedEntity: 'Incident', relatedEntityId: incident.id,
+    }));
+    if (a.phone) out.push(enqueueNotification({
+      type: 'INCIDENT_REPORTED', channel: 'WA',
+      recipientPhone: a.phone,
+      subject: wa.subject ?? null, body: wa.body,
+      payload: { incidentId: incident.id, type: incident.type, severityTag },
+      relatedEntity: 'Incident', relatedEntityId: incident.id,
+    }));
+    return out;
+  }));
+}
+
 export async function notifyPayoutCreated({ payout, agent }) {
   const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
   const vars = {
