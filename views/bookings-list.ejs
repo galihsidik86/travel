@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Cari Booking</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { display: flex; justify-content: space-between; align-items: end; margin-bottom: 22px; gap: 18px; flex-wrap: wrap; }
+  .head h1 { font-family: var(--font-display); font-size: 34px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-top: 8px; letter-spacing: 0.1em; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 22px; }
+  .kpi { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-sm); padding: 12px 14px; }
+  .kpi .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+  .kpi .v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin-top: 4px; font-weight: 500; }
+  .kpi.pending  .v { color: var(--amber); }
+  .kpi.booked   .v { color: var(--sapphire); }
+  .kpi.dp_paid  .v { color: var(--gold-300); }
+  .kpi.partial  .v { color: var(--gold-300); }
+  .kpi.lunas    .v { color: var(--emerald); }
+  .kpi.cancelled .v { color: var(--ruby); }
+  .kpi.refunded .v { color: var(--ruby); }
+
+  .filter-bar {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr auto;
+    gap: 10px; align-items: end; margin-bottom: 18px;
+  }
+  .filter-bar .lbl { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; display: block; margin-bottom: 4px; }
+  .filter-bar .input, .filter-bar select.input {
+    width: 100%; padding: 7px 10px; font-size: 12px;
+    background-color: var(--ink-1000); color: var(--cream-100);
+    border: var(--hairline-soft); border-radius: var(--r-sm);
+    font-family: var(--font-mono);
+  }
+  .filter-bar select.input { background-color: var(--ink-900); }
+  .filter-bar button {
+    background: var(--gold-300); color: var(--ink-1000); border: 0;
+    padding: 9px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; font-weight: 600; cursor: pointer;
+    min-height: 36px;
+  }
+  .filter-bar button:hover { background: var(--gold-200); }
+  .filter-bar a.reset {
+    font-family: var(--font-mono); font-size: 10px; color: var(--ink-200);
+    letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none;
+    padding: 9px 10px; align-self: end;
+  }
+  .filter-bar a.reset:hover { color: var(--gold-300); }
+
+  .tbl { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+  .tbl thead th { text-align: left; padding: 12px 14px; background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); font-weight: 500; border-bottom: var(--hairline); }
+  .tbl tbody td { padding: 11px 14px; border-bottom: var(--hairline-soft); font-size: 12.5px; color: var(--cream-200); vertical-align: top; }
+  .tbl tbody tr:hover td { background: var(--ink-850); cursor: pointer; }
+  .tbl .id { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); letter-spacing: 0.06em; }
+  .tbl .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+  .tbl .num { font-family: var(--font-mono); text-align: right; }
+
+  .status-tag { padding: 3px 8px; font-family: var(--font-mono); font-size: 9.5px; border-radius: 3px; letter-spacing: 0.1em; border: 1px solid; }
+  .status-tag.pending   { color: var(--amber); border-color: var(--amber); }
+  .status-tag.booked    { color: var(--sapphire); border-color: var(--sapphire); }
+  .status-tag.dp_paid   { color: var(--gold-300); border-color: var(--gold-300); }
+  .status-tag.partial   { color: var(--gold-300); border-color: rgba(212,175,55,0.5); }
+  .status-tag.lunas     { color: var(--emerald); border-color: var(--emerald); background: rgba(74,143,109,0.08); }
+  .status-tag.cancelled { color: var(--ruby); border-color: var(--ruby); }
+  .status-tag.refunded  { color: var(--ruby); border-color: var(--ruby); background: rgba(181,86,74,0.08); }
+
+  .progress { height: 5px; background: var(--ink-700); border-radius: 3px; overflow: hidden; margin-top: 5px; max-width: 120px; }
+  .progress > i { display: block; height: 100%; background: var(--gold-300); }
+  .progress > i.full { background: var(--emerald); }
+
+  .empty { padding: 48px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+
+  .pag { margin-top: 18px; display: flex; gap: 8px; align-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+  .pag a { color: var(--gold-300); text-decoration: none; }
+
+  @media (max-width: 720px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .filter-bar { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body data-screen-label="02 Admin · Cari Booking">
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← KEMBALI KE DASHBOARD</a></div>
+  <div class="head">
+    <div>
+      <h1>Cari <em>booking</em></h1>
+      <div class="sub">
+        <%= total %> hasil
+        <% if (filters.q || filters.status !== 'ALL' || filters.paketId !== 'ALL' || filters.agentId !== 'ALL' || filters.from || filters.to) { %>
+          · filter aktif
+        <% } %>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <a href="/admin/bookings/new" class="btn btn--primary" style="text-decoration:none;">+ Walk-in baru</a>
+    </div>
+  </div>
+
+  <% const sCounts = counts.byStatus; %>
+  <div class="kpi-row">
+    <div class="kpi pending"><div class="l">PENDING</div><div class="v"><%= sCounts.PENDING %></div></div>
+    <div class="kpi booked"><div class="l">BOOKED</div><div class="v"><%= sCounts.BOOKED %></div></div>
+    <div class="kpi dp_paid"><div class="l">DP_PAID</div><div class="v"><%= sCounts.DP_PAID %></div></div>
+    <div class="kpi partial"><div class="l">PARTIAL</div><div class="v"><%= sCounts.PARTIAL %></div></div>
+    <div class="kpi lunas"><div class="l">LUNAS</div><div class="v"><%= sCounts.LUNAS %></div></div>
+    <div class="kpi cancelled"><div class="l">CANCELLED</div><div class="v"><%= sCounts.CANCELLED %></div></div>
+    <div class="kpi refunded"><div class="l">REFUNDED</div><div class="v"><%= sCounts.REFUNDED %></div></div>
+  </div>
+
+  <form method="GET" action="/admin/bookings" class="filter-bar">
+    <div>
+      <label class="lbl">Cari (bookingNo / nama / telepon)</label>
+      <input class="input" type="text" name="q" value="<%= filters.q %>" placeholder="mis. RP-2026 · 0812 · Siti" autocomplete="off">
+    </div>
+    <div>
+      <label class="lbl">Status</label>
+      <select name="status" class="input">
+        <option value="ALL" <%= filters.status === 'ALL' ? 'selected' : '' %>>Semua</option>
+        <% ['PENDING','BOOKED','DP_PAID','PARTIAL','LUNAS','CANCELLED','REFUNDED'].forEach(function(s) { %>
+          <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
+      <label class="lbl">Paket</label>
+      <select name="paketId" class="input">
+        <option value="ALL">Semua paket</option>
+        <% paketOpts.forEach(function(p) { %>
+          <option value="<%= p.id %>" <%= filters.paketId === p.id ? 'selected' : '' %>><%= p.title %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
+      <label class="lbl">Agen</label>
+      <select name="agentId" class="input">
+        <option value="ALL">Semua agen</option>
+        <option value="NONE" <%= filters.agentId === 'NONE' ? 'selected' : '' %>>— Kantor Pusat —</option>
+        <% agentOpts.forEach(function(a) { %>
+          <option value="<%= a.id %>" <%= filters.agentId === a.id ? 'selected' : '' %>><%= a.displayName %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
+      <label class="lbl">Dari</label>
+      <input class="input" type="date" name="from" value="<%= filters.from %>">
+    </div>
+    <div>
+      <label class="lbl">Sampai</label>
+      <input class="input" type="date" name="to" value="<%= filters.to %>">
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button type="submit">Cari</button>
+      <a class="reset" href="/admin/bookings">Reset</a>
+    </div>
+  </form>
+
+  <% if (rows.length === 0) { %>
+    <div class="tbl"><div class="empty">Tidak ada booking yang cocok dengan filter ini.</div></div>
+  <% } else { %>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:160px;">Booking</th>
+          <th>Jemaah</th>
+          <th>Paket</th>
+          <th style="width:120px;">Agen</th>
+          <th style="width:100px;">Status</th>
+          <th class="num" style="width:180px;">Money</th>
+          <th style="width:120px;">Dibuat</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(function(r) {
+          const paid = Number(r.paidAmount?.toString?.() ?? r.paidAmount) || 0;
+          const total = Number(r.totalAmount?.toString?.() ?? r.totalAmount) || 0;
+          const pct = total === 0 ? 0 : Math.round((paid / total) * 100);
+        %>
+          <tr onclick="location.href='/admin/bookings/<%= r.id %>'">
+            <td>
+              <div class="id"><%= r.bookingNo %></div>
+              <div class="sx"><%= r.kelas %> · <%= r.paxCount %> PAX</div>
+            </td>
+            <td>
+              <div class="nm"><%= r.jemaah?.fullName || '—' %></div>
+              <div class="sx">📱 <%= r.jemaah?.phone || '—' %></div>
+            </td>
+            <td>
+              <div class="nm"><%= r.paket?.title || '—' %></div>
+              <div class="sx"><%= r.paket?.slug || '' %></div>
+            </td>
+            <td>
+              <% if (r.agent) { %>
+                <div class="nm"><%= r.agent.displayName %></div>
+                <div class="sx" style="color:var(--gold-300);"><%= r.agent.slug %></div>
+              <% } else { %>
+                <div class="sx" style="color:var(--ink-300);">Kantor Pusat</div>
+              <% } %>
+            </td>
+            <td><span class="status-tag <%= r.status.toLowerCase() %>"><%= r.status %></span></td>
+            <td class="num">
+              <div style="color:var(--cream-100);"><%= fmt.rpShort(paid) %> / <%= fmt.rpShort(total) %></div>
+              <div class="progress"><i class="<%= pct >= 100 ? 'full' : '' %>" style="width:<%= Math.min(100, pct) %>%;"></i></div>
+            </td>
+            <td class="sx"><%= fmt.date(r.createdAt) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <% if (totalPages > 1) { %>
+      <div class="pag">
+        Page <strong style="color:var(--cream-100);"><%= page %></strong> / <%= totalPages %>
+        <%
+          const qs = new URLSearchParams();
+          if (filters.q)        qs.set('q', filters.q);
+          if (filters.status !== 'ALL')  qs.set('status', filters.status);
+          if (filters.paketId !== 'ALL') qs.set('paketId', filters.paketId);
+          if (filters.agentId !== 'ALL') qs.set('agentId', filters.agentId);
+          if (filters.from)     qs.set('from', filters.from);
+          if (filters.to)       qs.set('to', filters.to);
+          const link = (p) => { const u = new URLSearchParams(qs); u.set('page', p); return '?' + u.toString(); };
+        %>
+        <% if (page > 1) { %><a href="<%= link(page - 1) %>">← prev</a><% } %>
+        <% if (page < totalPages) { %><a href="<%= link(page + 1) %>">next →</a><% } %>
+      </div>
+    <% } %>
+  <% } %>
+</div>
+</body>
+</html>

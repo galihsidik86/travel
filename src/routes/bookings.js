@@ -8,6 +8,7 @@ import { db } from '../lib/db.js';
 import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent } from '../services/bookingAdmin.js';
 import { listIntentsForBooking, cancelStuckIntent } from '../services/paymentGateway.js';
 import { createBooking } from '../services/booking.js';
+import { searchBookings } from '../services/bookingsSearch.js';
 
 const router = Router();
 
@@ -25,6 +26,41 @@ function actorFrom(req) {
 const CancelSchema = z.object({
   reason: z.string().min(3, 'Alasan minimal 3 karakter').max(2000),
 });
+
+// ── GET /admin/bookings (global search) ──────────────────────
+router.get(
+  '/',
+  requireRole(...VIEW_ROLES),
+  asyncHandler(async (req, res) => {
+    const filters = {
+      q: (req.query.q || '').toString(),
+      status: req.query.status || 'ALL',
+      paketId: req.query.paketId || 'ALL',
+      agentId: req.query.agentId || 'ALL',
+      from: req.query.from || '',
+      to: req.query.to || '',
+      page: req.query.page || 1,
+    };
+    const [result, paketOpts, agentOpts] = await Promise.all([
+      searchBookings(filters),
+      db.paket.findMany({
+        where: { deletedAt: null, status: { not: 'ARCHIVED' } },
+        select: { id: true, slug: true, title: true },
+        orderBy: { departureDate: 'desc' },
+      }),
+      db.agentProfile.findMany({
+        select: { id: true, slug: true, displayName: true },
+        orderBy: { displayName: 'asc' },
+      }),
+    ]);
+    res.render('bookings-list', {
+      user: req.user,
+      ...result,
+      filters,
+      paketOpts, agentOpts,
+    });
+  }),
+);
 
 // ── GET /admin/bookings/new (walk-in booking form) ───────────
 router.get(
