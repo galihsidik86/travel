@@ -488,6 +488,161 @@ export async function deleteRoom({ req, actor, paketSlug, roomId }) {
   });
 }
 
+/**
+ * Clone a paket into a fresh DRAFT. Copies:
+ *   - the Paket row (minus slug/title/dates/status/kursiTerisi which are
+ *     reset or supplied by the caller)
+ *   - PaketHotel rows (same cities, stars, nights, etc.)
+ *   - PaketDay rows (same itinerary structure)
+ *   - PaketHarga rows (price tiers + cicilan + isFeatured flag)
+ *   - optionally AgentPaketKomisi (per-agent overrides) — admin opts in
+ *     since "same agents same rates" is a common pattern but not universal
+ *
+ * Does NOT copy: bookings, payments, komisi, rooms, crew assignments,
+ * incidents. Those are per-trip operational data — a clone is a template,
+ * not a historical record.
+ *
+ * The new paket lands in DRAFT with kursiTerisi=0. Audit row carries
+ * `clonedFromSlug` so lineage is queryable.
+ */
+const CloneSchema = z.object({
+  newSlug: z.string().regex(SLUG_RE, 'Slug harus huruf kecil, angka, dan strip').max(190),
+  newTitle: z.string().min(3, 'Judul baru minimal 3 karakter').max(190),
+  newDepartureDate: reqDate,
+  // Optional return date — defaults to newDepartureDate + same durationDays
+  // as the source so the duration stays consistent without admin having to
+  // recompute. Override only when the trip length is genuinely different.
+  newReturnDate: z.preprocess(
+    (v) => (blank(v) === undefined ? undefined : new Date(String(v))),
+    z.date().optional(),
+  ),
+  includeAgentOverrides: z.preprocess(
+    (v) => v === true || v === 'true' || v === 'on',
+    z.boolean(),
+  ).default(false),
+});
+
+export async function clonePaket({ req, actor, sourceSlug, input }) {
+  const parsed = CloneSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new HttpError(400, parsed.error.issues[0]?.message || 'Input clone tidak valid', 'BAD_INPUT');
+  }
+  const data = parsed.data;
+
+  const source = await db.paket.findUnique({
+    where: { slug: sourceSlug },
+    include: {
+      hotels: true,
+      days: true,
+      prices: true,
+      agentOverrides: true,
+    },
+  });
+  if (!source || source.deletedAt) {
+    throw new HttpError(404, 'Paket sumber tidak ditemukan', 'PAKET_NOT_FOUND');
+  }
+
+  const clash = await db.paket.findUnique({ where: { slug: data.newSlug } });
+  if (clash) {
+    throw new HttpError(409, `Slug "${data.newSlug}" sudah dipakai`, 'SLUG_TAKEN');
+  }
+
+  // Default returnDate preserves the source's durationDays
+  const newReturnDate = data.newReturnDate
+    || new Date(data.newDepartureDate.getTime() + source.durationDays * 86_400_000);
+  const newDurationDays = Math.max(1,
+    Math.round((newReturnDate - data.newDepartureDate) / 86_400_000));
+
+  const cloned = await db.$transaction(async (tx) => {
+    const created = await tx.paket.create({
+      data: {
+        slug: data.newSlug,
+        title: data.newTitle,
+        subtitle: source.subtitle,
+        heroTitleHtml: source.heroTitleHtml,
+        arabicTagline: source.arabicTagline,
+        translitTagline: source.translitTagline,
+        departureDate: data.newDepartureDate,
+        returnDate: newReturnDate,
+        durationDays: newDurationDays,
+        airline: source.airline,
+        airlineCode: source.airlineCode,
+        routeFrom: source.routeFrom,
+        routeTo: source.routeTo,
+        heroDescription: source.heroDescription,
+        inclusions: source.inclusions ?? [],
+        exclusions: source.exclusions ?? [],
+        trustBadges: source.trustBadges ?? null,
+        kursiTotal: source.kursiTotal,
+        kursiTerisi: 0,                   // always reset for the new trip
+        manifestClosesAt: null,           // intentionally reset; admin picks per new departure
+        komisiRate: source.komisiRate,    // carry the global rate; matrix copied below
+        status: 'DRAFT',                  // always start in DRAFT — admin activates explicitly
+        publishedAt: null,
+        createdById: actor?.id ?? null,
+      },
+    });
+
+    if (source.hotels.length > 0) {
+      await tx.paketHotel.createMany({
+        data: source.hotels.map((h) => ({
+          paketId: created.id,
+          city: h.city, name: h.name, stars: h.stars,
+          nights: h.nights, distance: h.distance, description: h.description,
+          order: h.order,
+        })),
+      });
+    }
+    if (source.days.length > 0) {
+      await tx.paketDay.createMany({
+        data: source.days.map((d) => ({
+          paketId: created.id,
+          dayNumber: d.dayNumber, dayRange: d.dayRange,
+          dateLabel: d.dateLabel, monthLabel: d.monthLabel,
+          title: d.title, description: d.description,
+          tags: d.tags ?? null, highlight: d.highlight,
+          pembimbingTitle: d.pembimbingTitle, pembimbingNote: d.pembimbingNote,
+        })),
+      });
+    }
+    if (source.prices.length > 0) {
+      await tx.paketHarga.createMany({
+        data: source.prices.map((p) => ({
+          paketId: created.id,
+          kelas: p.kelas, label: p.label, caption: p.caption,
+          priceIdr: p.priceIdr, cicilanIdr: p.cicilanIdr, cicilanMonths: p.cicilanMonths,
+          isFeatured: p.isFeatured,
+        })),
+      });
+    }
+    if (data.includeAgentOverrides && source.agentOverrides.length > 0) {
+      await tx.agentPaketKomisi.createMany({
+        data: source.agentOverrides.map((o) => ({
+          agentId: o.agentId, paketId: created.id, rate: o.rate,
+        })),
+      });
+    }
+
+    return created;
+  });
+
+  await audit({
+    req, actor,
+    action: 'CREATE', entity: 'Paket', entityId: cloned.id,
+    after: {
+      slug: cloned.slug, title: cloned.title, status: cloned.status,
+      cloned: true,
+      clonedFromSlug: sourceSlug,
+      hotelsCopied: source.hotels.length,
+      daysCopied: source.days.length,
+      pricesCopied: source.prices.length,
+      agentOverridesCopied: data.includeAgentOverrides ? source.agentOverrides.length : 0,
+    },
+  });
+
+  return cloned;
+}
+
 export async function softDeletePaket({ req, actor, slug }) {
   const before = await db.paket.findUnique({ where: { slug } });
   if (!before || before.deletedAt) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');

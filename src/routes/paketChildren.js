@@ -7,6 +7,7 @@ import {
   addHotel, updateHotel, deleteHotel,
   addDay, updateDay, deleteDay,
   addRoom, updateRoom, deleteRoom,
+  clonePaket,
 } from '../services/paketAdmin.js';
 import { assignCrewToPaket, unassignCrewFromPaket } from '../services/crewPortal.js';
 import { setPaketOverride, clearPaketOverride } from '../services/agentPaketKomisi.js';
@@ -132,6 +133,25 @@ router.delete(
       paketSlug: req.params.slug, userId: req.params.userId,
     });
     res.json({ ok: true });
+  }),
+);
+
+// ── Clone paket (stage 18) — copy hotels/days/prices into fresh DRAFT ──
+router.post(
+  '/:slug/clone',
+  asyncHandler(async (req, res) => {
+    const cloned = await clonePaket({
+      req, actor: actorFrom(req),
+      sourceSlug: req.params.slug,
+      input: {
+        newSlug: req.body?.newSlug,
+        newTitle: req.body?.newTitle,
+        newDepartureDate: req.body?.newDepartureDate,
+        newReturnDate: req.body?.newReturnDate,
+        includeAgentOverrides: req.body?.includeAgentOverrides,
+      },
+    });
+    res.status(201).json({ paket: { slug: cloned.slug, title: cloned.title, status: cloned.status } });
   }),
 );
 

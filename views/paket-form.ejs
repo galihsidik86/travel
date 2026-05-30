@@ -713,6 +713,7 @@
       <div class="left">
         <% if (mode === 'edit') { %>
           <button type="button" class="btn-danger" id="archive-btn">Arsipkan</button>
+          <button type="button" class="btn btn--outline-gold" id="clone-btn">Clone untuk musim berikutnya</button>
         <% } %>
       </div>
       <div class="right">
@@ -895,6 +896,53 @@
     </form>
   </div>
 </div>
+
+<!-- Clone modal (stage 18) -->
+<div class="modal-overlay" id="clone-modal" aria-hidden="true">
+  <div class="modal">
+    <h2>Clone paket untuk musim berikutnya</h2>
+    <div class="sub-m">
+      Hotels + Days + Prices akan disalin. Booking, kursi terisi, dan kamar TIDAK ikut. Paket baru landing di status <strong>DRAFT</strong>.
+    </div>
+    <div class="err-m" id="clone-err"></div>
+
+    <form id="clone-form">
+      <div class="field">
+        <div class="label-row"><label class="label" for="cl-slug">Slug baru *</label></div>
+        <input class="input" id="cl-slug" name="newSlug" required
+               value="<%= paket.slug %>-2027" placeholder="paket-ramadhan-2027">
+        <div class="helper">huruf kecil + strip. Harus unik.</div>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="cl-title">Judul baru *</label></div>
+        <input class="input" id="cl-title" name="newTitle" required
+               value="<%= paket.title %>" placeholder="mis. Ramadhan Aqsa 2027">
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="cl-dep">Tanggal berangkat baru *</label></div>
+          <input class="input" id="cl-dep" name="newDepartureDate" type="date" required>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="cl-ret">Tanggal pulang (opsional)</label></div>
+          <input class="input" id="cl-ret" name="newReturnDate" type="date">
+          <div class="helper">Kosongkan = otomatis (berangkat + durationDays).</div>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:8px;">
+        <label class="check-row" style="margin:0;">
+          <input type="checkbox" name="includeAgentOverrides" id="cl-agen"> Ikut salin override komisi per-agen
+        </label>
+        <div class="helper">Pakai kalau agen yang sama dapat rate khusus di musim baru. Skip kalau matrix akan di-ulang dari nol.</div>
+      </div>
+
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+        <button type="button" class="btn btn--ghost" id="cl-cancel">Batal</button>
+        <button type="submit" class="btn btn--primary">Clone sekarang</button>
+      </div>
+    </form>
+  </div>
+</div>
 <% } %>
 
 <script>
@@ -906,6 +954,60 @@
       }
     });
   }
+
+  // Stage 18 — clone modal
+  (function () {
+    const cloneBtn = document.getElementById('clone-btn');
+    const modal = document.getElementById('clone-modal');
+    if (!cloneBtn || !modal) return;
+    const form = document.getElementById('clone-form');
+    const err = document.getElementById('clone-err');
+    const cancel = document.getElementById('cl-cancel');
+    const slug = <%- JSON.stringify(paket.slug) %>;
+
+    function showErr(msg) { err.textContent = msg; err.style.display = 'block'; }
+    function hideErr() { err.style.display = 'none'; err.textContent = ''; }
+    function open() { hideErr(); modal.classList.add('is-open'); }
+    function close() { modal.classList.remove('is-open'); }
+
+    cloneBtn.addEventListener('click', open);
+    cancel.addEventListener('click', close);
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideErr();
+      const fd = new FormData(form);
+      const body = {
+        newSlug: fd.get('newSlug')?.toString().trim(),
+        newTitle: fd.get('newTitle')?.toString().trim(),
+        newDepartureDate: fd.get('newDepartureDate'),
+        newReturnDate: fd.get('newReturnDate') || undefined,
+        includeAgentOverrides: fd.get('includeAgentOverrides') === 'on',
+      };
+      const submitBtn = form.querySelector('button[type=submit]');
+      submitBtn.disabled = true;
+      try {
+        const r = await fetch('/api/paket/' + encodeURIComponent(slug) + '/clone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          showErr(j?.error?.message || 'Clone gagal');
+          submitBtn.disabled = false;
+          return;
+        }
+        const j = await r.json();
+        // Redirect to the new paket's edit page
+        location.href = '/admin/paket/' + encodeURIComponent(j.paket.slug) + '/edit';
+      } catch (err) {
+        showErr('Tidak dapat menghubungi server');
+        submitBtn.disabled = false;
+      }
+    });
+  })();
 
   <% if (mode === 'edit') { %>
   const SLUG = <%- JSON.stringify(paket.slug) %>;
