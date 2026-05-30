@@ -1,6 +1,9 @@
 import { db } from '../lib/db.js';
 import { toNumber } from '../lib/format.js';
-import { getLeadSourceBreakdown, getAgentFunnel, resolveRange } from './analytics.js';
+import {
+  getLeadSourceBreakdown, getAgentFunnel, resolveRange,
+  getPerPaketLeaderboard, getKomisiMonthlyAdmin,
+} from './analytics.js';
 import { pillsForJemaah } from './jemaahDocs.js';
 
 const HOT_STATUSES = ['PENDING', 'BOOKED', 'DP_PAID', 'PARTIAL'];
@@ -208,6 +211,15 @@ export async function getAdminOverview(opts = {}) {
     return { paketId, ...paketMeta.get(paketId), daily, total };
   }).sort((a, b) => b.total - a.total);
 
+  // Stage 16 admin parity: per-paket leaderboard (date-range scoped, mirrors
+  // funnel) + cross-agent komisi monthly arc (always last 6 months — month-
+  // granularity doesn't combine usefully with the day-granularity range
+  // filter the funnel uses).
+  const [perPaketLeaderboard, komisiMonthly] = await Promise.all([
+    getPerPaketLeaderboard({ from: opts.from, to: opts.to, limit: 8 }),
+    getKomisiMonthlyAdmin({ months: 6 }),
+  ]);
+
   return {
     kpis,
     recentActivity: recentAudit,
@@ -215,7 +227,12 @@ export async function getAdminOverview(opts = {}) {
     topAgents,
     statusBreakdown,
     paketList,
-    analytics: { funnel: globalFunnel, sourceBreakdown: globalSourceBreakdown },
+    analytics: {
+      funnel: globalFunnel,
+      sourceBreakdown: globalSourceBreakdown,
+      perPaketLeaderboard,
+      komisiMonthly,
+    },
     paketRevenueTrend,
     revenueTrendRange: range,
   };

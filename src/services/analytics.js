@@ -219,6 +219,81 @@ export async function getPerPaketPerformance(agentId, { limit = 8 } = {}) {
 }
 
 /**
+ * Cross-agent per-paket leaderboard (admin variant of getPerPaketPerformance).
+ *
+ * Optionally narrowed to a date range (booking.createdAt). Defaults to all-
+ * time so the admin overview shows lifetime performance regardless of the
+ * funnel date filter — agents come and go, paket revenue is forever.
+ *
+ * Adds `agentCount` (distinct agents who have booked this paket) and
+ * `directCount` (bookings with no agent = Kantor Pusat) since admin cares
+ * about distribution that the agent dashboard hides.
+ */
+export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
+  const where = {};
+  if (from || to) {
+    const range = resolveRange({ from, to });
+    where.createdAt = { gte: range.from, lte: range.to };
+  }
+  where.paket = { deletedAt: null, status: { not: 'ARCHIVED' } };
+
+  const bookings = await db.booking.findMany({
+    where,
+    select: {
+      status: true, totalAmount: true,
+      paketId: true, agentId: true,
+      paket: { select: { slug: true, title: true, departureDate: true, status: true } },
+    },
+  });
+  if (bookings.length === 0) return [];
+
+  const byPaket = new Map();
+  for (const b of bookings) {
+    if (!b.paket) continue;
+    const key = b.paketId;
+    let row = byPaket.get(key);
+    if (!row) {
+      row = {
+        paketId: key,
+        slug: b.paket.slug, title: b.paket.title,
+        departureDate: b.paket.departureDate,
+        paketStatus: b.paket.status,
+        totalBookings: 0,
+        hotCount: 0,
+        lunasCount: 0,
+        cancelledCount: 0,
+        lunasRevenue: 0,
+        directCount: 0,
+        agentIds: new Set(),
+      };
+      byPaket.set(key, row);
+    }
+    row.totalBookings += 1;
+    if (HOT_STATUSES.includes(b.status)) row.hotCount += 1;
+    else if (b.status === 'LUNAS') {
+      row.lunasCount += 1;
+      row.lunasRevenue += toNumber(b.totalAmount) ?? 0;
+    }
+    else if (b.status === 'CANCELLED' || b.status === 'REFUNDED') row.cancelledCount += 1;
+    if (b.agentId) row.agentIds.add(b.agentId);
+    else row.directCount += 1;
+  }
+
+  const out = [...byPaket.values()].map((r) => ({
+    ...r,
+    agentCount: r.agentIds.size,
+    agentIds: undefined,                // strip Set from response
+    conversionPct: r.totalBookings === 0
+      ? null
+      : Math.round((r.lunasCount / r.totalBookings) * 100),
+  }));
+  out.sort((a, b) => b.lunasRevenue - a.lunasRevenue
+    || b.lunasCount - a.lunasCount
+    || a.title.localeCompare(b.title));
+  return limit > 0 ? out.slice(0, limit) : out;
+}
+
+/**
  * Komisi income arc: per-month totals for the last N months (default 6),
  * inclusive of the current month. Buckets are UTC-aligned to YYYY-MM keys.
  *
@@ -234,13 +309,26 @@ const MONTH_LABEL_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 
 
 export async function getKomisiMonthly(agentId, { months = 6, now = new Date() } = {}) {
   if (!agentId) return [];
+  return komisiMonthlyImpl({ agentId, months, now });
+}
+
+/**
+ * Admin variant — same shape as getKomisiMonthly but aggregated across ALL
+ * agents (no agentId filter). Used on /admin overview to surface the global
+ * komisi income arc alongside per-agent breakdowns.
+ */
+export async function getKomisiMonthlyAdmin({ months = 6, now = new Date() } = {}) {
+  return komisiMonthlyImpl({ agentId: null, months, now });
+}
+
+async function komisiMonthlyImpl({ agentId, months, now }) {
   // Range: first day of (months-1) months ago → end of current month.
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1, 0, 0, 0, 0));
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0)); // exclusive
 
   const rows = await db.komisi.findMany({
     where: {
-      agentId,
+      ...(agentId ? { agentId } : {}),    // omit filter for the admin variant
       status: { not: 'CANCELLED' },
       OR: [
         { createdAt: { gte: start, lt: end } },
