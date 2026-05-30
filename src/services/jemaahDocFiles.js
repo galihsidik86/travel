@@ -7,6 +7,10 @@ import {
   ALLOWED_MIME, MAX_DOC_BYTES,
   moveUploadedFile, deleteStoredFile, sanitiseBasename, absFromRel,
 } from '../lib/docStorage.js';
+import {
+  generateThumbnail, deleteThumbnail, thumbExists, thumbAbsPath,
+  isInlineImageMime,
+} from '../lib/docThumbnail.js';
 
 /**
  * Attach (or replace) a file on a doc owned by `userId`.
@@ -41,6 +45,23 @@ export async function uploadMyDocFile({ req, actor, userId, docId, file }) {
     mime: file.mimetype,
     previousRel: doc.filePath,
   });
+
+  // Best-effort thumbnail. Failure (sharp throws on corrupt input, missing
+  // sharp binary, etc.) logs a warning but never aborts the upload — the
+  // download route falls back to the full file when the thumb is missing.
+  if (isInlineImageMime(file.mimetype)) {
+    try {
+      await generateThumbnail({
+        jemaahId: doc.jemaahId, docId: doc.id, srcRel: relPath, mime: file.mimetype,
+      });
+    } catch (err) {
+      console.warn('[doc-thumb] generate failed:', doc.id, err?.message || err);
+    }
+  } else {
+    // Replacing an image with a PDF — drop the stale thumb so it doesn't
+    // mis-render a thumbnail that no longer matches the source.
+    await deleteThumbnail({ jemaahId: doc.jemaahId, docId: doc.id });
+  }
 
   const nextStatus = doc.status === 'PENDING' ? 'SUBMITTED'
     : doc.status === 'VERIFIED' ? 'SUBMITTED'
@@ -98,6 +119,7 @@ export async function deleteMyDocFile({ req, actor, userId, docId }) {
     throw new HttpError(404, 'Tidak ada file untuk dihapus', 'NO_FILE');
   }
   await deleteStoredFile(doc.filePath);
+  await deleteThumbnail({ jemaahId: doc.jemaahId, docId: doc.id });
   const updated = await db.jemaahDocument.update({
     where: { id: doc.id },
     data: { filePath: null, fileName: null, fileSize: null, mimeType: null, fileUploadedAt: null },
@@ -114,8 +136,12 @@ export async function deleteMyDocFile({ req, actor, userId, docId }) {
 /**
  * Resolve a doc for download by the calling jemaah. Returns the absolute
  * path + display name + mime, or throws 404 if not owned / not present.
+ *
+ * `wantThumb=true` looks up the cached thumbnail instead; if no thumb
+ * exists yet (legacy upload, non-image mime), the full file path is
+ * returned as a graceful fallback so the <img> still renders something.
  */
-export async function getMyDocFileMeta({ userId, docId }) {
+export async function getMyDocFileMeta({ userId, docId, wantThumb = false }) {
   const doc = await db.jemaahDocument.findUnique({
     where: { id: docId },
     include: { jemaah: { select: { userId: true } } },
@@ -124,7 +150,13 @@ export async function getMyDocFileMeta({ userId, docId }) {
     throw new HttpError(404, 'Dokumen tidak ditemukan', 'DOC_NOT_FOUND');
   }
   if (!doc.filePath) throw new HttpError(404, 'Belum ada file', 'NO_FILE');
-  return { absPath: absFromRel(doc.filePath), fileName: doc.fileName, mimeType: doc.mimeType };
+  if (wantThumb && await thumbExists({ jemaahId: doc.jemaahId, docId: doc.id })) {
+    return {
+      absPath: thumbAbsPath({ jemaahId: doc.jemaahId, docId: doc.id }),
+      fileName: doc.fileName, mimeType: 'image/jpeg', isThumb: true,
+    };
+  }
+  return { absPath: absFromRel(doc.filePath), fileName: doc.fileName, mimeType: doc.mimeType, isThumb: false };
 }
 
 /**
@@ -132,11 +164,17 @@ export async function getMyDocFileMeta({ userId, docId }) {
  * router layer; we still verify the (jemaahId, docId) path tuple matches
  * (prevents enumerating files across jemaah by guessing docId on the wrong URL).
  */
-export async function getJemaahDocFileMeta({ jemaahId, docId }) {
+export async function getJemaahDocFileMeta({ jemaahId, docId, wantThumb = false }) {
   const doc = await db.jemaahDocument.findUnique({ where: { id: docId } });
   if (!doc || doc.jemaahId !== jemaahId) {
     throw new HttpError(404, 'Dokumen tidak ditemukan', 'DOC_NOT_FOUND');
   }
   if (!doc.filePath) throw new HttpError(404, 'Belum ada file', 'NO_FILE');
-  return { absPath: absFromRel(doc.filePath), fileName: doc.fileName, mimeType: doc.mimeType };
+  if (wantThumb && await thumbExists({ jemaahId: doc.jemaahId, docId: doc.id })) {
+    return {
+      absPath: thumbAbsPath({ jemaahId: doc.jemaahId, docId: doc.id }),
+      fileName: doc.fileName, mimeType: 'image/jpeg', isThumb: true,
+    };
+  }
+  return { absPath: absFromRel(doc.filePath), fileName: doc.fileName, mimeType: doc.mimeType, isThumb: false };
 }

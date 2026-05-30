@@ -101,4 +101,20 @@ router.get(
   }),
 );
 
+// Thumbnail variant — same tuple guard as /file. Falls back to the full file
+// when no cached thumb exists (legacy upload or non-image mime).
+router.get(
+  '/:jemaahId/documents/:docId/thumb',
+  asyncHandler(async (req, res) => {
+    const meta = await getJemaahDocFileMeta({
+      jemaahId: req.params.jemaahId,
+      docId: req.params.docId,
+      wantThumb: true,
+    });
+    res.type(meta.mimeType || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=300, must-revalidate');
+    res.sendFile(meta.absPath);
+  }),
+);
+
 export default router;

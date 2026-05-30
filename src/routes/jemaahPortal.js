@@ -265,6 +265,26 @@ router.get(
   }),
 );
 
+// Thumbnail variant — serves the cached resize when it exists, falls back
+// to the full file otherwise (so pre-thumbnail uploads keep working).
+// Same ownership guard as /file via getMyDocFileMeta + wantThumb.
+router.get(
+  '/saya/documents/:docId/thumb',
+  asyncHandler(async (req, res) => {
+    const meta = await getMyDocFileMeta({
+      userId: req.user.id, docId: req.params.docId, wantThumb: true,
+    });
+    res.type(meta.mimeType || 'application/octet-stream');
+    // Long max-age + immutable: the thumb URL is keyed by docId, and a new
+    // upload regenerates a fresh thumb under the SAME key. Stale cache is
+    // only a problem if the file changed AND the browser cached aggressively,
+    // so add `must-revalidate` so the browser re-checks instead of trusting
+    // local cache forever.
+    res.setHeader('Cache-Control', 'private, max-age=300, must-revalidate');
+    res.sendFile(meta.absPath);
+  }),
+);
+
 // ─── API: claim ──────────────────────────────────────────────
 const claimLimiter = rateLimit({ windowMs: 60_000, max: 10, code: 'CLAIM_RATE_LIMITED' });
 

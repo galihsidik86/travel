@@ -138,7 +138,9 @@ export async function deleteDoc({ req, actor, jemaahId, docId }) {
   // Best-effort; DB delete already succeeded.
   if (doc.filePath) {
     const { deleteStoredFile } = await import('../lib/docStorage.js');
+    const { deleteThumbnail } = await import('../lib/docThumbnail.js');
     await deleteStoredFile(doc.filePath);
+    await deleteThumbnail({ jemaahId: doc.jemaahId, docId: doc.id });
   }
   await audit({
     req, actor,

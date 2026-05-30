@@ -395,7 +395,9 @@ export async function deleteMyDoc({ req, actor, userId, docId }) {
   // 5mm: clean up attached file on disk too
   if (doc.filePath) {
     const { deleteStoredFile } = await import('../lib/docStorage.js');
+    const { deleteThumbnail } = await import('../lib/docThumbnail.js');
     await deleteStoredFile(doc.filePath);
+    await deleteThumbnail({ jemaahId: doc.jemaahId, docId: doc.id });
   }
   await audit({
     req, actor: actor,

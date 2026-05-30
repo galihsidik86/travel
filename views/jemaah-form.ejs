@@ -341,10 +341,11 @@
             <%# 5vv: image thumbnail when mime is jpeg/png/webp; icon for pdf/heic %>
             <% const isImg_a = ['image/jpeg','image/png','image/webp'].includes(doc.mimeType); %>
             <% const dlUrl_a = `/admin/jemaah/${target.id}/documents/${doc.id}/file`; %>
+            <% const thumbUrl_a = `/admin/jemaah/${target.id}/documents/${doc.id}/thumb`; %>
             <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--ink-700);display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">
               <% if (isImg_a) { %>
                 <a href="<%= dlUrl_a %>" target="_blank" rel="noopener" title="Klik untuk perbesar" style="line-height:0;display:inline-block;flex-shrink:0;">
-                  <img src="<%= dlUrl_a %>" alt="<%= doc.fileName || 'preview' %>"
+                  <img src="<%= thumbUrl_a %>" alt="<%= doc.fileName || 'preview' %>" loading="lazy"
                        style="display:block;width:56px;height:56px;object-fit:cover;border:var(--hairline-soft);border-radius:3px;background:var(--ink-1000);">
                 </a>
               <% } else { %>

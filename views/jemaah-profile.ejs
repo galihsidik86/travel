@@ -365,7 +365,7 @@
               <div class="doc-row__file">
                 <% if (isImg_v) { %>
                   <a class="thumb-link" href="/saya/documents/<%= doc.id %>/file" target="_blank" rel="noopener" title="Klik untuk perbesar">
-                    <img class="thumb" src="/saya/documents/<%= doc.id %>/file" alt="<%= doc.fileName || 'preview' %>">
+                    <img class="thumb" src="/saya/documents/<%= doc.id %>/thumb" alt="<%= doc.fileName || 'preview' %>" loading="lazy">
                   </a>
                 <% } else { %>
                   <span class="thumb-fallback" title="<%= doc.mimeType %>"><%= doc.mimeType === 'application/pdf' ? '📄' : '🖼️' %></span>
@@ -391,7 +391,7 @@
                   <% const isImg_e = ['image/jpeg','image/png','image/webp'].includes(doc.mimeType); %>
                   <% if (isImg_e) { %>
                     <a class="thumb-link" href="/saya/documents/<%= doc.id %>/file" target="_blank" rel="noopener" title="Klik untuk perbesar">
-                      <img class="thumb" src="/saya/documents/<%= doc.id %>/file" alt="<%= doc.fileName || 'preview' %>">
+                      <img class="thumb" src="/saya/documents/<%= doc.id %>/thumb" alt="<%= doc.fileName || 'preview' %>" loading="lazy">
                     </a>
                   <% } else { %>
                     <span class="thumb-fallback" title="<%= doc.mimeType %>"><%= doc.mimeType === 'application/pdf' ? '📄' : '🖼️' %></span>
