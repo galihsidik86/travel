@@ -203,19 +203,44 @@ model User {
   staff  StaffProfile?
   crew   CrewProfile?
 
-  auditLogs         AuditLog[]       @relation("AuditActor")
-  bookings          Booking[]        @relation("BookingJemaahUser")
-  paketCreated      Paket[]          @relation("PaketCreator")
-  docsVerified      JemaahDocument[] @relation("DocumentVerifier")
-  payoutsPaid       KomisiPayout[]   @relation("PayoutPaidBy")
-  crewAssignments   PaketCrew[]      @relation("CrewAssignedToPaket")
-  attendanceMarks   AttendanceMark[] @relation("AttendanceMarkedBy")
-  incidentsCreated  Incident[]       @relation("IncidentCreator")
-  incidentsAcked    Incident[]       @relation("IncidentAcker")
-  incidentsResolved Incident[]       @relation("IncidentResolver")
+  auditLogs         AuditLog[]         @relation("AuditActor")
+  bookings          Booking[]          @relation("BookingJemaahUser")
+  paketCreated      Paket[]            @relation("PaketCreator")
+  docsVerified      JemaahDocument[]   @relation("DocumentVerifier")
+  payoutsPaid       KomisiPayout[]     @relation("PayoutPaidBy")
+  crewAssignments   PaketCrew[]        @relation("CrewAssignedToPaket")
+  attendanceMarks   AttendanceMark[]   @relation("AttendanceMarkedBy")
+  incidentsCreated  Incident[]         @relation("IncidentCreator")
+  incidentsAcked    Incident[]         @relation("IncidentAcker")
+  incidentsResolved Incident[]         @relation("IncidentResolver")
+  pushSubscriptions PushSubscription[]
 
   @@index([role])
   @@index([deletedAt])
+}
+
+// Web Push subscriptions (stage 17). One row per (user × browser/device).
+// Endpoint is globally unique per browser install — re-registering returns
+// the same endpoint, so we upsert on conflict to refresh p256dh/auth/UA.
+//
+// Cascade on user delete so a SUSPENDED + deleted admin can't keep
+// receiving SOS pushes on a stale device.
+model PushSubscription {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Endpoint URL is too long for a MySQL @unique on TEXT — store the URL
+  // verbatim and key uniqueness off the sha-256 hash. Service layer is
+  // responsible for computing endpointHash before upsert.
+  endpoint     String   @db.Text
+  endpointHash String   @unique @db.VarChar(64)
+  p256dh       String   @db.Text
+  auth         String   @db.Text
+  userAgent    String?  @db.Text
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime @default(now())
+
+  @@index([userId])
 }
 
 model AgentProfile {
@@ -235,11 +260,11 @@ model AgentProfile {
   // Optional per-agent komisi rate; when set, wins over Paket.komisiRate (5v)
   komisiRateOverride Decimal? @db.Decimal(5, 4)
 
-  bookings        Booking[]            @relation("BookingAgent")
-  komisi          Komisi[]
-  payouts         KomisiPayout[]
-  leads           Lead[]
-  paketOverrides  AgentPaketKomisi[]
+  bookings       Booking[]          @relation("BookingAgent")
+  komisi         Komisi[]
+  payouts        KomisiPayout[]
+  leads          Lead[]
+  paketOverrides AgentPaketKomisi[]
 
   @@index([slug])
 }

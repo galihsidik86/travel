@@ -3,10 +3,12 @@ import { env } from './env.js';
 import { disconnectDb } from './lib/db.js';
 import { startNotifWorker, stopNotifWorker } from './lib/notifWorker.js';
 import { bootstrapNotifSenders } from './lib/notifBootstrap.js';
+import { bootstrapWebPush } from './services/webPush.js';
 import { stopRateLimit } from './middleware/rateLimit.js';
 
 const app = createApp();
 bootstrapNotifSenders();
+await bootstrapWebPush();
 
 const server = app.listen(env.PORT, () => {
   const banner = `

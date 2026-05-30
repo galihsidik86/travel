@@ -6,6 +6,8 @@
 <title>RELIGIO PRO — Insiden</title>
 <link rel="stylesheet" href="/shared/tokens.css">
 <%- include('partials/pwa-head') %>
+<script src="/shared/csrf.js"></script>
+<script src="/shared/push-admin.js" defer></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
@@ -58,6 +60,18 @@
     <div>
       <h1>Insiden <em>lapangan</em></h1>
       <div class="sub"><%= total %> total · OPEN paling atas, sortir berikutnya pakai filter</div>
+    </div>
+    <div id="rp-push-bar"
+         style="display:none; align-items:center; gap:10px; font-family:var(--font-mono); font-size:11px;">
+      <span id="rp-push-status" style="color:var(--ink-200); letter-spacing:0.06em;">Push: memeriksa…</span>
+      <button type="button" id="rp-push-enable"
+              style="display:none; background:var(--gold-300); color:var(--ink-1000); border:0; padding:8px 14px; border-radius:var(--r-sm); font-family:var(--font-mono); font-size:10px; letter-spacing:0.14em; text-transform:uppercase; cursor:pointer; font-weight:600;">
+        Aktifkan push
+      </button>
+      <button type="button" id="rp-push-disable"
+              style="display:none; background:transparent; color:var(--ink-100); border:var(--hairline-soft); padding:8px 14px; border-radius:var(--r-sm); font-family:var(--font-mono); font-size:10px; letter-spacing:0.14em; text-transform:uppercase; cursor:pointer;">
+        Matikan
+      </button>
     </div>
   </div>
 

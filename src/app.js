@@ -29,6 +29,7 @@ import jobsRouter from './routes/jobs.js';
 import notificationsRouter from './routes/notifications.js';
 import paymentIntentsRouter from './routes/paymentIntents.js';
 import incidentsRouter from './routes/incidents.js';
+import pushRouter from './routes/push.js';
 import paymentsRouter from './routes/payments.js';
 import paymentGatewayRouter from './routes/paymentGateway.js';
 import refundsRouter from './routes/refunds.js';
@@ -102,6 +103,7 @@ export function createApp() {
   app.use('/api/payments', paymentsRouter);
   app.use('/api/refunds', refundsRouter);
   app.use('/api/admin/jobs', jobsRouter);
+  app.use('/api/admin/push', pushRouter);
   app.use('/api/bunking', bunkingRouter);
   app.use('/api/jemaah', jemaahDocsRouter);
 

@@ -39,6 +39,15 @@ const Schema = z.object({
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(), // e.g. "Religio Pro <noreply@religio.pro>"
   SMTP_SECURE: z.coerce.boolean().default(false), // true for port 465
+
+  // Stage 17 — Web Push. Generate VAPID keypair via the npm script
+  //   npx web-push generate-vapid-keys
+  // and drop the result into .env. When VAPID_PUBLIC is absent the push
+  // service falls back to console fake-mode (no real send, but the
+  // subscribe/unsubscribe DB ops still work).
+  VAPID_PUBLIC: z.string().min(1).optional(),
+  VAPID_PRIVATE: z.string().min(1).optional(),
+  VAPID_CONTACT: z.string().default('mailto:admin@religio.pro'),
 });
 
 const parsed = Schema.safeParse(process.env);

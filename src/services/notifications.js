@@ -450,6 +450,23 @@ export async function notifyIncidentCreated({ incident, crew, paket }) {
     }));
     return out;
   }));
+
+  // Stage 17: Web Push fan-out — third layer alongside email + WA. Pops
+  // in any admin browser that has the dashboard open, so they don't have
+  // to refresh to notice an OPEN SOS. Fire-and-forget; failures inside
+  // pushToAdmins are swallowed (its own try/catch + per-sub error counts).
+  try {
+    const { pushToAdmins } = await import('./webPush.js');
+    await pushToAdmins({
+      title: `[${severityTag}] ${TYPE_LABEL[incident.type] || incident.type}`,
+      body: `${crew?.fullName || 'Crew'}: ${incident.message ? incident.message.slice(0, 120) : '(tidak ada pesan)'}`,
+      url: `/admin/incidents/${incident.id}`,
+      tag: `incident-${incident.id}`,        // dedupe across tabs
+      requireInteraction: incident.type === 'SOS', // SOS sticks until user clicks
+    });
+  } catch (err) {
+    console.warn('[notif] push fan-out failed:', err?.message || err);
+  }
 }
 
 export async function notifyPayoutCreated({ payout, agent }) {

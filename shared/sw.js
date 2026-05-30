@@ -10,7 +10,7 @@
 //
 // Cache busting: bump CACHE_VERSION to invalidate every entry on next activation.
 
-const CACHE_VERSION = 'rp-v3';
+const CACHE_VERSION = 'rp-v4';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 
@@ -112,4 +112,46 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Everything else (API, POSTs, cross-origin): passthrough — no SW involvement.
+});
+
+// ── Web Push (stage 17) ─────────────────────────────────────────────
+// Payload from server (webPush.pushToAdmins):
+//   { title, body, url, tag?, icon? }
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data?.text?.() ?? '' }; }
+  const title = data.title || 'Religio Pro';
+  const body = data.body || '';
+  const url = data.url || '/admin/incidents';
+  const tag = data.tag || 'rp-incident';
+  const icon = data.icon || '/shared/icon.svg';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body, icon, tag,
+      badge: '/shared/icon.svg',
+      data: { url },
+      requireInteraction: data.requireInteraction === true,
+    }),
+  );
+});
+
+// Click → focus existing tab on the target URL, or open one.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/admin/incidents';
+  event.waitUntil((async () => {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of clients) {
+      // Same-origin match by path prefix — focus + navigate if needed.
+      const cUrl = new URL(c.url);
+      if (cUrl.origin === self.location.origin) {
+        await c.focus();
+        if (!c.url.endsWith(url) && 'navigate' in c) {
+          try { await c.navigate(url); } catch { /* some platforms forbid */ }
+        }
+        return;
+      }
+    }
+    await self.clients.openWindow(url);
+  })());
 });
