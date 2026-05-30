@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { getAdminOverview, getManifestForPaket, getFinanceSummary, exportManifestCsv } from '../services/adminDashboard.js';
+import {
+  getAdminOverview, getManifestForPaket, getFinanceSummary,
+  exportManifestCsv, getPrintManifest,
+} from '../services/adminDashboard.js';
 import { getBunkingForPaket } from '../services/bunking.js';
 
 const router = Router();
@@ -46,6 +49,16 @@ router.get(
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${out.filename}"`);
     res.send(out.csv);
+  }),
+);
+
+// Stage 19 — print-friendly manifest (A4 worksheet for airport check-in).
+router.get(
+  '/manifest/:slug/print',
+  asyncHandler(async (req, res) => {
+    const data = await getPrintManifest(req.params.slug);
+    if (!data) return res.status(404).type('text/plain').send('Paket tidak ditemukan');
+    res.render('print-manifest', { user: req.user, ...data });
   }),
 );
 

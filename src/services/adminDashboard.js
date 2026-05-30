@@ -404,3 +404,71 @@ export async function getManifestForPaket(paketSlug) {
 
   return { paket, bookings, statusCounts };
 }
+
+/**
+ * Print-friendly manifest (stage 19) — airport check-in worksheet.
+ * Filters out CANCELLED + REFUNDED bookings ("who's actually going"),
+ * includes room assignment + emergency contact + curated doc pills.
+ * Sorted by room (so jemaah sharing a kamar land adjacent on paper),
+ * then by jemaah name for unassigned.
+ */
+export async function getPrintManifest(paketSlug) {
+  const paket = await db.paket.findUnique({
+    where: { slug: paketSlug, deletedAt: null },
+    select: {
+      id: true, slug: true, title: true, subtitle: true,
+      departureDate: true, returnDate: true, durationDays: true,
+      airline: true, airlineCode: true, routeFrom: true, routeTo: true,
+      kursiTotal: true, kursiTerisi: true,
+    },
+  });
+  if (!paket) return null;
+
+  const bookings = await db.booking.findMany({
+    where: {
+      paketId: paket.id,
+      status: { notIn: ['CANCELLED', 'REFUNDED'] },
+    },
+    select: {
+      id: true, bookingNo: true, kelas: true, paxCount: true, status: true,
+      notes: true,
+      jemaah: {
+        select: {
+          fullName: true, phone: true, email: true,
+          nik: true, gender: true, birthDate: true,
+          passportNo: true, passportExpiry: true,
+          emergencyContact: true,
+          documents: { select: { type: true, status: true } },
+        },
+      },
+      room: { select: { roomNo: true, floor: true, wing: true } },
+      agent: { select: { slug: true, displayName: true } },
+    },
+  });
+
+  for (const b of bookings) {
+    b.jemaah.docPills = pillsForJemaah(b.jemaah.documents || []);
+  }
+
+  // Sort: assigned rooms first (grouped together by roomNo), unassigned by
+  // name at the end. Within the same room, sort by jemaah name so couples /
+  // family members appear adjacent in a predictable order.
+  bookings.sort((a, b) => {
+    const aRoom = a.room?.roomNo ?? null;
+    const bRoom = b.room?.roomNo ?? null;
+    if (aRoom && !bRoom) return -1;
+    if (!aRoom && bRoom) return 1;
+    if (aRoom && bRoom && aRoom !== bRoom) return aRoom.localeCompare(bRoom);
+    return (a.jemaah.fullName || '').localeCompare(b.jemaah.fullName || '');
+  });
+
+  const activeCount = bookings.length;
+  const paxCount = bookings.reduce((acc, b) => acc + (b.paxCount || 1), 0);
+  const unassignedRoomCount = bookings.filter((b) => !b.room).length;
+
+  return {
+    paket, bookings,
+    counts: { activeCount, paxCount, unassignedRoomCount },
+    generatedAt: new Date(),
+  };
+}

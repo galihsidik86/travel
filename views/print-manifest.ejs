@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manifest · <%= paket.title %> — print</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  /* ── Screen styling — minimal so the page reads like a worksheet
+        even before the user hits Cmd/Ctrl+P. ───────────────────── */
+  body {
+    background: var(--cream-50);
+    color: #1a1815;
+    font-family: var(--font-sans);
+    margin: 0; padding: 0;
+  }
+  .sheet {
+    background: #fff;
+    max-width: 1180px;
+    margin: 24px auto;
+    padding: 32px 40px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    border-radius: 4px;
+  }
+  .toolbar {
+    max-width: 1180px;
+    margin: 14px auto 0;
+    padding: 0 40px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--font-mono); font-size: 11px; color: #66635c;
+    letter-spacing: 0.08em;
+  }
+  .toolbar a, .toolbar button {
+    color: #44423d;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    text-decoration: none; padding: 8px 14px;
+    border: 1px solid #c9c4b8; border-radius: 4px;
+    background: #fff; cursor: pointer;
+  }
+  .toolbar button.primary { background: #1a1815; color: #fff; border-color: #1a1815; }
+
+  .head {
+    border-bottom: 2px solid #1a1815;
+    padding-bottom: 14px; margin-bottom: 18px;
+    display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end;
+  }
+  .head h1 {
+    font-family: var(--font-display);
+    font-size: 28px; margin: 0; line-height: 1.15; color: #1a1815;
+    font-weight: 600;
+  }
+  .head h1 em { font-style: italic; }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: #66635c; margin-top: 6px; letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .head .meta { text-align: right; font-family: var(--font-mono); font-size: 10.5px; color: #44423d; line-height: 1.65; }
+  .head .meta b { color: #1a1815; }
+
+  .flight-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 18px;
+    border: 1px solid #d8d3c4; border-radius: 4px;
+    padding: 12px 16px;
+  }
+  .flight-strip .cell { font-family: var(--font-mono); font-size: 10.5px; }
+  .flight-strip .cell .l { color: #66635c; letter-spacing: 0.14em; text-transform: uppercase; font-size: 9.5px; }
+  .flight-strip .cell .v { color: #1a1815; font-weight: 600; font-size: 13px; margin-top: 3px; }
+  .flight-strip .cell .v.airline { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .tbl thead th {
+    background: #1a1815; color: #fff;
+    text-align: left; padding: 8px 8px;
+    font-family: var(--font-mono); font-size: 9.5px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    font-weight: 600;
+  }
+  .tbl tbody td {
+    padding: 7px 8px; border-bottom: 1px solid #ddd6c6;
+    vertical-align: top; line-height: 1.45;
+  }
+  .tbl tbody tr.room-break td { border-top: 2px solid #c9c4b8; }
+  .tbl .nm { font-weight: 600; color: #1a1815; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 9.5px; color: #66635c; margin-top: 2px; }
+  .tbl .room {
+    font-family: var(--font-display); font-size: 16px;
+    color: #1a1815; font-weight: 600;
+  }
+  .tbl .room.unassigned { color: #a8331f; font-style: italic; }
+  .tbl .num { font-family: var(--font-mono); font-size: 10.5px; }
+
+  .doc-strip { display: flex; gap: 3px; flex-wrap: wrap; }
+  .doc-pill {
+    display: inline-block; padding: 1px 5px;
+    font-family: var(--font-mono); font-size: 8.5px;
+    border: 1px solid; border-radius: 2px;
+    letter-spacing: 0.04em;
+  }
+  .doc-pill.state-verified  { color: #2e7d4f; border-color: #74a98a; background: #ecf6f0; }
+  .doc-pill.state-submitted { color: #8a6320; border-color: #c0a368; background: #faf2e0; }
+  .doc-pill.state-pending   { color: #66635c; border-color: #c9c4b8; }
+  .doc-pill.state-rejected  { color: #a8331f; border-color: #d4998a; background: #fcecea; }
+  .doc-pill.state-expired   { color: #a8331f; border-color: #a8331f; background: #fde0db; }
+  .doc-pill.state-missing   { color: #999487; border-color: #c9c4b8; border-style: dashed; }
+
+  .sign-row {
+    margin-top: 18px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;
+    font-family: var(--font-mono); font-size: 10.5px;
+  }
+  .sign-row .box {
+    border-top: 1px solid #1a1815;
+    padding-top: 6px; min-height: 50px;
+    color: #66635c; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  .empty {
+    padding: 40px; text-align: center;
+    font-family: var(--font-mono); font-size: 11px; color: #66635c;
+  }
+
+  /* ── Print rules — A4 landscape with sane breaks. ──────────── */
+  @media print {
+    @page { size: A4 landscape; margin: 12mm 10mm 16mm; }
+    body { background: #fff; }
+    .toolbar { display: none; }
+    .sheet { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+    .tbl thead { display: table-header-group; }        /* repeat thead each page */
+    .tbl tr { page-break-inside: avoid; }              /* don't split a jemaah row */
+    .doc-pill { border-width: 0.5px; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body data-screen-label="02 Admin · Print Manifest">
+
+<div class="toolbar">
+  <div>
+    <a href="/admin?manifestPaket=<%= encodeURIComponent(paket.slug) %>&tab=manifest">← KEMBALI KE MANIFEST</a>
+  </div>
+  <div>
+    Generated <%= generatedAt.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
+  </div>
+  <div>
+    <button class="primary" type="button" onclick="window.print()">CETAK ↗</button>
+  </div>
+</div>
+
+<div class="sheet">
+  <div class="head">
+    <div>
+      <h1>Manifest <em><%= paket.title %></em></h1>
+      <div class="sub">
+        <%= paket.slug %>
+        <% if (paket.subtitle) { %> · <%= paket.subtitle %><% } %>
+      </div>
+    </div>
+    <div class="meta">
+      <div>DEP <b><%= fmt.dateLong(paket.departureDate) %></b></div>
+      <% if (paket.returnDate) { %><div>RET <b><%= fmt.dateLong(paket.returnDate) %></b></div><% } %>
+      <div><%= paket.durationDays %> hari · <b><%= counts.activeCount %></b> jemaah aktif</div>
+      <% if (counts.unassignedRoomCount > 0) { %>
+        <div style="color:#a8331f;">⚠ <%= counts.unassignedRoomCount %> belum di-assign kamar</div>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (paket.airline || paket.routeFrom || paket.routeTo) { %>
+    <div class="flight-strip">
+      <div class="cell">
+        <div class="l">Maskapai</div>
+        <div class="v airline"><%= paket.airline || '—' %></div>
+      </div>
+      <div class="cell">
+        <div class="l">Kode penerbangan</div>
+        <div class="v"><%= paket.airlineCode || '—' %></div>
+      </div>
+      <div class="cell">
+        <div class="l">Dari</div>
+        <div class="v"><%= paket.routeFrom || '—' %></div>
+      </div>
+      <div class="cell">
+        <div class="l">Tujuan</div>
+        <div class="v"><%= paket.routeTo || '—' %></div>
+      </div>
+    </div>
+  <% } %>
+
+  <% if (bookings.length === 0) { %>
+    <div class="empty">Belum ada jemaah aktif untuk paket ini.</div>
+  <% } else { %>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:40px;">#</th>
+          <th style="width:90px;">Booking</th>
+          <th style="width:80px;">Kamar</th>
+          <th>Jemaah</th>
+          <th style="width:130px;">Telepon · Darurat</th>
+          <th style="width:130px;">Paspor</th>
+          <th style="width:60px;">Kelas</th>
+          <th>Dokumen</th>
+        </tr>
+      </thead>
+      <tbody>
+        <%
+          let prevRoom = null;
+          let rowNum = 0;
+        %>
+        <% bookings.forEach(function(b) {
+          rowNum += 1;
+          const room = b.room?.roomNo || null;
+          const roomChanged = room !== prevRoom;
+          prevRoom = room;
+        %>
+          <tr class="<%= roomChanged ? 'room-break' : '' %>">
+            <td class="num"><%= rowNum %></td>
+            <td>
+              <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.04em;color:#1a1815;font-weight:600;"><%= b.bookingNo %></div>
+              <div class="sx"><%= b.paxCount %> PAX</div>
+            </td>
+            <td>
+              <% if (b.room) { %>
+                <div class="room"><%= b.room.roomNo %></div>
+                <div class="sx">
+                  lt <%= b.room.floor || '?' %><% if (b.room.wing) { %> · <%= b.room.wing %><% } %>
+                </div>
+              <% } else { %>
+                <div class="room unassigned">— belum</div>
+              <% } %>
+            </td>
+            <td>
+              <div class="nm"><%= b.jemaah.fullName %></div>
+              <div class="sx">
+                <% if (b.jemaah.gender) { %><%= b.jemaah.gender %><% } %>
+                <% if (b.jemaah.nik) { %> · NIK <%= b.jemaah.nik %><% } %>
+              </div>
+            </td>
+            <td>
+              <div style="font-family:var(--font-mono);font-size:10.5px;color:#1a1815;"><%= b.jemaah.phone || '—' %></div>
+              <% if (b.jemaah.emergencyContact) { %>
+                <div class="sx">🆘 <%= b.jemaah.emergencyContact %></div>
+              <% } %>
+            </td>
+            <td>
+              <% if (b.jemaah.passportNo) { %>
+                <div style="font-family:var(--font-mono);font-size:10.5px;color:#1a1815;font-weight:600;letter-spacing:0.04em;"><%= b.jemaah.passportNo %></div>
+                <% if (b.jemaah.passportExpiry) { %>
+                  <div class="sx">exp <%= fmt.dateShort(b.jemaah.passportExpiry) %></div>
+                <% } %>
+              <% } else { %>
+                <div class="sx" style="color:#a8331f;">— belum</div>
+              <% } %>
+            </td>
+            <td class="num"><%= b.kelas %></td>
+            <td>
+              <div class="doc-strip">
+                <% (b.jemaah.docPills || []).forEach(function(p) { %>
+                  <span class="doc-pill state-<%= p.state %>" title="<%= p.type %> · <%= p.state %>"><%= p.label %></span>
+                <% }) %>
+              </div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <div class="sign-row">
+      <div class="box">Tour leader<br><br></div>
+      <div class="box">Manajer ops<br><br></div>
+      <div class="box">Tanggal &amp; tanda tangan<br><br></div>
+    </div>
+  <% } %>
+</div>
+
+</body>
+</html>
