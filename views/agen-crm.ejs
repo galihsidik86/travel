@@ -940,6 +940,114 @@
           </div>
         </div>
       </div>
+
+      <!-- Per-paket performance + komisi monthly trend (stage 16) -->
+      <div class="grid-2-an" style="margin-top:16px;">
+        <!-- Per-paket leaderboard -->
+        <div class="panel-an">
+          <div class="panel-an__head">
+            <h3>Performa per paket</h3>
+            <span class="meta">TOP <%= analytics.perPaket.length %></span>
+          </div>
+          <% if (analytics.perPaket.length === 0) { %>
+            <div class="empty">Belum ada booking di paket apa pun.</div>
+          <% } else { %>
+            <%
+              const maxRev = Math.max(1, ...analytics.perPaket.map((p) => p.lunasRevenue));
+            %>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <% analytics.perPaket.forEach(function(p) {
+                const pctOfMax = Math.round((p.lunasRevenue / maxRev) * 100);
+                const convCls = p.conversionPct == null ? '' :
+                                p.conversionPct >= 50 ? 'emerald' :
+                                p.conversionPct >= 25 ? 'gold-300' : 'ink-200';
+              %>
+                <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:10px 14px;">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">
+                    <a href="/p/<%= p.slug %>?a=<%= encodeURIComponent(agent.slug) %>" target="_blank" rel="noopener"
+                       style="color:var(--cream-100);text-decoration:none;font-size:13px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                      <%= p.title %>
+                    </a>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);white-space:nowrap;">
+                      <%= fmt.rpShort(p.lunasRevenue) %>
+                    </span>
+                  </div>
+                  <div style="height:4px;background:var(--ink-700);border-radius:2px;margin-top:6px;overflow:hidden;">
+                    <i style="display:block;height:100%;width:<%= pctOfMax %>%;background:var(--gold-300);"></i>
+                  </div>
+                  <div style="display:flex;gap:14px;margin-top:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">
+                    <span><%= p.totalBookings %> booking</span>
+                    <span style="color:var(--gold-300);"><%= p.lunasCount %> LUNAS</span>
+                    <% if (p.hotCount > 0) { %><span><%= p.hotCount %> hot</span><% } %>
+                    <% if (p.cancelledCount > 0) { %><span style="color:var(--ruby);"><%= p.cancelledCount %> cncl</span><% } %>
+                    <span style="margin-left:auto;color:var(--<%= convCls %>);">
+                      <%= p.conversionPct ?? '—' %>% conv
+                    </span>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+
+        <!-- Komisi monthly trend -->
+        <div class="panel-an">
+          <div class="panel-an__head">
+            <h3>Komisi 6 bulan</h3>
+            <span class="meta">EARNED · PAID</span>
+          </div>
+          <%
+            const km = analytics.komisiMonthly;
+            const maxKom = Math.max(1, ...km.map((m) => Math.max(m.earned, m.paid)));
+            const totalEarned = km.reduce((a, m) => a + m.earned, 0);
+            const totalPaid = km.reduce((a, m) => a + m.paid, 0);
+          %>
+          <% if (totalEarned === 0 && totalPaid === 0) { %>
+            <div class="empty">Belum ada komisi dalam 6 bulan terakhir.</div>
+          <% } else { %>
+            <div class="spark-totals" style="margin-bottom:14px;">
+              <div><div class="l">Total earned</div><div class="v" style="color:var(--amber);"><%= fmt.rpShort(totalEarned) %></div></div>
+              <div><div class="l">Total paid</div><div class="v" style="color:var(--emerald);"><%= fmt.rpShort(totalPaid) %></div></div>
+            </div>
+            <%
+              const KW = 600, KH = 160, KP = 30;
+              const barCount = km.length;
+              const groupW = (KW - KP * 2) / barCount;
+              const barW = (groupW - 10) / 2; // 2 bars per month + 10px gutter
+            %>
+            <svg viewBox="0 0 <%= KW %> <%= KH %>" preserveAspectRatio="none" style="width:100%;height:auto;display:block;">
+              <% km.forEach(function(m, i) {
+                const gx = KP + i * groupW;
+                const earnedH = (m.earned / maxKom) * (KH - KP * 2);
+                const paidH = (m.paid / maxKom) * (KH - KP * 2);
+                const baseY = KH - KP;
+              %>
+                <g>
+                  <rect x="<%= (gx + 4).toFixed(1) %>" y="<%= (baseY - earnedH).toFixed(1) %>"
+                        width="<%= barW.toFixed(1) %>" height="<%= earnedH.toFixed(1) %>"
+                        fill="var(--amber)" fill-opacity="0.85">
+                    <title><%= m.label %> · earned <%= fmt.rpShort(m.earned) %></title>
+                  </rect>
+                  <rect x="<%= (gx + 4 + barW + 2).toFixed(1) %>" y="<%= (baseY - paidH).toFixed(1) %>"
+                        width="<%= barW.toFixed(1) %>" height="<%= paidH.toFixed(1) %>"
+                        fill="var(--emerald)" fill-opacity="0.85">
+                    <title><%= m.label %> · paid <%= fmt.rpShort(m.paid) %></title>
+                  </rect>
+                  <text x="<%= (gx + groupW / 2).toFixed(1) %>" y="<%= (baseY + 14).toFixed(1) %>"
+                        text-anchor="middle"
+                        style="font-family:var(--font-mono);font-size:9.5px;fill:var(--ink-200);letter-spacing:0.04em;">
+                    <%= m.label %>
+                  </text>
+                </g>
+              <% }) %>
+            </svg>
+            <div class="spark-legend" style="margin-top:8px;">
+              <span><i style="background:var(--amber);"></i>Earned</span>
+              <span><i style="background:var(--emerald);"></i>Paid (cash to wallet)</span>
+            </div>
+          <% } %>
+        </div>
+      </div>
     </section>
 
   </main>

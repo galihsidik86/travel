@@ -1,6 +1,9 @@
 import { db } from '../lib/db.js';
 import { toNumber } from '../lib/format.js';
-import { getAgentFunnel, getLeadSourceBreakdown, getDailyActivity } from './analytics.js';
+import {
+  getAgentFunnel, getLeadSourceBreakdown, getDailyActivity,
+  getPerPaketPerformance, getKomisiMonthly,
+} from './analytics.js';
 
 // Pipeline mapping: Booking.status → CRM kanban column
 // COLD/WARM = pre-booking leads (no Lead model yet)
@@ -16,7 +19,11 @@ export async function getAgentDashboard(agentId, opts = {}) {
   });
   if (!agent) return null;
 
-  const [bookings, komisiRows, activePaket, leads, funnel, sourceBreakdown, daily, payouts] = await Promise.all([
+  const [
+    bookings, komisiRows, activePaket, leads,
+    funnel, sourceBreakdown, daily, payouts,
+    perPaket, komisiMonthly,
+  ] = await Promise.all([
     db.booking.findMany({
       where: { agentId },
       include: {
@@ -44,6 +51,8 @@ export async function getAgentDashboard(agentId, opts = {}) {
       orderBy: { paidAt: 'desc' },
       include: { _count: { select: { komisi: true } } },
     }),
+    getPerPaketPerformance(agentId),
+    getKomisiMonthly(agentId, { months: 6 }),
   ]);
 
   const pipeline = {
@@ -99,6 +108,6 @@ export async function getAgentDashboard(agentId, opts = {}) {
     komisi,
     payouts,
     marketingPaket: activePaket,
-    analytics: { funnel, sourceBreakdown, daily },
+    analytics: { funnel, sourceBreakdown, daily, perPaket, komisiMonthly },
   };
 }

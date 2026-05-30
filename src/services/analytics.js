@@ -156,3 +156,129 @@ export async function getDailyActivity(agentId, opts = {}) {
   }
   return [...buckets.values()];
 }
+
+/**
+ * Per-paket performance for a single agent. For each paket the agent has
+ * touched (any booking — including CANCELLED/REFUNDED so historical work
+ * isn't hidden), returns counts + revenue + conversionPct (lunas / total).
+ *
+ * Sorted by lunasRevenue desc — the best earner bubbles up. Limit caps the
+ * result size for the leaderboard panel; pass 0 for unbounded.
+ */
+export async function getPerPaketPerformance(agentId, { limit = 8 } = {}) {
+  if (!agentId) return [];
+  const bookings = await db.booking.findMany({
+    where: { agentId },
+    select: {
+      status: true, totalAmount: true,
+      paketId: true,
+      paket: { select: { slug: true, title: true, departureDate: true, status: true } },
+    },
+  });
+  if (bookings.length === 0) return [];
+
+  const byPaket = new Map();
+  for (const b of bookings) {
+    if (!b.paket) continue; // defensive — orphan booking
+    const key = b.paketId;
+    let row = byPaket.get(key);
+    if (!row) {
+      row = {
+        paketId: key,
+        slug: b.paket.slug,
+        title: b.paket.title,
+        departureDate: b.paket.departureDate,
+        paketStatus: b.paket.status,
+        totalBookings: 0,
+        hotCount: 0,
+        lunasCount: 0,
+        cancelledCount: 0,
+        lunasRevenue: 0,
+      };
+      byPaket.set(key, row);
+    }
+    row.totalBookings += 1;
+    if (HOT_STATUSES.includes(b.status)) row.hotCount += 1;
+    else if (b.status === 'LUNAS') {
+      row.lunasCount += 1;
+      row.lunasRevenue += toNumber(b.totalAmount) ?? 0;
+    }
+    else if (b.status === 'CANCELLED' || b.status === 'REFUNDED') row.cancelledCount += 1;
+  }
+
+  const out = [...byPaket.values()].map((r) => ({
+    ...r,
+    conversionPct: r.totalBookings === 0
+      ? null
+      : Math.round((r.lunasCount / r.totalBookings) * 100),
+  }));
+  out.sort((a, b) => b.lunasRevenue - a.lunasRevenue
+    || b.lunasCount - a.lunasCount
+    || a.title.localeCompare(b.title));
+  return limit > 0 ? out.slice(0, limit) : out;
+}
+
+/**
+ * Komisi income arc: per-month totals for the last N months (default 6),
+ * inclusive of the current month. Buckets are UTC-aligned to YYYY-MM keys.
+ *
+ * Returns one row per month in chronological order:
+ *   { month: 'YYYY-MM', label: 'Mei 26', earned, paid, pending }
+ *
+ * Earned = komisi.earnedAt landed in this month.
+ * Paid   = komisi.paidAt landed (regardless of when earned).
+ * Pending = komisi.createdAt landed (regardless of status).
+ * Cancelled is excluded — those rows reflect undone work, not income.
+ */
+const MONTH_LABEL_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+export async function getKomisiMonthly(agentId, { months = 6, now = new Date() } = {}) {
+  if (!agentId) return [];
+  // Range: first day of (months-1) months ago → end of current month.
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1, 0, 0, 0, 0));
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0)); // exclusive
+
+  const rows = await db.komisi.findMany({
+    where: {
+      agentId,
+      status: { not: 'CANCELLED' },
+      OR: [
+        { createdAt: { gte: start, lt: end } },
+        { earnedAt:  { gte: start, lt: end } },
+        { paidAt:    { gte: start, lt: end } },
+      ],
+    },
+    select: { status: true, amount: true, createdAt: true, earnedAt: true, paidAt: true },
+  });
+
+  // Build empty buckets so months with zero activity still render.
+  const buckets = new Map();
+  for (let i = 0; i < months; i++) {
+    const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i, 1));
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    buckets.set(key, {
+      month: key,
+      label: `${MONTH_LABEL_ID[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(-2)}`,
+      earned: 0, paid: 0, pending: 0,
+    });
+  }
+  const keyOf = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  const inRange = (d) => d && d >= start && d < end;
+
+  for (const k of rows) {
+    const amt = toNumber(k.amount) ?? 0;
+    if (k.earnedAt && inRange(k.earnedAt)) {
+      buckets.get(keyOf(k.earnedAt))?.earned !== undefined
+        && (buckets.get(keyOf(k.earnedAt)).earned += amt);
+    }
+    if (k.paidAt && inRange(k.paidAt)) {
+      buckets.get(keyOf(k.paidAt))?.paid !== undefined
+        && (buckets.get(keyOf(k.paidAt)).paid += amt);
+    }
+    if (k.status === 'PENDING' && k.createdAt && inRange(k.createdAt)) {
+      buckets.get(keyOf(k.createdAt))?.pending !== undefined
+        && (buckets.get(keyOf(k.createdAt)).pending += amt);
+    }
+  }
+  return [...buckets.values()];
+}
