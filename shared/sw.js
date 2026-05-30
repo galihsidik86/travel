@@ -10,7 +10,7 @@
 //
 // Cache busting: bump CACHE_VERSION to invalidate every entry on next activation.
 
-const CACHE_VERSION = 'rp-v2';
+const CACHE_VERSION = 'rp-v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 
