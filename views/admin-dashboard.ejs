@@ -1306,8 +1306,13 @@
               <span>DP (<%= (manifest.statusCounts.DP_PAID || 0) + (manifest.statusCounts.PARTIAL || 0) %>)</span>
               <span>Pending (<%= manifest.statusCounts.PENDING || 0 %>)</span>
             </div>
+            <a href="/admin/paket/<%= manifest.paket.slug %>/checklist"
+               style="margin-left:auto;background:transparent;border:1px solid var(--amber);color:var(--amber);padding:8px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;"
+               title="Pre-departure readiness per jemaah">
+              ✓ Checklist
+            </a>
             <a href="/admin/manifest/<%= manifest.paket.slug %>/print" target="_blank" rel="noopener"
-               style="margin-left:auto;background:transparent;border:1px solid var(--ink-200);color:var(--ink-100);padding:8px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;"
+               style="background:transparent;border:1px solid var(--ink-200);color:var(--ink-100);padding:8px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;margin-left:8px;"
                title="Manifest siap cetak (airport check-in)">
               🖨 Cetak
             </a>

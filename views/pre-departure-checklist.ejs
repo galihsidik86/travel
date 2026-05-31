@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checklist · <%= paket.title %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+
+  .head { display: flex; justify-content: space-between; align-items: end; gap: 18px; flex-wrap: wrap; margin-bottom: 22px; }
+  .head h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-top: 8px; letter-spacing: 0.1em; }
+  .head .countdown {
+    font-family: var(--font-display); font-size: 16px;
+    color: var(--cream-100); padding: 6px 14px;
+    border: 1px solid var(--gold-300); border-radius: var(--r-sm);
+    font-weight: 500;
+  }
+  .head .countdown.urgent { color: var(--ruby); border-color: var(--ruby); }
+  .head .countdown.warn { color: var(--amber); border-color: var(--amber); }
+  .head .countdown.past { color: var(--ink-300); border-color: var(--ink-500); }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  .kpi { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 16px 18px; }
+  .kpi .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .kpi .v { font-family: var(--font-display); font-size: 30px; color: var(--cream-100); margin-top: 6px; font-weight: 500; }
+  .kpi.ready .v    { color: var(--emerald); }
+  .kpi.partial .v  { color: var(--amber); }
+  .kpi.critical .v { color: var(--ruby); }
+
+  .filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; }
+  .filter-bar .seg { display: inline-flex; border: var(--hairline-soft); border-radius: var(--r-sm); overflow: hidden; }
+  .filter-bar .seg a { padding: 6px 14px; text-decoration: none; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; font-size: 10.5px; }
+  .filter-bar .seg a.is-active { background: var(--gold-300); color: var(--ink-1000); font-weight: 600; }
+
+  .tbl { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+  .tbl thead th { text-align: left; padding: 10px 10px; background: var(--ink-1000); font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-200); font-weight: 500; border-bottom: var(--hairline); }
+  .tbl tbody td { padding: 10px 10px; border-bottom: var(--hairline-soft); font-size: 12.5px; color: var(--cream-200); vertical-align: top; }
+  .tbl tbody tr.tier-critical td { box-shadow: inset 3px 0 0 var(--ruby); }
+  .tbl tbody tr.tier-partial td { box-shadow: inset 3px 0 0 var(--amber); }
+  .tbl tbody tr.tier-ready td { box-shadow: inset 3px 0 0 var(--emerald); }
+  .tbl .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+  .tbl .id { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); letter-spacing: 0.04em; }
+  .tbl a { color: var(--gold-300); text-decoration: none; }
+
+  .chk {
+    display: inline-block; width: 18px; height: 18px; border-radius: 4px;
+    text-align: center; line-height: 18px; font-size: 12px; font-weight: 600;
+    font-family: var(--font-mono);
+  }
+  .chk.ok  { background: rgba(74,143,109,0.18); color: var(--emerald); border: 1px solid rgba(74,143,109,0.4); }
+  .chk.no  { background: rgba(181,86,74,0.12);  color: var(--ruby);    border: 1px solid rgba(181,86,74,0.35); }
+
+  .score-cell { text-align: right; min-width: 80px; }
+  .score-cell .pct {
+    font-family: var(--font-display); font-size: 18px; font-weight: 600;
+  }
+  .score-cell .pct.ready    { color: var(--emerald); }
+  .score-cell .pct.partial  { color: var(--amber); }
+  .score-cell .pct.critical { color: var(--ruby); }
+  .score-cell .ratio { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); margin-top: 2px; }
+
+  .empty { padding: 48px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Pre-Departure Checklist">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/admin?tab=manifest&manifestPaket=<%= paket.slug %>">← KEMBALI KE MANIFEST</a>
+  </div>
+
+  <%
+    const cdCls = daysToDeparture < 0 ? 'past'
+                 : daysToDeparture <= 7 ? 'urgent'
+                 : daysToDeparture <= 30 ? 'warn' : '';
+    const cdLabel = daysToDeparture < 0
+      ? `H+${Math.abs(daysToDeparture)} (sudah berangkat)`
+      : `H−${daysToDeparture}`;
+  %>
+
+  <div class="head">
+    <div>
+      <h1>Checklist <em>pre-departure</em></h1>
+      <div class="sub">
+        <%= paket.title %> · DEP <%= fmt.dateLong(paket.departureDate) %> · <%= counts.total %> jemaah aktif
+      </div>
+    </div>
+    <div class="countdown <%= cdCls %>"><%= cdLabel %></div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="l">Total</div><div class="v"><%= counts.total %></div></div>
+    <div class="kpi critical"><div class="l">Critical (&lt; 60%)</div><div class="v"><%= counts.critical %></div></div>
+    <div class="kpi partial"><div class="l">Partial</div><div class="v"><%= counts.partial %></div></div>
+    <div class="kpi ready"><div class="l">Ready (100%)</div><div class="v"><%= counts.ready %></div></div>
+  </div>
+
+  <% const showAll = filter === 'all'; %>
+  <div class="filter-bar">
+    <span style="text-transform:uppercase; letter-spacing:0.14em;">Tampilkan:</span>
+    <span class="seg">
+      <a href="?filter=incomplete" class="<%= !showAll ? 'is-active' : '' %>">Belum siap</a>
+      <a href="?filter=all" class="<%= showAll ? 'is-active' : '' %>">Semua</a>
+    </span>
+    <span style="margin-left:auto;">
+      <%= visibleRows.length %> dari <%= counts.total %> ditampilkan
+    </span>
+  </div>
+
+  <% if (visibleRows.length === 0) { %>
+    <div class="tbl"><div class="empty">
+      <% if (counts.total === 0) { %>
+        Belum ada jemaah aktif untuk paket ini.
+      <% } else { %>
+        Semua jemaah sudah siap. 🎉
+      <% } %>
+    </div></div>
+  <% } else { %>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Jemaah</th>
+          <th>Booking</th>
+          <th title="Paspor — nomor tercatat">PSP</th>
+          <th title="Paspor — masih 6 bulan dari berangkat">6mo</th>
+          <th title="Visa Umroh">Visa</th>
+          <th title="Vaksin meningitis">Vax</th>
+          <th title="Surat sehat">Sehat</th>
+          <th title="Manasik">Manasik</th>
+          <th title="Kamar di-assign">Kamar</th>
+          <th title="Kontak darurat tercatat">Drrt</th>
+          <th class="score-cell">Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <%
+          function mark(ok) {
+            return ok ? '<span class="chk ok">✓</span>' : '<span class="chk no">✗</span>';
+          }
+        %>
+        <% visibleRows.forEach(function(r) { %>
+          <tr class="tier-<%= r.tier %>">
+            <td>
+              <div class="nm"><a href="/admin/jemaah/<%= r.jemaah.id %>/edit"><%= r.jemaah.fullName %></a></div>
+              <div class="sx">📱 <%= r.jemaah.phone || '—' %></div>
+            </td>
+            <td>
+              <div class="id"><a href="/admin/bookings/<%= r.bookingId %>"><%= r.bookingNo %></a></div>
+              <div class="sx"><%= r.kelas %> · <%= r.paxCount %> PAX</div>
+            </td>
+            <td><%- mark(r.checks.passportPresent) %></td>
+            <td><%- mark(r.checks.passportValid) %></td>
+            <td><%- mark(r.checks.visaUmroh) %></td>
+            <td><%- mark(r.checks.vaccineMeningitis) %></td>
+            <td><%- mark(r.checks.healthCert) %></td>
+            <td><%- mark(r.checks.manasikCert) %></td>
+            <td>
+              <% if (r.room) { %>
+                <span class="chk ok" title="<%= r.room.roomNo %>">✓</span>
+              <% } else { %>
+                <span class="chk no">✗</span>
+              <% } %>
+            </td>
+            <td><%- mark(r.checks.emergencyContact) %></td>
+            <td class="score-cell">
+              <div class="pct <%= r.tier %>"><%= r.score %>%</div>
+              <div class="ratio"><%= r.passed %>/<%= r.total %></div>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+</body>
+</html>

@@ -35,6 +35,22 @@ function emptyPaket() {
   };
 }
 
+// Stage 23 — pre-departure readiness checklist per paket.
+router.get(
+  '/:slug/checklist',
+  asyncHandler(async (req, res) => {
+    const { getPreDepartureChecklist } = await import('../services/preDepartureChecklist.js');
+    const data = await getPreDepartureChecklist(req.params.slug);
+    const filter = req.query.filter === 'all' ? 'all' : 'incomplete';
+    const visibleRows = filter === 'all'
+      ? data.rows
+      : data.rows.filter((r) => r.tier !== 'ready');
+    res.render('pre-departure-checklist', {
+      user: req.user, ...data, filter, visibleRows,
+    });
+  }),
+);
+
 // Shape DB paket → form-ready (textareas, ISO dates, full price grid)
 function paketToForm(paket) {
   const byKelas = Object.fromEntries(paket.prices.map((p) => [p.kelas, p]));
