@@ -9,6 +9,7 @@ import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent
 import { listIntentsForBooking, cancelStuckIntent } from '../services/paymentGateway.js';
 import { createBooking } from '../services/booking.js';
 import { searchBookings } from '../services/bookingsSearch.js';
+import { getAdminBookingVoucher } from '../services/bookingVoucher.js';
 
 const router = Router();
 
@@ -160,6 +161,20 @@ router.get(
       user: req.user, b: booking,
       canCancel, canRefund, canEditNotes, canTransfer, agents,
       paymentIntents, canCancelIntent,
+    });
+  }),
+);
+
+// ── GET /admin/bookings/:id/print (stage 20 voucher) ─────────
+router.get(
+  '/:id/print',
+  requireRole(...VIEW_ROLES),
+  asyncHandler(async (req, res) => {
+    const data = await getAdminBookingVoucher(req.params.id);
+    res.render('booking-voucher', {
+      user: req.user,
+      ...data,
+      backUrl: `/admin/bookings/${req.params.id}`,
     });
   }),
 );

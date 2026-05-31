@@ -118,6 +118,20 @@ router.get(
   }),
 );
 
+// Stage 20 — jemaah-side voucher print path.
+router.get(
+  '/saya/bookings/:id/print',
+  asyncHandler(async (req, res) => {
+    const { getJemaahBookingVoucher } = await import('../services/bookingVoucher.js');
+    const data = await getJemaahBookingVoucher(req.user.id, req.params.id);
+    res.render('booking-voucher', {
+      user: req.user,
+      ...data,
+      backUrl: `/saya/bookings/${req.params.id}`,
+    });
+  }),
+);
+
 router.get(
   '/saya/notifications',
   asyncHandler(async (req, res) => {

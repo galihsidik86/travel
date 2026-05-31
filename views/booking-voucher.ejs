@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voucher · <%= bookingNo %> — <%= paket.title %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body {
+    background: var(--cream-50);
+    color: #1a1815;
+    font-family: var(--font-sans);
+    margin: 0; padding: 0;
+  }
+  .sheet {
+    background: #fff;
+    max-width: 780px;
+    margin: 24px auto;
+    padding: 36px 44px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    border-radius: 4px;
+  }
+  .toolbar {
+    max-width: 780px;
+    margin: 14px auto 0;
+    padding: 0 44px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--font-mono); font-size: 11px; color: #66635c;
+    letter-spacing: 0.08em;
+  }
+  .toolbar a, .toolbar button {
+    color: #44423d;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    text-decoration: none; padding: 8px 14px;
+    border: 1px solid #c9c4b8; border-radius: 4px;
+    background: #fff; cursor: pointer;
+  }
+  .toolbar button.primary { background: #1a1815; color: #fff; border-color: #1a1815; }
+
+  /* ── Hero strip — bookingNo + paket title + departure ───── */
+  .hero {
+    border: 2px solid #1a1815;
+    border-radius: 4px;
+    padding: 18px 22px;
+    margin-bottom: 22px;
+    display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end;
+  }
+  .hero .eyebrow {
+    font-family: var(--font-mono); font-size: 10px; color: #66635c;
+    letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: 30px; font-weight: 600;
+    margin: 6px 0 0; line-height: 1.15; color: #1a1815;
+  }
+  .hero h1 em { font-style: italic; }
+  .hero .sub {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: #66635c; margin-top: 6px; letter-spacing: 0.06em;
+  }
+  .hero .right { text-align: right; }
+  .hero .bn-l {
+    font-family: var(--font-mono); font-size: 9.5px;
+    color: #66635c; letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .hero .bn-v {
+    font-family: var(--font-mono); font-size: 22px;
+    font-weight: 600; color: #1a1815; letter-spacing: 0.04em;
+    margin-top: 4px;
+  }
+  .hero .dep {
+    font-family: var(--font-display); font-size: 17px; font-weight: 500;
+    color: #1a1815; margin-top: 14px;
+  }
+  .hero .dep .l {
+    display: block;
+    font-family: var(--font-mono); font-size: 9.5px;
+    color: #66635c; letter-spacing: 0.18em; text-transform: uppercase;
+    font-weight: 400; margin-bottom: 3px;
+  }
+
+  /* ── Section blocks ─────────────────────────────────────── */
+  .block { margin-bottom: 20px; }
+  .block h3 {
+    font-family: var(--font-display);
+    font-size: 14px; font-weight: 600;
+    color: #1a1815; margin: 0 0 8px;
+    padding-bottom: 5px; border-bottom: 1px solid #1a1815;
+    text-transform: uppercase; letter-spacing: 0.12em;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .field .l { font-family: var(--font-mono); font-size: 9.5px; color: #66635c; letter-spacing: 0.14em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 12.5px; color: #1a1815; margin-top: 3px; font-weight: 500; }
+  .field .v.lg { font-family: var(--font-display); font-size: 16px; font-weight: 600; }
+  .field .v.warn { color: #a8331f; }
+
+  /* Money strip */
+  .money {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0;
+    border: 1px solid #1a1815; border-radius: 4px;
+    margin-top: 8px; overflow: hidden;
+  }
+  .money .cell { padding: 12px 16px; text-align: center; }
+  .money .cell + .cell { border-left: 1px solid #ddd6c6; }
+  .money .l { font-family: var(--font-mono); font-size: 9.5px; color: #66635c; letter-spacing: 0.14em; text-transform: uppercase; }
+  .money .v { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin-top: 4px; color: #1a1815; }
+  .money .v.gold { color: #8a6320; }
+  .money .v.emerald { color: #2e7d4f; }
+  .money .v.amber { color: #a8331f; }
+  .money .progress { height: 4px; background: #ddd6c6; margin-top: 18px; border-radius: 2px; overflow: hidden; }
+  .money .progress > i { display: block; height: 100%; background: #8a6320; }
+  .money .progress > i.full { background: #2e7d4f; }
+
+  /* Hotels strip */
+  .hotels { display: flex; gap: 10px; flex-wrap: wrap; }
+  .hotel-card {
+    flex: 1 1 200px;
+    border: 1px solid #ddd6c6; border-radius: 4px;
+    padding: 10px 12px;
+  }
+  .hotel-card .city { font-family: var(--font-mono); font-size: 9.5px; color: #66635c; letter-spacing: 0.14em; }
+  .hotel-card .name { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: #1a1815; margin-top: 2px; }
+  .hotel-card .meta { font-family: var(--font-mono); font-size: 10.5px; color: #44423d; margin-top: 3px; }
+
+  /* Itinerary list */
+  .itin { display: flex; flex-direction: column; gap: 4px; }
+  .itin-row {
+    display: grid; grid-template-columns: 36px 1fr;
+    gap: 10px; padding: 5px 0;
+    border-bottom: 1px dashed #e6e0d0;
+  }
+  .itin-row .n {
+    font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    color: #8a6320; text-align: right;
+  }
+  .itin-row .t { font-family: var(--font-mono); font-size: 11px; color: #1a1815; }
+  .itin-row.hi .t { font-weight: 600; }
+
+  /* Footer */
+  .footer {
+    margin-top: 24px; padding-top: 14px;
+    border-top: 1px solid #ddd6c6;
+    font-family: var(--font-mono); font-size: 10px;
+    color: #66635c; line-height: 1.6; letter-spacing: 0.04em;
+  }
+  .footer b { color: #1a1815; }
+
+  /* ── Print rules ───────────────────────────────────────── */
+  @media print {
+    @page { size: A4 portrait; margin: 10mm 12mm 14mm; }
+    body { background: #fff; }
+    .toolbar { display: none; }
+    .sheet { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+    .block, .itin-row, .hotel-card, .money { page-break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body data-screen-label="Voucher · <%= bookingNo %>">
+
+<div class="toolbar">
+  <div>
+    <a href="<%= backUrl %>">← KEMBALI</a>
+  </div>
+  <div>
+    Generated <%= generatedAt.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
+  </div>
+  <div>
+    <button class="primary" type="button" onclick="window.print()">CETAK ↗</button>
+  </div>
+</div>
+
+<div class="sheet">
+
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Voucher booking · Religio Pro</div>
+      <h1><em><%= paket.title %></em></h1>
+      <div class="sub">
+        <%= paket.slug %><% if (paket.subtitle) { %> · <%= paket.subtitle %><% } %>
+      </div>
+      <div class="dep">
+        <span class="l">Berangkat</span>
+        <%= fmt.dateLong(paket.departureDate) %>
+        <% if (paket.returnDate) { %> &nbsp;·&nbsp; <span class="l" style="display:inline;">pulang</span> <%= fmt.dateLong(paket.returnDate) %><% } %>
+      </div>
+    </div>
+    <div class="right">
+      <div class="bn-l">Booking #</div>
+      <div class="bn-v"><%= bookingNo %></div>
+      <div style="margin-top:10px; font-family:var(--font-mono); font-size:10.5px; color:#66635c;">
+        <%= kelas %> · <%= paxCount %> PAX
+      </div>
+      <div style="margin-top:4px; font-family:var(--font-mono); font-size:10.5px; color:<%= status === 'LUNAS' ? '#2e7d4f' : status === 'CANCELLED' || status === 'REFUNDED' ? '#a8331f' : '#8a6320' %>; font-weight:600; letter-spacing:0.1em;">
+        <%= status %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Jemaah identity -->
+  <div class="block">
+    <h3>Jemaah</h3>
+    <div class="grid-2">
+      <div class="field">
+        <div class="l">Nama lengkap</div>
+        <div class="v lg"><%= jemaah.fullName %></div>
+      </div>
+      <div class="field">
+        <div class="l">Telepon</div>
+        <div class="v"><%= jemaah.phone || '—' %></div>
+      </div>
+      <div class="field">
+        <div class="l">NIK</div>
+        <div class="v"><%= jemaah.nik || '—' %></div>
+      </div>
+      <div class="field">
+        <div class="l">Kontak darurat</div>
+        <div class="v"><%= jemaah.emergencyContact || '—' %></div>
+      </div>
+      <div class="field">
+        <div class="l">Paspor</div>
+        <div class="v"><%= jemaah.passportNo || '—' %><% if (jemaah.passportExpiry) { %> <span style="color:#66635c;">· exp <%= fmt.dateShort(jemaah.passportExpiry) %></span><% } %></div>
+      </div>
+      <div class="field">
+        <div class="l">Kamar</div>
+        <% if (room) { %>
+          <div class="v lg"><%= room.roomNo %> <span style="color:#66635c; font-size:11px;">· lt <%= room.floor || '?' %><% if (room.wing) { %> · <%= room.wing %><% } %></span></div>
+        <% } else { %>
+          <div class="v warn">Belum di-assign</div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trip summary -->
+  <div class="block">
+    <h3>Perjalanan</h3>
+    <div class="grid-4">
+      <div class="field">
+        <div class="l">Maskapai</div>
+        <div class="v"><%= paket.airline || '—' %><% if (paket.airlineCode) { %> <%= paket.airlineCode %><% } %></div>
+      </div>
+      <div class="field">
+        <div class="l">Rute</div>
+        <div class="v"><%= paket.routeFrom || '—' %> → <%= paket.routeTo || '—' %></div>
+      </div>
+      <div class="field">
+        <div class="l">Durasi</div>
+        <div class="v"><%= paket.durationDays %> hari</div>
+      </div>
+      <div class="field">
+        <div class="l">Agen</div>
+        <div class="v"><%= agent ? agent.displayName : 'Kantor Pusat' %></div>
+      </div>
+    </div>
+
+    <% if (paket.hotels.length > 0) { %>
+      <div style="margin-top:12px;">
+        <div class="hotels">
+          <% paket.hotels.forEach(function(h) { %>
+            <div class="hotel-card">
+              <div class="city"><%= h.city %></div>
+              <div class="name"><%= h.name %> <%= '★'.repeat(h.stars) %></div>
+              <div class="meta"><%= h.nights %> malam</div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% } %>
+  </div>
+
+  <!-- Money status -->
+  <div class="block">
+    <h3>Pembayaran</h3>
+    <div class="money">
+      <div class="cell">
+        <div class="l">Total</div>
+        <div class="v">Rp <%= fmt.rpFull(totals.totalAmount) %></div>
+      </div>
+      <div class="cell">
+        <div class="l">Sudah dibayar</div>
+        <div class="v emerald">Rp <%= fmt.rpFull(totals.paidAmount) %></div>
+      </div>
+      <div class="cell">
+        <div class="l">Sisa</div>
+        <div class="v <%= totals.remaining > 0 ? 'amber' : 'emerald' %>">Rp <%= fmt.rpFull(totals.remaining) %></div>
+      </div>
+    </div>
+    <div class="progress"><i class="<%= totals.paidPct >= 100 ? 'full' : '' %>" style="width:<%= Math.min(100, totals.paidPct) %>%;"></i></div>
+    <% if (payments.length > 0) { %>
+      <div style="margin-top:12px; font-family:var(--font-mono); font-size:10.5px;">
+        <div style="color:#66635c; letter-spacing:0.14em; text-transform:uppercase; margin-bottom:4px;">Riwayat pembayaran (<%= payments.length %>)</div>
+        <% payments.forEach(function(p) {
+          const amt = Number(p.amount?.toString?.() ?? p.amount) || 0;
+          const isRef = p.status === 'REFUNDED';
+        %>
+          <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e6e0d0;padding:3px 0;">
+            <span><%= p.paidAt ? fmt.date(p.paidAt) : fmt.date(p.createdAt) %> · <%= p.method %></span>
+            <span style="color:<%= isRef ? '#a8331f' : '#1a1815' %>;font-weight:600;"><%= isRef ? '−' : '' %>Rp <%= fmt.rpFull(Math.abs(amt)) %></span>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+  <!-- Itinerary (condensed) -->
+  <% if (paket.days.length > 0) { %>
+    <div class="block">
+      <h3>Itinerary</h3>
+      <div class="itin">
+        <% paket.days.forEach(function(d) { %>
+          <div class="itin-row <%= d.highlight ? 'hi' : '' %>">
+            <div class="n">D<%= d.dayNumber %></div>
+            <div class="t">
+              <%= d.title %>
+              <% if (d.dateLabel) { %><span style="color:#66635c;"> · <%= d.dateLabel %><% if (d.monthLabel) { %> <%= d.monthLabel %><% } %></span><% } %>
+              <% if (d.highlight) { %><span style="color:#8a6320;"> ★</span><% } %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  <% } %>
+
+  <div class="footer">
+    Simpan voucher ini sebagai bukti booking. Tunjukkan saat manasik dan check-in bandara.
+    <% if (agent) { %>
+      <br><b>Agen:</b> <%= agent.displayName %><% if (agent.whatsapp) { %> · WA <%= agent.whatsapp %><% } %>.
+    <% } %>
+    <br><b>Verifikasi:</b> hubungi tim Religio Pro dan sebut nomor booking di atas.
+  </div>
+</div>
+
+</body>
+</html>
