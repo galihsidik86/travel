@@ -5,7 +5,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import {
-  CreatePayoutSchema, createPayout, listPayouts, getPayoutById, META,
+  CreatePayoutSchema, createPayout, listPayouts, getPayoutById, getPayoutSlip, META,
 } from '../services/payouts.js';
 
 const router = Router();
@@ -59,6 +59,15 @@ router.get(
     const payout = await getPayoutById(req.params.id);
     if (!payout) throw new HttpError(404, 'Payout tidak ditemukan', 'PAYOUT_NOT_FOUND');
     res.render('payouts-detail', { user: req.user, p: payout });
+  }),
+);
+
+// Stage 21 — printable slip for accounting / agen handover.
+router.get(
+  '/:id/print',
+  asyncHandler(async (req, res) => {
+    const data = await getPayoutSlip(req.params.id);
+    res.render('payout-slip', { user: req.user, ...data });
   }),
 );
 

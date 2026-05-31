@@ -161,3 +161,33 @@ export async function getPayoutById(id) {
 }
 
 export const META = { METHODS };
+
+/**
+ * Printable-slip shape (stage 21). Same data as getPayoutById + computed
+ * totals + grouping for the view. Method labels translated to user-facing
+ * Bahasa Indonesia so the slip reads as an accounting document.
+ */
+const METHOD_LABEL_ID = {
+  TRANSFER: 'Transfer bank',
+  CASH: 'Tunai',
+  EWALLET: 'E-wallet',
+  QRIS: 'QRIS',
+};
+
+export async function getPayoutSlip(id) {
+  const payout = await getPayoutById(id);
+  if (!payout) throw new HttpError(404, 'Payout tidak ditemukan', 'PAYOUT_NOT_FOUND');
+
+  const totalIdr = toNumber(payout.amount) ?? 0;
+  // Sanity check: sum of komisi.amount should equal payout.amount. If they
+  // differ (shouldn't happen — createPayout snapshots inside a transaction)
+  // we surface BOTH so the slip is honest.
+  const sumKomisi = (payout.komisi || []).reduce((acc, k) => acc + (toNumber(k.amount) ?? 0), 0);
+
+  return {
+    payout,
+    totals: { amountIdr: totalIdr, sumKomisi, komisiCount: payout.komisi?.length || 0 },
+    methodLabel: METHOD_LABEL_ID[payout.method] || payout.method,
+    generatedAt: new Date(),
+  };
+}

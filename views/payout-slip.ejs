@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slip payout · <%= payout.payoutNo %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body {
+    background: var(--cream-50);
+    color: #1a1815;
+    font-family: var(--font-sans);
+    margin: 0; padding: 0;
+  }
+  .sheet {
+    background: #fff;
+    max-width: 780px;
+    margin: 24px auto;
+    padding: 36px 44px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    border-radius: 4px;
+  }
+  .toolbar {
+    max-width: 780px;
+    margin: 14px auto 0;
+    padding: 0 44px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--font-mono); font-size: 11px; color: #66635c;
+    letter-spacing: 0.08em;
+  }
+  .toolbar a, .toolbar button {
+    color: #44423d;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    text-decoration: none; padding: 8px 14px;
+    border: 1px solid #c9c4b8; border-radius: 4px;
+    background: #fff; cursor: pointer;
+  }
+  .toolbar button.primary { background: #1a1815; color: #fff; border-color: #1a1815; }
+
+  .hero {
+    border: 2px solid #1a1815;
+    border-radius: 4px;
+    padding: 18px 22px;
+    margin-bottom: 22px;
+    display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end;
+  }
+  .hero .eyebrow {
+    font-family: var(--font-mono); font-size: 10px; color: #66635c;
+    letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: 26px; font-weight: 600;
+    margin: 6px 0 0; color: #1a1815;
+  }
+  .hero .right { text-align: right; }
+  .hero .amt-l {
+    font-family: var(--font-mono); font-size: 9.5px;
+    color: #66635c; letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .hero .amt-v {
+    font-family: var(--font-display); font-size: 28px;
+    font-weight: 700; color: #2e7d4f; margin-top: 4px;
+    letter-spacing: -0.01em;
+  }
+  .hero .sub {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: #66635c; margin-top: 6px; letter-spacing: 0.06em;
+  }
+
+  .block { margin-bottom: 18px; }
+  .block h3 {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 600;
+    color: #1a1815; margin: 0 0 8px;
+    padding-bottom: 5px; border-bottom: 1px solid #1a1815;
+    text-transform: uppercase; letter-spacing: 0.12em;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
+  .field .l { font-family: var(--font-mono); font-size: 9.5px; color: #66635c; letter-spacing: 0.14em; text-transform: uppercase; }
+  .field .v { font-family: var(--font-mono); font-size: 12.5px; color: #1a1815; margin-top: 3px; font-weight: 500; }
+  .field .v.lg { font-family: var(--font-display); font-size: 16px; font-weight: 600; }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .tbl thead th {
+    background: #1a1815; color: #fff;
+    text-align: left; padding: 7px 8px;
+    font-family: var(--font-mono); font-size: 9px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    font-weight: 600;
+  }
+  .tbl tbody td {
+    padding: 7px 8px; border-bottom: 1px solid #ddd6c6;
+    vertical-align: top; line-height: 1.4;
+  }
+  .tbl .num { font-family: var(--font-mono); text-align: right; font-weight: 500; }
+  .tbl tfoot td {
+    padding: 8px 8px; border-top: 2px solid #1a1815;
+    font-family: var(--font-display); font-size: 14px; font-weight: 600;
+    color: #1a1815;
+  }
+  .tbl tfoot .num { font-size: 16px; color: #2e7d4f; }
+
+  .warn-strip {
+    background: #fde0db; border: 1px solid #a8331f;
+    color: #a8331f; padding: 8px 12px; border-radius: 4px;
+    font-family: var(--font-mono); font-size: 10.5px;
+    margin: 10px 0;
+  }
+
+  .sign-row {
+    margin-top: 22px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+    font-family: var(--font-mono); font-size: 10.5px;
+  }
+  .sign-row .box {
+    padding-top: 50px; padding-bottom: 4px;
+    border-bottom: 1px solid #1a1815;
+    color: #66635c; letter-spacing: 0.08em; text-transform: uppercase;
+    text-align: center;
+  }
+  .sign-row .box .name { color: #1a1815; font-weight: 600; margin-bottom: 2px; }
+
+  .footer {
+    margin-top: 24px; padding-top: 14px;
+    border-top: 1px solid #ddd6c6;
+    font-family: var(--font-mono); font-size: 10px;
+    color: #66635c; line-height: 1.6; letter-spacing: 0.04em;
+  }
+
+  @media print {
+    @page { size: A4 portrait; margin: 12mm; }
+    body { background: #fff; }
+    .toolbar { display: none; }
+    .sheet { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+    .block, .sign-row { page-break-inside: avoid; }
+    .tbl thead { display: table-header-group; }
+    .tbl tr { page-break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body data-screen-label="Slip · <%= payout.payoutNo %>">
+
+<div class="toolbar">
+  <div>
+    <a href="/admin/payouts/<%= payout.id %>">← KEMBALI</a>
+  </div>
+  <div>
+    Generated <%= generatedAt.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
+  </div>
+  <div>
+    <button class="primary" type="button" onclick="window.print()">CETAK ↗</button>
+  </div>
+</div>
+
+<div class="sheet">
+
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Slip pembayaran komisi · Religio Pro</div>
+      <h1>Payout <%= payout.payoutNo %></h1>
+      <div class="sub">
+        Tanggal bayar: <strong style="color:#1a1815;"><%= fmt.dateLong(payout.paidAt) %></strong>
+      </div>
+    </div>
+    <div class="right">
+      <div class="amt-l">Total dibayar</div>
+      <div class="amt-v">Rp <%= fmt.rpFull(totals.amountIdr) %></div>
+      <div class="sub" style="margin-top:8px;"><%= totals.komisiCount %> komisi · <%= payout.currency %></div>
+    </div>
+  </div>
+
+  <!-- Agen + payment method -->
+  <div class="block">
+    <h3>Agen penerima</h3>
+    <div class="grid-2">
+      <div class="field">
+        <div class="l">Nama agen</div>
+        <div class="v lg"><%= payout.agent.displayName %></div>
+      </div>
+      <div class="field">
+        <div class="l">Slug</div>
+        <div class="v"><%= payout.agent.slug %></div>
+      </div>
+      <div class="field">
+        <div class="l">WhatsApp</div>
+        <div class="v"><%= payout.agent.whatsapp || '—' %></div>
+      </div>
+      <div class="field">
+        <div class="l">Metode</div>
+        <div class="v lg"><%= methodLabel %></div>
+      </div>
+      <div class="field" style="grid-column: 1 / -1;">
+        <div class="l">Referensi pembayaran</div>
+        <div class="v"><%= payout.reference || '—' %></div>
+      </div>
+      <% if (payout.notes) { %>
+        <div class="field" style="grid-column: 1 / -1;">
+          <div class="l">Catatan</div>
+          <div class="v" style="font-family: var(--font-sans); white-space: pre-line;"><%= payout.notes %></div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Komisi breakdown -->
+  <div class="block">
+    <h3>Rincian komisi (<%= totals.komisiCount %>)</h3>
+    <% if (totals.sumKomisi !== totals.amountIdr) { %>
+      <div class="warn-strip">
+        ⚠ Total komisi rincian (Rp <%= fmt.rpFull(totals.sumKomisi) %>) tidak sama dengan total payout (Rp <%= fmt.rpFull(totals.amountIdr) %>). Periksa kembali.
+      </div>
+    <% } %>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:120px;">Booking</th>
+          <th>Jemaah</th>
+          <th>Paket</th>
+          <th class="num" style="width:150px;">Komisi (Rp)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% (payout.komisi || []).forEach(function(k) {
+          const amt = Number(k.amount?.toString?.() ?? k.amount) || 0;
+        %>
+          <tr>
+            <td style="font-family:var(--font-mono);font-weight:600;letter-spacing:0.04em;"><%= k.booking?.bookingNo || '—' %></td>
+            <td><%= k.booking?.jemaah?.fullName || '—' %></td>
+            <td style="font-size:10.5px;"><%= k.booking?.paket?.title || '—' %></td>
+            <td class="num"><%= fmt.rpFull(amt) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" style="text-align:right;">TOTAL</td>
+          <td class="num">Rp <%= fmt.rpFull(totals.amountIdr) %></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Signatures -->
+  <div class="sign-row">
+    <div class="box">
+      <div class="name">&nbsp;</div>
+      Tanda tangan agen<br>
+      <span style="color:#1a1815;font-weight:600;"><%= payout.agent.displayName %></span>
+    </div>
+    <div class="box">
+      <div class="name">&nbsp;</div>
+      Yang membayar<br>
+      <span style="color:#1a1815;font-weight:600;"><%= payout.paidBy?.email || 'admin' %></span>
+    </div>
+  </div>
+
+  <div class="footer">
+    Slip ini adalah bukti pembayaran komisi resmi Religio Pro. Simpan untuk catatan keuangan agen.
+    <br>Verifikasi: hubungi tim Religio Pro dan sebut nomor payout di atas.
+  </div>
+</div>
+
+</body>
+</html>
