@@ -240,9 +240,14 @@ export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
   const bookings = await db.booking.findMany({
     where,
     select: {
-      status: true, totalAmount: true,
+      id: true, status: true, totalAmount: true, paxCount: true,
       paketId: true, agentId: true,
-      paket: { select: { slug: true, title: true, departureDate: true, status: true } },
+      paket: {
+        select: {
+          slug: true, title: true, departureDate: true, status: true,
+          costPerPaxIdr: true,                 // stage 22 — profitability input
+        },
+      },
     },
   });
   if (bookings.length === 0) return [];
@@ -258,35 +263,80 @@ export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
         slug: b.paket.slug, title: b.paket.title,
         departureDate: b.paket.departureDate,
         paketStatus: b.paket.status,
+        // Stage 22 — null means "admin hasn't entered cost yet"; surface as
+        // `marginPct: null` instead of misleading 0%/100% in the leaderboard.
+        costPerPaxIdr: toNumber(b.paket.costPerPaxIdr),
         totalBookings: 0,
         hotCount: 0,
         lunasCount: 0,
         cancelledCount: 0,
         lunasRevenue: 0,
+        lunasPaxCount: 0,
         directCount: 0,
         agentIds: new Set(),
+        bookingIds: new Set(),
       };
       byPaket.set(key, row);
     }
     row.totalBookings += 1;
+    row.bookingIds.add(b.id);
     if (HOT_STATUSES.includes(b.status)) row.hotCount += 1;
     else if (b.status === 'LUNAS') {
       row.lunasCount += 1;
       row.lunasRevenue += toNumber(b.totalAmount) ?? 0;
+      row.lunasPaxCount += (b.paxCount || 1);
     }
     else if (b.status === 'CANCELLED' || b.status === 'REFUNDED') row.cancelledCount += 1;
     if (b.agentId) row.agentIds.add(b.agentId);
     else row.directCount += 1;
   }
 
-  const out = [...byPaket.values()].map((r) => ({
-    ...r,
-    agentCount: r.agentIds.size,
-    agentIds: undefined,                // strip Set from response
-    conversionPct: r.totalBookings === 0
-      ? null
-      : Math.round((r.lunasCount / r.totalBookings) * 100),
-  }));
+  // Stage 22 — komisi liability per paket. EARNED + PAID rows both count
+  // (PAID is already cash out the door; EARNED is a contractual obligation
+  // that will be paid out at the next payout cycle). CANCELLED + PENDING
+  // are excluded — CANCELLED means the underlying booking was cancelled
+  // before LUNAS-locked komisi could land; PENDING is a placeholder that
+  // hasn't crystallised yet.
+  const allBookingIds = [...byPaket.values()].flatMap((r) => [...r.bookingIds]);
+  if (allBookingIds.length > 0) {
+    const komisiRows = await db.komisi.findMany({
+      where: { bookingId: { in: allBookingIds }, status: { in: ['EARNED', 'PAID'] } },
+      select: { amount: true, booking: { select: { paketId: true } } },
+    });
+    const komisiByPaket = new Map();
+    for (const k of komisiRows) {
+      const pid = k.booking?.paketId;
+      if (!pid) continue;
+      komisiByPaket.set(pid, (komisiByPaket.get(pid) || 0) + (toNumber(k.amount) ?? 0));
+    }
+    for (const row of byPaket.values()) {
+      row.komisiLiabilityIdr = komisiByPaket.get(row.paketId) || 0;
+    }
+  } else {
+    for (const row of byPaket.values()) row.komisiLiabilityIdr = 0;
+  }
+
+  const out = [...byPaket.values()].map((r) => {
+    const totalCostIdr = r.costPerPaxIdr != null ? r.costPerPaxIdr * r.lunasPaxCount : null;
+    const netMarginIdr = totalCostIdr != null
+      ? r.lunasRevenue - totalCostIdr - r.komisiLiabilityIdr
+      : null;
+    const marginPct = totalCostIdr != null && r.lunasRevenue > 0
+      ? Math.round((netMarginIdr / r.lunasRevenue) * 100)
+      : null;
+    return {
+      ...r,
+      agentCount: r.agentIds.size,
+      agentIds: undefined,                // strip Set from response
+      bookingIds: undefined,
+      totalCostIdr,
+      netMarginIdr,
+      marginPct,
+      conversionPct: r.totalBookings === 0
+        ? null
+        : Math.round((r.lunasCount / r.totalBookings) * 100),
+    };
+  });
   out.sort((a, b) => b.lunasRevenue - a.lunasRevenue
     || b.lunasCount - a.lunasCount
     || a.title.localeCompare(b.title));

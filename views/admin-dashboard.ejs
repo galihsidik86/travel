@@ -938,6 +938,16 @@
                               p.conversionPct >= 50 ? 'emerald' :
                               p.conversionPct >= 25 ? 'gold-300' : 'ink-200';
             %>
+              <%
+                // Stage 22 — net margin per paket. Null when admin hasn't
+                // entered costPerPaxIdr yet (don't pretend to compute).
+                const marginCls = p.marginPct == null ? 'ink-200' :
+                                  p.marginPct >= 20 ? 'emerald' :
+                                  p.marginPct >= 5  ? 'gold-300' :
+                                  p.marginPct >= 0  ? 'amber' : 'ruby';
+                const netCls = p.netMarginIdr == null ? 'ink-200' :
+                               p.netMarginIdr >= 0 ? 'emerald' : 'ruby';
+              %>
               <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:12px 16px;">
                 <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
                   <a href="/admin/paket/<%= p.slug %>/edit"
@@ -960,6 +970,20 @@
                   <span style="margin-left:auto;color:var(--<%= convCls %>);">
                     <%= p.conversionPct ?? '—' %>% conv
                   </span>
+                </div>
+                <div style="display:flex;gap:14px;margin-top:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);flex-wrap:wrap;border-top:var(--hairline-soft);padding-top:6px;">
+                  <% if (p.costPerPaxIdr != null) { %>
+                    <span>cost <%= fmt.rpShort(p.totalCostIdr) %></span>
+                    <span>komisi <%= fmt.rpShort(p.komisiLiabilityIdr) %></span>
+                    <span style="color:var(--<%= netCls %>);">
+                      net <%= p.netMarginIdr < 0 ? '−' : '' %><%= fmt.rpShort(Math.abs(p.netMarginIdr)) %>
+                    </span>
+                    <span style="margin-left:auto;color:var(--<%= marginCls %>);font-weight:600;">
+                      <%= p.marginPct %>% margin
+                    </span>
+                  <% } else { %>
+                    <span style="font-style:italic;">— margin: set "Biaya per pax" di paket edit</span>
+                  <% } %>
                 </div>
               </div>
             <% }) %>

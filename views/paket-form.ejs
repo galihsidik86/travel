@@ -401,8 +401,22 @@
           <% if (errors.komisiRatePct) { %><div class="field-err"><%= errors.komisiRatePct %></div><% } %>
           <div class="helper">0-50%. Hanya dipakai saat LUNAS — komisi yang sudah EARNED tidak ikut berubah.</div>
         </div>
-        <div class="field"></div>
-        <div class="field"></div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-cost">Biaya per pax (Rp)</label></div>
+          <input class="input" type="number" id="f-cost" name="costPerPaxIdr"
+                 min="0" step="1"
+                 placeholder="mis. 22000000"
+                 value="<%= paket.costPerPaxIdr || '' %>">
+          <% if (errors.costPerPaxIdr) { %><div class="field-err"><%= errors.costPerPaxIdr %></div><% } %>
+          <div class="helper">Vendor cost (hotel + tiket + visa + ops). Kosongkan kalau belum dilacak — leaderboard akan skip kolom margin untuk paket ini.</div>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-cost-notes">Rincian biaya (opsional)</label></div>
+          <textarea class="input" id="f-cost-notes" name="costNotes" rows="2"
+                    placeholder="mis. Hotel 5*: 12 jt · Tiket: 8 jt · Visa: 2 jt"
+                    style="resize:vertical;"><%= paket.costNotes || '' %></textarea>
+          <div class="helper">Catatan internal. Tidak ditampilkan ke jemaah.</div>
+        </div>
       </div>
 
       <div class="grid-4">

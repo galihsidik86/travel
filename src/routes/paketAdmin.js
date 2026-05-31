@@ -48,6 +48,12 @@ function paketToForm(paket) {
     inclusions: paket.inclusions || [],
     exclusions: paket.exclusions || [],
     komisiRatePct: (rate * 100).toFixed(2).replace(/\.?0+$/, ''),
+    // Stage 22 — Decimal → plain string for the form input. null → '' so
+    // the input renders empty and the preprocessor can detect "clear".
+    costPerPaxIdr: paket.costPerPaxIdr != null
+      ? Number(paket.costPerPaxIdr.toString?.() ?? paket.costPerPaxIdr).toString()
+      : '',
+    costNotes: paket.costNotes ?? '',
     prices: KELAS.map((kelas) => byKelas[kelas] || { kelas, label: '', caption: '', priceIdr: '', cicilanIdr: '', cicilanMonths: '', isFeatured: false }),
   };
 }

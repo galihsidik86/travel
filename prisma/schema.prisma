@@ -397,6 +397,14 @@ model Paket {
   manifestClosesAt DateTime?
   komisiRate       Decimal   @default(0.06) @db.Decimal(5, 4) // 0.0000-1.0000; agent komisi % on LUNAS
 
+  // Stage 22 — per-pax fully-loaded vendor cost (hotel + flight + visa + ops).
+  // Optional. When set, the admin leaderboard computes net margin per paket:
+  //   netMargin = lunasRevenue − (lunasPaxCount × costPerPaxIdr) − komisiLiability
+  // Left null = leaderboard skips the margin column for this paket (no
+  // misleading "0%" or "100%" when costs aren't tracked yet).
+  costPerPaxIdr Decimal? @db.Decimal(15, 2)
+  costNotes     String?  @db.Text
+
   status      PaketStatus @default(DRAFT)
   publishedAt DateTime?
 

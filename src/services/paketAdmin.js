@@ -48,6 +48,21 @@ export const PaketSchema = z.object({
     (v) => (blank(v) === undefined ? undefined : Number(v)),
     z.number().min(0, 'Min 0%').max(50, 'Max 50% — sanity cap').optional(),
   ),
+  // Stage 22 — per-pax fully-loaded cost. Nullable: empty input clears
+  // (admin opts out of margin computation), non-empty stores the value.
+  // 3-state preprocessor (undefined / null / number) mirrors the pattern in
+  // userAdmin.js komisiOverridePct so "clear" actually persists.
+  costPerPaxIdr: z.preprocess(
+    (v) => {
+      if (v == null) return undefined;
+      const s = String(v).trim();
+      if (s === '') return null;          // explicit clear
+      const n = Number(s);
+      return Number.isFinite(n) ? n : undefined;
+    },
+    z.union([z.number().nonnegative('Biaya tidak boleh negatif'), z.null()]).optional(),
+  ),
+  costNotes: optStrLong,
 }).refine((d) => d.returnDate >= d.departureDate, {
   message: 'Tanggal pulang tidak boleh sebelum tanggal berangkat',
   path: ['returnDate'],
@@ -99,6 +114,14 @@ function toPaketData(parsed, userId) {
     status: parsed.status,
     publishedAt: parsed.status === 'ACTIVE' ? new Date() : null,
     ...(parsed.komisiRatePct != null ? { komisiRate: (parsed.komisiRatePct / 100).toFixed(4) } : {}),
+    // Stage 22 — costPerPaxIdr handles 3 states:
+    //   undefined (not in body) → no DB write
+    //   null (explicit clear)   → set to null
+    //   number                  → store
+    ...(parsed.costPerPaxIdr !== undefined
+      ? { costPerPaxIdr: parsed.costPerPaxIdr == null ? null : parsed.costPerPaxIdr.toFixed(2) }
+      : {}),
+    ...(parsed.costNotes !== undefined ? { costNotes: parsed.costNotes ?? null } : {}),
     ...(userId ? { createdById: userId } : {}),
   };
 }
