@@ -12,6 +12,9 @@
 #                         in-process worker handles this when the server
 #                         runs, but production deploys set
 #                         NOTIF_WORKER_DISABLED=true and let cron drive)
+#   - send-daily-digest:  daily 07:00 (OWNER reads yesterday's activity
+#                         summary over morning coffee; aggregates from the
+#                         same sources as /admin, no separate counters)
 #   - prune:              weekly (bounded-growth pass on Notification,
 #                         JobRun, failed PaymentIntent. AuditLog +
 #                         Payment + Booking are NEVER pruned. See
@@ -34,6 +37,9 @@ MAILTO=""
 
 # Every 2 minutes — dispatch PENDING + retry-due FAILED notifications
 */2  * * * *  religio  cd /srv/religio-pro && npm run job:send-notifications >> /var/log/religio/notif.log          2>&1
+
+# Daily 07:00 — fan out yesterday's activity digest to ACTIVE OWNER users (Stage 27)
+0  7  * * *   religio  cd /srv/religio-pro && npm run job:send-daily-digest  >> /var/log/religio/digest.log         2>&1
 
 # Nightly 01:15 — mysqldump + gzip + 14-day rotation. See deploy/backup.example.sh.
 15 1  * * *   religio  /srv/religio-pro/deploy/backup.sh                     >> /var/log/religio/backup.log         2>&1

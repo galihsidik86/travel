@@ -1,0 +1,22 @@
+[Unit]
+Description=Religio Pro — daily activity digest email to OWNER
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=religio
+Group=religio
+WorkingDirectory=/srv/religio-pro
+EnvironmentFile=/srv/religio-pro/.env
+ExecStart=/usr/bin/npm run job:send-daily-digest
+StandardOutput=append:/var/log/religio/digest.log
+StandardError=append:/var/log/religio/digest.log
+
+# Sandboxing — least privilege
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/religio /srv/religio-pro/private

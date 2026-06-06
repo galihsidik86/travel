@@ -5,9 +5,10 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { expireOverdueDocuments } from '../services/expireDocs.js';
-import { processPendingNotifications } from '../services/notifications.js';
+import { processPendingNotifications, notifyDailyDigest } from '../services/notifications.js';
 import { expireStaleIntents } from '../services/expireIntents.js';
 import { pruneRetentionWindows } from '../services/retention.js';
+import { buildDailyDigest } from '../services/dailyDigest.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -40,6 +41,22 @@ router.post(
       req,
       actor: { id: req.user.id, email: req.user.email, role: req.user.role },
     }));
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-daily-digest',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-daily-digest', async () => {
+      const digest = await buildDailyDigest();
+      const fan = await notifyDailyDigest({ digest });
+      return {
+        date: digest.date,
+        recipients: fan.recipients ?? 0,
+        enqueued: fan.enqueued ?? 0,
+      };
+    });
     res.json(result);
   }),
 );

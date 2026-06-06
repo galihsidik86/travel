@@ -469,6 +469,65 @@ export async function notifyIncidentCreated({ incident, crew, paket }) {
   }
 }
 
+/**
+ * Stage 27 — daily activity digest fan-out to ACTIVE OWNER users.
+ * Caller (cron / HTTP trigger) builds the digest via `buildDailyDigest()` and
+ * passes the resulting payload here. One EMAIL row per OWNER so each delivery
+ * can be retried independently in the queue.
+ *
+ * Limited to OWNER (not OWNER/SUPERADMIN/MANAJER_OPS like other admin fan-outs)
+ * — this is a strategic "state of the business" summary, not an operational
+ * alert. SUPERADMIN/MANAJER_OPS already have real-time access via /admin.
+ */
+export async function notifyDailyDigest({ digest }) {
+  const owners = await db.user.findMany({
+    where: {
+      role: 'OWNER',
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { id: true, email: true, fullName: true },
+  });
+  if (owners.length === 0) return { enqueued: 0, recipients: 0 };
+
+  let enqueued = 0;
+  await Promise.all(owners.map(async (o) => {
+    const vars = {
+      ownerName: o.fullName || 'OWNER',
+      label: digest.label,
+      newBookings: digest.fmt.newBookings,
+      lunasBookings: digest.fmt.lunasBookings,
+      lunasRevenue: digest.fmt.lunasRevenue.replace('Rp ', ''),
+      newJemaah: digest.fmt.newJemaah,
+      newLeads: digest.fmt.newLeads,
+      paymentsIn: digest.fmt.paymentsIn.replace('Rp ', ''),
+      refundsOut: digest.fmt.refundsOut.replace('Rp ', ''),
+      netRevenue: digest.fmt.netRevenue.replace('Rp ', ''),
+      komisiEarned: digest.fmt.komisiEarned.replace('Rp ', ''),
+      komisiPaid: digest.fmt.komisiPaid.replace('Rp ', ''),
+      incidentsCreated: digest.fmt.incidentsCreated,
+      incidentsOpen: digest.fmt.incidentsOpen,
+      weekBookings: digest.week.bookings.toLocaleString('id-ID'),
+      weekLunasBookings: digest.week.lunasBookings.toLocaleString('id-ID'),
+      adminLink: '/admin',
+    };
+    const { subject, body } = renderTemplate('DAILY_DIGEST_OWNER', 'EMAIL', vars);
+    await enqueueNotification({
+      type: 'DAILY_DIGEST_OWNER', channel: 'EMAIL',
+      recipientEmail: o.email,
+      subject, body,
+      payload: { date: digest.date, counts: digest.counts, money: digest.money },
+      // Admin-targeted: do NOT set recipientUserId — keeps row out of any
+      // jemaah inbox (DAILY_DIGEST_OWNER recipients are owners, not jemaah,
+      // but the convention is "admin fan-outs leave recipientUserId null").
+    });
+    enqueued += 1;
+  }));
+
+  return { enqueued, recipients: owners.length };
+}
+
 export async function notifyPayoutCreated({ payout, agent }) {
   const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
   const vars = {

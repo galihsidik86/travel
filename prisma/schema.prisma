@@ -125,6 +125,7 @@ enum NotificationType {
   PAYOUT_CREATED
   DOC_VERIFIED
   INCIDENT_REPORTED // crew SOS / emergency → admin fan-out
+  DAILY_DIGEST_OWNER // daily activity digest → OWNER (Stage 27)
   GENERIC // catch-all for ad-hoc notifs
 }
 
