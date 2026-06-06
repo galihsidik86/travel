@@ -35,6 +35,59 @@ function emptyPaket() {
   };
 }
 
+// Stage 26 — paket waitlist admin queue + promote / cancel actions.
+router.get(
+  '/:slug/waitlist',
+  asyncHandler(async (req, res) => {
+    const { listWaitlist } = await import('../services/waitlist.js');
+    const data = await listWaitlist(req.params.slug);
+    const flash = {
+      ok: req.query.ok === 'promoted' ? 'Jemaah berhasil di-promote ke booking.'
+        : req.query.ok === 'cancelled' ? 'Waitlist entry dibatalkan.'
+        : null,
+      err: req.query.err ? decodeURIComponent(req.query.err) : null,
+    };
+    res.render('paket-waitlist', { user: req.user, ...data, flash });
+  }),
+);
+router.post(
+  '/:slug/waitlist/:id/promote',
+  asyncHandler(async (req, res) => {
+    const { promoteWaitlist } = await import('../services/waitlist.js');
+    try {
+      await promoteWaitlist({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        id: req.params.id,
+        kelas: req.body?.kelas || 'QUAD',
+        paxCount: Number(req.body?.paxCount) || 1,
+        agentSlug: req.body?.agentSlug || null,
+      });
+      res.redirect(`/admin/paket/${encodeURIComponent(req.params.slug)}/waitlist?ok=promoted`);
+    } catch (err) {
+      const msg = err.message || 'Gagal promote';
+      res.redirect(`/admin/paket/${encodeURIComponent(req.params.slug)}/waitlist?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+router.post(
+  '/:slug/waitlist/:id/cancel',
+  asyncHandler(async (req, res) => {
+    const { cancelWaitlist } = await import('../services/waitlist.js');
+    try {
+      await cancelWaitlist({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        id: req.params.id,
+      });
+      res.redirect(`/admin/paket/${encodeURIComponent(req.params.slug)}/waitlist?ok=cancelled`);
+    } catch (err) {
+      const msg = err.message || 'Gagal cancel';
+      res.redirect(`/admin/paket/${encodeURIComponent(req.params.slug)}/waitlist?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
 // Stage 23 — pre-departure readiness checklist per paket.
 router.get(
   '/:slug/checklist',

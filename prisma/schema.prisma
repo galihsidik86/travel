@@ -422,11 +422,44 @@ model Paket {
   crewAssignments PaketCrew[]
   incidents       Incident[]
   agentOverrides  AgentPaketKomisi[]
+  waitlist        PaketWaitlist[]
 
   @@index([slug])
   @@index([status])
   @@index([departureDate])
   @@index([deletedAt])
+}
+
+// Stage 26 — paket waitlist. When kursi penuh, jemaah can leave name +
+// phone to be queued; admin promotes them when a slot opens (typically
+// after a cancellation). PROMOTED rows carry the booking they spawned.
+//
+// Status machine: WAITING → PROMOTED (terminal) | CANCELLED (terminal).
+// No back-transitions — a promoted row stays as the audit trail of
+// "this jemaah came from the waitlist".
+enum WaitlistStatus {
+  WAITING
+  PROMOTED
+  CANCELLED
+}
+
+model PaketWaitlist {
+  id        String         @id @default(cuid())
+  paketId   String
+  paket     Paket          @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  fullName  String
+  phone     String
+  notes     String?        @db.Text
+  status    WaitlistStatus @default(WAITING)
+  createdAt DateTime       @default(now())
+
+  promotedAt        DateTime?
+  promotedBookingId String?
+  cancelledAt       DateTime?
+
+  @@unique([paketId, phone])
+  @@index([paketId, status])
+  @@index([status, createdAt])
 }
 
 model PaketHotel {

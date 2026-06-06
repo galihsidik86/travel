@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Waitlist · <%= paket.title %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { display: flex; justify-content: space-between; align-items: end; gap: 18px; flex-wrap: wrap; margin-bottom: 22px; }
+  .head h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-top: 8px; letter-spacing: 0.1em; }
+
+  .ok-banner, .err-banner { padding: 10px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11.5px; margin-bottom: 14px; }
+  .ok-banner  { background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4); color: var(--emerald); }
+  .err-banner { background: rgba(176,68,68,0.08); border: 1px solid rgba(176,68,68,0.4); color: var(--ruby); }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  .kpi { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 16px 18px; }
+  .kpi .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .kpi .v { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin-top: 6px; font-weight: 500; }
+  .kpi.waiting  .v { color: var(--gold-300); }
+  .kpi.promoted .v { color: var(--emerald); }
+  .kpi.cancelled .v { color: var(--ruby); }
+
+  .tbl { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+  .tbl thead th { text-align: left; padding: 10px 12px; background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); font-weight: 500; border-bottom: var(--hairline); }
+  .tbl tbody td { padding: 11px 12px; border-bottom: var(--hairline-soft); font-size: 12.5px; color: var(--cream-200); vertical-align: middle; }
+  .tbl tbody tr.waiting td  { box-shadow: inset 3px 0 0 var(--gold-300); }
+  .tbl tbody tr.promoted td { box-shadow: inset 3px 0 0 var(--emerald); }
+  .tbl tbody tr.cancelled td { box-shadow: inset 3px 0 0 var(--ruby); opacity: 0.7; }
+  .tbl .nm { color: var(--cream-100); font-weight: 500; }
+  .tbl .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+  .tbl form { display: inline; }
+  .tbl select, .tbl input {
+    background: var(--ink-1000); border: var(--hairline-soft); color: var(--cream-100);
+    padding: 5px 8px; border-radius: 3px; font-family: var(--font-mono); font-size: 11px;
+  }
+  .tbl .promote-btn {
+    background: var(--gold-300); color: var(--ink-1000); border: 0;
+    padding: 6px 12px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; font-weight: 600;
+  }
+  .tbl .cancel-btn {
+    background: transparent; border: 1px solid var(--ruby); color: var(--ruby);
+    padding: 6px 10px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer;
+  }
+  .empty { padding: 48px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+
+  .status-tag { padding: 3px 8px; font-family: var(--font-mono); font-size: 9.5px; border-radius: 3px; letter-spacing: 0.1em; border: 1px solid; }
+  .status-tag.waiting   { color: var(--gold-300); border-color: var(--gold-300); }
+  .status-tag.promoted  { color: var(--emerald); border-color: var(--emerald); background: rgba(74,143,109,0.08); }
+  .status-tag.cancelled { color: var(--ruby); border-color: var(--ruby); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Waitlist">
+<div class="wrap">
+  <div class="crumb"><a href="/admin/paket/<%= paket.slug %>/edit">← KEMBALI KE EDIT PAKET</a></div>
+  <%
+    const q = new URLSearchParams((typeof originalUrl !== 'undefined' ? originalUrl : '').split('?')[1] || '');
+  %>
+  <% if (typeof flash !== 'undefined' && flash.ok) { %>
+    <div class="ok-banner"><%= flash.ok %></div>
+  <% } %>
+  <% if (typeof flash !== 'undefined' && flash.err) { %>
+    <div class="err-banner"><%= flash.err %></div>
+  <% } %>
+  <div class="head">
+    <div>
+      <h1>Waitlist <em><%= paket.title %></em></h1>
+      <div class="sub">
+        <%= paket.slug %> · <%= paket.kursiTerisi %>/<%= paket.kursiTotal %> kursi terisi
+        <% if (paket.kursiTerisi >= paket.kursiTotal) { %>· <strong style="color:var(--ruby);">PENUH</strong><% } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="l">Total</div><div class="v"><%= rows.length %></div></div>
+    <div class="kpi waiting"><div class="l">Menunggu</div><div class="v"><%= counts.waiting %></div></div>
+    <div class="kpi promoted"><div class="l">Sudah promote</div><div class="v"><%= counts.promoted %></div></div>
+    <div class="kpi cancelled"><div class="l">Dibatalkan</div><div class="v"><%= counts.cancelled %></div></div>
+  </div>
+
+  <% if (rows.length === 0) { %>
+    <div class="tbl"><div class="empty">Belum ada jemaah masuk waitlist.</div></div>
+  <% } else { %>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:160px;">Daftar</th>
+          <th>Jemaah</th>
+          <th style="width:110px;">Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(function(r) { %>
+          <tr class="<%= r.status.toLowerCase() %>">
+            <td class="sx">
+              <%= fmt.date(r.createdAt) %>
+              <% if (r.promotedAt) { %><div>promote <%= fmt.date(r.promotedAt) %></div><% } %>
+              <% if (r.cancelledAt) { %><div>cancel <%= fmt.date(r.cancelledAt) %></div><% } %>
+            </td>
+            <td>
+              <div class="nm"><%= r.fullName %></div>
+              <div class="sx">📱 <%= r.phone %></div>
+              <% if (r.notes) { %><div class="sx" style="margin-top:4px;color:var(--ink-100);"><%= r.notes %></div><% } %>
+            </td>
+            <td><span class="status-tag <%= r.status.toLowerCase() %>"><%= r.status %></span></td>
+            <td>
+              <% if (r.status === 'WAITING') { %>
+                <form method="POST" action="/admin/paket/<%= paket.slug %>/waitlist/<%= r.id %>/promote">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <select name="kelas" required>
+                    <option value="QUAD">QUAD</option>
+                    <option value="TRIPLE">TRIPLE</option>
+                    <option value="DOUBLE">DOUBLE</option>
+                    <option value="VVIP">VVIP</option>
+                  </select>
+                  <input type="number" name="paxCount" value="1" min="1" max="20" style="width:60px;">
+                  <button type="submit" class="promote-btn">Promote</button>
+                </form>
+                <form method="POST" action="/admin/paket/<%= paket.slug %>/waitlist/<%= r.id %>/cancel"
+                      onsubmit="return confirm('Cancel waitlist entry untuk <%= r.fullName %>?');"
+                      style="margin-left:8px;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="cancel-btn">Cancel</button>
+                </form>
+              <% } else if (r.promotedBookingId) { %>
+                <a href="/admin/bookings/<%= r.promotedBookingId %>" style="color:var(--gold-300);text-decoration:none;font-family:var(--font-mono);font-size:10.5px;">
+                  Lihat booking →
+                </a>
+              <% } else { %>
+                <span style="color:var(--ink-300);font-family:var(--font-mono);font-size:10.5px;">—</span>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+</body>
+</html>

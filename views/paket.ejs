@@ -753,9 +753,17 @@
           <textarea name="notes" maxlength="2000" placeholder="Mis: lansia perlu kursi roda, alergi makanan, request sekamar dengan saudara, dll."></textarea>
         </label>
         <div id="form-error-mount"></div>
+        <% if (kursiSisa <= 0) { %>
+          <div style="background:rgba(212,175,55,0.06); border:1px solid rgba(212,175,55,0.35); border-radius:var(--r-sm); padding:12px 14px; margin-bottom:12px; font-size:12.5px; color:var(--cream-100);">
+            <strong style="color:var(--gold-300);">Paket ini sudah PENUH.</strong> Anda akan masuk ke <em>waitlist</em> — kami hubungi saat ada kursi kosong (umumnya dari cancel/refund).
+          </div>
+        <% } %>
         <div class="submit-row">
           <span class="agree">Dengan mendaftar, saya menyetujui <a href="#">Syarat &amp; Ketentuan</a> dan <a href="#">Kebijakan Privasi UU PDP</a>.</span>
-          <button class="btn btn--primary btn--lg" type="submit" id="booking-submit">Kunci kursi saya →</button>
+          <button class="btn btn--primary btn--lg" type="submit" id="booking-submit"
+                  data-full="<%= kursiSisa <= 0 ? '1' : '0' %>">
+            <%= kursiSisa <= 0 ? 'Daftar waitlist →' : 'Kunci kursi saya →' %>
+          </button>
         </div>
       </form>
     </div>
@@ -904,18 +912,23 @@
         notes: fd.get('notes')?.toString().trim() || null,
       };
 
+      const isFull = submit.dataset.full === '1';
+      const endpoint = isFull ? '/api/waitlist' : '/api/booking';
+      const sendPayload = isFull
+        ? { paketSlug: payload.paketSlug, fullName: payload.fullName, phone: payload.phone, notes: payload.notes }
+        : payload;
       try {
-        const res = await fetch('/api/booking', {
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'same-origin',
-          body: JSON.stringify(payload),
+          body: JSON.stringify(sendPayload),
         });
         const data = await res.json();
         if (!res.ok) throw data?.error || { message: 'Gagal mengirim. Coba lagi.' };
 
         // Replace form with success state
-        mount.innerHTML = renderSuccess(data);
+        mount.innerHTML = isFull ? renderWaitlistSuccess(data) : renderSuccess(data);
         mount.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (err) {
         const msg = err?.message || 'Terjadi kesalahan. Coba lagi.';
@@ -926,9 +939,22 @@
           : '';
         errMount.innerHTML = `<div class="form-error">${msg}${details}</div>`;
         submit.disabled = false;
-        submit.textContent = 'Kunci kursi saya →';
+        submit.textContent = isFull ? 'Daftar waitlist →' : 'Kunci kursi saya →';
       }
     });
+
+    function renderWaitlistSuccess(data) {
+      const w = data.waitlist || {};
+      return `
+        <div class="booking-success">
+          <div class="booking-success__check" style="background:rgba(212,175,55,0.12); border-color:var(--gold-300);">
+            <svg viewBox="0 0 24 24"><polyline points="4,12 10,18 20,7"/></svg>
+          </div>
+          <h2>Anda di <em>waitlist.</em></h2>
+          <div class="booking-success__no">${w.id ? w.id.slice(-8).toUpperCase() : 'WL-'}</div>
+          <p>Kami akan menghubungi Anda via WhatsApp begitu ada kursi yang tersedia (biasanya dari pembatalan).</p>
+        </div>`;
+    }
 
     function renderSuccess(data) {
       const b = data.booking;

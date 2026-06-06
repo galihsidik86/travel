@@ -30,6 +30,7 @@ import notificationsRouter from './routes/notifications.js';
 import paymentIntentsRouter from './routes/paymentIntents.js';
 import incidentsRouter from './routes/incidents.js';
 import pushRouter from './routes/push.js';
+import waitlistRouter from './routes/waitlist.js';
 import paymentsRouter from './routes/payments.js';
 import paymentGatewayRouter from './routes/paymentGateway.js';
 import refundsRouter from './routes/refunds.js';
@@ -93,6 +94,7 @@ export function createApp() {
   app.use('/api/paket', paketChildrenRouter);
   app.use('/api/paket', paketJsonRouter);
   app.use('/api/booking', bookingRouter);
+  app.use('/api/waitlist', waitlistRouter);
   app.use('/api/leads', leadsRouter);
   // 5pp: payment gateway (mounts /api/payments/intent + /api/payments/midtrans/webhook
   // + /payments/midtrans/fake). Defines its full paths so it's mounted at root.
