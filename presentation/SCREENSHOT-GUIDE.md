@@ -11,7 +11,22 @@ node scripts/build-presentation.js
 The placeholders auto-replace with your images. Until then, the deck shows
 a dashed box with the expected filename.
 
-## Capture tips
+## Automated capture (recommended)
+
+Run the Playwright capture script — it logs in per-role, navigates each URL,
+takes full-page screenshots, and writes PNGs straight into this folder:
+
+```bash
+npm run dev                              # in one terminal
+node scripts/capture-screenshots.js      # in another
+node scripts/build-presentation.js       # regenerate the .pptx with embedded shots
+```
+
+The script auto-resolves dynamic IDs (paket slug, booking id, payout id)
+from the running DB. If no payout exists, it creates a `PO-DEMO-...` row
+so the slip screenshot still renders.
+
+## Manual capture (alternative)
 
 The cleanest workflow:
 
