@@ -63,11 +63,11 @@ export async function getAdminOverview(opts = {}) {
     }),
     db.jemaahProfile.count(),
     db.auditLog.findMany({
-      take: 15,
+      take: 20,
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, action: true, entity: true, entityId: true,
-        actorEmail: true, actorRole: true, createdAt: true, after: true,
+        actorEmail: true, actorRole: true, createdAt: true, after: true, before: true,
       },
     }),
     db.komisi.groupBy({
@@ -220,9 +220,14 @@ export async function getAdminOverview(opts = {}) {
     getKomisiMonthlyAdmin({ months: 6 }),
   ]);
 
+  // Stage 25 — turn raw audit rows into friendly activity-feed entries
+  // (sentence + deep-link + badge + optional amountIdr).
+  const { formatRecentActivity } = await import('../lib/auditFormat.js');
+  const recentActivity = formatRecentActivity(recentAudit);
+
   return {
     kpis,
-    recentActivity: recentAudit,
+    recentActivity,
     topPaket,
     topAgents,
     statusBreakdown,
