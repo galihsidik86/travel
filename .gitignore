@@ -43,3 +43,6 @@ private/
 .claude/
 memory/
 .thumbnail
+
+# Generated presentation captures (re-runnable via scripts/build-presentation.js)
+presentation/screenshots/*.png
