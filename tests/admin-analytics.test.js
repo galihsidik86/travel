@@ -89,9 +89,15 @@ describe('getPerPaketLeaderboard', () => {
     });
     await tempBooking(t, { paket, jemaah: jem.jemaah, agentId: agent.agent.id, status: 'LUNAS', totalAmount: '5000000' });
 
-    const today = new Date().toISOString().slice(0, 10);
+    // `to` set to tomorrow so the late-evening-WIB-vs-UTC mismatch (where
+    // .toISOString().slice(0,10) returns yesterday's UTC date) doesn't drop
+    // a just-created booking from the filter. resolveRange runs setHours
+    // in local TZ and the booking createdAt is stored in UTC; widening the
+    // upper bound by a day eliminates the TZ edge without weakening the
+    // 200-days-ago exclusion the test is asserting.
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
-    const rows = await getPerPaketLeaderboard({ from: thirtyDaysAgo, to: today });
+    const rows = await getPerPaketLeaderboard({ from: thirtyDaysAgo, to: tomorrow });
     const ours = rows.find((r) => r.slug === paket.slug);
     assert.ok(ours);
     assert.equal(ours.totalBookings, 1, 'only the recent booking counts');

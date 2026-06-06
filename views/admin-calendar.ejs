@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Kalender keberangkatan</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+
+  .head {
+    display: flex; justify-content: space-between; align-items: end; margin-bottom: 22px;
+    gap: 18px; flex-wrap: wrap;
+  }
+  .head h1 {
+    font-family: var(--font-display); font-size: 34px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-top: 8px; letter-spacing: 0.1em; }
+
+  .month-nav {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  .month-nav a {
+    color: var(--cream-100); text-decoration: none;
+    border: var(--hairline-soft); padding: 7px 14px; border-radius: var(--r-sm);
+    letter-spacing: 0.14em; text-transform: uppercase; font-size: 10.5px;
+  }
+  .month-nav a:hover { color: var(--gold-300); border-color: var(--gold-300); }
+  .month-nav .label {
+    font-family: var(--font-display); font-size: 18px; font-weight: 500;
+    color: var(--cream-100); padding: 0 12px; min-width: 180px; text-align: center;
+  }
+  .month-nav a.today {
+    border-color: var(--gold-300); color: var(--gold-300);
+  }
+
+  /* ── Calendar grid ─────────────────────────────────────────── */
+  .cal {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); overflow: hidden;
+  }
+  .cal__head {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    background: var(--ink-1000);
+    border-bottom: var(--hairline);
+  }
+  .cal__head .dow {
+    padding: 10px 12px;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200);
+    text-align: left; font-weight: 500;
+  }
+  .cal__head .dow.weekend { color: var(--gold-300); }
+
+  .cal__grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(118px, auto);
+  }
+  .cell {
+    border-right: var(--hairline-soft); border-bottom: var(--hairline-soft);
+    padding: 8px 10px;
+    display: flex; flex-direction: column; gap: 4px;
+    position: relative;
+  }
+  .cell:nth-child(7n) { border-right: 0; }
+  .cell.blank { background: var(--ink-1000); border-bottom: var(--hairline-soft); }
+  .cell .day-num {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.06em;
+  }
+  .cell.today .day-num {
+    color: var(--gold-300); font-weight: 700;
+    border-bottom: 2px solid var(--gold-300); padding-bottom: 2px; display: inline-block;
+    align-self: flex-start;
+  }
+  .cell.selected { background: rgba(212,175,55,0.05); border-color: var(--gold-300); }
+  .cell .dep {
+    display: block;
+    margin-top: 2px; padding: 4px 6px;
+    background: var(--ink-1000); border-left: 3px solid var(--gold-300);
+    border-radius: 2px;
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--cream-100); text-decoration: none;
+    line-height: 1.3;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cell .dep:hover { background: var(--ink-850); }
+  .cell .dep .nm { color: var(--cream-100); font-size: 10.5px; }
+  .cell .dep .sx { color: var(--ink-200); font-size: 9.5px; margin-top: 1px; }
+  .cell .dep.full   { border-left-color: var(--emerald); }
+  .cell .dep.semi   { border-left-color: var(--gold-300); }
+  .cell .dep.low    { border-left-color: var(--ink-300); }
+  .cell .dep.draft  { border-left-color: var(--amber); }
+  .cell .dep.closed { border-left-color: var(--ruby); }
+  .cell .more {
+    display: block; margin-top: 2px;
+    font-family: var(--font-mono); font-size: 9.5px; color: var(--gold-300);
+    text-decoration: none;
+  }
+
+  /* ── Drill panel below the grid ───────────────────────────── */
+  .drill {
+    margin-top: 22px;
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 20px 24px;
+  }
+  .drill h3 {
+    font-family: var(--font-display); font-size: 20px; font-weight: 500;
+    color: var(--cream-100); margin: 0 0 14px;
+    padding-bottom: 10px; border-bottom: var(--hairline-soft);
+  }
+  .drill h3 em { font-style: italic; color: var(--gold-300); }
+  .drill .row {
+    display: grid; grid-template-columns: 1fr auto auto auto;
+    gap: 16px; align-items: center; padding: 12px 0;
+    border-bottom: var(--hairline-soft);
+  }
+  .drill .row:last-child { border-bottom: 0; }
+  .drill .row .nm { color: var(--cream-100); font-size: 14px; font-weight: 500; }
+  .drill .row .sx { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+  .drill .row .kursi {
+    font-family: var(--font-mono); font-size: 12px; color: var(--cream-100);
+    min-width: 80px; text-align: right;
+  }
+  .drill .row .kursi .pct { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-top: 2px; }
+  .drill .row .status-tag {
+    padding: 3px 8px; font-family: var(--font-mono); font-size: 9.5px;
+    border-radius: 3px; letter-spacing: 0.1em; border: 1px solid;
+  }
+  .drill .row .status-tag.active { color: var(--emerald); border-color: var(--emerald); background: rgba(74,143,109,0.08); }
+  .drill .row .status-tag.draft  { color: var(--amber);   border-color: var(--amber); }
+  .drill .row .status-tag.closed { color: var(--ruby);    border-color: var(--ruby); }
+  .drill .actions a {
+    color: var(--gold-300); text-decoration: none;
+    border: 1px solid var(--gold-300); padding: 5px 12px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  .empty { padding: 36px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+
+  @media (max-width: 720px) {
+    .cal__grid { grid-auto-rows: minmax(80px, auto); }
+    .cell .dep .sx { display: none; }
+    .month-nav .label { min-width: auto; font-size: 14px; padding: 0 6px; }
+  }
+</style>
+</head>
+<body data-screen-label="02 Admin · Kalender">
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← KEMBALI KE DASHBOARD</a></div>
+
+  <div class="head">
+    <div>
+      <h1>Kalender <em>keberangkatan</em></h1>
+      <div class="sub"><%= cal.totalDepartures %> paket berangkat di <%= cal.monthLabel %></div>
+    </div>
+    <div class="month-nav">
+      <a href="/admin/calendar?year=<%= cal.prev.year %>&month=<%= cal.prev.month %>" title="Bulan sebelumnya">← Prev</a>
+      <span class="label"><%= cal.monthLabel %></span>
+      <a href="/admin/calendar?year=<%= cal.next.year %>&month=<%= cal.next.month %>" title="Bulan berikutnya">Next →</a>
+      <% if (cal.year !== cal.today.year || cal.month !== cal.today.month) { %>
+        <a class="today" href="/admin/calendar" title="Hari ini">Hari ini</a>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="cal">
+    <div class="cal__head">
+      <% ['Min','Sen','Sel','Rab','Kam','Jum','Sab'].forEach(function(dow, i) { %>
+        <div class="dow <%= i === 0 || i === 6 ? 'weekend' : '' %>"><%= dow %></div>
+      <% }) %>
+    </div>
+    <div class="cal__grid">
+      <% for (let i = 0; i < cal.firstWeekday; i++) { %>
+        <div class="cell blank"></div>
+      <% } %>
+      <% cal.days.forEach(function(day) {
+        const isSelected = drill && drill.date === day.date;
+        const dripUrl = `/admin/calendar?year=${cal.year}&month=${cal.month}&date=${day.date}`;
+      %>
+        <div class="cell <%= day.isToday ? 'today' : '' %> <%= isSelected ? 'selected' : '' %>">
+          <% if (day.departureCount > 0) { %>
+            <a href="<%= dripUrl %>" style="text-decoration:none;color:inherit;">
+              <span class="day-num"><%= day.dayNumber %></span>
+            </a>
+          <% } else { %>
+            <span class="day-num"><%= day.dayNumber %></span>
+          <% } %>
+          <%
+            const visible = day.departures.slice(0, 3);
+            const overflow = day.departures.length - visible.length;
+          %>
+          <% visible.forEach(function(p) {
+            const fillCls = p.status === 'DRAFT' ? 'draft'
+                          : p.status === 'CLOSED' ? 'closed'
+                          : p.fillPct >= 100 ? 'full'
+                          : p.fillPct >= 50 ? 'semi'
+                          : 'low';
+          %>
+            <a class="dep <%= fillCls %>" href="<%= dripUrl %>" title="<%= p.title %> · <%= p.kursiTerisi %>/<%= p.kursiTotal %> kursi · <%= p.status %>">
+              <span class="nm"><%= p.title %></span>
+            </a>
+          <% }) %>
+          <% if (overflow > 0) { %>
+            <a class="more" href="<%= dripUrl %>">+ <%= overflow %> lagi</a>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <% if (drill) { %>
+    <div class="drill">
+      <h3>Keberangkatan <em><%= fmt.dateLong(new Date(drill.date)) %></em></h3>
+      <% if (drill.departureCount === 0) { %>
+        <div class="empty">Tidak ada paket berangkat di tanggal ini.</div>
+      <% } else { %>
+        <% drill.departures.forEach(function(p) { %>
+          <div class="row">
+            <div>
+              <div class="nm"><%= p.title %></div>
+              <div class="sx"><%= p.slug %> · <%= p.durationDays %> hari · pulang <%= fmt.dateShort(p.returnDate) %></div>
+            </div>
+            <div class="kursi">
+              <%= p.kursiTerisi %>/<%= p.kursiTotal %>
+              <div class="pct"><%= p.fillPct %>%</div>
+            </div>
+            <span class="status-tag <%= p.status.toLowerCase() %>"><%= p.status %></span>
+            <div class="actions">
+              <a href="/admin?tab=manifest&manifestPaket=<%= p.slug %>">Manifest</a>
+              <a href="/admin/paket/<%= p.slug %>/edit" style="margin-left:6px;">Edit</a>
+            </div>
+          </div>
+        <% }) %>
+      <% } %>
+    </div>
+  <% } %>
+</div>
+</body>
+</html>

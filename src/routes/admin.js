@@ -62,4 +62,21 @@ router.get(
   }),
 );
 
+// Stage 24 — month-grid view of paket departures.
+router.get(
+  '/calendar',
+  asyncHandler(async (req, res) => {
+    const { getDepartureCalendar } = await import('../services/departureCalendar.js');
+    const cal = await getDepartureCalendar({
+      year: req.query.year, month: req.query.month,
+    });
+    // Optional drill: ?date=YYYY-MM-DD shows that day's paket below the grid.
+    const drillDate = (req.query.date || '').toString();
+    const drill = drillDate
+      ? cal.days.find((d) => d.date === drillDate) || null
+      : null;
+    res.render('admin-calendar', { user: req.user, cal, drill });
+  }),
+);
+
 export default router;
