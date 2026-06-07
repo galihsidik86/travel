@@ -7,6 +7,7 @@ import {
 } from '../services/adminDashboard.js';
 import { getBunkingForPaket } from '../services/bunking.js';
 import { getPaketWeeklyRecap } from '../services/paketWeeklyRecap.js';
+import { getRefundDetails } from '../services/refundAnalytics.js';
 
 const router = Router();
 
@@ -47,6 +48,26 @@ router.get(
       recapSlug,
       activeTab: req.query.tab || 'overview',
       range,
+    });
+  }),
+);
+
+// Stage 38 — refund drill-down. Either ?paket=<slug> or ?agent=<slug>
+// (use `kantor-pusat` for walk-ins). Days override via ?days=N.
+router.get(
+  '/refunds',
+  asyncHandler(async (req, res) => {
+    const paketSlug = req.query.paket || null;
+    const agentSlug = req.query.agent || null;
+    const days = Math.max(1, Math.min(365, Number(req.query.days) || 90));
+    if (!paketSlug && !agentSlug) {
+      return res.redirect('/admin?tab=overview');
+    }
+    const details = await getRefundDetails({ paketSlug, agentSlug, days });
+    res.render('refund-detail', {
+      user: req.user,
+      paketSlug, agentSlug, days,
+      ...details,
     });
   }),
 );

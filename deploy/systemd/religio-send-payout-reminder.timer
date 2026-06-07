@@ -1,0 +1,14 @@
+[Unit]
+Description=Religio Pro — Monday 07:15 payout reminder
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+# Mondays at 07:15 — closes the digest sequence (daily 07:00, owner weekly
+# 07:05, agent weekly 07:10, payout reminder 07:15).
+OnCalendar=Mon *-*-* 07:15:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=religio-send-payout-reminder.service
+
+[Install]
+WantedBy=timers.target

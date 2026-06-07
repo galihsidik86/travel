@@ -49,6 +49,11 @@ MAILTO=""
 # Fires after the OWNER weekly so leadership reads theirs first.
 10 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-agent-weekly-digest >> /var/log/religio/agent-weekly.log 2>&1
 
+# Monday 07:15 — payout reminder to admins (agents with EARNED ≥ Rp 1M) (Stage 37)
+# Closes the loop: agent digest at 07:10 lets agents see their komisi pile up; this
+# tells admins WHICH agents are overdue. Silent on weeks where no agent crosses the threshold.
+15 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-payout-reminder >> /var/log/religio/payout-reminder.log 2>&1
+
 # Nightly 01:15 — mysqldump + gzip + 14-day rotation. See deploy/backup.example.sh.
 15 1  * * *   religio  /srv/religio-pro/deploy/backup.sh                     >> /var/log/religio/backup.log         2>&1
 

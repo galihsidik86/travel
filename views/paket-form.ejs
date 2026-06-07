@@ -419,6 +419,69 @@
         </div>
       </div>
 
+      <!-- Stage 39 — lifetime profitability gauge. Edit-mode only; same math as
+           the leaderboard so adjusting "Biaya per pax" above changes the pill
+           below on next save. -->
+      <% if (typeof profitability !== 'undefined' && profitability && profitability.lunasCount > 0) {
+        const marginCls = profitability.marginPct == null ? 'ink-200' :
+                          profitability.marginPct >= 20 ? 'emerald' :
+                          profitability.marginPct >= 5  ? 'gold-300' :
+                          profitability.marginPct >= 0  ? 'amber' : 'ruby';
+        const netCls = profitability.netMarginIdr == null ? 'ink-200' :
+                       profitability.netMarginIdr >= 0 ? 'emerald' : 'ruby';
+      %>
+        <div class="prof-panel">
+          <div class="prof-head">Profitabilitas paket (lifetime · semua LUNAS)</div>
+          <div class="prof-grid">
+            <div class="prof-cell">
+              <div class="l">Revenue LUNAS</div>
+              <div class="v"><%= fmt.rpShort(profitability.lunasRevenueIdr) %></div>
+              <div class="s"><%= profitability.lunasCount %> booking · <%= profitability.lunasPaxCount %> pax</div>
+            </div>
+            <div class="prof-cell">
+              <div class="l">Total biaya vendor</div>
+              <% if (profitability.totalCostIdr != null) { %>
+                <div class="v"><%= fmt.rpShort(profitability.totalCostIdr) %></div>
+                <div class="s"><%= fmt.rpShort(profitability.costPerPaxIdr) %>/pax × <%= profitability.lunasPaxCount %> pax</div>
+              <% } else { %>
+                <div class="v muted">—</div>
+                <div class="s">isi "Biaya per pax" untuk hitung</div>
+              <% } %>
+            </div>
+            <div class="prof-cell">
+              <div class="l">Komisi terikat</div>
+              <div class="v"><%= fmt.rpShort(profitability.komisiLiabilityIdr) %></div>
+              <div class="s">EARNED + PAID</div>
+            </div>
+            <div class="prof-cell">
+              <div class="l">Net margin</div>
+              <% if (profitability.netMarginIdr != null) { %>
+                <div class="v" style="color:var(--<%= netCls %>);">
+                  <%= profitability.netMarginIdr < 0 ? '−' : '' %><%= fmt.rpShort(Math.abs(profitability.netMarginIdr)) %>
+                </div>
+                <div class="s" style="color:var(--<%= marginCls %>);font-weight:600;">
+                  <%= profitability.marginPct %>% margin
+                </div>
+              <% } else { %>
+                <div class="v muted">—</div>
+                <div class="s">butuh biaya per pax</div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+        <style>
+          .prof-panel { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 14px; }
+          .prof-head { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px; }
+          .prof-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+          .prof-cell { background: var(--ink-900); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 10px 12px; }
+          .prof-cell .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+          .prof-cell .v { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin-top: 4px; font-weight: 500; line-height: 1.1; }
+          .prof-cell .v.muted { color: var(--ink-300); }
+          .prof-cell .s { font-family: var(--font-mono); font-size: 10px; color: var(--ink-100); margin-top: 4px; }
+          @media (max-width: 900px) { .prof-grid { grid-template-columns: repeat(2, 1fr); } }
+        </style>
+      <% } %>
+
       <div class="grid-4">
         <div class="field">
           <div class="label-row"><label class="label" for="f-air">Maskapai</label></div>

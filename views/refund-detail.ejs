@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Detail refund</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { margin-bottom: 22px; }
+  .head h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-top: 8px; letter-spacing: 0.1em; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 22px; }
+  .kpi { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 16px 18px; }
+  .kpi .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .kpi .v { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin-top: 6px; font-weight: 500; }
+  .kpi.refund .v { color: var(--ruby); }
+
+  .tbl { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+  .tbl thead th { text-align: left; padding: 10px 12px; background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); font-weight: 500; border-bottom: var(--hairline); }
+  .tbl tbody td { padding: 11px 12px; border-bottom: var(--hairline-soft); font-size: 12.5px; color: var(--cream-200); vertical-align: middle; }
+  .tbl tbody tr:hover { background: rgba(255,255,255,0.02); }
+  .tbl a { color: var(--gold-300); text-decoration: none; }
+  .tbl .amt { color: var(--ruby); font-family: var(--font-mono); font-weight: 600; }
+  .tbl .when { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); }
+  .tbl .note { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); display: block; margin-top: 2px; }
+  .empty { padding: 48px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Detail refund">
+<div class="wrap">
+  <div class="crumb"><a href="/admin?tab=overview">← KEMBALI KE OVERVIEW</a></div>
+
+  <div class="head">
+    <h1>
+      Detail refund · <em>
+        <% if (paket) { %><%= paket.title %>
+        <% } else if (agent) { %><%= agent.displayName || agent.slug %>
+        <% } else { %>Tidak ditemukan<% } %>
+      </em>
+    </h1>
+    <div class="sub">
+      <%= window.days %> hari · <%= window.start %> → <%= window.end %>
+      <% if (paket) { %> · paket <%= paket.slug %><% } %>
+      <% if (agent) { %> · agen <%= agent.slug %><% } %>
+    </div>
+  </div>
+
+  <% if (totals) { %>
+    <div class="kpi-row">
+      <div class="kpi refund">
+        <div class="l">Total refund</div>
+        <div class="v"><%= fmt.rpShort(totals.totalIdr) %></div>
+      </div>
+      <div class="kpi">
+        <div class="l">Jumlah refund</div>
+        <div class="v"><%= totals.count %></div>
+      </div>
+      <div class="kpi">
+        <div class="l">Rata-rata</div>
+        <div class="v"><%= totals.count > 0 ? fmt.rpShort(totals.totalIdr / totals.count) : '—' %></div>
+      </div>
+    </div>
+  <% } %>
+
+  <% if (rows.length === 0) { %>
+    <div class="tbl"><div class="empty">Tidak ada refund di window ini.</div></div>
+  <% } else { %>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:110px;">Tanggal</th>
+          <th>Booking</th>
+          <th>Jemaah</th>
+          <th>Paket</th>
+          <th>Agen</th>
+          <th>Metode</th>
+          <th style="text-align:right;width:120px;">Jumlah</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(function(r) { %>
+          <tr>
+            <td class="when"><%= fmt.date(r.createdAt) %></td>
+            <td>
+              <a href="/admin/bookings/<%= r.booking.id %>"><%= r.booking.bookingNo %></a>
+              <% if (r.booking.cancelReason) { %>
+                <span class="note">cancel: <%= r.booking.cancelReason.length > 60 ? r.booking.cancelReason.slice(0,60)+'…' : r.booking.cancelReason %></span>
+              <% } %>
+            </td>
+            <td>
+              <%= r.booking.jemaah?.fullName || '—' %>
+              <span class="note">📱 <%= r.booking.jemaah?.phone || '—' %></span>
+            </td>
+            <td>
+              <% if (r.booking.paket) { %>
+                <a href="/admin/paket/<%= r.booking.paket.slug %>/edit"><%= r.booking.paket.title %></a>
+              <% } else { %>—<% } %>
+            </td>
+            <td>
+              <% if (r.booking.agent) { %>
+                <%= r.booking.agent.displayName || r.booking.agent.slug %>
+              <% } else { %>
+                Kantor Pusat
+              <% } %>
+            </td>
+            <td><%= r.method %></td>
+            <td class="amt" style="text-align:right;">−<%= fmt.rpShort(r.amountAbs) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+</body>
+</html>

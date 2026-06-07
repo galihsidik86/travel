@@ -184,7 +184,9 @@ router.get(
     const { listAvailableCrew, listAssignedCrewForPaket } = await import('../services/crewPortal.js');
     // Stage 14: per-agent komisi overrides for this paket
     const { listPaketOverrides } = await import('../services/agentPaketKomisi.js');
-    const [availableCrew, assignedCrew, availableAgents, paketOverrides] = await Promise.all([
+    // Stage 39 — profitability snapshot, used inline next to the cost input.
+    const { getPaketProfitabilitySnapshot } = await import('../services/paketProfitability.js');
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
       db.agentProfile.findMany({
@@ -193,12 +195,14 @@ router.get(
         orderBy: { slug: 'asc' },
       }),
       listPaketOverrides(req.params.slug),
+      getPaketProfitabilitySnapshot(paket.id),
     ]);
     res.render('paket-form', {
       user: req.user, mode: 'edit', paket: paketToForm(paket),
       errors: {}, formError: null,
       availableCrew, assignedCrew,
       availableAgents, paketOverrides,
+      profitability,
     });
   }),
 );

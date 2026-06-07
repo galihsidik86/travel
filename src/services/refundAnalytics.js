@@ -21,6 +21,90 @@ function resolveWindow(now, days) {
   return { start, end };
 }
 
+/**
+ * Stage 38 — drill-down: list every REFUNDED Payment row matching a paket
+ * slug OR an agent slug in the same time window the panel uses. Returns the
+ * Payment rows + each one's booking + jemaah identity so the admin can act
+ * on individual leaks.
+ *
+ *   - paketSlug: filter by paket lineage
+ *   - agentSlug: filter by agent; pass 'kantor-pusat' for walk-ins (no agent)
+ *
+ * Throws nothing on empty match — caller renders the "no refunds" state.
+ */
+export async function getRefundDetails({ paketSlug, agentSlug, days = 90, now = new Date() } = {}) {
+  const { start, end } = resolveWindow(now, days);
+
+  let paket = null;
+  let agent = null;
+  if (paketSlug) {
+    paket = await db.paket.findUnique({
+      where: { slug: paketSlug },
+      select: { id: true, slug: true, title: true },
+    });
+  }
+  if (agentSlug && agentSlug !== 'kantor-pusat') {
+    agent = await db.agentProfile.findUnique({
+      where: { slug: agentSlug },
+      select: { id: true, slug: true, displayName: true },
+    });
+  }
+  // Only require a match when the caller passed a non-sentinel slug
+  if (paketSlug && !paket) return { paket: null, agent: null, rows: [], totals: null, window: { days } };
+  if (agentSlug && agentSlug !== 'kantor-pusat' && !agent) {
+    return { paket: null, agent: null, rows: [], totals: null, window: { days } };
+  }
+
+  const where = {
+    status: 'REFUNDED',
+    currency: 'IDR',
+    createdAt: { gte: start, lt: end },
+  };
+  if (paket) where.booking = { ...(where.booking || {}), paketId: paket.id };
+  if (agent) where.booking = { ...(where.booking || {}), agentId: agent.id };
+  if (agentSlug === 'kantor-pusat') where.booking = { ...(where.booking || {}), agentId: null };
+
+  const rows = await db.payment.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+    select: {
+      id: true, amount: true, createdAt: true, method: true, notes: true,
+      booking: {
+        select: {
+          id: true, bookingNo: true, status: true, totalAmount: true,
+          cancelReason: true,
+          paket: { select: { slug: true, title: true } },
+          jemaah: { select: { fullName: true, phone: true } },
+          agent: { select: { slug: true, displayName: true } },
+        },
+      },
+    },
+  });
+
+  const totalIdr = rows.reduce(
+    (acc, r) => acc + Math.abs(toNumber(r.amount) ?? 0),
+    0,
+  );
+
+  return {
+    paket,
+    agent: agent ?? (agentSlug === 'kantor-pusat'
+      ? { slug: 'kantor-pusat', displayName: 'Kantor Pusat (walk-in)' }
+      : null),
+    rows: rows.map((r) => ({ ...r, amountAbs: Math.abs(toNumber(r.amount) ?? 0) })),
+    totals: {
+      count: rows.length,
+      totalIdr,
+    },
+    window: {
+      start: start.toISOString().slice(0, 10),
+      end: end.toISOString().slice(0, 10),
+      days,
+    },
+  };
+}
+
 export async function getRefundAnalytics({ now = new Date(), days = 90, limit = 10 } = {}) {
   const { start, end } = resolveWindow(now, days);
 

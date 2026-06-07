@@ -1,0 +1,4 @@
+{
+  "subject": "Religio Pro · {{candidateCount}} agen punya komisi ≥ {{thresholdFormatted}}",
+  "body": "Halo tim Religio Pro,\n\n{{candidateCount}} agen mempunyai komisi EARNED ≥ {{thresholdFormatted}} yang belum dibayar (total {{grandTotalFormatted}}):\n\n{{rowsBlock}}\n\nWorkspace payout: {{payoutsLink}}\n\n— sistem Religio Pro"
+}

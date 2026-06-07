@@ -1316,7 +1316,7 @@
                                r.refundRatePct >= 5  ? 'amber' :
                                r.refundRatePct >  0  ? 'gold-300' : 'emerald';
                 %>
-                  <a class="rc-row" href="/admin/paket/<%= r.paket?.slug %>/edit">
+                  <a class="rc-row" href="/admin/refunds?paket=<%= r.paket?.slug || '' %>" title="Lihat detail refund untuk paket ini">
                     <span class="rc-name"><%= r.paket?.title || '(deleted)' %></span>
                     <span class="rc-amt"><%= fmt.rpShort(r.refunded) %></span>
                     <span class="rc-rate" style="color:var(--<%= rcls %>);"><%= r.refundRatePct ?? '—' %>%</span>
@@ -1335,17 +1335,13 @@
                                r.refundRatePct >= 5  ? 'amber' :
                                r.refundRatePct >  0  ? 'gold-300' : 'emerald';
                 %>
-                  <div class="rc-row">
+                  <a class="rc-row" href="/admin/refunds?agent=<%= r.agent?.slug || 'kantor-pusat' %>" title="Lihat detail refund untuk agen ini">
                     <span class="rc-name">
-                      <% if (r.agent?.slug) { %>
-                        <a href="/admin/users?role=AGEN&q=<%= r.agent.slug %>" style="color:var(--cream-100);text-decoration:none;"><%= r.agent.displayName || r.agent.slug %></a>
-                      <% } else { %>
-                        <%= r.agent?.displayName || 'Kantor Pusat' %>
-                      <% } %>
+                      <%= r.agent?.displayName || 'Kantor Pusat' %>
                     </span>
                     <span class="rc-amt"><%= fmt.rpShort(r.refunded) %></span>
                     <span class="rc-rate" style="color:var(--<%= rcls %>);"><%= r.refundRatePct ?? '—' %>%</span>
-                  </div>
+                  </a>
                 <% }) %>
               <% } %>
             </div>

@@ -774,6 +774,60 @@ export async function notifyAgentWeeklyDigest({ digest }) {
   return { enqueued: 1 };
 }
 
+/**
+ * Stage 37 — payout reminder fan-out to ACTIVE OWNER/SUPERADMIN/MANAJER_OPS.
+ * Skips silently when the candidates list is empty so an idle week doesn't
+ * spam empty inboxes.
+ */
+export async function notifyPayoutReminder({ candidates }) {
+  if (!candidates || candidates.rows.length === 0) {
+    return { enqueued: 0, recipients: 0, skipped: true };
+  }
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { enqueued: 0, recipients: 0 };
+
+  // Build the inline rows block — top 10 inline, the rest summarised
+  // ("+ N agen lainnya...") so the email body stays scannable.
+  const inlineRows = candidates.rows.slice(0, 10);
+  const moreCount = Math.max(0, candidates.rows.length - inlineRows.length);
+  const rowLines = inlineRows.map((r) => {
+    const ageNote = r.ageDays != null ? ` · ${r.ageDays}h` : '';
+    const name = r.agent?.displayName || r.agent?.slug || '(agen terhapus)';
+    return `  · ${name} — ${r.totalFormatted} · ${r.count} komisi${ageNote}`;
+  });
+  if (moreCount > 0) rowLines.push(`  · + ${moreCount} agen lainnya…`);
+  const rowsBlock = rowLines.join('\n');
+
+  const vars = {
+    candidateCount: candidates.counts.candidates.toString(),
+    thresholdFormatted: 'Rp ' + Math.round(candidates.counts.thresholdIdr).toLocaleString('id-ID'),
+    grandTotalFormatted: 'Rp ' + Math.round(candidates.counts.grandTotalIdr).toLocaleString('id-ID'),
+    rowsBlock,
+    payoutsLink: '/admin/payouts',
+  };
+  const { subject, body } = renderTemplate('PAYOUT_REMINDER_OWNER', 'EMAIL', vars);
+
+  let enqueued = 0;
+  await Promise.all(admins.map(async (a) => {
+    await enqueueNotification({
+      type: 'PAYOUT_REMINDER_OWNER', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject, body,
+      payload: { candidateCount: candidates.counts.candidates, grandTotalIdr: candidates.counts.grandTotalIdr },
+    });
+    enqueued += 1;
+  }));
+  return { enqueued, recipients: admins.length };
+}
+
 export async function notifyPayoutCreated({ payout, agent }) {
   const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
   const vars = {

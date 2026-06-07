@@ -22,6 +22,7 @@
     "job:send-daily-digest": "node --env-file-if-exists=.env src/jobs/send-daily-digest.js",
     "job:send-weekly-digest": "node --env-file-if-exists=.env src/jobs/send-weekly-digest.js",
     "job:send-agent-weekly-digest": "node --env-file-if-exists=.env src/jobs/send-agent-weekly-digest.js",
+    "job:send-payout-reminder": "node --env-file-if-exists=.env src/jobs/send-payout-reminder.js",
     "job:prune": "node --env-file-if-exists=.env src/jobs/prune.js"
   },
   "prisma": {

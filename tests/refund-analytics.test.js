@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { db, makeTag, tempJemaah, tempPaket, tempBooking } from './_helpers.js';
-import { getRefundAnalytics } from '../src/services/refundAnalytics.js';
+import { getRefundAnalytics, getRefundDetails } from '../src/services/refundAnalytics.js';
 
 const ONE_DAY_MS = 86_400_000;
 
@@ -98,6 +98,73 @@ test('USD payments excluded (currency filter)', async (t) => {
   // No assertion on delta — we just want to confirm shape is intact under
   // mixed-currency rows (USD must NOT throw type errors).
   assert.ok(typeof before.totals.paid === 'number');
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Stage 38 — refund details drill-down
+// ─────────────────────────────────────────────────────────────────────
+
+test('getRefundDetails returns rows scoped to paket', async (t) => {
+  const tag = makeTag('rd-paket');
+  const jem = await tempJemaah(t, tag);
+  const paket = await tempPaket(t, tag);
+  const other = await tempPaket(t, `${tag}-o`);
+  const inWindow = new Date(Date.now() - 5 * ONE_DAY_MS);
+  const b1 = await tempBooking({ paket, jemaahProfileId: jem.jemaah.id });
+  const b2 = await tempBooking({ paket: other, jemaahProfileId: jem.jemaah.id });
+  const r1 = await db.payment.create({
+    data: {
+      bookingId: b1.id, method: 'CASH', amount: '-100000', currency: 'IDR',
+      status: 'REFUNDED', createdAt: inWindow,
+    },
+  });
+  const r2 = await db.payment.create({
+    data: {
+      bookingId: b2.id, method: 'CASH', amount: '-200000', currency: 'IDR',
+      status: 'REFUNDED', createdAt: inWindow,
+    },
+  });
+  t.after(async () => {
+    await db.payment.deleteMany({ where: { id: { in: [r1.id, r2.id] } } });
+  });
+
+  const details = await getRefundDetails({ paketSlug: paket.slug });
+  assert.ok(details.paket);
+  assert.equal(details.paket.slug, paket.slug);
+  const ids = details.rows.map((r) => r.id);
+  assert.ok(ids.includes(r1.id));
+  assert.ok(!ids.includes(r2.id));
+  assert.equal(details.totals.totalIdr, 100_000);
+});
+
+test('getRefundDetails kantor-pusat sentinel matches walk-in (no agent) bookings', async (t) => {
+  const tag = makeTag('rd-kp');
+  const jem = await tempJemaah(t, tag);
+  const paket = await tempPaket(t, tag);
+  const booking = await tempBooking({ paket, jemaahProfileId: jem.jemaah.id });
+  // booking.agentId defaults to null → walk-in
+  const inWindow = new Date(Date.now() - 5 * ONE_DAY_MS);
+  const r = await db.payment.create({
+    data: {
+      bookingId: booking.id, method: 'CASH', amount: '-50000', currency: 'IDR',
+      status: 'REFUNDED', createdAt: inWindow,
+    },
+  });
+  t.after(async () => {
+    await db.payment.deleteMany({ where: { id: r.id } });
+  });
+
+  const details = await getRefundDetails({ agentSlug: 'kantor-pusat' });
+  assert.equal(details.agent.slug, 'kantor-pusat');
+  const ids = details.rows.map((r) => r.id);
+  assert.ok(ids.includes(r.id));
+});
+
+test('getRefundDetails returns empty payload for unknown paket slug', async () => {
+  const details = await getRefundDetails({ paketSlug: 'definitely-not-here-xyz' });
+  assert.equal(details.paket, null);
+  assert.equal(details.totals, null);
+  assert.equal(details.rows.length, 0);
 });
 
 test('window respects the days param', async (t) => {

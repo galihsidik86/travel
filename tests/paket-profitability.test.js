@@ -169,3 +169,69 @@ describe('per-paket profitability', () => {
     assert.equal(ours.komisiLiabilityIdr, 1_000_000, 'only EARNED counts (CANCELLED + PENDING excluded)');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// Stage 39 — single-paket profitability snapshot
+// ─────────────────────────────────────────────────────────────────────
+
+describe('getPaketProfitabilitySnapshot (Stage 39)', () => {
+  test('returns null for unknown paketId', async () => {
+    const { getPaketProfitabilitySnapshot } = await import('../src/services/paketProfitability.js');
+    assert.equal(await getPaketProfitabilitySnapshot('no-such-paket'), null);
+  });
+
+  test('returns zeros + null margin when no LUNAS bookings yet', async (t) => {
+    const { getPaketProfitabilitySnapshot } = await import('../src/services/paketProfitability.js');
+    const tag = makeTag('prof-empty');
+    const paket = await tempPaket(t, tag);
+    const snap = await getPaketProfitabilitySnapshot(paket.id);
+    assert.equal(snap.lunasCount, 0);
+    assert.equal(snap.lunasRevenueIdr, 0);
+    assert.equal(snap.marginPct, null);
+  });
+
+  test('netMarginIdr = revenue − totalCost − komisi (lifetime)', async (t) => {
+    const { getPaketProfitabilitySnapshot } = await import('../src/services/paketProfitability.js');
+    const tag = makeTag('prof-math');
+    const jem = await tempJemaah(t, tag);
+    const paket = await tempPaket(t, `pkt-${tag}`);
+    const agent = await tempAgent(t, tag); // Komisi schema requires agentId
+    await setCost(paket.id, '15000000');
+    for (let i = 0; i < 2; i++) {
+      const bk = await tempBooking(t, { paket, jemaah: jem.jemaah, agentId: agent.agent.id, totalAmount: '22000000' });
+      await db.booking.update({
+        where: { id: bk.id },
+        data: { status: 'LUNAS', paidAmount: '22000000' },
+      });
+      await db.komisi.create({
+        data: {
+          agentId: agent.agent.id, bookingId: bk.id,
+          amount: '1000000', status: 'EARNED', earnedAt: new Date(),
+        },
+      });
+    }
+    const snap = await getPaketProfitabilitySnapshot(paket.id);
+    assert.equal(snap.lunasRevenueIdr, 44_000_000);
+    assert.equal(snap.totalCostIdr, 30_000_000);
+    assert.equal(snap.komisiLiabilityIdr, 2_000_000);
+    assert.equal(snap.netMarginIdr, 12_000_000);
+    assert.equal(snap.marginPct, Math.round((12_000_000 / 44_000_000) * 100));
+  });
+
+  test('cost-null → margin-null (avoids misleading numbers)', async (t) => {
+    const { getPaketProfitabilitySnapshot } = await import('../src/services/paketProfitability.js');
+    const tag = makeTag('prof-no-cost');
+    const jem = await tempJemaah(t, tag);
+    const paket = await tempPaket(t, `pkt-${tag}`);
+    const bk = await tempBooking(t, { paket, jemaah: jem.jemaah, totalAmount: '5000000' });
+    await db.booking.update({
+      where: { id: bk.id },
+      data: { status: 'LUNAS', paidAmount: '5000000' },
+    });
+    const snap = await getPaketProfitabilitySnapshot(paket.id);
+    assert.equal(snap.totalCostIdr, null);
+    assert.equal(snap.netMarginIdr, null);
+    assert.equal(snap.marginPct, null);
+    assert.equal(snap.lunasRevenueIdr, 5_000_000);
+  });
+});
