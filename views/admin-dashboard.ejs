@@ -691,6 +691,86 @@
         </article>
       </div>
 
+      <!-- Stage 31 — Needs attention (stuck rows that need an operator) -->
+      <% if (needsAttention && needsAttention.counts.total > 0) { %>
+        <div class="panel needs-attn" style="margin-bottom:16px;">
+          <div class="panel__head">
+            <h3>Perlu perhatian</h3>
+            <span class="meta na-total"><%= needsAttention.counts.total %> item</span>
+          </div>
+          <% if (needsAttention.counts.openIncidents > 0) { %>
+            <div class="na-group">
+              <div class="na-h"><span class="na-tag tag-incident">Insiden</span> <strong><%= needsAttention.counts.openIncidents %></strong> OPEN > 24 jam</div>
+              <% needsAttention.openIncidents.slice(0, 5).forEach(function(i) { %>
+                <a class="na-row" href="/admin/incidents/<%= i.id %>">
+                  <span class="na-when"><%= i.ageHours %> jam</span>
+                  <span class="na-what">
+                    <strong><%= i.type %></strong> · <%= i.createdBy?.fullName || '—' %>
+                    <% if (i.paket) { %> · <%= i.paket.title %><% } %>
+                    <% if (i.message) { %>
+                      <span class="na-sub"><%= i.message.length > 90 ? i.message.slice(0, 90) + '…' : i.message %></span>
+                    <% } %>
+                  </span>
+                </a>
+              <% }) %>
+            </div>
+          <% } %>
+          <% if (needsAttention.counts.cancelRequests > 0) { %>
+            <div class="na-group">
+              <div class="na-h"><span class="na-tag tag-cancel">Cancel</span> <strong><%= needsAttention.counts.cancelRequests %></strong> permintaan > 24 jam</div>
+              <% needsAttention.cancelRequests.slice(0, 5).forEach(function(b) { %>
+                <a class="na-row" href="/admin/bookings/<%= b.id %>">
+                  <span class="na-when"><%= b.ageHours %> jam</span>
+                  <span class="na-what">
+                    <strong><%= b.bookingNo %></strong> · <%= b.jemaah?.fullName || '—' %>
+                    · <%= b.paket?.title || '—' %>
+                    <% if (b.cancelRequestReason) { %>
+                      <span class="na-sub"><%= b.cancelRequestReason.length > 90 ? b.cancelRequestReason.slice(0, 90) + '…' : b.cancelRequestReason %></span>
+                    <% } %>
+                  </span>
+                </a>
+              <% }) %>
+            </div>
+          <% } %>
+          <% if (needsAttention.counts.notifsFailed > 0) { %>
+            <div class="na-group">
+              <div class="na-h"><span class="na-tag tag-notif">Notif</span> <strong><%= needsAttention.counts.notifsFailed %></strong> FAILED terminal</div>
+              <% needsAttention.notifsFailed.slice(0, 5).forEach(function(n) { %>
+                <a class="na-row" href="/admin/notifications">
+                  <span class="na-when"><%= n.ageHours %> jam</span>
+                  <span class="na-what">
+                    <strong><%= n.type %></strong> · <%= n.channel %>
+                    · <%= n.recipientEmail || n.recipientPhone || '—' %>
+                    <% if (n.error) { %>
+                      <span class="na-sub"><%= n.error.length > 90 ? n.error.slice(0, 90) + '…' : n.error %></span>
+                    <% } %>
+                  </span>
+                </a>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+        <style>
+          .needs-attn { border-left: 3px solid var(--ruby); }
+          .na-total { color: var(--ruby) !important; }
+          .na-group { margin-top: 10px; }
+          .na-group + .na-group { padding-top: 10px; border-top: var(--hairline-soft); }
+          .na-h { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+          .na-h strong { color: var(--cream-100); }
+          .na-tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em; margin-right: 4px; border: 1px solid; }
+          .na-tag.tag-incident { color: var(--ruby); border-color: var(--ruby); }
+          .na-tag.tag-cancel   { color: var(--amber); border-color: var(--amber); }
+          .na-tag.tag-notif    { color: var(--sapphire); border-color: var(--sapphire); }
+          .na-row { display: grid; grid-template-columns: 70px 1fr; gap: 12px; padding: 6px 0; text-decoration: none; color: var(--cream-200); border-bottom: var(--hairline-soft); }
+          .na-row:last-child { border-bottom: 0; }
+          .na-row:hover { background: rgba(255,255,255,0.02); }
+          .na-when { font-family: var(--font-mono); font-size: 10.5px; color: var(--ruby); letter-spacing: 0.04em; padding-top: 2px; }
+          .na-what { font-size: 12.5px; color: var(--cream-100); }
+          .na-what strong { color: var(--cream-100); font-weight: 500; }
+          .na-sub { display: block; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); margin-top: 2px; letter-spacing: 0.02em; }
+        </style>
+      <% } %>
+
       <!-- Stage 28 — Kemarin (yesterday-at-a-glance), same source as 07:00 OWNER digest -->
       <% if (yesterday) { %>
         <%
@@ -770,6 +850,100 @@
           .yest-foot strong { color: var(--cream-100); }
           @media (max-width: 1100px) { .yest-grid { grid-template-columns: repeat(3, 1fr); } }
           @media (max-width: 720px) { .yest-grid { grid-template-columns: repeat(2, 1fr); } .yest-cell .v.money { font-size: 14px; } }
+        </style>
+      <% } %>
+
+      <!-- Stage 32 — per-paket weekly recap with dropdown -->
+      <% if (paketRecap) { %>
+        <div class="panel" style="margin-bottom:16px;">
+          <div class="panel__head">
+            <h3>Aktivitas 7 hari · per paket</h3>
+            <form method="GET" action="/admin" style="display:flex;gap:6px;align-items:center;">
+              <input type="hidden" name="tab" value="overview">
+              <select name="recapPaket" onchange="this.form.submit()" class="recap-select">
+                <% paketList.forEach(function(p) { %>
+                  <option value="<%= p.slug %>" <%= p.slug === recapSlug ? 'selected' : '' %>>
+                    <%= p.title %><% if (p.status !== 'ACTIVE') { %> [<%= p.status %>]<% } %>
+                  </option>
+                <% }) %>
+              </select>
+            </form>
+          </div>
+          <div class="recap-grid">
+            <div class="recap-cell">
+              <div class="l">Booking baru</div>
+              <div class="v"><%= paketRecap.counts.newBookings.toLocaleString('id-ID') %></div>
+              <div class="s">cancel · <%= paketRecap.counts.cancelledBookings.toLocaleString('id-ID') %></div>
+            </div>
+            <div class="recap-cell">
+              <div class="l">Lunas minggu ini</div>
+              <div class="v"><%= paketRecap.counts.lunasBookings.toLocaleString('id-ID') %></div>
+              <div class="s">dari semua status</div>
+            </div>
+            <div class="recap-cell">
+              <div class="l">Pembayaran masuk</div>
+              <div class="v money"><%= fmt.rpShort(paketRecap.money.paymentsInIdr) %><span class="u">IDR</span></div>
+              <div class="s">refund · <%= fmt.rpShort(paketRecap.money.refundsOutIdr) %></div>
+            </div>
+            <div class="recap-cell">
+              <div class="l">Net revenue</div>
+              <div class="v money"><%= fmt.rpShort(paketRecap.money.netRevenueIdr) %><span class="u">IDR</span></div>
+              <div class="s">PAID − REFUNDED</div>
+            </div>
+            <div class="recap-cell">
+              <div class="l">Dokumen verified</div>
+              <div class="v"><%= paketRecap.counts.docsVerified.toLocaleString('id-ID') %></div>
+              <div class="s">7 hari</div>
+            </div>
+            <div class="recap-cell">
+              <div class="l">Kursi</div>
+              <div class="v"><%= paketRecap.paket.kursiTerisi %><span class="u">/<%= paketRecap.paket.kursiTotal %></span></div>
+              <div class="s">status · <%= paketRecap.paket.status %></div>
+            </div>
+          </div>
+          <% if (paketRecap.recentNewBookings.length > 0) { %>
+            <div class="recap-list">
+              <div class="recap-list-h">Booking baru terkini</div>
+              <% paketRecap.recentNewBookings.forEach(function(b) { %>
+                <a class="recap-list-row" href="/admin/bookings/<%= b.id %>">
+                  <span class="bk-when"><%= fmt.date(b.createdAt) %></span>
+                  <span class="bk-no"><%= b.bookingNo %></span>
+                  <span class="bk-jem"><%= b.jemaah?.fullName || '—' %></span>
+                  <span class="bk-st status-<%= b.status.toLowerCase() %>"><%= b.status %></span>
+                  <span class="bk-amt"><%= fmt.rpShort(b.totalAmount) %></span>
+                </a>
+              <% }) %>
+            </div>
+          <% } %>
+          <div class="recap-foot">
+            <a href="/admin/paket/<%= paketRecap.paket.slug %>/edit">Edit paket →</a>
+            ·
+            <a href="/admin?tab=manifest&manifestPaket=<%= paketRecap.paket.slug %>">Manifest →</a>
+          </div>
+        </div>
+        <style>
+          .recap-select { background: var(--ink-1000); border: var(--hairline-soft); color: var(--cream-100); padding: 4px 8px; font-family: var(--font-mono); font-size: 11px; border-radius: 3px; min-width: 220px; }
+          .recap-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+          .recap-cell { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 12px 14px; }
+          .recap-cell .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+          .recap-cell .v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin-top: 4px; font-weight: 500; line-height: 1.1; }
+          .recap-cell .v.money { font-size: 18px; color: var(--gold-300); }
+          .recap-cell .v .u { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-left: 3px; font-weight: 400; letter-spacing: 0.08em; }
+          .recap-cell .s { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); margin-top: 4px; }
+          .recap-list { margin-top: 14px; padding-top: 12px; border-top: var(--hairline-soft); }
+          .recap-list-h { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+          .recap-list-row { display: grid; grid-template-columns: 90px 160px 1fr 90px 100px; gap: 12px; padding: 6px 0; text-decoration: none; color: var(--cream-200); border-bottom: var(--hairline-soft); font-size: 12.5px; align-items: center; }
+          .recap-list-row:last-child { border-bottom: 0; }
+          .recap-list-row:hover { background: rgba(255,255,255,0.02); }
+          .recap-list-row .bk-when { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); }
+          .recap-list-row .bk-no   { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); }
+          .recap-list-row .bk-jem  { color: var(--cream-100); }
+          .recap-list-row .bk-st   { font-family: var(--font-mono); font-size: 9.5px; padding: 2px 6px; border-radius: 3px; border: 1px solid var(--ink-100); color: var(--ink-100); text-align: center; }
+          .recap-list-row .bk-amt  { font-family: var(--font-mono); font-size: 11px; color: var(--cream-100); text-align: right; }
+          .recap-foot { margin-top: 12px; padding-top: 10px; border-top: var(--hairline-soft); font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+          .recap-foot a { color: var(--gold-300); text-decoration: none; }
+          @media (max-width: 1100px) { .recap-grid { grid-template-columns: repeat(3, 1fr); } .recap-list-row { grid-template-columns: 1fr 1fr; } }
+          @media (max-width: 720px)  { .recap-grid { grid-template-columns: repeat(2, 1fr); } }
         </style>
       <% } %>
 

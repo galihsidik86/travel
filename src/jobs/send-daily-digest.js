@@ -9,7 +9,7 @@
 // runs just enqueue duplicate emails. Operationally, cron should fire once
 // per day; the runJob row is the operator's trail.
 import { db } from '../lib/db.js';
-import { buildDigestWithComparison } from '../services/dailyDigest.js';
+import { buildDigestWithAttention } from '../services/dailyDigest.js';
 import { notifyDailyDigest } from '../services/notifications.js';
 import { bootstrapNotifSenders } from '../lib/notifBootstrap.js';
 import { runJob } from '../lib/jobRunner.js';
@@ -21,7 +21,7 @@ console.log(`[send-daily-digest] start ${startedAt.toISOString()}`);
 
 try {
   const result = await runJob('send-daily-digest', async () => {
-    const digest = await buildDigestWithComparison();
+    const digest = await buildDigestWithAttention();
     const fan = await notifyDailyDigest({ digest });
     return {
       date: digest.date,

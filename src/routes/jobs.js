@@ -5,10 +5,11 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { expireOverdueDocuments } from '../services/expireDocs.js';
-import { processPendingNotifications, notifyDailyDigest } from '../services/notifications.js';
+import { processPendingNotifications, notifyDailyDigest, notifyWeeklyDigest } from '../services/notifications.js';
 import { expireStaleIntents } from '../services/expireIntents.js';
 import { pruneRetentionWindows } from '../services/retention.js';
-import { buildDigestWithComparison } from '../services/dailyDigest.js';
+import { buildDigestWithAttention } from '../services/dailyDigest.js';
+import { buildWeeklyDigest } from '../services/weeklyDigest.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -49,10 +50,26 @@ router.post(
   '/send-daily-digest',
   asyncHandler(async (_req, res) => {
     const result = await runJob('send-daily-digest', async () => {
-      const digest = await buildDigestWithComparison();
+      const digest = await buildDigestWithAttention();
       const fan = await notifyDailyDigest({ digest });
       return {
         date: digest.date,
+        recipients: fan.recipients ?? 0,
+        enqueued: fan.enqueued ?? 0,
+      };
+    });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-weekly-digest',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-weekly-digest', async () => {
+      const digest = await buildWeeklyDigest();
+      const fan = await notifyWeeklyDigest({ digest });
+      return {
+        weekStart: digest.weekStart,
         recipients: fan.recipients ?? 0,
         enqueued: fan.enqueued ?? 0,
       };

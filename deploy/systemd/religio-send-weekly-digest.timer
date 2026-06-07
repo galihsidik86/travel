@@ -1,0 +1,14 @@
+[Unit]
+Description=Religio Pro — Monday 07:05 weekly digest fan-out
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+# Mondays at 07:05 local time — owner reads it with the morning routine,
+# 5 min after the daily so the daily lands first.
+OnCalendar=Mon *-*-* 07:05:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=religio-send-weekly-digest.service
+
+[Install]
+WantedBy=timers.target

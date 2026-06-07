@@ -523,6 +523,34 @@ export async function notifyDailyDigest({ digest }) {
 
   // Pull deltas (may be absent if caller passed a bare digest)
   const deltas = digest.deltas || {};
+
+  // Stage 31 — needs-attention block. Caller can pass `needsAttention` alongside
+  // the digest; absent → block renders empty so the template stays stable.
+  const na = digest.needsAttention || null;
+  let needsAttentionBlock = '';
+  if (na && na.counts && na.counts.total > 0) {
+    const lines = [];
+    lines.push('\n— PERLU PERHATIAN');
+    if (na.counts.openIncidents > 0) {
+      lines.push(`Insiden OPEN > 24 jam: ${na.counts.openIncidents}`);
+      na.openIncidents.slice(0, 3).forEach((i) => {
+        lines.push(`  · ${i.ageHours}j · ${i.type} · ${i.createdBy?.fullName || '—'}${i.paket ? ' · ' + i.paket.title : ''}`);
+      });
+    }
+    if (na.counts.cancelRequests > 0) {
+      lines.push(`Cancel request > 24 jam: ${na.counts.cancelRequests}`);
+      na.cancelRequests.slice(0, 3).forEach((b) => {
+        lines.push(`  · ${b.ageHours}j · ${b.bookingNo} · ${b.jemaah?.fullName || '—'}`);
+      });
+    }
+    if (na.counts.notifsFailed > 0) {
+      lines.push(`Notif FAILED terminal: ${na.counts.notifsFailed}`);
+      na.notifsFailed.slice(0, 3).forEach((n) => {
+        lines.push(`  · ${n.ageHours}j · ${n.type} · ${n.channel}`);
+      });
+    }
+    needsAttentionBlock = lines.join('\n') + '\n';
+  }
   const dNewBookings      = fmtEmailDelta(deltas.newBookings);
   const dLunasBookings    = fmtEmailDelta(deltas.lunasBookings);
   const dLunasRevenue     = fmtEmailDelta(deltas.lunasRevenueIdr);
@@ -566,6 +594,9 @@ export async function notifyDailyDigest({ digest }) {
       trendKomisiEarned: dKomisiEarned,
       trendKomisiPaid: dKomisiPaid,
       trendIncidentsCreated: dIncidentsCreated,
+      // Stage 31 — single block embedding 0..N aged items per category;
+      // empty string when nothing needs attention.
+      needsAttentionBlock,
       adminLink: '/admin',
     };
     const { subject, body } = renderTemplate('DAILY_DIGEST_OWNER', 'EMAIL', vars);
@@ -577,6 +608,96 @@ export async function notifyDailyDigest({ digest }) {
       // Admin-targeted: do NOT set recipientUserId — keeps row out of any
       // jemaah inbox (DAILY_DIGEST_OWNER recipients are owners, not jemaah,
       // but the convention is "admin fan-outs leave recipientUserId null").
+    });
+    enqueued += 1;
+  }));
+
+  return { enqueued, recipients: owners.length };
+}
+
+/**
+ * Stage 33 — weekly summary email fan-out to ACTIVE OWNER users.
+ * Mirror of notifyDailyDigest. Includes inline delta arrows per metric
+ * comparing the past full week vs the week before.
+ */
+export async function notifyWeeklyDigest({ digest }) {
+  const owners = await db.user.findMany({
+    where: {
+      role: 'OWNER',
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { id: true, email: true, fullName: true },
+  });
+  if (owners.length === 0) return { enqueued: 0, recipients: 0 };
+
+  const d = digest.deltas || {};
+  const dNewBookings       = fmtEmailDelta(d.newBookings);
+  const dLunasBookings     = fmtEmailDelta(d.lunasBookings);
+  const dCancelledBookings = fmtEmailDelta(d.cancelledBookings);
+  const dLunasRevenue      = fmtEmailDelta(d.lunasRevenueIdr);
+  const dNewJemaah         = fmtEmailDelta(d.newJemaah);
+  const dNewLeads          = fmtEmailDelta(d.newLeads);
+  const dPaymentsIn        = fmtEmailDelta(d.paymentsInIdr);
+  const dRefundsOut        = fmtEmailDelta(d.refundsOutIdr);
+  const dNetRevenue        = fmtEmailDelta(d.netRevenueIdr);
+  const dKomisiEarned      = fmtEmailDelta(d.komisiEarnedIdr);
+  const dKomisiPaid        = fmtEmailDelta(d.komisiPaidIdr);
+  const dIncidentsCreated  = fmtEmailDelta(d.incidentsCreated);
+  const dDocsVerified      = fmtEmailDelta(d.docsVerified);
+
+  // Top-paket block — empty when nothing happened
+  let topPaketBlock = '';
+  if (digest.topPaket && digest.topPaket.length > 0) {
+    const lines = ['\n— PAKET TERATAS (booking baru minggu ini)'];
+    digest.topPaket.forEach((t, idx) => {
+      const title = t.paket?.title || '(paket terhapus)';
+      lines.push(`${idx + 1}. ${title} · ${t.count} booking`);
+    });
+    topPaketBlock = lines.join('\n') + '\n';
+  }
+
+  let enqueued = 0;
+  await Promise.all(owners.map(async (o) => {
+    const vars = {
+      ownerName: o.fullName || 'OWNER',
+      label: digest.label,
+      newBookings: digest.fmt.newBookings,
+      lunasBookings: digest.fmt.lunasBookings,
+      cancelledBookings: digest.fmt.cancelledBookings,
+      lunasRevenue: digest.fmt.lunasRevenue.replace('Rp ', ''),
+      newJemaah: digest.fmt.newJemaah,
+      newLeads: digest.fmt.newLeads,
+      paymentsIn: digest.fmt.paymentsIn.replace('Rp ', ''),
+      refundsOut: digest.fmt.refundsOut.replace('Rp ', ''),
+      netRevenue: digest.fmt.netRevenue.replace('Rp ', ''),
+      komisiEarned: digest.fmt.komisiEarned.replace('Rp ', ''),
+      komisiPaid: digest.fmt.komisiPaid.replace('Rp ', ''),
+      incidentsCreated: digest.fmt.incidentsCreated,
+      docsVerified: digest.fmt.docsVerified,
+      trendNewBookings: dNewBookings,
+      trendLunasBookings: dLunasBookings,
+      trendCancelledBookings: dCancelledBookings,
+      trendLunasRevenue: dLunasRevenue,
+      trendNewJemaah: dNewJemaah,
+      trendNewLeads: dNewLeads,
+      trendPaymentsIn: dPaymentsIn,
+      trendRefundsOut: dRefundsOut,
+      trendNetRevenue: dNetRevenue,
+      trendKomisiEarned: dKomisiEarned,
+      trendKomisiPaid: dKomisiPaid,
+      trendIncidentsCreated: dIncidentsCreated,
+      trendDocsVerified: dDocsVerified,
+      topPaketBlock,
+      adminLink: '/admin',
+    };
+    const { subject, body } = renderTemplate('WEEKLY_DIGEST_OWNER', 'EMAIL', vars);
+    await enqueueNotification({
+      type: 'WEEKLY_DIGEST_OWNER', channel: 'EMAIL',
+      recipientEmail: o.email,
+      subject, body,
+      payload: { weekStart: digest.weekStart, counts: digest.counts, money: digest.money },
     });
     enqueued += 1;
   }));

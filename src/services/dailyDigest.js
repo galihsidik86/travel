@@ -222,3 +222,21 @@ export async function buildDigestWithComparison({ now = new Date() } = {}) {
 
   return { ...current, previous, deltas };
 }
+
+/**
+ * Stage 31 — bundle the digest + needs-attention payload so the CLI / HTTP
+ * trigger and the email template can read both off one object. Same failure
+ * posture as buildDigestWithComparison — needs-attention failure is non-
+ * fatal; the digest still goes out, the block just renders empty.
+ */
+export async function buildDigestWithAttention({ now = new Date() } = {}) {
+  const digest = await buildDigestWithComparison({ now });
+  let needsAttention = null;
+  try {
+    const { getNeedsAttention } = await import('./needsAttention.js');
+    needsAttention = await getNeedsAttention({ now });
+  } catch (err) {
+    console.warn('[daily-digest] getNeedsAttention failed:', err?.message || err);
+  }
+  return { ...digest, needsAttention };
+}

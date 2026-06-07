@@ -6,6 +6,7 @@ import {
   exportManifestCsv, getPrintManifest,
 } from '../services/adminDashboard.js';
 import { getBunkingForPaket } from '../services/bunking.js';
+import { getPaketWeeklyRecap } from '../services/paketWeeklyRecap.js';
 
 const router = Router();
 
@@ -24,10 +25,17 @@ router.get(
     const bunkingSlug = req.query.bunkingPaket
       || overview.paketList[0]?.slug
       || null;
-    const [manifest, finance, bunking] = await Promise.all([
+    // Stage 32 — per-paket weekly recap. Default to first ACTIVE paket
+    // so the panel always renders something useful on first paint.
+    const recapSlug = req.query.recapPaket
+      || overview.paketList.find((p) => p.status === 'ACTIVE')?.slug
+      || overview.paketList[0]?.slug
+      || null;
+    const [manifest, finance, bunking, paketRecap] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
+      recapSlug ? getPaketWeeklyRecap({ slug: recapSlug }) : Promise.resolve(null),
     ]);
     res.render('admin-dashboard', {
       user: req.user,
@@ -35,6 +43,8 @@ router.get(
       manifest,
       finance,
       bunking,
+      paketRecap,
+      recapSlug,
       activeTab: req.query.tab || 'overview',
       range,
     });

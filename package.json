@@ -20,6 +20,7 @@
     "job:expire-intents": "node --env-file-if-exists=.env src/jobs/expire-intents.js",
     "job:send-notifications": "node --env-file-if-exists=.env src/jobs/send-notifications.js",
     "job:send-daily-digest": "node --env-file-if-exists=.env src/jobs/send-daily-digest.js",
+    "job:send-weekly-digest": "node --env-file-if-exists=.env src/jobs/send-weekly-digest.js",
     "job:prune": "node --env-file-if-exists=.env src/jobs/prune.js"
   },
   "prisma": {

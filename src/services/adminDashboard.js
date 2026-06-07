@@ -5,6 +5,7 @@ import {
   getPerPaketLeaderboard, getKomisiMonthlyAdmin,
 } from './analytics.js';
 import { buildDigestWithComparison } from './dailyDigest.js';
+import { getNeedsAttention } from './needsAttention.js';
 import { pillsForJemaah } from './jemaahDocs.js';
 
 const HOT_STATUSES = ['PENDING', 'BOOKED', 'DP_PAID', 'PARTIAL'];
@@ -238,6 +239,16 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] buildDigestWithComparison failed:', err?.message || err);
   }
 
+  // Stage 31 — needs-attention rolls up stuck rows (terminal FAILED notifs,
+  // cancel-requests >24h pending, OPEN incidents >24h old). Same failure
+  // posture as the digest — non-fatal, view conditionally hides.
+  let needsAttention = null;
+  try {
+    needsAttention = await getNeedsAttention();
+  } catch (err) {
+    console.warn('[admin-overview] getNeedsAttention failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -246,6 +257,7 @@ export async function getAdminOverview(opts = {}) {
     statusBreakdown,
     paketList,
     yesterday,
+    needsAttention,
     analytics: {
       funnel: globalFunnel,
       sourceBreakdown: globalSourceBreakdown,
