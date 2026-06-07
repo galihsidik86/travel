@@ -6,6 +6,7 @@ import {
 } from './analytics.js';
 import { buildDigestWithComparison } from './dailyDigest.js';
 import { getNeedsAttention } from './needsAttention.js';
+import { getRefundAnalytics } from './refundAnalytics.js';
 import { pillsForJemaah } from './jemaahDocs.js';
 
 const HOT_STATUSES = ['PENDING', 'BOOKED', 'DP_PAID', 'PARTIAL'];
@@ -249,6 +250,14 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getNeedsAttention failed:', err?.message || err);
   }
 
+  // Stage 35 — refund analytics (last 90d, top 10 per dimension).
+  let refundAnalytics = null;
+  try {
+    refundAnalytics = await getRefundAnalytics();
+  } catch (err) {
+    console.warn('[admin-overview] getRefundAnalytics failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -258,6 +267,7 @@ export async function getAdminOverview(opts = {}) {
     paketList,
     yesterday,
     needsAttention,
+    refundAnalytics,
     analytics: {
       funnel: globalFunnel,
       sourceBreakdown: globalSourceBreakdown,

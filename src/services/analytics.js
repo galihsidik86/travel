@@ -246,6 +246,7 @@ export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
         select: {
           slug: true, title: true, departureDate: true, status: true,
           costPerPaxIdr: true,                 // stage 22 — profitability input
+          clonedFromId: true,                   // stage 34 — YoY lineage
         },
       },
     },
@@ -266,6 +267,8 @@ export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
         // Stage 22 — null means "admin hasn't entered cost yet"; surface as
         // `marginPct: null` instead of misleading 0%/100% in the leaderboard.
         costPerPaxIdr: toNumber(b.paket.costPerPaxIdr),
+        // Stage 34 — parent in clone lineage, if any.
+        clonedFromId: b.paket.clonedFromId,
         totalBookings: 0,
         hotCount: 0,
         lunasCount: 0,
@@ -340,7 +343,111 @@ export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
   out.sort((a, b) => b.lunasRevenue - a.lunasRevenue
     || b.lunasCount - a.lunasCount
     || a.title.localeCompare(b.title));
+
+  // Stage 34 — attach previous-season totals for rows whose paket has a
+  // clonedFromId. Lifetime totals (no date filter) so the YoY pill compares
+  // "this season so far" against "what the predecessor did total". Single
+  // batched query, not per-row, so no N+1.
+  const parentIds = [...new Set(out.map((r) => r.clonedFromId).filter(Boolean))];
+  if (parentIds.length > 0) {
+    const previousSeasons = await summariseLifetimeTotals(parentIds);
+    for (const r of out) {
+      const prev = r.clonedFromId ? previousSeasons.get(r.clonedFromId) : null;
+      if (!prev) { r.previousSeason = null; continue; }
+      // Compute deltas only when both numbers are meaningful. revenueDelta
+      // is always renderable (zero baseline → +Rp current); marginDelta
+      // requires both sides to have known cost (null skips).
+      const revDelta = r.lunasRevenue - prev.lunasRevenue;
+      const revDeltaPct = prev.lunasRevenue > 0
+        ? Math.round((revDelta / prev.lunasRevenue) * 100)
+        : null;
+      let marginDeltaPp = null;
+      if (r.marginPct != null && prev.marginPct != null) {
+        marginDeltaPp = r.marginPct - prev.marginPct;
+      }
+      r.previousSeason = {
+        ...prev,
+        revenueDelta: revDelta,
+        revenueDeltaPct: revDeltaPct,
+        marginDeltaPp,
+      };
+    }
+  } else {
+    for (const r of out) r.previousSeason = null;
+  }
+
   return limit > 0 ? out.slice(0, limit) : out;
+}
+
+/**
+ * Stage 34 — summarise lifetime totals (no date filter) for a set of paketIds.
+ * Used to compute YoY deltas against a clone's parent. Returns
+ * `Map<paketId, {slug, title, lunasRevenue, lunasCount, lunasPaxCount,
+ *                costPerPaxIdr, komisiLiabilityIdr, marginPct}>`.
+ *
+ * Cheap by design — one query per dimension, all batched in Promise.all.
+ */
+async function summariseLifetimeTotals(paketIds) {
+  if (!paketIds.length) return new Map();
+  const [paketRows, bookings, komisi] = await Promise.all([
+    db.paket.findMany({
+      where: { id: { in: paketIds } },
+      select: { id: true, slug: true, title: true, costPerPaxIdr: true, departureDate: true },
+    }),
+    db.booking.findMany({
+      where: { paketId: { in: paketIds }, status: 'LUNAS' },
+      select: { paketId: true, totalAmount: true, paxCount: true },
+    }),
+    db.komisi.findMany({
+      where: {
+        booking: { paketId: { in: paketIds } },
+        status: { in: ['EARNED', 'PAID'] },
+      },
+      select: { amount: true, booking: { select: { paketId: true } } },
+    }),
+  ]);
+  const lunasByPaket = new Map();
+  for (const b of bookings) {
+    const r = lunasByPaket.get(b.paketId) || { lunasRevenue: 0, lunasCount: 0, lunasPaxCount: 0 };
+    r.lunasRevenue += toNumber(b.totalAmount) ?? 0;
+    r.lunasCount += 1;
+    r.lunasPaxCount += b.paxCount || 1;
+    lunasByPaket.set(b.paketId, r);
+  }
+  const komisiByPaket = new Map();
+  for (const k of komisi) {
+    const pid = k.booking?.paketId;
+    if (!pid) continue;
+    komisiByPaket.set(pid, (komisiByPaket.get(pid) || 0) + (toNumber(k.amount) ?? 0));
+  }
+  const out = new Map();
+  for (const p of paketRows) {
+    const lunas = lunasByPaket.get(p.id) || { lunasRevenue: 0, lunasCount: 0, lunasPaxCount: 0 };
+    const cost = toNumber(p.costPerPaxIdr);
+    const komisiLiability = komisiByPaket.get(p.id) || 0;
+    const totalCost = cost != null ? cost * lunas.lunasPaxCount : null;
+    const netMargin = totalCost != null
+      ? lunas.lunasRevenue - totalCost - komisiLiability
+      : null;
+    const marginPct = totalCost != null && lunas.lunasRevenue > 0
+      ? Math.round((netMargin / lunas.lunasRevenue) * 100)
+      : null;
+    out.set(p.id, {
+      paketId: p.id,
+      slug: p.slug,
+      title: p.title,
+      departureDate: p.departureDate,
+      lunasRevenue: lunas.lunasRevenue,
+      lunasCount: lunas.lunasCount,
+      lunasPaxCount: lunas.lunasPaxCount,
+      costPerPaxIdr: cost,
+      komisiLiabilityIdr: komisiLiability,
+      totalCostIdr: totalCost,
+      netMarginIdr: netMargin,
+      marginPct,
+    });
+  }
+  return out;
 }
 
 /**

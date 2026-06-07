@@ -1,0 +1,4 @@
+{
+  "subject": "Religio Pro · ringkasan mingguan Anda · {{label}}",
+  "body": "Halo {{agentName}},\n\nBerikut ringkasan kinerja Anda minggu {{label}} (panah membandingkan dengan minggu sebelumnya):\n\n— BOOKING\nBaru minggu ini: {{newBookings}}{{trendNewBookings}}\nLunas minggu ini: {{lunasBookings}}{{trendLunasBookings}} (Rp {{lunasRevenue}}{{trendLunasRevenue}})\nCancel minggu ini: {{cancelledBookings}}{{trendCancelledBookings}}\n\n— LEAD CRM\nLead baru: {{leadsCreated}}{{trendLeadsCreated}}\nConverted: {{leadsConverted}}{{trendLeadsConverted}}\nLost: {{leadsLost}}{{trendLeadsLost}}\nConversion rate: {{conversionPct}}\n\n— KOMISI\nEarned minggu ini: Rp {{komisiEarned}}{{trendKomisiEarned}}\nPaid minggu ini: Rp {{komisiPaid}}{{trendKomisiPaid}}\n{{topPaketBlock}}\nDashboard agen: {{agenLink}}\n\n— sistem Religio Pro"
+}

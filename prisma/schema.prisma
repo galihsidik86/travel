@@ -127,6 +127,7 @@ enum NotificationType {
   INCIDENT_REPORTED // crew SOS / emergency → admin fan-out
   DAILY_DIGEST_OWNER // daily activity digest → OWNER (Stage 27)
   WEEKLY_DIGEST_OWNER // weekly summary → OWNER (Stage 33)
+  AGENT_WEEKLY_DIGEST // weekly summary → individual AGEN (Stage 36)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -407,6 +408,14 @@ model Paket {
   costPerPaxIdr Decimal? @db.Decimal(15, 2)
   costNotes     String?  @db.Text
 
+  // Stage 34 — paket clone lineage (S18 created the clone flow; this is the
+  // back-reference column). Null when the paket is an original. Populated by
+  // the clone service so the YoY leaderboard can compare this season to the
+  // one it was cloned from without scraping AuditLog.
+  clonedFromId String?
+  clonedFrom   Paket?   @relation("PaketLineage", fields: [clonedFromId], references: [id], onDelete: SetNull)
+  clones       Paket[]  @relation("PaketLineage")
+
   status      PaketStatus @default(DRAFT)
   publishedAt DateTime?
 
@@ -430,6 +439,7 @@ model Paket {
   @@index([status])
   @@index([departureDate])
   @@index([deletedAt])
+  @@index([clonedFromId])
 }
 
 // Stage 26 — paket waitlist. When kursi penuh, jemaah can leave name +

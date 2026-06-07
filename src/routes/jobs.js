@@ -5,11 +5,12 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { expireOverdueDocuments } from '../services/expireDocs.js';
-import { processPendingNotifications, notifyDailyDigest, notifyWeeklyDigest } from '../services/notifications.js';
+import { processPendingNotifications, notifyDailyDigest, notifyWeeklyDigest, notifyAgentWeeklyDigest } from '../services/notifications.js';
 import { expireStaleIntents } from '../services/expireIntents.js';
 import { pruneRetentionWindows } from '../services/retention.js';
 import { buildDigestWithAttention } from '../services/dailyDigest.js';
 import { buildWeeklyDigest } from '../services/weeklyDigest.js';
+import { buildAgentWeeklyDigest, listActiveAgentsForDigest } from '../services/agentWeeklyDigest.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -73,6 +74,31 @@ router.post(
         recipients: fan.recipients ?? 0,
         enqueued: fan.enqueued ?? 0,
       };
+    });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-agent-weekly-digest',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-agent-weekly-digest', async () => {
+      const agents = await listActiveAgentsForDigest();
+      let enqueued = 0;
+      let skipped = 0;
+      let errors = 0;
+      for (const a of agents) {
+        try {
+          const digest = await buildAgentWeeklyDigest({ agentId: a.id });
+          if (!digest) { skipped += 1; continue; }
+          const fan = await notifyAgentWeeklyDigest({ digest });
+          enqueued += fan.enqueued ?? 0;
+        } catch (err) {
+          console.warn(`[agent-weekly-digest] agent ${a.slug} failed:`, err?.message || err);
+          errors += 1;
+        }
+      }
+      return { agents: agents.length, enqueued, skipped, errors };
     });
     res.json(result);
   }),

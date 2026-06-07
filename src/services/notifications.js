@@ -705,6 +705,75 @@ export async function notifyWeeklyDigest({ digest }) {
   return { enqueued, recipients: owners.length };
 }
 
+/**
+ * Stage 36 — per-agent weekly summary email. Caller iterates the agent
+ * list and passes one built digest per agent. Each call enqueues exactly
+ * one EMAIL row, indexed by recipientUserId so the agent can find it in
+ * their own inbox (different convention from OWNER fan-outs — agents
+ * benefit from inbox tracking; owners just need the email).
+ */
+export async function notifyAgentWeeklyDigest({ digest }) {
+  if (!digest || !digest.agent?.user?.email) return { enqueued: 0 };
+
+  const d = digest.deltas || {};
+  const dNewBookings       = fmtEmailDelta(d.newBookings);
+  const dLunasBookings     = fmtEmailDelta(d.lunasBookings);
+  const dCancelledBookings = fmtEmailDelta(d.cancelledBookings);
+  const dLeadsCreated      = fmtEmailDelta(d.leadsCreated);
+  const dLeadsConverted    = fmtEmailDelta(d.leadsConverted);
+  const dLeadsLost         = fmtEmailDelta(d.leadsLost);
+  const dLunasRevenue      = fmtEmailDelta(d.lunasRevenueIdr);
+  const dKomisiEarned      = fmtEmailDelta(d.komisiEarnedIdr);
+  const dKomisiPaid        = fmtEmailDelta(d.komisiPaidIdr);
+
+  let topPaketBlock = '';
+  if (digest.topPaket && digest.topPaket.length > 0) {
+    const lines = ['\n— PAKET TERATAS Anda minggu ini'];
+    digest.topPaket.forEach((t, idx) => {
+      const title = t.paket?.title || '(paket terhapus)';
+      lines.push(`${idx + 1}. ${title} · ${t.count} booking`);
+    });
+    topPaketBlock = lines.join('\n') + '\n';
+  }
+
+  const vars = {
+    agentName: digest.agent.user.fullName || digest.agent.displayName || 'Agen',
+    label: digest.label,
+    newBookings: digest.fmt.newBookings,
+    lunasBookings: digest.fmt.lunasBookings,
+    cancelledBookings: digest.fmt.cancelledBookings,
+    leadsCreated: digest.fmt.leadsCreated,
+    leadsConverted: digest.fmt.leadsConverted,
+    leadsLost: digest.fmt.leadsLost,
+    conversionPct: digest.fmt.conversionPct,
+    lunasRevenue: digest.fmt.lunasRevenue.replace('Rp ', ''),
+    komisiEarned: digest.fmt.komisiEarned.replace('Rp ', ''),
+    komisiPaid: digest.fmt.komisiPaid.replace('Rp ', ''),
+    trendNewBookings: dNewBookings,
+    trendLunasBookings: dLunasBookings,
+    trendCancelledBookings: dCancelledBookings,
+    trendLeadsCreated: dLeadsCreated,
+    trendLeadsConverted: dLeadsConverted,
+    trendLeadsLost: dLeadsLost,
+    trendLunasRevenue: dLunasRevenue,
+    trendKomisiEarned: dKomisiEarned,
+    trendKomisiPaid: dKomisiPaid,
+    topPaketBlock,
+    agenLink: '/agen',
+  };
+  const { subject, body } = renderTemplate('AGENT_WEEKLY_DIGEST', 'EMAIL', vars);
+  await enqueueNotification({
+    type: 'AGENT_WEEKLY_DIGEST', channel: 'EMAIL',
+    recipientEmail: digest.agent.user.email,
+    subject, body,
+    payload: { weekStart: digest.weekStart, agentSlug: digest.agent.slug },
+    relatedEntity: 'AgentProfile', relatedEntityId: digest.agent.id,
+    // No recipientUserId — agent profiles aren't tied to JemaahProfile
+    // (which is the recipient-inbox model). Email is the canonical channel.
+  });
+  return { enqueued: 1 };
+}
+
 export async function notifyPayoutCreated({ payout, agent }) {
   const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
   const vars = {

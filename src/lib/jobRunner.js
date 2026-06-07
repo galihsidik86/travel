@@ -75,6 +75,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-notifications': 2 * 60_000,       // every 2 min
   'send-daily-digest': 24 * 60 * 60_000,  // daily (Stage 27)
   'send-weekly-digest': 7 * 24 * 60 * 60_000, // weekly (Stage 33)
+  'send-agent-weekly-digest': 7 * 24 * 60 * 60_000, // weekly (Stage 36)
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };
 

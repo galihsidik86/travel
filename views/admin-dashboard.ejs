@@ -1244,11 +1244,134 @@
                     <span style="font-style:italic;">— margin: set "Biaya per pax" di paket edit</span>
                   <% } %>
                 </div>
+                <% if (p.previousSeason) {
+                  const prev = p.previousSeason;
+                  const revUp = prev.revenueDelta >= 0;
+                  const revCls = revUp ? 'emerald' : 'ruby';
+                  const revArrow = revUp ? '▲' : '▼';
+                  // marginDeltaPp = pp (percentage points) — null when cost
+                  // missing on either side. Polarity: higher margin = better.
+                  let marginPpCls = 'ink-200';
+                  let marginPpArrow = '';
+                  if (prev.marginDeltaPp != null) {
+                    if (prev.marginDeltaPp > 0) { marginPpCls = 'emerald'; marginPpArrow = '▲'; }
+                    else if (prev.marginDeltaPp < 0) { marginPpCls = 'ruby'; marginPpArrow = '▼'; }
+                    else { marginPpArrow = '='; }
+                  }
+                %>
+                  <div style="display:flex;gap:14px;margin-top:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);flex-wrap:wrap;border-top:var(--hairline-soft);padding-top:6px;">
+                    <span style="color:var(--ink-100);">YoY vs <a href="/admin/paket/<%= prev.slug %>/edit" style="color:var(--gold-300);text-decoration:none;"><%= prev.title %></a></span>
+                    <span style="color:var(--<%= revCls %>);">
+                      <%= revArrow %> revenue <%= prev.revenueDeltaPct != null ? (prev.revenueDeltaPct > 0 ? '+' : '') + prev.revenueDeltaPct + '%' : (revUp ? '+' : '') + fmt.rpShort(prev.revenueDelta) %>
+                    </span>
+                    <% if (prev.marginDeltaPp != null) { %>
+                      <span style="color:var(--<%= marginPpCls %>);">
+                        <%= marginPpArrow %> margin <%= prev.marginDeltaPp > 0 ? '+' : '' %><%= prev.marginDeltaPp %>pp
+                      </span>
+                    <% } %>
+                    <span style="margin-left:auto;">prev <%= fmt.rpShort(prev.lunasRevenue) %> · <%= prev.lunasCount %> lunas</span>
+                  </div>
+                <% } %>
               </div>
             <% }) %>
           </div>
         <% } %>
       </div>
+
+      <!-- Stage 35 — Refund analytics (last 90 days, top 10 per dimension) -->
+      <% if (refundAnalytics && refundAnalytics.totals.refunded > 0) { %>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Analitik refund</h3>
+            <span class="meta"><%= refundAnalytics.window.days %> HARI · <%= refundAnalytics.totals.refundCount %> REFUND</span>
+          </div>
+          <div class="refund-kpis">
+            <div class="rk">
+              <div class="rk-l">Total refund</div>
+              <div class="rk-v ruby"><%= fmt.rpShort(refundAnalytics.totals.refunded) %><span class="u">IDR</span></div>
+              <div class="rk-s">dari <%= fmt.rpShort(refundAnalytics.totals.paid) %> PAID</div>
+            </div>
+            <div class="rk">
+              <div class="rk-l">Refund rate</div>
+              <%
+                const rate = refundAnalytics.totals.ratePct;
+                const rateCls = rate == null ? 'ink-200' :
+                                rate >= 5 ? 'ruby' :
+                                rate >= 2 ? 'amber' :
+                                rate >  0 ? 'gold-300' : 'emerald';
+              %>
+              <div class="rk-v" style="color:var(--<%= rateCls %>);"><%= rate ?? '—' %>%</div>
+              <div class="rk-s">refund ÷ PAID</div>
+            </div>
+          </div>
+          <div class="refund-cols">
+            <div class="refund-col">
+              <div class="rc-h">Per paket · top <%= refundAnalytics.perPaket.length %></div>
+              <% if (refundAnalytics.perPaket.length === 0) { %>
+                <div class="rc-empty">Tidak ada refund di paket manapun.</div>
+              <% } else { %>
+                <% refundAnalytics.perPaket.forEach(function(r) {
+                  const rcls = r.refundRatePct == null ? 'ink-200' :
+                               r.refundRatePct >= 10 ? 'ruby' :
+                               r.refundRatePct >= 5  ? 'amber' :
+                               r.refundRatePct >  0  ? 'gold-300' : 'emerald';
+                %>
+                  <a class="rc-row" href="/admin/paket/<%= r.paket?.slug %>/edit">
+                    <span class="rc-name"><%= r.paket?.title || '(deleted)' %></span>
+                    <span class="rc-amt"><%= fmt.rpShort(r.refunded) %></span>
+                    <span class="rc-rate" style="color:var(--<%= rcls %>);"><%= r.refundRatePct ?? '—' %>%</span>
+                  </a>
+                <% }) %>
+              <% } %>
+            </div>
+            <div class="refund-col">
+              <div class="rc-h">Per agen · top <%= refundAnalytics.perAgent.length %></div>
+              <% if (refundAnalytics.perAgent.length === 0) { %>
+                <div class="rc-empty">Tidak ada refund di agen manapun.</div>
+              <% } else { %>
+                <% refundAnalytics.perAgent.forEach(function(r) {
+                  const rcls = r.refundRatePct == null ? 'ink-200' :
+                               r.refundRatePct >= 10 ? 'ruby' :
+                               r.refundRatePct >= 5  ? 'amber' :
+                               r.refundRatePct >  0  ? 'gold-300' : 'emerald';
+                %>
+                  <div class="rc-row">
+                    <span class="rc-name">
+                      <% if (r.agent?.slug) { %>
+                        <a href="/admin/users?role=AGEN&q=<%= r.agent.slug %>" style="color:var(--cream-100);text-decoration:none;"><%= r.agent.displayName || r.agent.slug %></a>
+                      <% } else { %>
+                        <%= r.agent?.displayName || 'Kantor Pusat' %>
+                      <% } %>
+                    </span>
+                    <span class="rc-amt"><%= fmt.rpShort(r.refunded) %></span>
+                    <span class="rc-rate" style="color:var(--<%= rcls %>);"><%= r.refundRatePct ?? '—' %>%</span>
+                  </div>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+        </div>
+        <style>
+          .refund-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px; }
+          .rk { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 12px 14px; }
+          .rk-l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+          .rk-v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin-top: 4px; font-weight: 500; }
+          .rk-v.ruby { color: var(--ruby); }
+          .rk-v .u { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-left: 3px; font-weight: 400; letter-spacing: 0.08em; }
+          .rk-s { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); margin-top: 4px; }
+          .refund-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+          .refund-col { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 12px 14px; }
+          .rc-h { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+          .rc-row { display: grid; grid-template-columns: 1fr 90px 60px; gap: 10px; padding: 6px 0; align-items: baseline; color: var(--cream-200); font-size: 12px; text-decoration: none; border-bottom: var(--hairline-soft); }
+          .rc-row:last-child { border-bottom: 0; }
+          .rc-row:hover { background: rgba(255,255,255,0.02); }
+          .rc-name { color: var(--cream-100); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .rc-amt { font-family: var(--font-mono); font-size: 11px; color: var(--ruby); text-align: right; }
+          .rc-rate { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-align: right; }
+          .rc-empty { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); padding: 12px 0; text-align: center; }
+          @media (max-width: 900px) { .refund-cols { grid-template-columns: 1fr; } }
+        </style>
+      <% } %>
 
       <% const km_a = analytics.komisiMonthly;
          const km_maxKom = Math.max(1, ...km_a.map((m) => Math.max(m.earned, m.paid)));

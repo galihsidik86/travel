@@ -1,0 +1,14 @@
+[Unit]
+Description=Religio Pro — Monday 07:10 per-agent weekly digest fan-out
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+# Mondays at 07:10 local — after the OWNER weekly (07:05) so leadership
+# reads theirs first.
+OnCalendar=Mon *-*-* 07:10:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=religio-send-agent-weekly-digest.service
+
+[Install]
+WantedBy=timers.target

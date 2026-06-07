@@ -603,6 +603,9 @@ export async function clonePaket({ req, actor, sourceSlug, input }) {
         status: 'DRAFT',                  // always start in DRAFT — admin activates explicitly
         publishedAt: null,
         createdById: actor?.id ?? null,
+        // Stage 34 — durable lineage column so the YoY leaderboard can
+        // compare this clone against its parent without scraping AuditLog.
+        clonedFromId: source.id,
       },
     });
 

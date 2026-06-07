@@ -45,6 +45,10 @@ MAILTO=""
 # Fires 5 min after the daily so they arrive in order: daily first, then weekly.
 5  7  * * 1   religio  cd /srv/religio-pro && npm run job:send-weekly-digest >> /var/log/religio/weekly.log         2>&1
 
+# Monday 07:10 — per-agent weekly recap to each ACTIVE AGEN (Stage 36)
+# Fires after the OWNER weekly so leadership reads theirs first.
+10 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-agent-weekly-digest >> /var/log/religio/agent-weekly.log 2>&1
+
 # Nightly 01:15 — mysqldump + gzip + 14-day rotation. See deploy/backup.example.sh.
 15 1  * * *   religio  /srv/religio-pro/deploy/backup.sh                     >> /var/log/religio/backup.log         2>&1
 
