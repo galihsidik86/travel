@@ -470,14 +470,44 @@ export async function notifyIncidentCreated({ incident, crew, paket }) {
 }
 
 /**
+ * Stage 30 — render one delta from `buildDigestWithComparison` into a
+ * short suffix the email template embeds inline, e.g. `  · ▲ 12%`.
+ *
+ *   - empty (both windows zero) → '' (no suffix; the line stays clean)
+ *   - flat (diff=0)             → ' · ='
+ *   - up/down with pct          → ' · ▲ 12%' / ' · ▼ 27%'
+ *   - up/down with pct=null     → ' · ▲ +3' (or ' · ▼ −2' for down)
+ *
+ * The leading separator (` · `) is included in the suffix so the template
+ * stays string-literal stable — caller doesn't need to know if a delta is
+ * present.
+ */
+function fmtEmailDelta(d) {
+  if (!d || d.empty) return '';
+  if (d.direction === 'flat') return '  ·  =';
+  const arrow = d.direction === 'up' ? '▲' : '▼';
+  if (d.pct === null) {
+    const sign = d.diff >= 0 ? '+' : '−';
+    const abs = Math.abs(d.diff).toLocaleString('id-ID');
+    return `  ·  ${arrow} ${sign}${abs}`;
+  }
+  const sign = d.pct > 0 ? '+' : '';
+  return `  ·  ${arrow} ${sign}${d.pct}%`;
+}
+
+/**
  * Stage 27 — daily activity digest fan-out to ACTIVE OWNER users.
- * Caller (cron / HTTP trigger) builds the digest via `buildDailyDigest()` and
- * passes the resulting payload here. One EMAIL row per OWNER so each delivery
- * can be retried independently in the queue.
+ * Caller (cron / HTTP trigger) builds the digest via `buildDailyDigest()` or
+ * `buildDigestWithComparison()` and passes the resulting payload here. One
+ * EMAIL row per OWNER so each delivery can be retried independently.
  *
  * Limited to OWNER (not OWNER/SUPERADMIN/MANAJER_OPS like other admin fan-outs)
  * — this is a strategic "state of the business" summary, not an operational
  * alert. SUPERADMIN/MANAJER_OPS already have real-time access via /admin.
+ *
+ * Stage 30 — when `digest.deltas` is present (comparison helper), the email
+ * body gets inline day-over-day delta suffixes per line. Otherwise the body
+ * renders with empty delta placeholders, so the template stays the same.
  */
 export async function notifyDailyDigest({ digest }) {
   const owners = await db.user.findMany({
@@ -490,6 +520,20 @@ export async function notifyDailyDigest({ digest }) {
     select: { id: true, email: true, fullName: true },
   });
   if (owners.length === 0) return { enqueued: 0, recipients: 0 };
+
+  // Pull deltas (may be absent if caller passed a bare digest)
+  const deltas = digest.deltas || {};
+  const dNewBookings      = fmtEmailDelta(deltas.newBookings);
+  const dLunasBookings    = fmtEmailDelta(deltas.lunasBookings);
+  const dLunasRevenue     = fmtEmailDelta(deltas.lunasRevenueIdr);
+  const dNewJemaah        = fmtEmailDelta(deltas.newJemaah);
+  const dNewLeads         = fmtEmailDelta(deltas.newLeads);
+  const dPaymentsIn       = fmtEmailDelta(deltas.paymentsInIdr);
+  const dRefundsOut       = fmtEmailDelta(deltas.refundsOutIdr);
+  const dNetRevenue       = fmtEmailDelta(deltas.netRevenueIdr);
+  const dKomisiEarned     = fmtEmailDelta(deltas.komisiEarnedIdr);
+  const dKomisiPaid       = fmtEmailDelta(deltas.komisiPaidIdr);
+  const dIncidentsCreated = fmtEmailDelta(deltas.incidentsCreated);
 
   let enqueued = 0;
   await Promise.all(owners.map(async (o) => {
@@ -510,6 +554,18 @@ export async function notifyDailyDigest({ digest }) {
       incidentsOpen: digest.fmt.incidentsOpen,
       weekBookings: digest.week.bookings.toLocaleString('id-ID'),
       weekLunasBookings: digest.week.lunasBookings.toLocaleString('id-ID'),
+      // Stage 30 — per-line trend suffixes ('  ·  ▲ 12%' or '')
+      trendNewBookings: dNewBookings,
+      trendLunasBookings: dLunasBookings,
+      trendLunasRevenue: dLunasRevenue,
+      trendNewJemaah: dNewJemaah,
+      trendNewLeads: dNewLeads,
+      trendPaymentsIn: dPaymentsIn,
+      trendRefundsOut: dRefundsOut,
+      trendNetRevenue: dNetRevenue,
+      trendKomisiEarned: dKomisiEarned,
+      trendKomisiPaid: dKomisiPaid,
+      trendIncidentsCreated: dIncidentsCreated,
       adminLink: '/admin',
     };
     const { subject, body } = renderTemplate('DAILY_DIGEST_OWNER', 'EMAIL', vars);

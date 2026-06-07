@@ -308,6 +308,56 @@ test('delta empty=true when both windows are zero', async () => {
   }
 });
 
+test('email body embeds delta arrows when a paired digest is passed', async (t) => {
+  const tag = makeTag('digest-email-deltas');
+  // One ACTIVE OWNER who will receive the digest (plus seed owner)
+  const owner = await tempUser(t, tag, { role: 'OWNER', status: 'ACTIVE' });
+
+  // Far-future window so both windows are empty — direction=flat, suffix='  ·  ='
+  const farPaired = await buildDigestWithComparison({ now: nowForFutureYesterday(50) });
+  // Fan it out
+  await notifyDailyDigest({ digest: farPaired });
+
+  const row = await db.notification.findFirst({
+    where: { type: 'DAILY_DIGEST_OWNER', recipientEmail: owner.email },
+    orderBy: { createdAt: 'desc' },
+    select: { body: true, subject: true },
+  });
+  assert.ok(row, 'one digest row must have been enqueued for our test owner');
+  assert.match(row.subject, /ringkasan harian/);
+  // Empty windows → no arrow suffix should appear on the booking line
+  // (suffix is '' for empty deltas)
+  assert.match(row.body, /Baru hari itu: 0\n/, 'baseline line renders cleanly with no arrow');
+
+  // Cleanup the enqueued row
+  await db.notification.deleteMany({
+    where: { type: 'DAILY_DIGEST_OWNER', recipientEmail: owner.email },
+  });
+});
+
+test('email body falls back gracefully when caller passes bare digest', async (t) => {
+  const tag = makeTag('digest-bare');
+  const owner = await tempUser(t, tag, { role: 'OWNER', status: 'ACTIVE' });
+
+  // Pass the bare (no comparison) digest — delta vars should default to ''
+  const bare = await buildDailyDigest({ now: nowForFutureYesterday(51) });
+  await notifyDailyDigest({ digest: bare });
+
+  const row = await db.notification.findFirst({
+    where: { type: 'DAILY_DIGEST_OWNER', recipientEmail: owner.email },
+    orderBy: { createdAt: 'desc' },
+    select: { body: true },
+  });
+  assert.ok(row);
+  // Bare digest → no arrows anywhere; the template stays string-stable
+  assert.ok(!row.body.includes('▲'), 'no up-arrow in bare-digest body');
+  assert.ok(!row.body.includes('▼'), 'no down-arrow in bare-digest body');
+
+  await db.notification.deleteMany({
+    where: { type: 'DAILY_DIGEST_OWNER', recipientEmail: owner.email },
+  });
+});
+
 test('notifyDailyDigest is a no-op when no ACTIVE OWNER exists', async () => {
   // Simulating "no owners" against a shared dev DB isn't safe (seed has one).
   // Instead, verify the helper returns its zero-summary shape on a stub.

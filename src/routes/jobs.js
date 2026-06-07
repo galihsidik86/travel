@@ -8,7 +8,7 @@ import { expireOverdueDocuments } from '../services/expireDocs.js';
 import { processPendingNotifications, notifyDailyDigest } from '../services/notifications.js';
 import { expireStaleIntents } from '../services/expireIntents.js';
 import { pruneRetentionWindows } from '../services/retention.js';
-import { buildDailyDigest } from '../services/dailyDigest.js';
+import { buildDigestWithComparison } from '../services/dailyDigest.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -49,7 +49,7 @@ router.post(
   '/send-daily-digest',
   asyncHandler(async (_req, res) => {
     const result = await runJob('send-daily-digest', async () => {
-      const digest = await buildDailyDigest();
+      const digest = await buildDigestWithComparison();
       const fan = await notifyDailyDigest({ digest });
       return {
         date: digest.date,
