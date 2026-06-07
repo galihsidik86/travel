@@ -691,6 +691,65 @@
         </article>
       </div>
 
+      <!-- Stage 28 — Kemarin (yesterday-at-a-glance), same source as 07:00 OWNER digest -->
+      <% if (yesterday) { %>
+        <div class="panel" style="margin-bottom:16px;">
+          <div class="panel__head">
+            <h3>Kemarin · <%= yesterday.label %></h3>
+            <span class="meta">SAMA DENGAN DIGEST 07:00</span>
+          </div>
+          <div class="yest-grid">
+            <div class="yest-cell">
+              <div class="l">Booking baru</div>
+              <div class="v"><%= yesterday.fmt.newBookings %></div>
+              <div class="s">lunas · <%= yesterday.fmt.lunasBookings %></div>
+            </div>
+            <div class="yest-cell">
+              <div class="l">Revenue LUNAS</div>
+              <div class="v money"><%= yesterday.fmt.lunasRevenue %></div>
+              <div class="s">net masuk · <%= yesterday.fmt.netRevenue %></div>
+            </div>
+            <div class="yest-cell">
+              <div class="l">Pembayaran masuk</div>
+              <div class="v money"><%= yesterday.fmt.paymentsIn %></div>
+              <div class="s">refund · <%= yesterday.fmt.refundsOut %></div>
+            </div>
+            <div class="yest-cell">
+              <div class="l">Komisi earned</div>
+              <div class="v money"><%= yesterday.fmt.komisiEarned %></div>
+              <div class="s">paid · <%= yesterday.fmt.komisiPaid %></div>
+            </div>
+            <div class="yest-cell">
+              <div class="l">Jemaah baru</div>
+              <div class="v"><%= yesterday.fmt.newJemaah %></div>
+              <div class="s">lead · <%= yesterday.fmt.newLeads %></div>
+            </div>
+            <div class="yest-cell">
+              <div class="l">Insiden</div>
+              <div class="v <%= yesterday.counts.incidentsOpen > 0 ? 'warn' : '' %>"><%= yesterday.fmt.incidentsCreated %></div>
+              <div class="s">masih OPEN · <%= yesterday.fmt.incidentsOpen %></div>
+            </div>
+          </div>
+          <div class="yest-foot">
+            7 hari terakhir: <strong><%= yesterday.week.bookings.toLocaleString('id-ID') %></strong> booking ·
+            <strong><%= yesterday.week.lunasBookings.toLocaleString('id-ID') %></strong> lunas
+          </div>
+        </div>
+        <style>
+          .yest-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+          .yest-cell { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 12px 14px; }
+          .yest-cell .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+          .yest-cell .v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin-top: 4px; font-weight: 500; line-height: 1.1; }
+          .yest-cell .v.money { font-size: 16px; color: var(--gold-300); }
+          .yest-cell .v.warn { color: var(--ruby); }
+          .yest-cell .s { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); margin-top: 4px; }
+          .yest-foot { margin-top: 12px; padding-top: 10px; border-top: var(--hairline-soft); font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; }
+          .yest-foot strong { color: var(--cream-100); }
+          @media (max-width: 1100px) { .yest-grid { grid-template-columns: repeat(3, 1fr); } }
+          @media (max-width: 720px) { .yest-grid { grid-template-columns: repeat(2, 1fr); } .yest-cell .v.money { font-size: 14px; } }
+        </style>
+      <% } %>
+
       <!-- Status breakdown — proportional stacked bar + legend -->
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel__head">
