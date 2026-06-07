@@ -154,3 +154,71 @@ export async function buildDailyDigest({ now = new Date() } = {}) {
     },
   };
 }
+
+// Metric polarity for delta colouring. Default = "higher is better"; the
+// metrics listed here are reversed (more refunds / more incidents is *worse*).
+// `incidentsOpen` is a snapshot (not a window-delta candidate) so it's not
+// in the comparable set — but if added later it would also be REVERSE.
+const REVERSE_POLARITY = new Set(['refundsOutIdr', 'incidentsCreated']);
+
+/**
+ * Compute a signed day-over-day delta for one metric.
+ *   - diff:      current − previous
+ *   - pct:       round((diff / previous) * 100); null when previous=0 AND current>0
+ *                (we render "+N" instead so the "% of zero" trap doesn't lie)
+ *   - direction: 'up' | 'down' | 'flat'
+ *   - good:      true when the direction is favourable for this metric
+ *                (reverse polarity flips the meaning)
+ *   - empty:     true when both windows are zero — render as "—" rather than 0%
+ */
+function computeDelta(metricKey, current, previous) {
+  const diff = current - previous;
+  const reverse = REVERSE_POLARITY.has(metricKey);
+  let direction = 'flat';
+  if (diff > 0) direction = 'up';
+  else if (diff < 0) direction = 'down';
+
+  // Forward polarity: up=good. Reverse polarity: down=good.
+  let good = null;
+  if (direction === 'up') good = !reverse;
+  else if (direction === 'down') good = reverse;
+  // flat stays null — neither good nor bad, render as neutral
+
+  const empty = current === 0 && previous === 0;
+  let pct = null;
+  if (previous !== 0) pct = Math.round((diff / previous) * 100);
+  // previous=0, current>0 → pct stays null; the view picks "+N" instead
+
+  return { diff, pct, direction, good, empty };
+}
+
+/**
+ * Stage 29 — paired digest with day-over-day deltas. Calls `buildDailyDigest`
+ * twice (yesterday + day-before) and adds a `deltas` map keyed by metric so
+ * the widget can render arrows + percentages without reaching into raw counts.
+ *
+ * Why both windows go through `buildDailyDigest` and not a custom query: the
+ * windowing rules (LUNAS counts updatedAt, payments count paidAt, etc.) are
+ * already encoded once. Replicating them risks drift between the two surfaces.
+ */
+export async function buildDigestWithComparison({ now = new Date() } = {}) {
+  const current = await buildDailyDigest({ now });
+  const previousNow = new Date(now.getTime() - MS_PER_DAY);
+  const previous = await buildDailyDigest({ now: previousNow });
+
+  const deltas = {
+    newBookings:      computeDelta('newBookings',      current.counts.newBookings,      previous.counts.newBookings),
+    lunasBookings:    computeDelta('lunasBookings',    current.counts.lunasBookings,    previous.counts.lunasBookings),
+    newJemaah:        computeDelta('newJemaah',        current.counts.newJemaah,        previous.counts.newJemaah),
+    newLeads:         computeDelta('newLeads',         current.counts.newLeads,         previous.counts.newLeads),
+    incidentsCreated: computeDelta('incidentsCreated', current.counts.incidentsCreated, previous.counts.incidentsCreated),
+    lunasRevenueIdr:  computeDelta('lunasRevenueIdr',  current.money.lunasRevenueIdr,   previous.money.lunasRevenueIdr),
+    paymentsInIdr:    computeDelta('paymentsInIdr',    current.money.paymentsInIdr,     previous.money.paymentsInIdr),
+    refundsOutIdr:    computeDelta('refundsOutIdr',    current.money.refundsOutIdr,     previous.money.refundsOutIdr),
+    netRevenueIdr:    computeDelta('netRevenueIdr',    current.money.netRevenueIdr,     previous.money.netRevenueIdr),
+    komisiEarnedIdr:  computeDelta('komisiEarnedIdr',  current.money.komisiEarnedIdr,   previous.money.komisiEarnedIdr),
+    komisiPaidIdr:    computeDelta('komisiPaidIdr',    current.money.komisiPaidIdr,     previous.money.komisiPaidIdr),
+  };
+
+  return { ...current, previous, deltas };
+}

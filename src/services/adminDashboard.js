@@ -4,7 +4,7 @@ import {
   getLeadSourceBreakdown, getAgentFunnel, resolveRange,
   getPerPaketLeaderboard, getKomisiMonthlyAdmin,
 } from './analytics.js';
-import { buildDailyDigest } from './dailyDigest.js';
+import { buildDigestWithComparison } from './dailyDigest.js';
 import { pillsForJemaah } from './jemaahDocs.js';
 
 const HOT_STATUSES = ['PENDING', 'BOOKED', 'DP_PAID', 'PARTIAL'];
@@ -227,13 +227,15 @@ export async function getAdminOverview(opts = {}) {
   const recentActivity = formatRecentActivity(recentAudit);
 
   // Stage 28 — yesterday-at-a-glance panel: same source as the 07:00 email
-  // digest, so UI and inbox never drift apart. Failures are non-fatal —
-  // owner can still see KPIs/recent activity if the digest aggregator throws.
+  // digest, so UI and inbox never drift apart. Stage 29 upgrades the call
+  // to the comparison helper so each cell can render a day-over-day delta.
+  // Failures are non-fatal — owner can still see KPIs/recent activity if
+  // the digest aggregator throws.
   let yesterday = null;
   try {
-    yesterday = await buildDailyDigest();
+    yesterday = await buildDigestWithComparison();
   } catch (err) {
-    console.warn('[admin-overview] buildDailyDigest failed:', err?.message || err);
+    console.warn('[admin-overview] buildDigestWithComparison failed:', err?.message || err);
   }
 
   return {

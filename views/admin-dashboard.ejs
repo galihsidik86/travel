@@ -693,39 +693,57 @@
 
       <!-- Stage 28 — Kemarin (yesterday-at-a-glance), same source as 07:00 OWNER digest -->
       <% if (yesterday) { %>
+        <%
+          // Stage 29 — render a day-over-day delta pill per cell.
+          // - empty (both windows zero) → "—" neutral
+          // - previous=0, current>0 → "+N" (avoid divide-by-zero %)
+          // - otherwise → up/down arrow + signed percent
+          // - polarity: forward (good=true) → green; bad → red; flat/null → muted
+          function renderDelta(d) {
+            if (!d) return '';
+            const cls = d.good === true ? 'up-good' : d.good === false ? 'up-bad' : 'flat';
+            if (d.empty) return '<span class="delta flat">—</span>';
+            if (d.direction === 'flat') return '<span class="delta flat">±0</span>';
+            const arrow = d.direction === 'up' ? '▲' : '▼';
+            const label = d.pct === null
+              ? (d.direction === 'up' ? `+${d.diff.toLocaleString('id-ID')}` : `${d.diff.toLocaleString('id-ID')}`)
+              : `${d.pct > 0 ? '+' : ''}${d.pct}%`;
+            return `<span class="delta ${cls}">${arrow} ${label}</span>`;
+          }
+        %>
         <div class="panel" style="margin-bottom:16px;">
           <div class="panel__head">
             <h3>Kemarin · <%= yesterday.label %></h3>
-            <span class="meta">SAMA DENGAN DIGEST 07:00</span>
+            <span class="meta">VS HARI SEBELUMNYA</span>
           </div>
           <div class="yest-grid">
             <div class="yest-cell">
-              <div class="l">Booking baru</div>
+              <div class="l-row"><span class="l">Booking baru</span><%- renderDelta(yesterday.deltas.newBookings) %></div>
               <div class="v"><%= yesterday.fmt.newBookings %></div>
               <div class="s">lunas · <%= yesterday.fmt.lunasBookings %></div>
             </div>
             <div class="yest-cell">
-              <div class="l">Revenue LUNAS</div>
+              <div class="l-row"><span class="l">Revenue LUNAS</span><%- renderDelta(yesterday.deltas.lunasRevenueIdr) %></div>
               <div class="v money"><%= yesterday.fmt.lunasRevenue %></div>
               <div class="s">net masuk · <%= yesterday.fmt.netRevenue %></div>
             </div>
             <div class="yest-cell">
-              <div class="l">Pembayaran masuk</div>
+              <div class="l-row"><span class="l">Pembayaran masuk</span><%- renderDelta(yesterday.deltas.paymentsInIdr) %></div>
               <div class="v money"><%= yesterday.fmt.paymentsIn %></div>
               <div class="s">refund · <%= yesterday.fmt.refundsOut %></div>
             </div>
             <div class="yest-cell">
-              <div class="l">Komisi earned</div>
+              <div class="l-row"><span class="l">Komisi earned</span><%- renderDelta(yesterday.deltas.komisiEarnedIdr) %></div>
               <div class="v money"><%= yesterday.fmt.komisiEarned %></div>
               <div class="s">paid · <%= yesterday.fmt.komisiPaid %></div>
             </div>
             <div class="yest-cell">
-              <div class="l">Jemaah baru</div>
+              <div class="l-row"><span class="l">Jemaah baru</span><%- renderDelta(yesterday.deltas.newJemaah) %></div>
               <div class="v"><%= yesterday.fmt.newJemaah %></div>
               <div class="s">lead · <%= yesterday.fmt.newLeads %></div>
             </div>
             <div class="yest-cell">
-              <div class="l">Insiden</div>
+              <div class="l-row"><span class="l">Insiden</span><%- renderDelta(yesterday.deltas.incidentsCreated) %></div>
               <div class="v <%= yesterday.counts.incidentsOpen > 0 ? 'warn' : '' %>"><%= yesterday.fmt.incidentsCreated %></div>
               <div class="s">masih OPEN · <%= yesterday.fmt.incidentsOpen %></div>
             </div>
@@ -738,11 +756,16 @@
         <style>
           .yest-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
           .yest-cell { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 12px 14px; }
+          .yest-cell .l-row { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
           .yest-cell .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
           .yest-cell .v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin-top: 4px; font-weight: 500; line-height: 1.1; }
           .yest-cell .v.money { font-size: 16px; color: var(--gold-300); }
           .yest-cell .v.warn { color: var(--ruby); }
           .yest-cell .s { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); margin-top: 4px; }
+          .yest-cell .delta { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; padding: 1px 5px; border-radius: 3px; }
+          .yest-cell .delta.up-good { color: var(--emerald); background: rgba(74,143,109,0.10); }
+          .yest-cell .delta.up-bad  { color: var(--ruby); background: rgba(176,68,68,0.10); }
+          .yest-cell .delta.flat    { color: var(--ink-200); background: rgba(255,255,255,0.02); }
           .yest-foot { margin-top: 12px; padding-top: 10px; border-top: var(--hairline-soft); font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; }
           .yest-foot strong { color: var(--cream-100); }
           @media (max-width: 1100px) { .yest-grid { grid-template-columns: repeat(3, 1fr); } }
