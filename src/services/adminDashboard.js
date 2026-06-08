@@ -10,7 +10,7 @@ import { getRefundAnalytics } from './refundAnalytics.js';
 import { getPaketForecasts } from './paketForecast.js';
 import { getKomisiAging } from './komisiAging.js';
 import { getManifestClosing } from './manifestClose.js';
-import { getPaketConversion, getUtmBreakdown } from './paketView.js';
+import { getPaketConversion, getUtmBreakdown, getLandingSpeed } from './paketView.js';
 import { getJemaahCohortRetention } from './cohortRetention.js';
 import { pillsForJemaah } from './jemaahDocs.js';
 
@@ -335,6 +335,14 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getJemaahCohortRetention failed:', err?.message || err);
   }
 
+  // Stage 56 — landing page render speed (7d p50/p95/p99 + worst paket).
+  let landingSpeed = null;
+  try {
+    landingSpeed = await getLandingSpeed();
+  } catch (err) {
+    console.warn('[admin-overview] getLandingSpeed failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -351,6 +359,7 @@ export async function getAdminOverview(opts = {}) {
     paketConversion,
     utmBreakdown,
     cohortRetention,
+    landingSpeed,
     analytics: {
       funnel: globalFunnel,
       sourceBreakdown: globalSourceBreakdown,

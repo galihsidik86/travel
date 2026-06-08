@@ -62,6 +62,7 @@ export function pickHeroVariant(visitorId) {
 export async function recordPaketView({
   paketId, visitorId, agentSlug = null,
   heroVariant = null, utm = null,
+  renderMs = null,
   now = new Date(),
 } = {}) {
   if (!paketId || !visitorId) return null;
@@ -75,8 +76,12 @@ export async function recordPaketView({
         utmSource:   utm?.source   ?? null,
         utmMedium:   utm?.medium   ?? null,
         utmCampaign: utm?.campaign ?? null,
+        renderMs:    renderMs ?? null,
       },
-      update: {}, // pure no-op on repeat visit within same day
+      // Stage 56 — overwrite renderMs on repeat visits within same day so
+      // the metric reflects the latest landing experience. Other fields
+      // stay first-touch (UTM / variant) — only perf updates.
+      update: renderMs != null ? { renderMs } : {},
     });
   } catch (err) {
     console.warn('[paketView] upsert failed:', err?.message || err);
@@ -244,6 +249,87 @@ export async function getPaketABBreakdown({ paketId, now = new Date(), days = 30
     else winner = 'tie';
   }
   return { A, B, winner, window: { days } };
+}
+
+/**
+ * Stage 56 — landing speed budget. Reads renderMs across the window,
+ * returns p50/p95/p99 + per-paket p95 top 5 worst offenders. Excludes
+ * null renderMs (pre-S56 rows). When sample is <50, the percentiles
+ * are still computed but `lowSample` is flagged so the view can warn
+ * "tidak cukup data untuk percentile reliable".
+ */
+const SPEED_BUDGET_MS = 800; // 95p above this triggers alert
+
+function percentile(sortedArr, p) {
+  if (sortedArr.length === 0) return null;
+  if (sortedArr.length === 1) return sortedArr[0];
+  const idx = Math.floor(sortedArr.length * p);
+  return sortedArr[Math.min(idx, sortedArr.length - 1)];
+}
+
+export async function getLandingSpeed({ now = new Date(), days = 7 } = {}) {
+  const start = new Date(now.getTime() - days * ONE_DAY_MS);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(now);
+  end.setHours(0, 0, 0, 0);
+  end.setTime(end.getTime() + ONE_DAY_MS);
+
+  const rows = await db.paketView.findMany({
+    where: {
+      createdAt: { gte: start, lt: end },
+      renderMs: { not: null },
+    },
+    select: {
+      renderMs: true,
+      paketId: true,
+      paket: { select: { slug: true, title: true } },
+    },
+  });
+  if (rows.length === 0) {
+    return {
+      window: { days },
+      sample: 0,
+      lowSample: true,
+      budgetMs: SPEED_BUDGET_MS,
+      p50: null, p95: null, p99: null,
+      overBudget: false,
+      perPaket: [],
+    };
+  }
+  const all = rows.map((r) => r.renderMs).sort((a, b) => a - b);
+  const p50 = percentile(all, 0.50);
+  const p95 = percentile(all, 0.95);
+  const p99 = percentile(all, 0.99);
+
+  // Per-paket worst-5 by p95
+  const byPaket = new Map();
+  for (const r of rows) {
+    if (!byPaket.has(r.paketId)) byPaket.set(r.paketId, { paket: r.paket, samples: [] });
+    byPaket.get(r.paketId).samples.push(r.renderMs);
+  }
+  const perPaket = [...byPaket.values()]
+    .filter((p) => p.samples.length >= 5) // need ≥5 samples for a stable p95
+    .map((p) => {
+      const sorted = [...p.samples].sort((a, b) => a - b);
+      return {
+        paket: p.paket,
+        sample: p.samples.length,
+        p50: percentile(sorted, 0.50),
+        p95: percentile(sorted, 0.95),
+      };
+    })
+    .sort((a, b) => b.p95 - a.p95)
+    .slice(0, 5);
+
+  return {
+    window: { days },
+    sample: rows.length,
+    lowSample: rows.length < 50,
+    budgetMs: SPEED_BUDGET_MS,
+    p50, p95, p99,
+    overBudget: p95 != null && p95 > SPEED_BUDGET_MS,
+    perPaket,
+  };
 }
 
 /**

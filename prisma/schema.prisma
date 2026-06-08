@@ -132,6 +132,7 @@ enum NotificationType {
   WAITLIST_SLOT_FREED // cancel freed a seat with WAITING candidates → admin (Stage 42)
   AGENT_STALLED_LEADS // daily nudge → agen with cold lead pipeline (Stage 46)
   TRAFFIC_ANOMALY_OWNER // paket view drop ≥50% vs 7d avg → admins (Stage 53)
+  LANDING_SLOW_OWNER // /p/:slug 95p latency > budget → admins (Stage 56)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -489,6 +490,10 @@ model PaketView {
   utmSource   String? @db.VarChar(80)
   utmMedium   String? @db.VarChar(80)
   utmCampaign String? @db.VarChar(120)
+  // Stage 56 — server-side render time in ms. Captured per visit so the
+  // admin can compute 95p latency without a separate metrics table.
+  // Null on rows pre-S56 (legacy data).
+  renderMs    Int?
   createdAt DateTime @default(now())
 
   @@unique([paketId, visitorId, dayKey])

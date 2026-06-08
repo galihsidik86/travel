@@ -1479,6 +1479,67 @@
         </style>
       <% } %>
 
+      <!-- Stage 56 — landing speed budget -->
+      <% if (landingSpeed && landingSpeed.sample > 0) {
+        const overBudget = landingSpeed.overBudget;
+        const p95Cls = overBudget ? 'ruby'
+          : landingSpeed.p95 == null ? 'ink-200'
+          : landingSpeed.p95 > landingSpeed.budgetMs * 0.75 ? 'amber'
+          : 'emerald';
+      %>
+        <div class="panel <%= overBudget ? 'mc-warn' : '' %>" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Landing speed budget</h3>
+            <span class="meta">
+              <%= landingSpeed.window.days %>D · <%= landingSpeed.sample %> SAMPLE
+              <% if (landingSpeed.lowSample) { %> · <strong style="color:var(--amber);">LOW SAMPLE</strong><% } %>
+            </span>
+          </div>
+          <div class="conv-kpis">
+            <div class="ck">
+              <div class="ck-l">p95 latency</div>
+              <div class="ck-v" style="color:var(--<%= p95Cls %>);"><%= landingSpeed.p95 ?? '—' %><span style="font-size:11px;color:var(--ink-200);"> ms</span></div>
+              <div class="ck-s">budget <%= landingSpeed.budgetMs %> ms</div>
+            </div>
+            <div class="ck">
+              <div class="ck-l">p50 / p99</div>
+              <div class="ck-v"><%= landingSpeed.p50 ?? '—' %><span style="font-size:14px;color:var(--ink-200);"> / <%= landingSpeed.p99 ?? '—' %> ms</span></div>
+              <div class="ck-s">/p/:slug server render</div>
+            </div>
+          </div>
+          <% if (landingSpeed.perPaket && landingSpeed.perPaket.length > 0) { %>
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Paket terlambat (p95 desc, ≥5 sample)</th>
+                  <th class="num">Sample</th>
+                  <th class="num">p50 ms</th>
+                  <th class="num">p95 ms</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% landingSpeed.perPaket.forEach(function(r) {
+                  const cls = r.p95 > landingSpeed.budgetMs ? 'ruby'
+                            : r.p95 > landingSpeed.budgetMs * 0.75 ? 'amber'
+                            : 'emerald';
+                %>
+                  <tr>
+                    <td>
+                      <a href="/p/<%= r.paket.slug %>" target="_blank" rel="noopener" style="color:var(--cream-100);text-decoration:none;">
+                        <%= r.paket.title %>
+                      </a>
+                    </td>
+                    <td class="num" style="font-family:var(--font-mono);"><%= r.sample %></td>
+                    <td class="num" style="font-family:var(--font-mono);"><%= r.p50 %></td>
+                    <td class="num" style="font-family:var(--font-mono);color:var(--<%= cls %>);font-weight:600;"><%= r.p95 %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } %>
+        </div>
+      <% } %>
+
       <!-- Stage 51 — UTM campaign breakdown -->
       <% if (utmBreakdown && utmBreakdown.rows.length > 0) { %>
         <div class="panel" style="margin-top:16px;">
@@ -1873,6 +1934,40 @@
               <% }) %>
             </tbody>
           </table>
+          <% if (cohortRetention.byChannel && cohortRetention.byChannel.length > 0) { %>
+            <div style="margin-top:16px;padding-top:12px;border-top:var(--hairline-soft);">
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:10px;">
+                Retensi per channel akuisisi · semua cohort dalam window (min. 5 jemaah/channel)
+              </div>
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Channel</th>
+                    <th class="num">Jemaah</th>
+                    <th class="num">Retained</th>
+                    <th class="num">Retensi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% cohortRetention.byChannel.forEach(function(c) {
+                    const cls = c.retentionPct == null ? 'ink-200'
+                      : c.retentionPct >= 30 ? 'emerald'
+                      : c.retentionPct >= 15 ? 'gold-300'
+                      : c.retentionPct >= 5  ? 'amber' : 'ruby';
+                  %>
+                    <tr>
+                      <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);"><%= c.channel %></td>
+                      <td class="num" style="font-family:var(--font-mono);"><%= c.total %></td>
+                      <td class="num" style="font-family:var(--font-mono);color:var(--gold-300);"><%= c.retained %></td>
+                      <td class="num" style="font-family:var(--font-mono);color:var(--<%= cls %>);font-weight:600;">
+                        <%= c.retentionPct ?? '—' %>%
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
         </div>
       <% } %>
 

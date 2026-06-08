@@ -36,6 +36,10 @@ export const DEFAULTS = Object.freeze({
   jobRunDays:        Number(process.env.RETENTION_JOB_RUN_DAYS)        || 90,
   // PaymentIntent terminal-failure: 365 days
   intentFailedDays:  Number(process.env.RETENTION_INTENT_FAILED_DAYS)  || 365,
+  // Stage 57 — Lead soft-archive: COLD/LOST untouched ≥180 days are
+  // soft-deleted so the agent's pipeline view stays focused on workable
+  // leads. CONVERTED leads stay forever (booking history).
+  staleLeadDays:     Number(process.env.RETENTION_STALE_LEAD_DAYS)     || 180,
 });
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -58,11 +62,16 @@ export async function pruneRetentionWindows({ req, actor, now = new Date(), wind
     notifFailed:  await pruneTerminalFailedNotifications(now, w.notifFailedDays),
     jobRun:       await pruneJobRuns(now, w.jobRunDays),
     intentFailed: await pruneFailedIntents(now, w.intentFailedDays),
+    // Stage 57 — soft-archive stale COLD/LOST leads (deletedAt set, row
+    // kept for audit). Soft not hard, so a manager can still review what
+    // was archived by querying with `deletedAt: { not: null }`.
+    staleLeads:   await archiveStaleLeads(now, w.staleLeadDays),
   };
   const affected = result.notifSent.deleted
     + result.notifFailed.deleted
     + result.jobRun.deleted
-    + result.intentFailed.deleted;
+    + result.intentFailed.deleted
+    + result.staleLeads.archived;
 
   // Audit the sweep itself so the prune is visible in the timeline. Single
   // row; per-row deletes are intentionally NOT audited (would defeat the
@@ -133,4 +142,28 @@ async function pruneFailedIntents(now, days) {
     },
   });
   return { deleted: count, cutoff: cutoff.toISOString(), windowDays: days };
+}
+
+/**
+ * Stage 57 — soft-archive COLD/LOST leads with updatedAt > N days ago.
+ * Sets `deletedAt = now` so the row drops out of agent's pipeline view
+ * (which already filters `deletedAt: null`) but remains in DB so audit
+ * + a future "review archived" view can still surface it.
+ *
+ * WARM + CONVERTED leads are NEVER archived — WARM is workable
+ * (just needs a follow-up), CONVERTED is booking history. The cron
+ * runs weekly inside the prune job; admin can also tune the window via
+ * `RETENTION_STALE_LEAD_DAYS` env var.
+ */
+async function archiveStaleLeads(now, days) {
+  const cutoff = cutoffDate(now, days);
+  const { count } = await db.lead.updateMany({
+    where: {
+      deletedAt: null,
+      status: { in: ['COLD', 'LOST'] },
+      updatedAt: { lt: cutoff },
+    },
+    data: { deletedAt: now },
+  });
+  return { archived: count, cutoff: cutoff.toISOString(), windowDays: days };
 }

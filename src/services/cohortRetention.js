@@ -31,6 +31,19 @@ function monthLabel(yearMonth) {
   return `${MONTH_LABEL_ID[Number(m) - 1]} ${y}`;
 }
 
+/**
+ * Stage 55 — resolve "acquisition channel" for a booking. Priority:
+ *   1. utmSource (e.g. "utm:fb") when set on the first booking
+ *   2. agent slug (e.g. "agen:ahmad-w") when booking has agentSlugCap
+ *      — captures the URL trail even if the agent FK was later cleared
+ *   3. 'direct' fallback (walk-in / direct landing / no UTM, no agent)
+ */
+function channelFor(b) {
+  if (b.utmSource) return `utm:${b.utmSource}`;
+  if (b.agentSlugCap) return `agen:${b.agentSlugCap}`;
+  return 'direct';
+}
+
 export async function getJemaahCohortRetention({ months = 12, now = new Date() } = {}) {
   // Look back N+1 months — the oldest cohort needs a 12-month look-ahead
   // window to be "mature" (i.e. retention number is final, not pending
@@ -39,34 +52,53 @@ export async function getJemaahCohortRetention({ months = 12, now = new Date() }
 
   // Pull all non-cancelled bookings since the cutoff, ordered by jemaah +
   // createdAt so we can collapse to first-touch per jemaah.
+  // Stage 55 — also pull utmSource + agentSlugCap so we can attribute
+  // the cohort entry to an acquisition channel.
   const bookings = await db.booking.findMany({
     where: {
       status: { notIn: ['CANCELLED', 'REFUNDED'] },
       createdAt: { gte: cutoff },
     },
-    select: { jemaahId: true, createdAt: true },
+    select: {
+      jemaahId: true, createdAt: true,
+      utmSource: true, agentSlugCap: true,
+    },
     orderBy: [{ jemaahId: 'asc' }, { createdAt: 'asc' }],
   });
-  if (bookings.length === 0) return { rows: [], windowDays: RETENTION_WINDOW_DAYS };
+  if (bookings.length === 0) return { rows: [], windowDays: RETENTION_WINDOW_DAYS, byChannel: [] };
 
-  // Group by jemaah → array of createdAt sorted asc
+  // Group by jemaah → array of bookings sorted asc
   const byJemaah = new Map();
   for (const b of bookings) {
     if (!byJemaah.has(b.jemaahId)) byJemaah.set(b.jemaahId, []);
-    byJemaah.get(b.jemaahId).push(b.createdAt);
+    byJemaah.get(b.jemaahId).push(b);
   }
 
   // Cohort key = first-booking month → { total, retained }
+  // Stage 55 — also rollup retention per acquisition channel (global,
+  // across all cohorts in window) so admin sees which channel brings
+  // back repeat customers, regardless of when they joined.
   const cohorts = new Map();
-  for (const dates of byJemaah.values()) {
-    const first = dates[0];
-    const key = monthKey(first);
+  const channelRollup = new Map(); // channel → { total, retained }
+  for (const list of byJemaah.values()) {
+    const first = list[0];
+    const key = monthKey(first.createdAt);
+    const channel = channelFor(first);
+
     const row = cohorts.get(key) || { yearMonth: key, total: 0, retained: 0 };
     row.total += 1;
+
+    const chRow = channelRollup.get(channel) || { channel, total: 0, retained: 0 };
+    chRow.total += 1;
+
     // Retained if any later booking landed within 365 days of first
-    const cutoffDate = new Date(first.getTime() + RETENTION_WINDOW_DAYS * ONE_DAY_MS);
-    const repeated = dates.some((d, idx) => idx > 0 && d <= cutoffDate);
-    if (repeated) row.retained += 1;
+    const cutoffDate = new Date(first.createdAt.getTime() + RETENTION_WINDOW_DAYS * ONE_DAY_MS);
+    const repeated = list.some((b, idx) => idx > 0 && b.createdAt <= cutoffDate);
+    if (repeated) {
+      row.retained += 1;
+      chRow.retained += 1;
+    }
+    channelRollup.set(channel, chRow);
     cohorts.set(key, row);
   }
 
@@ -94,9 +126,23 @@ export async function getJemaahCohortRetention({ months = 12, now = new Date() }
   const matureTotal = matureRows.reduce((s, r) => s + r.total, 0);
   const matureRetained = matureRows.reduce((s, r) => s + r.retained, 0);
 
+  // Stage 55 — materialize channel rollup; sort by total desc (biggest
+  // channel first). Min-5 threshold to avoid showing volatile single-
+  // jemaah percentages alongside real channels.
+  const byChannel = [...channelRollup.values()]
+    .filter((c) => c.total >= 5)
+    .map((c) => ({
+      ...c,
+      retentionPct: c.total > 0
+        ? Math.round((c.retained / c.total) * 1000) / 10
+        : null,
+    }))
+    .sort((a, b) => b.total - a.total);
+
   return {
     rows,
     windowDays: RETENTION_WINDOW_DAYS,
+    byChannel,
     summary: {
       matureCohortCount: matureRows.length,
       matureJemaahTotal: matureTotal,

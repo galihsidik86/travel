@@ -33,27 +33,38 @@ paketHtmlRouter.get(
     // resolution (S50) is deterministic per visitor cookie so refreshes
     // are stable. UTM tags (S51) captured from query, first-touch wins
     // (upsert leaves the create-row tags intact on later visits).
+    // Stage 56 — `res.on('finish')` captures the full response duration
+    // (including res.render which is the heavy part), then writes the
+    // visit row with `renderMs`. The DB write is post-response so it
+    // never adds latency to the user-facing render.
     let heroVariant = 'A';
+    let visitorId = null;
     try {
-      const visitorId = getOrSetVisitorId(req, res, { cookieSecure: env.COOKIE_SECURE });
+      visitorId = getOrSetVisitorId(req, res, { cookieSecure: env.COOKIE_SECURE });
       // Resolve variant only if the paket has variant B configured
       heroVariant = paket.heroTitleHtmlVariantB ? pickHeroVariant(visitorId) : 'A';
+    } catch (err) {
+      console.warn('[paket-landing] visitor-cookie resolve failed:', err?.message || err);
+    }
+    const startMs = Date.now();
+    res.on('finish', () => {
+      if (!visitorId) return;
+      const renderMs = Date.now() - startMs;
       const utm = {
         source:   req.query.utm_source   ? String(req.query.utm_source).slice(0, 80)   : null,
         medium:   req.query.utm_medium   ? String(req.query.utm_medium).slice(0, 80)   : null,
         campaign: req.query.utm_campaign ? String(req.query.utm_campaign).slice(0, 120) : null,
       };
-      // Don't await — page render shouldn't block on the DB write
+      // Don't await — the response is already sent; this just persists.
       recordPaketView({
         paketId: paket.id,
         visitorId,
         agentSlug: req.query.a || null,
         heroVariant: paket.heroTitleHtmlVariantB ? heroVariant : null,
         utm,
+        renderMs,
       });
-    } catch (err) {
-      console.warn('[paket-landing] view-track failed:', err?.message || err);
-    }
+    });
 
     // Stage 52 — pick CTA text per variant. Reuses the same heroVariant
     // bucketing so admins running both A/B tests at once see correlated
