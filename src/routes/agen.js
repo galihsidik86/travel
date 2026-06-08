@@ -20,8 +20,13 @@ router.get(
     }
     const range = { from: req.query.from || '', to: req.query.to || '' };
     const activeTab = req.query.tab || 'leads';
-    const data = await getAgentDashboard(profile.id, range);
-    res.render('agen-crm', { user: req.user, ...data, range, activeTab });
+    const { getAgentCommissionForecast } = await import('../services/agentForecast.js');
+    const [data, commissionForecast] = await Promise.all([
+      getAgentDashboard(profile.id, range),
+      getAgentCommissionForecast({ agentId: profile.id, windowDays: 90 })
+        .catch((err) => { console.warn('[agen] forecast failed:', err?.message || err); return null; }),
+    ]);
+    res.render('agen-crm', { user: req.user, ...data, range, activeTab, commissionForecast });
   }),
 );
 

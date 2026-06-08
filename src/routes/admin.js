@@ -102,6 +102,31 @@ router.get(
   }),
 );
 
+// Stage 97 — push debug page. OWNER+SUPERADMIN+MANAJER_OPS only.
+router.get(
+  '/push-debug',
+  asyncHandler(async (req, res) => {
+    const { listAllPushSubscriptionsForDebug, getPushMode, getPublicKey } = await import('../services/webPush.js');
+    const subs = await listAllPushSubscriptionsForDebug();
+    res.render('admin-push-debug', {
+      user: req.user,
+      subs,
+      mode: getPushMode(),
+      publicKeyConfigured: !!getPublicKey(),
+      flash: { test: req.query.test || null, err: req.query.err || null },
+    });
+  }),
+);
+
+router.post(
+  '/push-debug/:id/test',
+  asyncHandler(async (req, res) => {
+    const { sendTestPushToSubscription } = await import('../services/webPush.js');
+    const r = await sendTestPushToSubscription(req.params.id);
+    res.redirect('/admin/push-debug?test=' + encodeURIComponent(r.status || (r.ok ? 'ok' : 'err')));
+  }),
+);
+
 // Stage 91 — task complete/cancel. POST-only state transitions; same RBAC
 // as the rest of /admin (any of 4 admin roles can mark their own tasks).
 router.post(

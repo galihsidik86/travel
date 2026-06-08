@@ -196,10 +196,15 @@ router.get(
     // 5qq: payment intent history for this booking
     const paymentIntents = await listIntentsForBooking(booking.id);
     const canCancelIntent = CANCEL_ROLES.includes(req.user.role);
+    // Stage 98 — unified activity feed (audit + payments + tasks + mentions + …)
+    const { getBookingActivityFeed } = await import('../services/bookingActivity.js');
+    const activityFeed = await getBookingActivityFeed(booking.id)
+      .catch((err) => { console.warn('[booking-detail] activity feed failed:', err?.message || err); return null; });
     res.render('booking-detail', {
       user: req.user, b: booking,
       canCancel, canRefund, canEditNotes, canTransfer, agents,
       paymentIntents, canCancelIntent,
+      activityFeed,
     });
   }),
 );

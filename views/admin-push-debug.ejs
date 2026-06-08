@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Push debug</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0 0 8px; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-bottom: 24px; }
+
+  .mode-pill {
+    display: inline-block; padding: 3px 12px;
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em;
+    border-radius: 3px; font-weight: 600;
+  }
+  .mode-pill.is-real { background: rgba(74,143,109,0.15); color: var(--emerald); border: 1px solid var(--emerald); }
+  .mode-pill.is-fake { background: rgba(212,175,55,0.12); color: var(--gold-300); border: 1px solid var(--gold-300); }
+
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 18px 22px; margin-bottom: 18px; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: var(--hairline-soft); color: var(--cream-100); vertical-align: middle; }
+  th { color: var(--ink-300); font-weight: 400; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  tr.stale td { opacity: 0.5; }
+  .role-pill {
+    display: inline-block; padding: 1px 8px; border-radius: 3px;
+    font-size: 9.5px; letter-spacing: 0.08em;
+    background: var(--ink-1000); border: var(--hairline-soft);
+  }
+  .role-pill.role-OWNER, .role-pill.role-SUPERADMIN { color: var(--gold-300); border-color: var(--gold-300); }
+  .role-pill.role-JEMAAH { color: var(--sapphire); border-color: var(--sapphire); }
+  .ua { color: var(--ink-200); max-width: 220px; overflow: hidden; text-overflow: ellipsis; display: inline-block; white-space: nowrap; vertical-align: middle; }
+  .btn-test {
+    background: transparent; border: 1px solid var(--gold-300); color: var(--gold-300);
+    padding: 3px 10px; font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; cursor: pointer; border-radius: 3px;
+  }
+  .btn-test:hover { background: rgba(212,175,55,0.08); }
+
+  .flash { padding: 10px 14px; border-radius: var(--r-sm); margin-bottom: 14px; font-family: var(--font-mono); font-size: 11.5px; }
+  .flash.ok { background: rgba(74,143,109,0.1); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(181,86,74,0.1); border: 1px solid var(--ruby); color: var(--ruby); }
+  .flash.info { background: rgba(74,158,255,0.08); border: 1px solid var(--sapphire); color: var(--sapphire); }
+
+  .empty { color: var(--ink-300); font-style: italic; padding: 30px 0; text-align: center; }
+</style>
+</head>
+<body data-screen-label="02 Admin · Push debug">
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← KEMBALI</a> · PUSH DEBUG</div>
+  <h1>Push <em>debug</em></h1>
+  <div class="sub">
+    Mode push: <span class="mode-pill <%= mode === 'web-push' ? 'is-real' : 'is-fake' %>"><%= mode %></span>
+    <% if (!publicKeyConfigured) { %>
+      · VAPID key belum di-set di env — push notif jalan di console fake mode saja.
+    <% } %>
+  </div>
+
+  <% if (flash.test === 'sent' || flash.test === 'fake' || flash.test === 'ok') { %>
+    <div class="flash ok">Tes push dikirim. Cek tab browser yang punya subscription tersebut.</div>
+  <% } else if (flash.test === 'gone') { %>
+    <div class="flash info">Subscription dianggap mati (404/410) — row otomatis dihapus.</div>
+  <% } else if (flash.test === 'not_found') { %>
+    <div class="flash err">Subscription tidak ditemukan (mungkin sudah dihapus).</div>
+  <% } else if (flash.test === 'error' || flash.err) { %>
+    <div class="flash err">Tes push gagal — cek log server untuk detail.</div>
+  <% } %>
+
+  <div class="panel">
+    <% if (subs.length === 0) { %>
+      <div class="empty">— belum ada subscription. Aktifkan push dari /admin/incidents atau /saya untuk testing —</div>
+    <% } else { %>
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Role</th>
+            <th>User Agent</th>
+            <th>Endpoint</th>
+            <th>Last used</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% subs.forEach(function(s) { %>
+            <tr class="<%= s.stale ? 'stale' : '' %>">
+              <td>
+                <% if (s.user) { %>
+                  <strong style="color:var(--cream-100);"><%= s.user.fullName || s.user.email %></strong>
+                  <% if (s.stale) { %><span style="color:var(--ruby);font-size:10px;"> (suspended/deleted)</span><% } %>
+                <% } else { %>
+                  <em>(user dihapus)</em>
+                <% } %>
+              </td>
+              <td><span class="role-pill role-<%= s.user?.role || 'X' %>"><%= s.user?.role || '—' %></span></td>
+              <td class="ua" title="<%= s.userAgent || '—' %>"><%= s.userAgent || '—' %></td>
+              <td><code style="color:var(--ink-200);font-size:10px;"><%= s.endpointPreview %></code></td>
+              <td><%= s.lastUsedAt ? fmt.date(s.lastUsedAt) : '—' %></td>
+              <td><%= fmt.date(s.createdAt) %></td>
+              <td>
+                <form method="POST" action="/admin/push-debug/<%= s.id %>/test" style="margin:0;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn-test">TES KIRIM</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

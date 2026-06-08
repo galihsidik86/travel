@@ -623,6 +623,38 @@
           return { key: 'other', icon: '•', cls: 'ink-100' };
         }
       %>
+      <!-- Stage 98 — unified booking activity feed (audit + payments + tasks
+           + mentions + notifs + docs + attendance). Renders ABOVE the audit-
+           only timeline below, which is kept as a fallback for now. -->
+      <% if (typeof activityFeed !== 'undefined' && activityFeed && activityFeed.rows.length > 0) {
+        const kindIcon = { audit: '●', payment: '$', komisi: '$', mention: '@', task: '✓', notif: '✉', doc: '📄', attendance: '◉' };
+        const kindCls = { audit: 'ink-100', payment: 'gold-300', komisi: 'gold-300', mention: 'sapphire', task: 'amber', notif: 'ink-200', doc: 'cream-100', attendance: 'emerald' };
+      %>
+        <div class="panel">
+          <div class="panel__head" style="display:flex;justify-content:space-between;align-items:baseline;">
+            <h3>Aktivitas booking</h3>
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.1em;">
+              <%= activityFeed.counts.shown %><% if (activityFeed.counts.total > activityFeed.counts.shown) { %> dari <%= activityFeed.counts.total %><% } %> · semua sumber
+            </span>
+          </div>
+          <div style="display:grid;gap:6px;margin-top:8px;">
+            <% activityFeed.rows.forEach(function(a) { %>
+              <div style="display:grid;grid-template-columns:18px 80px 1fr auto;gap:8px;align-items:start;padding:6px 8px;background:var(--ink-1000);border:var(--hairline-soft);border-radius:3px;">
+                <span style="color:var(--<%= kindCls[a.kind] || 'ink-100' %>);font-family:var(--font-mono);font-size:13px;line-height:1.2;text-align:center;"><%= kindIcon[a.kind] || '•' %></span>
+                <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.08em;"><%= fmt.date(a.when) %></span>
+                <div>
+                  <div style="color:var(--cream-100);font-size:12.5px;line-height:1.4;"><%= a.label %></div>
+                  <% if (a.by && a.by !== '—') { %>
+                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);margin-top:2px;letter-spacing:0.04em;"><%= a.by %></div>
+                  <% } %>
+                </div>
+                <span style="font-family:var(--font-mono);font-size:9px;color:var(--<%= kindCls[a.kind] || 'ink-200' %>);letter-spacing:0.12em;padding:1px 6px;border:var(--hairline-soft);border-radius:2px;align-self:start;"><%= a.kind.toUpperCase() %></span>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
       <div class="panel">
         <h3>Timeline (<%= b.history.length %>)</h3>
         <% if (b.history.length === 0) { %>

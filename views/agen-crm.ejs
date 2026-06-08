@@ -757,6 +757,41 @@
       <% } %>
 
       <!-- Riwayat payout -->
+      <!-- Stage 99 — projected komisi from active bookings -->
+      <% if (typeof commissionForecast !== 'undefined' && commissionForecast && commissionForecast.totals.bookings > 0) { %>
+        <div class="panel-an" style="margin-top:24px;border-left:3px solid var(--gold-300);">
+          <div class="panel-an__head">
+            <h3>Proyeksi komisi (<%= commissionForecast.windowDays %> hari ke depan)</h3>
+            <span class="meta"><%= commissionForecast.totals.bookings %> booking aktif · Rp <%= fmt.rpShort(commissionForecast.totals.expectedIdr) %> EXPECTED</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px;">
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">PER BULAN KEBERANGKATAN</div>
+              <% commissionForecast.rows.forEach(function(r) { %>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:var(--hairline-soft);font-family:var(--font-mono);font-size:12px;">
+                  <span style="color:var(--cream-100);"><%= r.month === 'unscheduled' ? 'Belum terjadwal' : r.month %></span>
+                  <span style="color:var(--ink-200);font-size:10.5px;"><%= r.bookings %> booking</span>
+                  <span style="color:var(--gold-300);font-weight:600;">Rp <%= fmt.rpShort(r.expectedIdr) %></span>
+                </div>
+              <% }) %>
+            </div>
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">PER STATUS · WEIGHTED</div>
+              <% commissionForecast.perStatus.filter((p) => p.bookings > 0).forEach(function(s) { %>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:var(--hairline-soft);font-family:var(--font-mono);font-size:12px;">
+                  <span style="color:var(--cream-100);"><%= s.status %></span>
+                  <span style="color:var(--ink-200);font-size:10.5px;">×<%= s.probability %></span>
+                  <span style="color:var(--gold-300);font-weight:600;">Rp <%= fmt.rpShort(s.expectedIdr) %></span>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+          <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
+            Estimasi pakai probability heuristic per status (PENDING 30%, BOOKED 50%, DP_PAID 70%, PARTIAL 85%). Komisi sesungguhnya tercatat saat status LUNAS.
+          </div>
+        </div>
+      <% } %>
+
       <div class="panel-an" style="margin-top:24px;">
         <div class="panel-an__head">
           <h3>Riwayat payout</h3>

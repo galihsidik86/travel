@@ -94,6 +94,47 @@ export async function unsubscribePush({ endpoint = null, id = null, userId = nul
   return { deleted: r.count };
 }
 
+/**
+ * Stage 97 — admin debug: list ALL push subscriptions in the system,
+ * grouped by user role + active state. Returns the lean subset needed
+ * by the debug view; endpoint kept as a short hash preview so the
+ * page doesn't leak the raw push URL.
+ */
+export async function listAllPushSubscriptionsForDebug() {
+  const subs = await db.pushSubscription.findMany({
+    orderBy: [{ lastUsedAt: 'desc' }, { createdAt: 'desc' }],
+    include: {
+      user: { select: { id: true, email: true, fullName: true, role: true, status: true, deletedAt: true } },
+    },
+  });
+  return subs.map((s) => ({
+    id: s.id,
+    userId: s.userId,
+    user: s.user,
+    userAgent: s.userAgent,
+    endpointPreview: s.endpointHash ? s.endpointHash.slice(0, 12) + '…' : '—',
+    createdAt: s.createdAt,
+    lastUsedAt: s.lastUsedAt,
+    stale: s.user?.deletedAt != null || s.user?.status !== 'ACTIVE',
+  }));
+}
+
+/**
+ * Stage 97 — send a synthetic test push to ONE subscription. Lets admin
+ * verify VAPID config + the SW push handler end-to-end without waiting
+ * for a real event. Returns the same shape as sendOne (ok/status/gone).
+ */
+export async function sendTestPushToSubscription(subId) {
+  const sub = await db.pushSubscription.findUnique({ where: { id: subId } });
+  if (!sub) return { ok: false, status: 'not_found' };
+  return sendOne(sub, {
+    title: 'Tes push dari /admin/push-debug',
+    body: 'Kalau Anda baca ini di browser, push notif berfungsi.',
+    url: '/admin/push-debug',
+    tag: 'push-debug-' + Date.now(),
+  });
+}
+
 export async function listMyPushSubscriptions(userId) {
   return db.pushSubscription.findMany({
     where: { userId },
