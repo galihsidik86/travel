@@ -36,6 +36,41 @@ function resolveLastFullWeek(now = new Date()) {
   return { start, end, label: `${dStart} – ${dEnd}` };
 }
 
+/**
+ * Stage 67 — per-key delta with crew-relevant polarity.
+ *   - attendanceMarksCount, presentCount, paketTouchedCount: ↑ better
+ *   - absentCount: ↓ better (reverse)
+ */
+const REVERSE_POLARITY_CREW = new Set(['absentCount']);
+function computeCrewDelta(metricKey, current, previous) {
+  const diff = current - previous;
+  const reverse = REVERSE_POLARITY_CREW.has(metricKey);
+  let direction = 'flat';
+  if (diff > 0) direction = 'up';
+  else if (diff < 0) direction = 'down';
+  let good = null;
+  if (direction === 'up') good = !reverse;
+  else if (direction === 'down') good = reverse;
+  const empty = current === 0 && previous === 0;
+  let pct = null;
+  if (previous !== 0) pct = Math.round((diff / previous) * 100);
+  return { diff, pct, direction, good, empty };
+}
+
+async function aggregateCrewWeek({ userId, start, end }) {
+  const marks = await db.attendanceMark.findMany({
+    where: { markedByUserId: userId, markedAt: { gte: start, lt: end } },
+    select: { present: true, paketDay: { select: { paketId: true } } },
+  });
+  const presentCount = marks.filter((m) => m.present).length;
+  return {
+    attendanceMarksCount: marks.length,
+    presentCount,
+    absentCount: marks.length - presentCount,
+    paketTouchedCount: new Set(marks.map((m) => m.paketDay?.paketId).filter(Boolean)).size,
+  };
+}
+
 export async function buildCrewWeeklyDigest({ userId, now = new Date() } = {}) {
   if (!userId) return null;
   const user = await db.user.findUnique({
@@ -47,22 +82,18 @@ export async function buildCrewWeeklyDigest({ userId, now = new Date() } = {}) {
   if (!user || user.role !== 'MUTHAWWIF' || user.status !== 'ACTIVE' || user.deletedAt) return null;
 
   const last = resolveLastFullWeek(now);
+  const prevStart = new Date(last.start.getTime() - ONE_WEEK_MS);
+  const prevEnd = new Date(last.start.getTime());
   // 30-day upcoming window from today midnight
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
   const upcomingEnd = new Date(today.getTime() + 30 * ONE_DAY_MS);
 
-  const [marks, assignments] = await Promise.all([
-    db.attendanceMark.findMany({
-      where: {
-        markedByUserId: userId,
-        markedAt: { gte: last.start, lt: last.end },
-      },
-      select: {
-        present: true,
-        paketDay: { select: { paketId: true } },
-      },
-    }),
+  // Stage 67 — fetch current + previous week aggregates in parallel for
+  // delta computation. assignments query still runs in parallel too.
+  const [current, previous, assignments] = await Promise.all([
+    aggregateCrewWeek({ userId, start: last.start, end: last.end }),
+    aggregateCrewWeek({ userId, start: prevStart, end: prevEnd }),
     db.paketCrew.findMany({
       where: {
         userId,
@@ -85,9 +116,14 @@ export async function buildCrewWeeklyDigest({ userId, now = new Date() } = {}) {
     }),
   ]);
 
-  const presentCount = marks.filter((m) => m.present).length;
-  const absentCount = marks.length - presentCount;
-  const paketTouchedCount = new Set(marks.map((m) => m.paketDay?.paketId).filter(Boolean)).size;
+  const deltas = {
+    attendanceMarksCount: computeCrewDelta('attendanceMarksCount', current.attendanceMarksCount, previous.attendanceMarksCount),
+    presentCount:         computeCrewDelta('presentCount',         current.presentCount,         previous.presentCount),
+    absentCount:          computeCrewDelta('absentCount',          current.absentCount,          previous.absentCount),
+    paketTouchedCount:    computeCrewDelta('paketTouchedCount',    current.paketTouchedCount,    previous.paketTouchedCount),
+  };
+
+  const { attendanceMarksCount, presentCount, absentCount, paketTouchedCount } = current;
 
   return {
     user,
@@ -95,11 +131,13 @@ export async function buildCrewWeeklyDigest({ userId, now = new Date() } = {}) {
     weekStart: localYmd(last.start),
     weekEnd: localYmd(last.end),
     counts: {
-      attendanceMarksCount: marks.length,
+      attendanceMarksCount,
       presentCount,
       absentCount,
       paketTouchedCount,
     },
+    previous,
+    deltas,
     upcomingPaket: assignments.map((a) => ({
       ...a.paket,
       daysUntilDeparture: Math.floor((a.paket.departureDate.getTime() - today.getTime()) / ONE_DAY_MS),

@@ -387,6 +387,43 @@ export async function getLandingSpeed({ now = new Date(), days = 7 } = {}) {
 }
 
 /**
+ * Stage 68 — per-paket p95 latency map for the last N days. Used by the
+ * leaderboard to attach a speed-tier badge per row without re-pulling
+ * the full PaketView corpus. Returns Map<paketId, {p95, sample}>.
+ *
+ * `sample < 5` should be treated as not-reliable by callers (render
+ * neutral badge); the map still includes the row so the data is visible.
+ */
+export async function getPaketSpeedMap({ days = 7, now = new Date() } = {}) {
+  const end = new Date(now);
+  end.setHours(0, 0, 0, 0);
+  end.setTime(end.getTime() + ONE_DAY_MS);
+  const start = new Date(end.getTime() - days * ONE_DAY_MS);
+
+  const rows = await db.paketView.findMany({
+    where: {
+      createdAt: { gte: start, lt: end },
+      renderMs: { not: null },
+    },
+    select: { paketId: true, renderMs: true },
+  });
+  const buckets = new Map();
+  for (const r of rows) {
+    let arr = buckets.get(r.paketId);
+    if (!arr) { arr = []; buckets.set(r.paketId, arr); }
+    arr.push(r.renderMs);
+  }
+  const out = new Map();
+  for (const [pid, samples] of buckets) {
+    const sorted = samples.sort((a, b) => a - b);
+    const idx = Math.floor(sorted.length * 0.95);
+    const p95 = sorted[Math.min(idx, sorted.length - 1)];
+    out.set(pid, { p95, sample: samples.length });
+  }
+  return out;
+}
+
+/**
  * Stage 60 — per-paket daily view counts for the last N days. Used by
  * the paket-edit page sparkline so admin sees traffic trend before
  * tweaking copy / pricing. Returns an array of `[date, count]` oldest

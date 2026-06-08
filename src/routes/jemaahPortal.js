@@ -114,7 +114,7 @@ router.get(
     // render a polling card while waiting for VA/QRIS to settle.
     const { getActiveIntentForJemaahBooking } = await import('../services/paymentGateway.js');
     const activeIntent = await getActiveIntentForJemaahBooking({ userId: req.user.id, bookingId: req.params.id });
-    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent });
+    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, query: req.query });
   }),
 );
 
@@ -224,6 +224,115 @@ router.post(
       userId: req.user.id, bookingId: req.params.id, reason,
     });
     res.json({ ok: true });
+  }),
+);
+
+// Stage 69 — jemaah self-service testimonial submit. Lands in DRAFT for
+// admin review (admin still controls what appears on /p/:slug).
+//
+// Eligibility:
+//   - jemaah owns the booking (jemaahUserId == req.user.id)
+//   - booking is LUNAS (you can only tell a story after you've actually
+//     paid + travelled — DP-only bookings shouldn't earn a public voice)
+//   - only one PUBLISHED-or-DRAFT testimonial per (jemaahUser, paket) —
+//     prevents accidental duplicate submits on form refresh
+const JemaahTestimonialSchema = z.object({
+  body: z.string().min(20, 'Cerita minimal 20 karakter').max(2000),
+  rating: z.preprocess((v) => Number(v), z.number().int().min(1).max(5)),
+  jemaahCity: z.preprocess((v) => v === '' ? null : v, z.string().max(120).nullable().optional()),
+});
+
+router.get(
+  '/saya/bookings/:id/testimonial',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    const booking = await getMyBooking(req.user.id, req.params.id);
+    if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+    if (booking.status !== 'LUNAS') {
+      throw new HttpError(400, 'Testimonial hanya bisa ditulis setelah booking LUNAS', 'NOT_LUNAS');
+    }
+    // Surface existing submission (if any) so the form shows DRAFT/PUBLISHED state
+    const existing = await db.testimonial.findFirst({
+      where: {
+        paketId: booking.paketId,
+        // We match by jemaahName since Testimonial doesn't have a userId FK
+        // and the same jemaah may have multiple bookings; the soft uniqueness
+        // is (this paket × this jemaah's display name)
+        jemaahName: booking.jemaah.fullName,
+      },
+      select: { id: true, status: true, body: true, rating: true, jemaahCity: true },
+    });
+    res.render('jemaah-testimonial', {
+      user: req.user, booking, existing, errors: {}, formError: null,
+    });
+  }),
+);
+
+router.post(
+  '/saya/bookings/:id/testimonial',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    const booking = await getMyBooking(req.user.id, req.params.id);
+    if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+    if (booking.status !== 'LUNAS') {
+      throw new HttpError(400, 'Testimonial hanya bisa ditulis setelah booking LUNAS', 'NOT_LUNAS');
+    }
+    let parsed;
+    try {
+      parsed = JemaahTestimonialSchema.parse(req.body);
+    } catch (err) {
+      const errors = {};
+      for (const issue of err.issues || []) {
+        errors[issue.path.join('.')] = issue.message;
+      }
+      return res.status(400).render('jemaah-testimonial', {
+        user: req.user, booking,
+        existing: req.body, errors,
+        formError: 'Periksa kembali isian form.',
+      });
+    }
+
+    // Re-submit: if jemaah already has a testimonial for this paket+name,
+    // UPDATE the existing row + flip back to DRAFT for re-review (similar
+    // to S47 doc re-verify policy). This avoids duplicate rows on refresh.
+    const existing = await db.testimonial.findFirst({
+      where: { paketId: booking.paketId, jemaahName: booking.jemaah.fullName },
+    });
+    if (existing) {
+      await db.testimonial.update({
+        where: { id: existing.id },
+        data: {
+          body: parsed.body,
+          rating: parsed.rating,
+          jemaahCity: parsed.jemaahCity ?? null,
+          status: 'DRAFT', // re-submit returns to admin review
+        },
+      });
+      await audit({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        action: 'UPDATE', entity: 'Testimonial', entityId: existing.id,
+        after: { selfSubmit: true, reSubmit: true },
+      });
+    } else {
+      const t = await db.testimonial.create({
+        data: {
+          paketId: booking.paketId,
+          jemaahName: booking.jemaah.fullName,
+          jemaahCity: parsed.jemaahCity ?? null,
+          body: parsed.body,
+          rating: parsed.rating,
+          status: 'DRAFT',
+        },
+      });
+      await audit({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        action: 'CREATE', entity: 'Testimonial', entityId: t.id,
+        after: { selfSubmit: true, paketId: booking.paketId },
+      });
+    }
+    res.redirect(`/saya/bookings/${req.params.id}?testimonial=submitted`);
   }),
 );
 

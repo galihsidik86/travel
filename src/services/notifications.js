@@ -1070,6 +1070,15 @@ export async function notifyCrewWeeklyDigest({ digest }) {
     ? '\n— PAKET MENDATANG (30 hari ke depan)\n' + upLines.join('\n') + '\n'
     : '';
 
+  // Stage 67 — per-line delta suffixes when previous week is present.
+  // Uses the same `fmtEmailDelta` shape as the OWNER digests so the visual
+  // style stays consistent across all weekly emails.
+  const d = digest.deltas || {};
+  const dMarks   = fmtEmailDelta(d.attendanceMarksCount);
+  const dPresent = fmtEmailDelta(d.presentCount);
+  const dAbsent  = fmtEmailDelta(d.absentCount);
+  const dTouched = fmtEmailDelta(d.paketTouchedCount);
+
   const vars = {
     crewName: digest.user.fullName || 'Crew',
     label: digest.label,
@@ -1077,6 +1086,10 @@ export async function notifyCrewWeeklyDigest({ digest }) {
     presentCount:      String(digest.counts.presentCount),
     absentCount:       String(digest.counts.absentCount),
     paketTouched:      String(digest.counts.paketTouchedCount),
+    trendMarks:        dMarks,
+    trendPresent:      dPresent,
+    trendAbsent:       dAbsent,
+    trendPaketTouched: dTouched,
     upcomingBlock,
     crewLink: '/crew',
   };

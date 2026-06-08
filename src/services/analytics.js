@@ -357,6 +357,32 @@ export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
     || b.lunasCount - a.lunasCount
     || a.title.localeCompare(b.title));
 
+  // Stage 68 — attach per-paket p95 latency + speed tier badge. Single
+  // batched query; falls through gracefully when no rows have renderMs.
+  try {
+    const { getPaketSpeedMap } = await import('./paketView.js');
+    const speedMap = await getPaketSpeedMap({ days: 7 });
+    for (const r of out) {
+      const s = speedMap.get(r.paketId);
+      if (!s) {
+        r.speedP95 = null;
+        r.speedSample = 0;
+        r.speedTier = null;
+        continue;
+      }
+      r.speedP95 = s.p95;
+      r.speedSample = s.sample;
+      // Tier thresholds match S56 budget (800ms). <5 sample = unknown.
+      if (s.sample < 5) r.speedTier = 'unknown';
+      else if (s.p95 <= 400) r.speedTier = 'fast';
+      else if (s.p95 <= 800) r.speedTier = 'acceptable';
+      else r.speedTier = 'slow';
+    }
+  } catch (err) {
+    console.warn('[leaderboard] speed map failed:', err?.message || err);
+    for (const r of out) { r.speedTier = null; r.speedP95 = null; r.speedSample = 0; }
+  }
+
   // Stage 34 — attach previous-season totals for rows whose paket has a
   // clonedFromId. Lifetime totals (no date filter) so the YoY pill compares
   // "this season so far" against "what the predecessor did total". Single

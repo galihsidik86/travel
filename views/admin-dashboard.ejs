@@ -1216,6 +1216,17 @@
                      style="color:var(--cream-100);text-decoration:none;font-size:14px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                     <%= p.title %>
                   </a>
+                  <% if (p.speedTier && p.speedTier !== 'unknown') {
+                    const tierCls = p.speedTier === 'fast' ? 'emerald'
+                                  : p.speedTier === 'acceptable' ? 'amber' : 'ruby';
+                    const tierLabel = p.speedTier === 'fast' ? 'FAST'
+                                    : p.speedTier === 'acceptable' ? 'OK' : 'SLOW';
+                  %>
+                    <span title="p95 <%= p.speedP95 %>ms · <%= p.speedSample %> sample (7d)"
+                          style="font-family:var(--font-mono);font-size:9px;font-weight:600;padding:2px 6px;border:1px solid var(--<%= tierCls %>);border-radius:3px;color:var(--<%= tierCls %>);letter-spacing:0.1em;">
+                      <%= tierLabel %> <%= p.speedP95 %>ms
+                    </span>
+                  <% } %>
                   <span style="font-family:var(--font-mono);font-size:12px;color:var(--gold-300);white-space:nowrap;">
                     <%= fmt.rpShort(p.lunasRevenue) %>
                   </span>

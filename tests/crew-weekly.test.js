@@ -86,6 +86,26 @@ test('notifyCrewWeeklyDigest fires when there is upcoming paket', async (t) => {
   });
 });
 
+test('digest returns previous-week + deltas (S67) with reverse polarity on absent', async (t) => {
+  const tag = makeTag('cw-delta');
+  const m = await tempMuthawwif(t, tag);
+  const d = await buildCrewWeeklyDigest({ userId: m.id });
+  assert.ok(d.previous);
+  assert.ok(d.deltas);
+  for (const k of ['attendanceMarksCount', 'presentCount', 'absentCount', 'paketTouchedCount']) {
+    assert.ok(d.deltas[k]);
+    assert.equal(typeof d.deltas[k].direction, 'string');
+  }
+  // Reverse polarity contract: absent up = bad
+  if (d.deltas.absentCount.direction === 'up') {
+    assert.equal(d.deltas.absentCount.good, false, 'more absences must read bad');
+  }
+  // Forward polarity: present up = good
+  if (d.deltas.presentCount.direction === 'up') {
+    assert.equal(d.deltas.presentCount.good, true);
+  }
+});
+
 test('listActiveCrewForDigest filters suspended + non-MUTHAWWIF', async (t) => {
   const tag = makeTag('cw-list');
   const active = await tempMuthawwif(t, `${tag}-a`);

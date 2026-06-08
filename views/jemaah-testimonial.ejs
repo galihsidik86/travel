@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Testimoni perjalanan</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 24px 100px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; font-weight: 500; color: var(--cream-100); margin: 0 0 8px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 24px; }
+  .form-error { padding: 10px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11.5px; margin-bottom: 14px; background: rgba(181,86,74,0.08); border: 1px solid rgba(181,86,74,0.4); color: var(--ruby); }
+  .status-banner { padding: 12px 16px; border-radius: var(--r-sm); margin-bottom: 16px; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; }
+  .status-banner.draft { background: rgba(212,175,107,0.06); border: 1px solid var(--gold-300); color: var(--cream-100); }
+  .status-banner.published { background: rgba(74,143,109,0.08); border: 1px solid var(--emerald); color: var(--emerald); }
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 24px; }
+  .field { margin-bottom: 16px; }
+  .label { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .input { width: 100%; padding: 10px 12px; background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); color: var(--cream-100); font-size: 13px; box-sizing: border-box; }
+  textarea.input { resize: vertical; font-family: var(--font-body); line-height: 1.6; }
+  select.input { background-color: var(--ink-1000); color: var(--cream-100); }
+  .helper { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 4px; }
+  .field-err { font-family: var(--font-mono); font-size: 10.5px; color: var(--ruby); margin-top: 4px; }
+  .actions { margin-top: 8px; display: flex; gap: 10px; justify-content: flex-end; }
+  .btn { padding: 12px 20px; border: 0; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; cursor: pointer; text-decoration: none; }
+  .btn--primary { background: var(--gold-300); color: var(--ink-1000); }
+  .btn--ghost { background: transparent; color: var(--ink-100); border: 1px solid var(--ink-700); }
+  .stars { display: flex; gap: 4px; }
+  .stars label { cursor: pointer; font-size: 28px; color: var(--ink-300); transition: color 0.15s; }
+  .stars input { display: none; }
+  .stars label:hover, .stars label:hover ~ label { color: var(--gold-300); }
+  .stars input:checked ~ label { color: var(--gold-300); }
+  .stars { flex-direction: row-reverse; justify-content: flex-end; }
+</style>
+</head>
+<body data-screen-label="03 Jemaah · Testimoni">
+<div class="wrap">
+  <div class="crumb"><a href="/saya/bookings/<%= booking.id %>">← KEMBALI KE BOOKING</a></div>
+  <h1>Bagikan <em>cerita Anda</em></h1>
+  <div class="sub"><%= booking.paket.title %> · <%= booking.bookingNo %></div>
+
+  <% if (formError) { %><div class="form-error"><%= formError %></div><% } %>
+  <% if (existing && existing.id && existing.status) { %>
+    <% if (existing.status === 'PUBLISHED') { %>
+      <div class="status-banner published">
+        ✓ Testimoni Anda <strong>sudah tampil</strong> di halaman paket. Anda bisa edit di bawah — admin akan review ulang setelah resubmit.
+      </div>
+    <% } else if (existing.status === 'DRAFT') { %>
+      <div class="status-banner draft">
+        ⏳ Testimoni Anda <strong>menunggu review admin</strong>. Anda masih bisa edit isinya di bawah.
+      </div>
+    <% } %>
+  <% } %>
+
+  <form method="POST" action="/saya/bookings/<%= booking.id %>/testimonial">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="panel">
+      <div class="field">
+        <label class="label">Rating perjalanan *</label>
+        <%
+          // Reverse-order radio + label trick: stars on hover light up
+          // from right-to-left because of `flex-direction: row-reverse`
+          const currentRating = (existing && existing.rating) ? Number(existing.rating) : 5;
+        %>
+        <div class="stars">
+          <% for (let r = 5; r >= 1; r--) { %>
+            <input type="radio" id="r<%= r %>" name="rating" value="<%= r %>" <%= currentRating === r ? 'checked' : '' %>>
+            <label for="r<%= r %>" title="<%= r %> bintang">★</label>
+          <% } %>
+        </div>
+        <div class="helper">Klik bintang untuk pilih rating.</div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="f-body">Cerita perjalanan Anda * (20–2000 karakter)</label>
+        <textarea class="input" id="f-body" name="body" rows="8" maxlength="2000" required placeholder="Bagikan pengalaman Anda — hotel, manasik, perjalanan, pelayanan tim. Jujur dan apa adanya."><%= existing && existing.body || '' %></textarea>
+        <% if (errors.body) { %><div class="field-err"><%= errors.body %></div><% } %>
+        <div class="helper">Akan ditampilkan di halaman paket setelah admin review.</div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="f-city">Kota Anda (opsional)</label>
+        <input class="input" id="f-city" name="jemaahCity" maxlength="120" placeholder="mis. Jakarta" value="<%= existing && existing.jemaahCity || '' %>">
+        <div class="helper">Ditampilkan di samping nama Anda — tidak ditampilkan jika dikosongkan.</div>
+      </div>
+    </div>
+    <div class="actions">
+      <a class="btn btn--ghost" href="/saya/bookings/<%= booking.id %>">BATAL</a>
+      <button type="submit" class="btn btn--primary">KIRIM TESTIMONI</button>
+    </div>
+  </form>
+</div>
+</body>
+</html>
