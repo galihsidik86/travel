@@ -136,6 +136,8 @@ enum NotificationType {
   CREW_WEEKLY_DIGEST // weekly attendance + upcoming assignments → MUTHAWWIF (Stage 65)
   TESTIMONIAL_PUBLISHED // admin promoted jemaah's testimonial → jemaah (Stage 70)
   FIRST_PAYMENT_THANKS // first PAID payment lands → jemaah (Stage 75)
+  INCIDENT_ESCALATED // OPEN incident > 60 min unacked → OWNER tier (Stage 80)
+  BOOKING_NOTE_MENTION // @-mention in booking notes → mentioned user (Stage 81)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -731,6 +733,11 @@ model Incident {
   resolvedBy   User?          @relation("IncidentResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
   resolvedAt   DateTime?
   resolution   String?        @db.Text
+
+  // Stage 80 — set once the OPEN-too-long escalation has fired. Prevents
+  // the daily cron from re-emailing OWNER tier every run. ACK / RESOLVE
+  // never clear this stamp — once escalated, always escalated.
+  escalatedAt  DateTime?
 
   createdAt DateTime @default(now())
 

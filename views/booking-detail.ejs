@@ -352,9 +352,9 @@
               <form method="POST" action="/admin/bookings/<%= b.id %>/notes" class="notes-form">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <textarea name="notes" class="input" maxlength="2000" rows="2"
-                          placeholder="Catatan internal — mis. preferensi makanan, kontak alternatif, dst."><%= b.notes || '' %></textarea>
+                          placeholder="Catatan internal — mis. preferensi makanan, kontak alternatif, dst. Tag @email@religio.pro untuk notif."><%= b.notes || '' %></textarea>
                 <div class="notes-form__actions">
-                  <span class="notes-form__hint">max 2000 karakter · simpan untuk audit</span>
+                  <span class="notes-form__hint">max 2000 karakter · @email@domain untuk mention</span>
                   <button type="submit" class="notes-form__save">SIMPAN</button>
                 </div>
               </form>

@@ -12,6 +12,7 @@ import { getKomisiAging } from './komisiAging.js';
 import { getManifestClosing } from './manifestClose.js';
 import { getPaketConversion, getUtmBreakdown, getLandingSpeed } from './paketView.js';
 import { getJemaahCohortRetention } from './cohortRetention.js';
+import { getEmailCtrByType } from './emailCtr.js';
 import { pillsForJemaah } from './jemaahDocs.js';
 
 const HOT_STATUSES = ['PENDING', 'BOOKED', 'DP_PAID', 'PARTIAL'];
@@ -335,6 +336,14 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getJemaahCohortRetention failed:', err?.message || err);
   }
 
+  // Stage 79 — per-notif-type email CTR (last 30 days).
+  let emailCtr = null;
+  try {
+    emailCtr = await getEmailCtrByType();
+  } catch (err) {
+    console.warn('[admin-overview] getEmailCtrByType failed:', err?.message || err);
+  }
+
   // Stage 56 — landing page render speed (7d p50/p95/p99 + worst paket).
   let landingSpeed = null;
   try {
@@ -360,6 +369,7 @@ export async function getAdminOverview(opts = {}) {
     utmBreakdown,
     cohortRetention,
     landingSpeed,
+    emailCtr,
     analytics: {
       funnel: globalFunnel,
       sourceBreakdown: globalSourceBreakdown,

@@ -34,12 +34,33 @@ export async function getBookingById(id) {
   return { ...booking, history };
 }
 
+// Stage 81 — extract @email mentions from free-text notes. The grammar is
+// permissive on purpose: `@user@example.com` and inline mentions like
+// "...cek dengan @ops@religio.pro segera" both match. Anchored by a leading
+// `@` immediately preceded by start-of-string or whitespace so a stray `@`
+// in the middle of a sentence ("a@b") never registers as a mention.
+const MENTION_RE = /(?:^|\s)@([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+function extractMentionEmails(text) {
+  if (!text) return [];
+  const out = new Set();
+  let m;
+  MENTION_RE.lastIndex = 0;
+  while ((m = MENTION_RE.exec(text)) !== null) {
+    out.add(m[1].toLowerCase());
+  }
+  return Array.from(out);
+}
+
 /**
  * Update a booking's free-text notes. Idempotent; safe to call repeatedly.
  *   - Trims whitespace; empty string is stored as null.
  *   - Caps at 2000 chars (silently truncates above that — caller should
  *     enforce this in the UI as well).
  *   - Skips DB write + audit if the value didn't actually change.
+ *   - Stage 81: fires BOOKING_NOTE_MENTION notifs for any @email tokens
+ *     that are NEW in `next` vs `before.notes`. Diffing by-email (not
+ *     by-token-position) so adding context around an existing mention
+ *     doesn't re-fire the notif.
  */
 export async function updateBookingNotes({ req, actor, bookingId, notes }) {
   const cleaned = (notes ?? '').toString().trim().slice(0, 2000);
@@ -64,8 +85,35 @@ export async function updateBookingNotes({ req, actor, bookingId, notes }) {
     before: { notes: before.notes },
     after: { notes: next, field: 'notes' },
   });
+
+  // Stage 81 — fire @-mention notifs for newly-introduced mentions only.
+  // Non-blocking: failure to enqueue must never undo the notes write.
+  const beforeMentions = new Set(extractMentionEmails(before.notes));
+  const afterMentions = extractMentionEmails(next);
+  const newMentions = afterMentions.filter((e) => !beforeMentions.has(e));
+  if (newMentions.length > 0) {
+    try {
+      const fullBooking = await db.booking.findUnique({
+        where: { id: bookingId },
+        select: {
+          id: true, bookingNo: true, notes: true,
+          jemaah: { select: { fullName: true } },
+          paket: { select: { title: true } },
+        },
+      });
+      const { notifyBookingNoteMention } = await import('./notifications.js');
+      await notifyBookingNoteMention({ booking: fullBooking, mentions: newMentions, actor });
+    } catch (err) {
+      console.warn('[booking-mention] enqueue failed:', err?.message || err);
+    }
+  }
+
   return updated;
 }
+
+// Exported for tests + future surfaces that want to preview mentions
+// before save (e.g. inline highlight in the textarea).
+export { extractMentionEmails };
 
 /**
  * Transfer a booking from one agent to another (or to Kantor Pusat / no agent).

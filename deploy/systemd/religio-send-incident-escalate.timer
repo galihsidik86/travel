@@ -1,0 +1,14 @@
+[Unit]
+Description=Religio Pro — every-15-min stale-incident escalation sweep
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+# 60-min escalation threshold means 15-min cadence keeps worst-case lag bounded.
+# Idempotency comes from the escalatedAt stamp — duplicate runs are safe.
+OnBootSec=3min
+OnUnitInactiveSec=15min
+Persistent=true
+Unit=religio-send-incident-escalate.service
+
+[Install]
+WantedBy=timers.target

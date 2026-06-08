@@ -16,6 +16,7 @@ import { getStalledLeadsForAgent, listActiveAgentsForLeadsDigest } from '../serv
 import { getTrafficAnomalies } from '../services/trafficAnomaly.js';
 import { getLandingSpeed } from '../services/paketView.js';
 import { buildCrewWeeklyDigest, listActiveCrewForDigest } from '../services/crewWeeklyDigest.js';
+import { escalateStaleIncidents } from '../services/incidentEscalate.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -207,6 +208,14 @@ router.post(
       }
       return { crew: crew.length, enqueued, skipped, errors };
     });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-incident-escalate',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-incident-escalate', () => escalateStaleIncidents());
     res.json(result);
   }),
 );

@@ -38,6 +38,9 @@ MAILTO=""
 # Every 2 minutes — dispatch PENDING + retry-due FAILED notifications
 */2  * * * *  religio  cd /srv/religio-pro && npm run job:send-notifications >> /var/log/religio/notif.log          2>&1
 
+# Every 15 minutes — escalate unacked OPEN incidents past 60min to OWNER tier (Stage 80)
+*/15 * * * *  religio  cd /srv/religio-pro && npm run job:send-incident-escalate >> /var/log/religio/incident-escalate.log 2>&1
+
 # Daily 07:00 — fan out yesterday's activity digest to ACTIVE OWNER users (Stage 27)
 0  7  * * *   religio  cd /srv/religio-pro && npm run job:send-daily-digest  >> /var/log/religio/digest.log         2>&1
 

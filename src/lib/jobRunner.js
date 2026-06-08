@@ -81,6 +81,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-traffic-anomaly': 24 * 60 * 60_000, // daily (Stage 53)
   'send-landing-slow': 24 * 60 * 60_000, // daily (Stage 58)
   'send-crew-weekly-digest': 7 * 24 * 60 * 60_000, // weekly (Stage 65)
+  'send-incident-escalate': 15 * 60_000, // every 15 min (Stage 80) — 60min threshold means tight cadence pays off
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };
 

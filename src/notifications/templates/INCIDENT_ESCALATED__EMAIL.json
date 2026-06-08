@@ -1,0 +1,4 @@
+{
+  "subject": "[ESCALATED] {{typeLabel}} masih OPEN ~{{ageMin}} menit — perlu ack OWNER",
+  "body": "ESCALATION — insiden belum diack tim admin desk.\n\nJenis: {{typeLabel}}\nUsia: {{ageMin}} menit (sejak {{createdAtFormatted}})\nCrew pelapor: {{crewName}} · {{crewPhone}}\nPaket: {{paketTitle}} ({{paketSlug}})\n\nPesan dari crew:\n{{messageBlock}}\n\nIni eskalasi tier-2 — admin desk sudah dapat alert pertama saat insiden dibuat tapi belum ada yang ack. Mohon ditangani:\n{{adminLink}}\n\n— sistem Religio Pro"
+}

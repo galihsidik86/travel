@@ -548,6 +548,113 @@ export async function notifyIncidentCreated({ incident, crew, paket }) {
 }
 
 /**
+ * Stage 80 — second-tier escalation when an OPEN incident sits unacked
+ * past the threshold (default 60min). EMAIL-only fan-out to OWNER tier
+ * (not the whole admin desk that already got stage 13's first alert).
+ *
+ * Idempotency is enforced by the caller (`escalateStaleIncidents` stamps
+ * `Incident.escalatedAt` after a successful fan-out so the next cron run
+ * skips the row). This helper just enqueues — no de-dup of its own.
+ *
+ * `owners` is pre-resolved by the caller (one query per cron tick, not
+ * one per incident) — pass the email-only list.
+ */
+export async function notifyIncidentEscalated({ incident, ageMin, owners }) {
+  if (!owners || owners.length === 0) return { enqueued: 0, skipped: true };
+
+  const TYPE_LABEL = {
+    SOS: 'SOS — Life-threatening',
+    MEDICAL: 'Medical emergency',
+    LOST_JEMAAH: 'Jemaah hilang / terpisah',
+    SECURITY: 'Insiden keamanan',
+    LOGISTICAL: 'Masalah logistik',
+    OTHER: 'Insiden lain',
+  };
+  const vars = {
+    typeLabel: TYPE_LABEL[incident.type] || incident.type,
+    incidentId: incident.id,
+    ageMin: String(ageMin),
+    crewName: incident.createdBy?.fullName ?? '-',
+    crewPhone: incident.createdBy?.phone ?? '-',
+    paketTitle: incident.paket?.title ?? '(tidak terkait paket)',
+    paketSlug: incident.paket?.slug ?? '-',
+    createdAtFormatted: new Date(incident.createdAt).toLocaleString('id-ID', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }),
+    messageBlock: incident.message ? incident.message : '(tidak ada pesan)',
+    adminLink: `/admin/incidents/${incident.id}`,
+  };
+  const { subject, body } = renderTemplate('INCIDENT_ESCALATED', 'EMAIL', vars);
+
+  let enqueued = 0;
+  await Promise.all(owners.map(async (o) => {
+    if (!o.email) return;
+    await enqueueNotification({
+      type: 'INCIDENT_ESCALATED', channel: 'EMAIL',
+      recipientEmail: o.email,
+      subject, body,
+      payload: { incidentId: incident.id, ageMin, type: incident.type },
+      relatedEntity: 'Incident', relatedEntityId: incident.id,
+    });
+    enqueued += 1;
+  }));
+  return { enqueued, recipients: owners.length };
+}
+
+/**
+ * Stage 81 — @-mention fan-out. Called from `updateBookingNotes` when the
+ * notes text grows new @email tokens. Idempotent at the call site: the
+ * caller diffs the previous notes against the new ones, so each new mention
+ * fires exactly one notif. Admins-only — the @ syntax is staff shorthand,
+ * not a public mention surface.
+ *
+ * One notif row per mentioned user so each delivery can be retried
+ * independently. recipientUserId set so the row appears in the recipient's
+ * inbox if they have one (e.g. OWNER who self-registered as a jemaah for
+ * testing — edge case but harmless).
+ */
+export async function notifyBookingNoteMention({ booking, mentions, actor }) {
+  if (!mentions || mentions.length === 0) return { enqueued: 0, skipped: true };
+
+  // Resolve emails → user rows. Skip the actor themself (no self-mention
+  // ping) and any unknown emails (mention typed but no matching account).
+  const users = await db.user.findMany({
+    where: {
+      email: { in: mentions },
+      status: 'ACTIVE',
+      deletedAt: null,
+    },
+    select: { id: true, email: true, fullName: true },
+  });
+  const recipients = users.filter((u) => u.email !== actor?.email);
+  if (recipients.length === 0) return { enqueued: 0, skipped: true };
+
+  const vars = {
+    bookingNo: booking.bookingNo,
+    jemaahName: booking.jemaah?.fullName ?? '-',
+    paketTitle: booking.paket?.title ?? '-',
+    actorEmail: actor?.email ?? 'system',
+    notesPreview: (booking.notes || '').slice(0, 400),
+    adminLink: `/admin/bookings/${booking.id}`,
+  };
+  const { subject, body } = renderTemplate('BOOKING_NOTE_MENTION', 'EMAIL', vars);
+
+  let enqueued = 0;
+  await Promise.all(recipients.map(async (u) => {
+    await enqueueNotification({
+      type: 'BOOKING_NOTE_MENTION', channel: 'EMAIL',
+      recipientEmail: u.email,
+      recipientUserId: u.id,
+      subject, body,
+      payload: { bookingNo: booking.bookingNo, actorEmail: actor?.email ?? null },
+      relatedEntity: 'Booking', relatedEntityId: booking.id,
+    });
+    enqueued += 1;
+  }));
+  return { enqueued, recipients: recipients.length };
+}
+
+/**
  * Stage 30 — render one delta from `buildDigestWithComparison` into a
  * short suffix the email template embeds inline, e.g. `  · ▲ 12%`.
  *

@@ -1,0 +1,4 @@
+{
+  "subject": "Anda di-mention di catatan booking {{bookingNo}}",
+  "body": "{{actorEmail}} men-mention Anda di catatan booking.\n\nBooking: {{bookingNo}}\nJemaah: {{jemaahName}}\nPaket: {{paketTitle}}\n\nIsi catatan:\n{{notesPreview}}\n\nBuka booking:\n{{adminLink}}\n\n— sistem Religio Pro"
+}
