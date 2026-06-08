@@ -23,6 +23,8 @@ import { getOverdueTasks } from '../services/tasks.js';
 import { processPendingDeliveries } from '../services/webhooks.js';
 import { getApiKeyScopeDownCandidates } from '../services/apiKeyScopeDown.js';
 import { notifyApiKeyScopeDown } from '../services/notifications.js';
+import { getWebhookHealthDigest } from '../services/webhookHealthDigest.js';
+import { notifyWebhookHealth } from '../services/notifications.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -276,6 +278,23 @@ router.post(
         breachCount: breaches.counts.breaches,
         incidentsTotal: breaches.counts.incidentsTotal,
         recipients: fan.recipients ?? 0,
+        enqueued: fan.enqueued ?? 0,
+        skipped: fan.skipped ?? false,
+      };
+    });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-webhook-health',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-webhook-health', async () => {
+      const digest = await getWebhookHealthDigest({ days: 7 });
+      const fan = await notifyWebhookHealth({ digest });
+      return {
+        totalWebhooks: digest.rows.length,
+        unhealthyCount: digest.unhealthyCount,
         enqueued: fan.enqueued ?? 0,
         skipped: fan.skipped ?? false,
       };

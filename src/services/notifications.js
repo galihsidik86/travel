@@ -592,6 +592,71 @@ export async function notifyIncidentCreated({ incident, crew, paket }) {
  * (zero candidates → no email). Fan-out to OWNER+SUPERADMIN tier
  * (same gate as /admin/api-keys CRUD).
  */
+/**
+ * Stage 129 — weekly webhook health rollup. Per-webhook delivery health
+ * (success rate, failed count, retry inflation, top error) for the last
+ * N days. Fans out to ACTIVE OWNER (+ SUPERADMIN — webhook config lives
+ * under the same RBAC as /admin/webhooks); KASIR/MANAJER_OPS excluded
+ * because webhook config is a partner-integration concern, not ops.
+ *
+ * **Silent when nothing is unhealthy** — quiet weeks generate no email,
+ * mirroring the API key scope-down digest posture.
+ */
+export async function notifyWebhookHealth({ digest }) {
+  if (!digest || !digest.hasIssues) {
+    return { enqueued: 0, skipped: true };
+  }
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { enqueued: 0 };
+
+  const unhealthy = digest.rows.filter((r) => !r.healthy);
+  const lines = unhealthy.slice(0, 20).map((r, idx) => {
+    const url = r.webhook.url;
+    const scope = r.webhook.paket ? ` · scope: ${r.webhook.paket.slug}` : '';
+    const t = r.totals;
+    const rate = t.successRatePct == null ? '—' : `${t.successRatePct}%`;
+    const stuck = t.stuckPending > 0 ? `, stuck ${t.stuckPending}` : '';
+    const inf = r.attemptInflation != null && r.attemptInflation > 1
+      ? ` · ${r.attemptInflation}× attempts/delivery`
+      : '';
+    const err = r.topError
+      ? `\n   top error (${r.topError.count}×): ${r.topError.message}`
+      : '';
+    return `${idx + 1}. ${url}${scope}\n   success: ${rate} (${t.succeeded}/${t.succeeded + t.failed}) · failed ${t.failed}, pending ${t.pending}${stuck}${inf}${err}`;
+  });
+  const more = Math.max(0, unhealthy.length - 20);
+  if (more > 0) lines.push(`  · + ${more} webhook lainnya…`);
+
+  const days = Math.round((digest.windowEnd.getTime() - digest.windowStart.getTime()) / (24 * 60 * 60 * 1000));
+  const vars = {
+    unhealthyCount: String(unhealthy.length),
+    windowDays: String(days),
+    rowsBlock: lines.join('\n\n'),
+    adminLink: '/admin/webhooks',
+  };
+  const { subject, body } = renderTemplate('WEBHOOK_HEALTH_OWNER', 'EMAIL', vars);
+
+  let enqueued = 0;
+  await Promise.all(admins.map(async (a) => {
+    await enqueueNotification({
+      type: 'WEBHOOK_HEALTH_OWNER', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject, body,
+      payload: { unhealthyCount: unhealthy.length, windowDays: days },
+    });
+    enqueued += 1;
+  }));
+  return { enqueued, recipients: admins.length };
+}
+
 export async function notifyApiKeyScopeDown({ candidates }) {
   if (!candidates || candidates.rows.length === 0) {
     return { enqueued: 0, skipped: true };

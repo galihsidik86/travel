@@ -141,6 +141,7 @@ enum NotificationType {
   INCIDENT_SLA_BREACH_OWNER // last-week p95 ack/resolve breached budget → OWNER tier (Stage 87)
   TASK_OVERDUE_ESCALATION // Task past dueAt + 48h still OPEN → OWNER tier (Stage 96)
   API_KEY_SCOPE_DOWN_OWNER // weekly digest of API keys with unused scopes (Stage 124)
+  WEBHOOK_HEALTH_OWNER // weekly per-webhook delivery health rollup (Stage 129)
   GENERIC // catch-all for ad-hoc notifs
 }
 

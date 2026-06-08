@@ -1,0 +1,4 @@
+{
+  "subject": "[Webhook] {{unhealthyCount}} subscription butuh perhatian ({{windowDays}}d)",
+  "body": "Halo tim,\n\nRingkasan kesehatan delivery webhook {{windowDays}} hari terakhir.\n\n{{rowsBlock}}\n\nLihat detail per-row di {{adminLink}} — tombol REPLAY tersedia untuk pengiriman ulang manual.\n\nCatatan:\n  · success rate dihitung dari row terminal (SUCCEEDED + FAILED) — pending tidak dihitung\n  · attempt inflation >1 berarti partner endpoint butuh retry untuk berhasil\n  · stuck pending = belum kelar dalam 1 jam (mungkin nyangkut)\n\n— sistem Religio Pro"
+}
