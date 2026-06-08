@@ -93,6 +93,11 @@
           <% }) %>
         </div>
       </div>
+      <div class="field">
+        <label class="label" for="ak-rl">Rate limit (req/min)</label>
+        <input id="ak-rl" class="input" name="rateLimitPerMin" type="number" min="1" max="6000" value="60" style="max-width:160px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);margin-top:4px;">Default 60. Raise untuk partner yang butuh backfill / batch sync. Cap 6000 (100/sec).</div>
+      </div>
       <button type="submit" class="btn-primary">GENERATE TOKEN</button>
     </form>
   </div>
@@ -123,6 +128,7 @@
               </td>
               <td>
                 <% sc.forEach(function(s) { %><span class="scope-pill"><%= s %></span><% }) %>
+                <div style="margin-top:4px;font-size:9.5px;color:var(--ink-300);"><%= k.rateLimitPerMin %> req/min</div>
               </td>
               <td><span class="status-tag <%= k.status.toLowerCase() %>"><%= k.status %></span></td>
               <td>

@@ -6,7 +6,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import {
-  listWebhooks, createWebhook, updateWebhookStatus, deleteWebhook, EVENT_NAMES,
+  listWebhooks, createWebhook, updateWebhookStatus, deleteWebhook, testFireWebhook, EVENT_NAMES,
 } from '../services/webhooks.js';
 
 const router = Router();
@@ -67,6 +67,21 @@ router.post(
       }
       throw err;
     }
+  }),
+);
+
+// Stage 117 — admin test-fire. POSTs a synthetic signed event to the
+// webhook URL and renders the HTTP response inline. Doesn't insert a
+// WebhookDelivery row — manual probe, kept out of the diagnostic surfaces.
+router.post(
+  '/:id/test-fire',
+  asyncHandler(async (req, res) => {
+    const { db } = await import('../lib/db.js');
+    const webhook = await db.webhook.findUnique({ where: { id: req.params.id } });
+    if (!webhook) return res.status(404).type('text/plain').send('Webhook tidak ditemukan');
+    const eventName = (req.body?.event || 'test.ping').toString();
+    const result = await testFireWebhook({ webhook, eventName });
+    res.render('admin-webhook-test-result', { user: req.user, webhook, eventName, result });
   }),
 );
 

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Test-fire result</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 8px; font-weight: 500; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-bottom: 22px; word-break: break-all; }
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 18px 22px; margin-bottom: 16px; }
+
+  .verdict {
+    display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: var(--r-md); margin-bottom: 16px;
+    font-family: var(--font-mono); font-size: 12.5px;
+  }
+  .verdict.ok    { background: rgba(74,143,109,0.10); border: 2px solid var(--emerald); color: var(--emerald); }
+  .verdict.err   { background: rgba(181,86,74,0.10); border: 2px solid var(--ruby); color: var(--ruby); }
+  .verdict .big { font-family: var(--font-display); font-size: 28px; }
+
+  .kv { display: grid; grid-template-columns: 160px 1fr; gap: 8px 14px; font-family: var(--font-mono); font-size: 11px; }
+  .kv dt { color: var(--ink-300); letter-spacing: 0.08em; text-transform: uppercase; font-size: 10px; }
+  .kv dd { color: var(--cream-100); margin: 0; word-break: break-all; }
+  .code-block {
+    background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm);
+    padding: 10px 12px; font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--cream-200); white-space: pre-wrap; word-break: break-all;
+    max-height: 240px; overflow: auto;
+  }
+  .panel h2 { font-family: var(--font-display); font-size: 16px; margin: 0 0 12px; color: var(--cream-100); font-weight: 500; }
+
+  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  .btn { padding: 8px 16px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-decoration: none; text-transform: uppercase; cursor: pointer; }
+  .btn--ghost { border: 1px solid var(--ink-700); color: var(--ink-100); background: transparent; }
+  .btn--primary { background: var(--gold-300); color: var(--ink-1000); border: 0; font-weight: 600; }
+</style>
+</head>
+<body data-screen-label="02 Admin · Test-fire result">
+<div class="wrap">
+  <div class="crumb"><a href="/admin/webhooks">← WEBHOOKS</a> · TEST-FIRE RESULT</div>
+  <h1>Test-fire <em>result</em></h1>
+  <div class="sub">
+    Target: <strong style="color:var(--gold-300);"><%= webhook.url %></strong>
+    · Event: <code><%= eventName %></code>
+  </div>
+
+  <% if (result.ok) { %>
+    <div class="verdict ok">
+      <span class="big">✓</span>
+      <div>
+        <strong>Partner endpoint reachable + responded OK.</strong><br>
+        HTTP <%= result.status %> · <%= result.durationMs %>ms
+      </div>
+    </div>
+  <% } else if (result.status) { %>
+    <div class="verdict err">
+      <span class="big">✕</span>
+      <div>
+        <strong>Partner returned HTTP <%= result.status %>.</strong><br>
+        Endpoint reachable tapi response non-2xx. <%= result.durationMs %>ms.
+      </div>
+    </div>
+  <% } else { %>
+    <div class="verdict err">
+      <span class="big">⚠</span>
+      <div>
+        <strong>Partner endpoint unreachable.</strong><br>
+        <%= result.error || 'unknown error' %> · <%= result.durationMs %>ms.
+      </div>
+    </div>
+  <% } %>
+
+  <div class="panel">
+    <h2>Request</h2>
+    <dl class="kv">
+      <dt>Method</dt><dd>POST</dd>
+      <dt>Headers</dt><dd>
+        Content-Type: application/json<br>
+        X-Religio-Signature: <%= result.signature || '(error before sign)' %><br>
+        X-Religio-Event: <%= eventName %><br>
+        X-Religio-Test: true
+      </dd>
+    </dl>
+    <% if (result.sentBody) { %>
+      <div style="margin-top:10px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.08em;margin-bottom:6px;">BODY (verbatim)</div>
+        <div class="code-block"><%= result.sentBody %></div>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="panel">
+    <h2>Response</h2>
+    <dl class="kv">
+      <dt>Status</dt><dd><%= result.status != null ? 'HTTP ' + result.status : '(no response — network error)' %></dd>
+      <dt>Duration</dt><dd><%= result.durationMs %>ms</dd>
+      <% if (result.error) { %>
+        <dt>Error</dt><dd style="color:var(--ruby);"><%= result.error %></dd>
+      <% } %>
+    </dl>
+    <% if (result.bodyPreview) { %>
+      <div style="margin-top:10px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.08em;margin-bottom:6px;">
+          BODY PREVIEW (first 500 chars<%= result.bodyTruncated ? ' — truncated' : '' %>)
+        </div>
+        <div class="code-block"><%= result.bodyPreview %></div>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="actions">
+    <a href="/admin/webhooks" class="btn btn--ghost">← Kembali</a>
+    <form method="POST" action="/admin/webhooks/<%= webhook.id %>/test-fire" style="margin:0;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="event" value="<%= eventName %>">
+      <button type="submit" class="btn btn--primary">↻ Coba lagi</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

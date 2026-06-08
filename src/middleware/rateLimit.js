@@ -26,6 +26,9 @@ function getStore() {
 
 export function setRateLimitStore(s) { store = s; storeKind = s?.kind || null; }
 export function getRateLimitStoreKind() { return storeKind || (store?.kind ?? null); }
+// Stage 115 — expose the resolved store so other middlewares (apiKeyRateLimit)
+// can reuse the same bucket backend.
+export function getRateLimitStore() { return getStore(); }
 
 /** Release the active store (close Redis connection, clear GC interval). Safe to call when no store bootstrapped. */
 export async function stopRateLimit() {

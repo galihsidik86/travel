@@ -707,6 +707,11 @@ model ApiKey {
   hashedKey   String   @db.VarChar(120)
   scopes      Json     // ["read:bookings", ...]
   status      ApiKeyStatus @default(ACTIVE)
+  // Stage 115 — per-key rate limit (requests per minute). Default 60
+  // is conservative enough for human-typing partners + automation that
+  // polls every few seconds. Admin can raise per-key when a partner
+  // needs to backfill or do batch sync.
+  rateLimitPerMin Int   @default(60)
 
   createdAt   DateTime @default(now())
   createdById String?

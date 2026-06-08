@@ -44,6 +44,7 @@ router.post(
         req, actor: actorFrom(req),
         name: req.body?.name,
         scopes,
+        rateLimitPerMin: req.body?.rateLimitPerMin,
       });
       // Surface the token via query — user MUST copy it; we never store
       // the plaintext. Using query keeps the flow stateless; cookies would

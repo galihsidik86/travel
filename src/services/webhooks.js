@@ -162,6 +162,82 @@ async function attemptDelivery(sub, body, signature, eventName, delivery, attemp
 }
 
 /**
+ * Stage 117 — admin "fire a synthetic event" probe. Lets admin verify
+ * partner endpoint reachability + signature acceptance during onboarding
+ * without waiting for a real booking. Returns the HTTP response shape
+ * (status + first 500 chars of body) for inline display.
+ *
+ * Does NOT insert a WebhookDelivery row + does NOT bump lastFiredAt —
+ * one-shot manual probe, kept out of the diagnostic surfaces. The
+ * partner endpoint sees the same shape a real event would, plus an
+ * `X-Religio-Test: true` header so partners can short-circuit if they
+ * want to suppress test events in their logs.
+ */
+export async function testFireWebhook({ webhook, eventName = 'test.ping', customPayload = null }) {
+  if (!webhook?.url || !webhook?.secret) {
+    return { ok: false, error: 'webhook missing url/secret' };
+  }
+  const samples = {
+    'test.ping': { ts: new Date().toISOString(), note: 'admin test-fire from /admin/webhooks' },
+    'booking.created': {
+      bookingId: 'demo-bk-123', bookingNo: 'RP-TEST-00001',
+      status: 'PENDING', totalAmount: 10_000_000, kelas: 'QUAD', paxCount: 2,
+      paketSlug: 'demo-paket', agentSlug: 'demo-agent', jemaahName: 'Demo Jemaah',
+    },
+    'payment.received': {
+      bookingId: 'demo-bk-123', bookingNo: 'RP-TEST-00001', paymentId: 'demo-pay',
+      amount: 3_000_000, method: 'TRANSFER', currency: 'IDR', bookingStatus: 'DP_PAID',
+    },
+    'booking.lunas': {
+      bookingId: 'demo-bk-123', bookingNo: 'RP-TEST-00001',
+      totalAmount: 10_000_000, finalPaymentId: 'demo-pay-final',
+    },
+    'refund.issued': {
+      bookingId: 'demo-bk-123', bookingNo: 'RP-TEST-00001',
+      refundAmount: 2_000_000, fullRefund: false, reason: 'admin test-fire',
+      bookingStatus: 'CANCELLED',
+    },
+  };
+  const payload = customPayload || samples[eventName] || samples['test.ping'];
+  const body = JSON.stringify({ event: eventName, ts: new Date().toISOString(), payload });
+  const signature = sign(webhook.secret, body);
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort('timeout'), DEFAULT_TIMEOUT_MS);
+  const startedAt = Date.now();
+  try {
+    const res = await fetch(webhook.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Religio-Signature': signature,
+        'X-Religio-Event': eventName,
+        'X-Religio-Test': 'true',
+      },
+      body, signal: ctrl.signal,
+    });
+    const text = await res.text();
+    return {
+      ok: res.ok,
+      status: res.status,
+      durationMs: Date.now() - startedAt,
+      bodyPreview: text.slice(0, 500),
+      bodyTruncated: text.length > 500,
+      signature,
+      sentBody: body,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: String(err?.message || err).slice(0, 500),
+      durationMs: Date.now() - startedAt,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Stage 109 — retry job. Picks PENDING deliveries whose nextRetryAt has
  * elapsed and re-fires them. Run via `npm run job:retry-webhooks` cron
  * (every 2 min) or HTTP trigger.

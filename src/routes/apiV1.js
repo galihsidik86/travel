@@ -9,10 +9,32 @@
 
 import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
-import { requireApiScope } from '../services/apiKeys.js';
+import { requireApiScope, apiKeyRateLimit } from '../services/apiKeys.js';
 import { db } from '../lib/db.js';
 
 const router = Router();
+
+// Stage 116 — OpenAPI discovery surface. No auth (the spec itself is
+// public; partners need it to know how to authenticate).
+router.get(
+  '/openapi.json',
+  asyncHandler(async (req, res) => {
+    const { buildOpenApiSpec } = await import('../services/openApiSpec.js');
+    const { env } = await import('../env.js');
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const baseUrl = env.PUBLIC_BASE_URL || `${proto}://${host}`;
+    res.json(buildOpenApiSpec({ baseUrl }));
+  }),
+);
+
+router.get(
+  '/docs',
+  asyncHandler(async (_req, res) => {
+    const { swaggerUiHtml } = await import('../services/openApiSpec.js');
+    res.type('text/html').send(swaggerUiHtml());
+  }),
+);
 
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 50;
@@ -23,6 +45,7 @@ const BOOKING_STATUSES = ['PENDING', 'BOOKED', 'DP_PAID', 'PARTIAL', 'LUNAS', 'C
 router.get(
   '/bookings',
   requireApiScope('read:bookings'),
+  apiKeyRateLimit,
   asyncHandler(async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(req.query.limit, 10) || DEFAULT_LIMIT));
@@ -99,6 +122,7 @@ router.get(
 router.get(
   '/bookings/:id',
   requireApiScope('read:bookings'),
+  apiKeyRateLimit,
   asyncHandler(async (req, res) => {
     const b = await db.booking.findUnique({
       where: { id: req.params.id },
@@ -158,6 +182,7 @@ router.get(
 router.get(
   '/paket',
   requireApiScope('read:paket'),
+  apiKeyRateLimit,
   asyncHandler(async (_req, res) => {
     const rows = await db.paket.findMany({
       where: { deletedAt: null, status: 'ACTIVE' },

@@ -48,13 +48,18 @@ export async function listApiKeys() {
   });
 }
 
-export async function createApiKey({ req, actor, name, scopes }) {
+export async function createApiKey({ req, actor, name, scopes, rateLimitPerMin }) {
   const cleanName = (name || '').trim().slice(0, 120);
   if (cleanName.length < 2) throw new HttpError(400, 'Nama minimal 2 karakter', 'BAD_NAME');
   const cleanScopes = Array.isArray(scopes)
     ? scopes.filter((s) => KNOWN_SCOPES.includes(s))
     : [];
   if (cleanScopes.length === 0) throw new HttpError(400, 'Pilih minimal satu scope', 'NO_SCOPES');
+
+  // S115 — clamp rate limit. Default 60; allow 1..6000 (max 100/sec).
+  let rl = parseInt(rateLimitPerMin, 10);
+  if (!Number.isFinite(rl) || rl <= 0) rl = 60;
+  rl = Math.min(6000, Math.max(1, rl));
 
   const secret = generateSecret();
   const hashedKey = await bcrypt.hash(secret, 10);
@@ -63,13 +68,14 @@ export async function createApiKey({ req, actor, name, scopes }) {
       name: cleanName,
       hashedKey,
       scopes: cleanScopes,
+      rateLimitPerMin: rl,
       createdById: actor?.id || null,
     },
   });
   await audit({
     req, actor,
     action: 'CREATE', entity: 'ApiKey', entityId: created.id,
-    after: { name: cleanName, scopes: cleanScopes },
+    after: { name: cleanName, scopes: cleanScopes, rateLimitPerMin: rl },
   });
   // Return the token ONCE — caller must surface it; the secret is not
   // retrievable afterwards.
@@ -128,7 +134,7 @@ export async function resolveBearerToken(header) {
 
 // Express middleware factory — requires Bearer auth + a specific scope.
 // Use BEFORE route handler:
-//   router.get('/x', requireApiScope('read:bookings'), handler)
+//   router.get('/x', requireApiScope('read:bookings'), apiKeyRateLimit, handler)
 export function requireApiScope(scope) {
   return async function apiScopeGuard(req, res, next) {
     const key = await resolveBearerToken(req.headers.authorization || '');
@@ -142,4 +148,48 @@ export function requireApiScope(scope) {
     req.apiKey = key;
     next();
   };
+}
+
+/**
+ * Stage 115 — per-API-key rate limit. Runs AFTER requireApiScope (which
+ * attaches `req.apiKey`). Reuses the shared rate-limit store so admin
+ * can choose in-memory or Redis without touching this middleware.
+ *
+ * **Fail-open on store errors** — same posture as the human-side rate
+ * limit; a Redis blip shouldn't lock partners out. Adds standard
+ * `Retry-After` + `X-RateLimit-*` headers so well-behaved clients back
+ * off automatically.
+ */
+export async function apiKeyRateLimit(req, res, next) {
+  if (!req.apiKey) {
+    return res.status(500).json({ error: { code: 'NO_API_KEY_ATTACHED', message: 'apiKeyRateLimit must run after requireApiScope' } });
+  }
+  const max = req.apiKey.rateLimitPerMin || 60;
+  const windowMs = 60_000;
+  let count, resetAt;
+  try {
+    const { getRateLimitStore } = await import('../middleware/rateLimit.js');
+    const store = getRateLimitStore();
+    ({ count, resetAt } = await store.hit(`apikey:${req.apiKey.id}`, windowMs));
+  } catch (err) {
+    console.warn('[apiKeyRateLimit] store error, failing open:', err?.message || err);
+    return next();
+  }
+  if (count > max) {
+    const retryAfter = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
+    res.setHeader('Retry-After', String(retryAfter));
+    res.setHeader('X-RateLimit-Limit', String(max));
+    res.setHeader('X-RateLimit-Remaining', '0');
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(resetAt / 1000)));
+    return res.status(429).json({
+      error: {
+        code: 'RATE_LIMITED',
+        message: `Rate limit exceeded — ${max} req/min. Retry in ${retryAfter}s.`,
+      },
+    });
+  }
+  res.setHeader('X-RateLimit-Limit', String(max));
+  res.setHeader('X-RateLimit-Remaining', String(Math.max(0, max - count)));
+  res.setHeader('X-RateLimit-Reset', String(Math.ceil(resetAt / 1000)));
+  next();
 }
