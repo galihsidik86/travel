@@ -114,5 +114,20 @@ export async function issueRefund({ req, actor, bookingId, amount, method, reaso
     console.error('[refund] notif failed:', err.message);
   }
 
+  // Stage 108 — outbound webhook fan-out.
+  try {
+    const { dispatchEvent } = await import('./webhooks.js');
+    await dispatchEvent('refund.issued', {
+      bookingId,
+      bookingNo: updatedBooking.bookingNo,
+      refundAmount: amt,
+      fullRefund: newPaid === 0,
+      reason: reason.trim(),
+      bookingStatus: updatedBooking.status,
+    });
+  } catch (err) {
+    console.warn('[refund] webhook dispatch failed:', err?.message || err);
+  }
+
   return { payment, booking: updatedBooking };
 }

@@ -149,6 +149,24 @@ export async function createBooking({ req, paketSlug, agentSlug, fullName, phone
     console.error('[booking] notif failed:', err.message);
   }
 
+  // Stage 108 — outbound webhook fan-out. Best-effort like the notif.
+  try {
+    const { dispatchEvent } = await import('./webhooks.js');
+    await dispatchEvent('booking.created', {
+      bookingId: result.booking.id,
+      bookingNo: result.booking.bookingNo,
+      status: result.booking.status,
+      totalAmount: Number(result.booking.totalAmount?.toString?.() ?? result.booking.totalAmount) || 0,
+      kelas: result.booking.kelas,
+      paxCount: result.booking.paxCount,
+      paketSlug: paket.slug,
+      agentSlug: result.booking.agentSlugCap || null,
+      jemaahName: result.jemaah?.fullName || null,
+    });
+  } catch (err) {
+    console.warn('[booking] webhook dispatch failed:', err?.message || err);
+  }
+
   return {
     booking: result.booking,
     jemaah: result.jemaah,

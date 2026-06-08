@@ -236,13 +236,15 @@ router.get(
 );
 
 // ── GET /admin/bookings/:id/bundle.zip (Stage 105 — dossier export) ──
+// Stage 106: ?format=csv swaps voucher.pdf for booking/payments/docs CSVs.
 router.get(
   '/:id/bundle.zip',
   requireRole(...VIEW_ROLES),
   asyncHandler(async (req, res) => {
     const data = await getAdminBookingVoucher(req.params.id);
     const { streamBookingBundle } = await import('../services/bookingBundle.js');
-    await streamBookingBundle(data, res);
+    const format = (req.query.format || 'pdf').toString().toLowerCase();
+    await streamBookingBundle(data, res, { format: format === 'csv' ? 'csv' : 'pdf' });
   }),
 );
 

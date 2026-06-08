@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Outbound webhooks</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0 0 8px; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-bottom: 24px; letter-spacing: 0.04em; }
+
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 18px 22px; margin-bottom: 18px; }
+  .panel h2 { font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--cream-100); margin: 0 0 14px; }
+  .input { background: var(--ink-1000); border: var(--hairline-soft); color: var(--cream-100); padding: 8px 12px; border-radius: var(--r-sm); font-family: inherit; font-size: 13px; width: 100%; box-sizing: border-box; }
+  .input:focus { outline: 1px solid var(--gold-300); }
+  .field { margin-bottom: 12px; }
+  .label { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+  .helper { font-family: var(--font-mono); font-size: 10px; color: var(--ink-300); margin-top: 4px; }
+  .btn-primary { background: var(--gold-300); color: var(--ink-1000); border: 0; padding: 8px 18px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; border-radius: 3px; font-weight: 600; }
+
+  .events-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .events-grid label { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--cream-100); cursor: pointer; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: var(--hairline-soft); color: var(--cream-100); vertical-align: top; }
+  th { color: var(--ink-300); font-weight: 400; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  tr.suspended td { opacity: 0.55; }
+  .url { color: var(--gold-300); word-break: break-all; }
+  .ev-pill { display: inline-block; background: var(--ink-1000); border: var(--hairline-soft); border-radius: 3px; padding: 1px 6px; font-size: 9.5px; color: var(--ink-100); margin: 1px 2px; letter-spacing: 0.04em; }
+  .status-tag { display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 10px; letter-spacing: 0.08em; }
+  .status-tag.active { background: rgba(74,143,109,0.12); color: var(--emerald); border: 1px solid var(--emerald); }
+  .status-tag.suspended { background: rgba(212,175,55,0.10); color: var(--gold-300); border: 1px solid var(--gold-300); }
+  .btn-row { background: transparent; border: 1px solid var(--ink-700); color: var(--ink-100); padding: 3px 9px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em; cursor: pointer; border-radius: 3px; }
+  .btn-row.del { border-color: var(--ruby); color: var(--ruby); }
+  .btn-row.del:hover { background: rgba(181,86,74,0.1); }
+  .btn-row.toggle.activate { border-color: var(--emerald); color: var(--emerald); }
+  .last { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); }
+  .last.err { color: var(--ruby); }
+  .empty { color: var(--ink-300); font-style: italic; text-align: center; padding: 30px 0; }
+  .flash { padding: 10px 14px; border-radius: var(--r-sm); margin-bottom: 14px; font-family: var(--font-mono); font-size: 11.5px; }
+  .flash.ok { background: rgba(74,143,109,0.1); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(181,86,74,0.1); border: 1px solid var(--ruby); color: var(--ruby); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Webhooks">
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← KEMBALI</a> · OUTBOUND WEBHOOKS</div>
+  <h1>Outbound <em>webhooks</em></h1>
+  <div class="sub">
+    Partner systems subscribe untuk dapat push notifikasi event lifecycle (no polling). Payload di-sign HMAC-SHA256 dengan `secret` per-row.
+    Verifikasi di sisi receiver: `X-Religio-Signature: sha256=&lt;hex&gt;` = `HMAC_SHA256(secret, rawBody)`.
+  </div>
+
+  <% if (flash.ok) { %><div class="flash ok">Tersimpan.</div><% } %>
+  <% if (flash.err) { %><div class="flash err"><%= flash.err %></div><% } %>
+
+  <div class="panel">
+    <h2>+ Webhook baru</h2>
+    <form method="POST" action="/admin/webhooks">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label class="label" for="wh-url">Target URL (https://…)</label>
+        <input id="wh-url" class="input" name="url" type="url" required placeholder="https://partner.example.com/hooks/religio">
+      </div>
+      <div class="field">
+        <label class="label">Events (pilih ≥1)</label>
+        <div class="events-grid">
+          <% eventNames.forEach(function(ev) { %>
+            <label><input type="checkbox" name="events" value="<%= ev %>"> <code><%= ev %></code></label>
+          <% }) %>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="wh-desc">Deskripsi (opsional)</label>
+        <input id="wh-desc" class="input" name="description" maxlength="500" placeholder="mis. n8n flow untuk Slack notif">
+      </div>
+      <button type="submit" class="btn-primary">SIMPAN</button>
+      <div class="helper">Secret ter-generate otomatis (32 bytes hex). Disimpan plaintext — gunakan untuk HMAC verification di partner side.</div>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Subscriptions (<%= webhooks.length %>)</h2>
+    <% if (webhooks.length === 0) { %>
+      <div class="empty">— belum ada webhook subscribed. Tambah di atas untuk kirim event ke partner system —</div>
+    <% } else { %>
+      <table>
+        <thead>
+          <tr>
+            <th>URL · Description</th>
+            <th>Events</th>
+            <th>Status</th>
+            <th>Last delivery</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% webhooks.forEach(function(w) {
+            const evs = Array.isArray(w.events) ? w.events : [];
+            const lastCls = w.lastError ? 'err' : '';
+          %>
+            <tr class="<%= w.status === 'SUSPENDED' ? 'suspended' : '' %>">
+              <td>
+                <div class="url"><%= w.url %></div>
+                <% if (w.description) { %>
+                  <div style="color:var(--ink-200);font-size:10.5px;margin-top:3px;"><%= w.description %></div>
+                <% } %>
+                <div style="color:var(--ink-300);font-size:9.5px;margin-top:3px;">created by <%= w.createdBy?.email || '—' %> · <%= fmt.date(w.createdAt) %></div>
+              </td>
+              <td>
+                <% evs.forEach(function(e) { %><span class="ev-pill"><%= e %></span><% }) %>
+              </td>
+              <td>
+                <span class="status-tag <%= w.status.toLowerCase() %>"><%= w.status %></span>
+              </td>
+              <td class="last <%= lastCls %>">
+                <% if (w.lastFiredAt) { %>
+                  <%= fmt.date(w.lastFiredAt) %><br>
+                  <% if (w.lastEventName) { %><%= w.lastEventName %><% } %>
+                  <% if (w.lastStatus) { %> · HTTP <%= w.lastStatus %><% } %>
+                  <% if (w.lastError) { %><br><span style="font-size:9.5px;">err: <%= w.lastError %></span><% } %>
+                <% } else { %>
+                  <span style="color:var(--ink-300);font-style:italic;">never fired</span>
+                <% } %>
+              </td>
+              <td style="text-align:right;white-space:nowrap;">
+                <form method="POST" action="/admin/webhooks/<%= w.id %>/status" style="display:inline;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="status" value="<%= w.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' %>">
+                  <button type="submit" class="btn-row toggle <%= w.status === 'SUSPENDED' ? 'activate' : '' %>">
+                    <%= w.status === 'ACTIVE' ? 'SUSPEND' : 'ACTIVATE' %>
+                  </button>
+                </form>
+                <form method="POST" action="/admin/webhooks/<%= w.id %>/delete" style="display:inline;margin-left:4px;" onsubmit="return confirm('Hapus webhook untuk <%= w.url %>?')">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn-row del">HAPUS</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

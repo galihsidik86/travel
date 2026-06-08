@@ -236,6 +236,7 @@ model User {
   shortcodesAuthored  MentionShortcode[] @relation("ShortcodeCreator")
   tasksAssigned       Task[]             @relation("TaskAssignee")
   tasksCreated        Task[]             @relation("TaskCreator")
+  webhooksCreated     Webhook[]          @relation("WebhookCreator")
 
   @@index([role])
   @@index([deletedAt])
@@ -574,6 +575,46 @@ model EmailClick {
 
   @@unique([notificationId, targetUrl])
   @@index([notificationId])
+}
+
+// Stage 108 — outbound webhooks. Partner systems (Zapier / n8n / custom
+// CRM) subscribe to booking + payment lifecycle events here so they
+// don't have to poll. Each row is one subscription URL + a list of
+// event names it cares about + a per-row HMAC secret.
+//
+// `events` is a JSON array of event-name strings. We DON'T use a Prisma
+// String[] (MySQL doesn't support it natively); a JSON column keeps the
+// schema portable.
+//
+// `status` doubles as a kill-switch: SUSPENDED rows are skipped by the
+// dispatcher (handy when a partner endpoint is down + we don't want to
+// keep retrying or DELETE the subscription).
+model Webhook {
+  id          String   @id @default(cuid())
+  url         String   @db.VarChar(500)
+  secret      String   @db.VarChar(120)
+  events      Json     // array of strings, e.g. ["booking.created", "payment.received"]
+  status      WebhookStatus @default(ACTIVE)
+  description String?  @db.Text
+
+  createdAt   DateTime @default(now())
+  createdById String?
+  createdBy   User?    @relation("WebhookCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  // Last-delivery snapshot — diagnostic only (per-event audit lives in
+  // WebhookDelivery if/when that table is added). Keeps the row tight
+  // for now while still giving admin a "last contact" signal.
+  lastFiredAt   DateTime?
+  lastStatus    Int?       // HTTP status code from the receiver
+  lastError     String?    @db.Text
+  lastEventName String?    @db.VarChar(80)
+
+  @@index([status])
+}
+
+enum WebhookStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 // Stage 88 — :code shortcuts for booking-note @-mentions. Saves admins

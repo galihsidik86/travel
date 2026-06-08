@@ -171,5 +171,31 @@ export async function recordPayment({ req, actor, bookingId, amount, method, cur
     console.error('[payment] notif failed:', err.message);
   }
 
+  // Stage 108 — outbound webhook fan-out (payment.received + optional
+  // booking.lunas when this payment closed the booking).
+  try {
+    const { dispatchEvent } = await import('./webhooks.js');
+    const amt = Number(payment.amount?.toString?.() ?? payment.amount) || 0;
+    await dispatchEvent('payment.received', {
+      bookingId,
+      bookingNo: updatedBooking.bookingNo,
+      paymentId: payment.id,
+      amount: amt,
+      method: payment.method,
+      currency: payment.currency,
+      bookingStatus: updatedBooking.status,
+    });
+    if (statusChanged && updatedBooking.status === 'LUNAS') {
+      await dispatchEvent('booking.lunas', {
+        bookingId,
+        bookingNo: updatedBooking.bookingNo,
+        totalAmount: Number(updatedBooking.totalAmount?.toString?.() ?? updatedBooking.totalAmount) || 0,
+        finalPaymentId: payment.id,
+      });
+    }
+  } catch (err) {
+    console.warn('[payment] webhook dispatch failed:', err?.message || err);
+  }
+
   return { payment, booking: updatedBooking, statusChanged, komisi };
 }

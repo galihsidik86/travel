@@ -96,6 +96,43 @@ router.get(
   }),
 );
 
+// Stage 107 — bulk dossier zip. Accepts form-encoded `bookingIds[]` (one
+// per checked row in the manifest). Loads each voucher then streams a
+// mega-zip with one subfolder per booking. ?format=csv for the accounting
+// flow (same per-booking swap as the single bundle).
+router.post(
+  '/manifest/:slug/bundles.zip',
+  asyncHandler(async (req, res) => {
+    let ids = req.body?.bookingIds;
+    if (!ids) return res.status(400).type('text/plain').send('Pilih minimal satu booking');
+    if (!Array.isArray(ids)) ids = [ids];
+    ids = ids.filter(Boolean).slice(0, 200);  // cap to avoid runaway zip size
+    if (ids.length === 0) return res.status(400).type('text/plain').send('Pilih minimal satu booking');
+
+    const { db } = await import('../lib/db.js');
+    const paket = await db.paket.findUnique({ where: { slug: req.params.slug }, select: { title: true } });
+    if (!paket) return res.status(404).type('text/plain').send('Paket tidak ditemukan');
+
+    const { getAdminBookingVoucher } = await import('../services/bookingVoucher.js');
+    const vouchers = [];
+    for (const id of ids) {
+      try {
+        const v = await getAdminBookingVoucher(id);
+        vouchers.push(v);
+      } catch (err) {
+        console.warn(`[bulk-bundle] booking ${id} skipped:`, err?.message || err);
+      }
+    }
+    const { streamBulkBookingBundle } = await import('../services/bookingBundle.js');
+    const format = (req.query.format || 'pdf').toString().toLowerCase();
+    await streamBulkBookingBundle(
+      { vouchers, paketTitle: paket.title },
+      res,
+      { format: format === 'csv' ? 'csv' : 'pdf' },
+    );
+  }),
+);
+
 // Stage 19 — print-friendly manifest (A4 worksheet for airport check-in).
 router.get(
   '/manifest/:slug/print',

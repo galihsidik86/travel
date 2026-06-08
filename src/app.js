@@ -30,6 +30,7 @@ import notificationsRouter from './routes/notifications.js';
 import paymentIntentsRouter from './routes/paymentIntents.js';
 import incidentsRouter from './routes/incidents.js';
 import testimonialsRouter from './routes/testimonials.js';
+import webhooksRouter from './routes/webhooks.js';
 import crewPublicRouter from './routes/crewPublic.js';
 import agentPublicRouter, { agentLeaderboardRouter } from './routes/agentPublic.js';
 import emailClickRedirectRouter from './routes/emailClickRedirect.js';
@@ -149,6 +150,7 @@ export function createApp() {
   app.use('/admin/payment-intents', paymentIntentsRouter);
   app.use('/admin/incidents', incidentsRouter);
   app.use('/admin/testimonials', testimonialsRouter);
+  app.use('/admin/webhooks', webhooksRouter);
   app.use('/admin', adminRouter);
 
   // Static — existing design package (index.html, screens/, shared/, uploads/)

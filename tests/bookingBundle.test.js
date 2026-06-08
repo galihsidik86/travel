@@ -74,10 +74,73 @@ test('streamBookingBundle: contains MANIFEST.txt + voucher.pdf entries', async (
   await streamBookingBundle(voucher, fake);
   await done;
 
-  // Central directory entries reveal filenames in plaintext. We can grep
-  // the buffer for the expected filenames without unzipping.
   const body = fake.body.toString('latin1');
   assert.ok(body.includes('MANIFEST.txt'), 'MANIFEST.txt entry present');
   assert.ok(body.includes('voucher.pdf'), 'voucher.pdf entry present');
   assert.ok(body.includes('calendar.ics'), 'calendar.ics entry present (paket has dates)');
+});
+
+test('streamBulkBookingBundle: empty vouchers → 400 + plain text', async (t) => {
+  const { streamBulkBookingBundle } = await import('../src/services/bookingBundle.js');
+  const fake = new FakeResponse();
+  let status = 200, body = '';
+  fake.status = (s) => { status = s; return fake; };
+  fake.type = () => fake;
+  fake.send = (s) => { body = s; fake.end(); };
+  const done = awaitFinish(fake);
+  await streamBulkBookingBundle({ vouchers: [], paketTitle: 'X' }, fake);
+  await done;
+  assert.equal(status, 400);
+  assert.ok(body.includes('Tidak ada'));
+});
+
+test('streamBulkBookingBundle: packages each booking under its own folder', async (t) => {
+  const tag = makeTag('bulk');
+  const j = await tempJemaah(t, tag);
+  const paket = await tempPaket(t, tag);
+  const b1 = await tempBooking({ paket, jemaahProfileId: j.jemaah.id });
+  const b2 = await tempBooking({ paket, jemaahProfileId: j.jemaah.id });
+  const v1 = await getAdminBookingVoucher(b1.id);
+  const v2 = await getAdminBookingVoucher(b2.id);
+
+  const { streamBulkBookingBundle } = await import('../src/services/bookingBundle.js');
+  const fake = new FakeResponse();
+  const done = awaitFinish(fake);
+  await streamBulkBookingBundle({ vouchers: [v1, v2], paketTitle: paket.title }, fake);
+  await done;
+
+  // ZIP signature
+  assert.equal(fake.body[0], 0x50);
+  assert.equal(fake.body[1], 0x4b);
+
+  const body = fake.body.toString('latin1');
+  // Folder per bookingNo
+  assert.ok(body.includes(`bookings/${b1.bookingNo}/voucher.pdf`));
+  assert.ok(body.includes(`bookings/${b2.bookingNo}/voucher.pdf`));
+  assert.ok(body.includes('BUNDLES_MANIFEST.txt'));
+
+  // Filename includes the count
+  assert.ok(fake.headers['content-disposition'].includes('_2'));
+});
+
+test('streamBookingBundle: csv format swaps PDF for CSV trio', async (t) => {
+  const tag = makeTag('zip-csv');
+  const j = await tempJemaah(t, tag);
+  const paket = await tempPaket(t, tag);
+  const booking = await tempBooking({ paket, jemaahProfileId: j.jemaah.id });
+
+  const voucher = await getAdminBookingVoucher(booking.id);
+  const fake = new FakeResponse();
+  const done = awaitFinish(fake);
+  await streamBookingBundle(voucher, fake, { format: 'csv' });
+  await done;
+
+  const body = fake.body.toString('latin1');
+  assert.ok(body.includes('booking.csv'), 'booking.csv present');
+  assert.ok(body.includes('payments.csv'), 'payments.csv present');
+  assert.ok(body.includes('docs.csv'), 'docs.csv present');
+  assert.ok(!body.includes('voucher.pdf'), 'voucher.pdf NOT included in csv mode');
+  assert.ok(!body.includes('calendar.ics'), 'calendar.ics NOT included in csv mode');
+  assert.ok(fake.headers['content-disposition'].includes('_csv.zip'),
+    'filename carries _csv suffix');
 });
