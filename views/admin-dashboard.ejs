@@ -1278,6 +1278,79 @@
         <% } %>
       </div>
 
+      <!-- Stage 40 — Per-paket forecast (14d velocity → days-to-full) -->
+      <% if (paketForecasts && paketForecasts.length > 0) { %>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Forecast paket</h3>
+            <span class="meta">14 HARI · DAYS-TO-FULL</span>
+          </div>
+          <div class="fc-list">
+            <% paketForecasts.forEach(function(f) {
+              // dtfDays vs daysToDeparture decides urgency colour
+              let dtfCls = 'ink-200';
+              let badge = '';
+              if (f.full) { dtfCls = 'emerald'; badge = 'PENUH'; }
+              else if (f.noVelocity) { dtfCls = 'ink-200'; badge = '—'; }
+              else if (f.risk === 'short') { dtfCls = 'ruby'; badge = `H+${f.dtfDays - f.daysToDeparture}d`; }
+              else if (f.dtfDays <= 7) { dtfCls = 'amber'; badge = 'PEKAN INI'; }
+              else if (f.dtfDays <= 30) { dtfCls = 'gold-300'; badge = '<1 BULAN'; }
+              else { dtfCls = 'emerald'; badge = 'AMAN'; }
+              const fillPct = f.paket.kursiTotal === 0 ? 0
+                : Math.round((f.paket.kursiTerisi / f.paket.kursiTotal) * 100);
+            %>
+              <a class="fc-row" href="/admin/paket/<%= f.paket.slug %>/edit">
+                <div class="fc-title">
+                  <%= f.paket.title %>
+                  <span class="fc-sub">
+                    <%= f.paket.kursiTerisi %>/<%= f.paket.kursiTotal %> kursi
+                    · berangkat dalam <%= f.daysToDeparture %>h
+                    · velocity <%= f.velocity.toFixed(1) %>/hari
+                  </span>
+                </div>
+                <div class="fc-bar">
+                  <i style="width:<%= fillPct %>%;"></i>
+                </div>
+                <div class="fc-dtf">
+                  <% if (f.full) { %>
+                    <span class="fc-dtf-v" style="color:var(--emerald);">PENUH</span>
+                  <% } else if (f.noVelocity) { %>
+                    <span class="fc-dtf-v muted">—</span>
+                    <span class="fc-dtf-s">tidak ada booking 14h</span>
+                  <% } else { %>
+                    <span class="fc-dtf-v" style="color:var(--<%= dtfCls %>);">
+                      <%= f.dtfDays %>h
+                    </span>
+                    <span class="fc-dtf-s"><%= f.dtfLowDays %>–<%= f.dtfHighDays %>h</span>
+                  <% } %>
+                </div>
+                <div class="fc-badge" style="color:var(--<%= dtfCls %>);border-color:var(--<%= dtfCls %>);">
+                  <%= badge %>
+                </div>
+              </a>
+            <% }) %>
+          </div>
+        </div>
+        <style>
+          .fc-list { display: flex; flex-direction: column; gap: 8px; }
+          .fc-row { display: grid; grid-template-columns: 1fr 120px 100px 90px; gap: 14px; align-items: center; padding: 10px 14px; background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); text-decoration: none; color: var(--cream-100); }
+          .fc-row:hover { background: rgba(255,255,255,0.03); }
+          .fc-title { font-size: 13.5px; color: var(--cream-100); font-weight: 500; min-width: 0; overflow: hidden; }
+          .fc-title .fc-sub { display: block; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; letter-spacing: 0.04em; }
+          .fc-bar { height: 6px; background: var(--ink-700); border-radius: 3px; overflow: hidden; }
+          .fc-bar i { display: block; height: 100%; background: var(--gold-300); }
+          .fc-dtf { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+          .fc-dtf-v { font-family: var(--font-display); font-size: 18px; font-weight: 500; line-height: 1; }
+          .fc-dtf-v.muted { color: var(--ink-300); }
+          .fc-dtf-s { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.04em; }
+          .fc-badge { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em; text-align: center; padding: 4px 6px; border: 1px solid; border-radius: 3px; }
+          @media (max-width: 900px) {
+            .fc-row { grid-template-columns: 1fr 80px 80px; }
+            .fc-bar { display: none; }
+          }
+        </style>
+      <% } %>
+
       <!-- Stage 35 — Refund analytics (last 90 days, top 10 per dimension) -->
       <% if (refundAnalytics && refundAnalytics.totals.refunded > 0) { %>
         <div class="panel" style="margin-top:16px;">
@@ -1427,6 +1500,78 @@
             <span><i style="display:inline-block;width:14px;height:2px;background:var(--emerald);margin-right:6px;vertical-align:middle;"></i>Paid (out to agen wallets)</span>
           </div>
         </div>
+      <% } %>
+
+      <!-- Stage 41 — Komisi liability aging -->
+      <% if (komisiAging && komisiAging.grandTotal.count > 0) { %>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Komisi liability aging</h3>
+            <span class="meta"><%= komisiAging.grandTotal.agents %> AGEN · <%= komisiAging.grandTotal.count %> ROW · <%= fmt.rpShort(komisiAging.grandTotal.amountIdr) %></span>
+          </div>
+          <div class="ka-summary">
+            <% komisiAging.buckets.forEach(function(b) {
+              const data = komisiAging.totals[b.key];
+              const cls = b.key === '90+' ? 'ruby'
+                        : b.key === '60-90' ? 'amber'
+                        : b.key === '30-60' ? 'gold-300'
+                        : 'emerald';
+            %>
+              <div class="ka-bk">
+                <div class="ka-bk-l" style="color:var(--<%= cls %>);"><%= b.label %></div>
+                <div class="ka-bk-v"><%= fmt.rpShort(data.amountIdr) %></div>
+                <div class="ka-bk-c"><%= data.count %> row</div>
+              </div>
+            <% }) %>
+          </div>
+          <table class="tbl ka-table">
+            <thead>
+              <tr>
+                <th>Agen</th>
+                <th class="num">&lt;30h</th>
+                <th class="num">30-60h</th>
+                <th class="num">60-90h</th>
+                <th class="num">90+h</th>
+                <th class="num">Tertua</th>
+                <th class="num">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% komisiAging.rows.forEach(function(r) {
+                const oldestCls = r.oldestDays >= 90 ? 'ruby'
+                                : r.oldestDays >= 60 ? 'amber'
+                                : r.oldestDays >= 30 ? 'gold-300'
+                                : 'emerald';
+              %>
+                <tr>
+                  <td><%= r.agent?.displayName || r.agent?.slug || '—' %></td>
+                  <td class="num"><%= r.buckets['0-30'].count > 0 ? fmt.rpShort(r.buckets['0-30'].amountIdr) : '—' %></td>
+                  <td class="num" style="color:<%= r.buckets['30-60'].count > 0 ? 'var(--gold-300)' : 'var(--ink-300)' %>;">
+                    <%= r.buckets['30-60'].count > 0 ? fmt.rpShort(r.buckets['30-60'].amountIdr) : '—' %>
+                  </td>
+                  <td class="num" style="color:<%= r.buckets['60-90'].count > 0 ? 'var(--amber)' : 'var(--ink-300)' %>;">
+                    <%= r.buckets['60-90'].count > 0 ? fmt.rpShort(r.buckets['60-90'].amountIdr) : '—' %>
+                  </td>
+                  <td class="num" style="color:<%= r.buckets['90+'].count > 0 ? 'var(--ruby)' : 'var(--ink-300)' %>;font-weight:<%= r.buckets['90+'].count > 0 ? '600' : '400' %>;">
+                    <%= r.buckets['90+'].count > 0 ? fmt.rpShort(r.buckets['90+'].amountIdr) : '—' %>
+                  </td>
+                  <td class="num" style="color:var(--<%= oldestCls %>);font-family:var(--font-mono);font-size:11px;">
+                    <%= r.oldestDays %>h
+                  </td>
+                  <td class="num" style="color:var(--gold-300);font-weight:600;"><%= fmt.rpShort(r.totalAmountIdr) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <style>
+          .ka-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+          .ka-bk { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 10px 12px; text-align: center; }
+          .ka-bk-l { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+          .ka-bk-v { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin-top: 4px; font-weight: 500; }
+          .ka-bk-c { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); margin-top: 4px; }
+          .ka-table .num { text-align: right; font-family: var(--font-mono); font-size: 11px; }
+        </style>
       <% } %>
 
       <!-- Top agents -->

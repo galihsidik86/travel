@@ -1,0 +1,4 @@
+{
+  "subject": "Religio Pro · {{freedSeats}} kursi {{paketTitle}} kosong — {{waitingCount}} jemaah menunggu",
+  "body": "Halo tim Religio Pro,\n\nBooking {{sourceBookingNo}} baru saja di-cancel — {{freedSeats}} kursi di paket {{paketTitle}} sekarang kosong.\n\nAda {{waitingCount}} jemaah di waitlist menunggu untuk paket ini (5 terlama):\n\n{{rowsBlock}}\n\nPromote di: {{waitlistLink}}\n\n— sistem Religio Pro"
+}

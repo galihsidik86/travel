@@ -241,5 +241,20 @@ export async function cancelBooking({ req, actor, bookingId, reason }) {
     after: { status: 'CANCELLED', cancelReason: reason.trim(), kursiFreed: before.paxCount },
   });
 
+  // Stage 42 — cancel just freed `paxCount` seats. If this paket has people
+  // waiting in the waitlist, the admin should know now (not at the next
+  // weekly digest). Fire-and-forget — failure here must NOT abort the
+  // cancel (the seats are already freed, that's the load-bearing change).
+  try {
+    const { notifyWaitlistSlotFreed } = await import('./notifications.js');
+    await notifyWaitlistSlotFreed({
+      paketId: before.paketId,
+      freedSeats: before.paxCount,
+      sourceBookingNo: before.bookingNo,
+    });
+  } catch (err) {
+    console.warn('[bookingAdmin] notifyWaitlistSlotFreed failed:', err?.message || err);
+  }
+
   return updated;
 }

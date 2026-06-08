@@ -828,6 +828,80 @@ export async function notifyPayoutReminder({ candidates }) {
   return { enqueued, recipients: admins.length };
 }
 
+/**
+ * Stage 42 — admin nudge fired when cancelBooking frees seats AND the
+ * paket has WAITING waitlist entries. Body lists up to 5 candidates so
+ * the admin can decide who to promote without leaving the inbox.
+ *
+ * Silent (no notif rows) when:
+ *   - paket is full (kursiTerisi >= kursiTotal) — cancel didn't actually
+ *     free a *usable* seat (rare race; defensive guard)
+ *   - waitlist is empty (no one to promote — no signal worth sending)
+ *
+ * Multi-admin fan-out (one row per ACTIVE OWNER/SUPERADMIN/MANAJER_OPS)
+ * so each delivery can be retried independently. KASIR excluded — the
+ * promote action goes through the admin queue, not the cashier.
+ */
+export async function notifyWaitlistSlotFreed({ paketId, freedSeats, sourceBookingNo }) {
+  // Re-read paket + waitlist atomically (relative to one query batch) —
+  // the caller's transaction has already committed the seat change.
+  const [paket, waiting] = await Promise.all([
+    db.paket.findUnique({
+      where: { id: paketId },
+      select: { id: true, slug: true, title: true, kursiTotal: true, kursiTerisi: true },
+    }),
+    db.paketWaitlist.findMany({
+      where: { paketId, status: 'WAITING' },
+      orderBy: { createdAt: 'asc' },
+      take: 10,
+      select: { id: true, fullName: true, phone: true, createdAt: true, notes: true },
+    }),
+  ]);
+  if (!paket || waiting.length === 0) return { enqueued: 0, skipped: true };
+
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { enqueued: 0 };
+
+  const inline = waiting.slice(0, 5);
+  const more = Math.max(0, waiting.length - inline.length);
+  const rowLines = inline.map((w, idx) => {
+    const ageDays = Math.floor((Date.now() - w.createdAt.getTime()) / 86_400_000);
+    return `  ${idx + 1}. ${w.fullName} · ${w.phone} · sudah menunggu ${ageDays}h`;
+  });
+  if (more > 0) rowLines.push(`  · + ${more} jemaah lainnya…`);
+
+  const vars = {
+    paketTitle: paket.title,
+    freedSeats: String(freedSeats),
+    sourceBookingNo: sourceBookingNo || '—',
+    waitingCount: String(waiting.length),
+    rowsBlock: rowLines.join('\n'),
+    waitlistLink: `/admin/paket/${paket.slug}/waitlist`,
+  };
+  const { subject, body } = renderTemplate('WAITLIST_SLOT_FREED', 'EMAIL', vars);
+
+  let enqueued = 0;
+  await Promise.all(admins.map(async (a) => {
+    await enqueueNotification({
+      type: 'WAITLIST_SLOT_FREED', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject, body,
+      payload: { paketId, paketSlug: paket.slug, freedSeats, waitingCount: waiting.length },
+      relatedEntity: 'Paket', relatedEntityId: paketId,
+    });
+    enqueued += 1;
+  }));
+  return { enqueued, recipients: admins.length };
+}
+
 export async function notifyPayoutCreated({ payout, agent }) {
   const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
   const vars = {

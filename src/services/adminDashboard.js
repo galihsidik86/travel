@@ -7,6 +7,8 @@ import {
 import { buildDigestWithComparison } from './dailyDigest.js';
 import { getNeedsAttention } from './needsAttention.js';
 import { getRefundAnalytics } from './refundAnalytics.js';
+import { getPaketForecasts } from './paketForecast.js';
+import { getKomisiAging } from './komisiAging.js';
 import { pillsForJemaah } from './jemaahDocs.js';
 
 const HOT_STATUSES = ['PENDING', 'BOOKED', 'DP_PAID', 'PARTIAL'];
@@ -258,6 +260,22 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getRefundAnalytics failed:', err?.message || err);
   }
 
+  // Stage 40 — per-paket forecast (14d velocity → days-to-full).
+  let paketForecasts = null;
+  try {
+    paketForecasts = await getPaketForecasts();
+  } catch (err) {
+    console.warn('[admin-overview] getPaketForecasts failed:', err?.message || err);
+  }
+
+  // Stage 41 — komisi liability aging (per agent × 4 age buckets).
+  let komisiAging = null;
+  try {
+    komisiAging = await getKomisiAging();
+  } catch (err) {
+    console.warn('[admin-overview] getKomisiAging failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -268,6 +286,8 @@ export async function getAdminOverview(opts = {}) {
     yesterday,
     needsAttention,
     refundAnalytics,
+    paketForecasts,
+    komisiAging,
     analytics: {
       funnel: globalFunnel,
       sourceBreakdown: globalSourceBreakdown,

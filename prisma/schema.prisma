@@ -129,6 +129,7 @@ enum NotificationType {
   WEEKLY_DIGEST_OWNER // weekly summary → OWNER (Stage 33)
   AGENT_WEEKLY_DIGEST // weekly summary → individual AGEN (Stage 36)
   PAYOUT_REMINDER_OWNER // weekly reminder of overdue payout candidates → admins (Stage 37)
+  WAITLIST_SLOT_FREED // cancel freed a seat with WAITING candidates → admin (Stage 42)
   GENERIC // catch-all for ad-hoc notifs
 }
 
