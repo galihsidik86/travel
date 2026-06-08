@@ -101,6 +101,22 @@ export async function createIncident({ req, crewUser, input }) {
     paket: incident.paket,
   }).catch((err) => console.error('[incidents] fan-out failed:', err?.message || err));
 
+  // Stage 127 — outbound `incident.created` webhook. Best-effort.
+  try {
+    const { dispatchEvent } = await import('./webhooks.js');
+    await dispatchEvent('incident.created', {
+      incidentId: incident.id,
+      type: incident.type,
+      paketId: incident.paketId || null,
+      paketSlug: incident.paket?.slug || null,
+      crewEmail: crewUser?.email || null,
+      message: incident.message || null,
+      locationLabel: incident.locationLabel || null,
+    });
+  } catch (err) {
+    console.warn('[incidents] webhook dispatch failed:', err?.message || err);
+  }
+
   return incident;
 }
 
@@ -228,5 +244,21 @@ export async function resolveIncident({ req, adminUser, id, input }) {
     before: { status: cur.status },
     after: { status: 'RESOLVED', resolution: parsed.data.resolution },
   });
+
+  // Stage 127 — outbound `incident.resolved` webhook. Best-effort.
+  try {
+    const { dispatchEvent } = await import('./webhooks.js');
+    await dispatchEvent('incident.resolved', {
+      incidentId: id,
+      type: cur.type,
+      paketId: cur.paketId || null,
+      previousStatus: cur.status,
+      resolution: parsed.data.resolution,
+      resolvedByEmail: adminUser?.email || null,
+    });
+  } catch (err) {
+    console.warn('[incidents] webhook dispatch failed:', err?.message || err);
+  }
+
   return updated;
 }

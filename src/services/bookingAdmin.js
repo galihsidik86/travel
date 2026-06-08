@@ -161,6 +161,22 @@ export async function updateBookingNotes({ req, actor, bookingId, notes }) {
     console.warn('[task] upsert failed:', err?.message || err);
   }
 
+  // Stage 127 — outbound `booking.notes_updated` webhook. Best-effort.
+  // Skipped when `next` equals the prior value (the early-return above
+  // means we don't even reach this line on no-ops).
+  try {
+    const { dispatchEvent } = await import('./webhooks.js');
+    await dispatchEvent('booking.notes_updated', {
+      bookingId,
+      bookingNo: updated.bookingNo,
+      paketId: updated.paketId,
+      notesPreview: (next || '').slice(0, 400),
+      actorEmail: actor?.email || null,
+    });
+  } catch (err) {
+    console.warn('[bookingAdmin] booking.notes_updated dispatch failed:', err?.message || err);
+  }
+
   return updated;
 }
 
@@ -355,6 +371,24 @@ export async function cancelBooking({ req, actor, bookingId, reason }) {
     });
   } catch (err) {
     console.warn('[bookingAdmin] notifyWaitlistSlotFreed failed:', err?.message || err);
+  }
+
+  // Stage 108/127 — outbound webhooks. `booking.cancelled` (legacy event)
+  // + `booking.status_changed` (S127 — generic state change for partners
+  // who track lifecycle, not just specific transitions). Best-effort.
+  try {
+    const { dispatchEvent } = await import('./webhooks.js');
+    const payload = {
+      bookingId, bookingNo: updated.bookingNo,
+      previousStatus: before.status, status: 'CANCELLED',
+      paketId: before.paketId,
+      reason: reason.trim(),
+      kursiFreed: before.paxCount,
+    };
+    await dispatchEvent('booking.cancelled', payload);
+    await dispatchEvent('booking.status_changed', payload);
+  } catch (err) {
+    console.warn('[bookingAdmin] webhook dispatch failed:', err?.message || err);
   }
 
   return updated;

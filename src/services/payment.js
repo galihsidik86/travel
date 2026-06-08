@@ -193,6 +193,18 @@ export async function recordPayment({ req, actor, bookingId, amount, method, cur
         finalPaymentId: payment.id,
       });
     }
+    // Stage 127 — generic state-change event for partners who track
+    // lifecycle without subscribing to every specific transition. Fires
+    // on every forward status change (BOOKED, DP_PAID, PARTIAL, LUNAS).
+    if (statusChanged) {
+      await dispatchEvent('booking.status_changed', {
+        bookingId,
+        bookingNo: updatedBooking.bookingNo,
+        paketId: updatedBooking.paketId,
+        previousStatus: booking.status,
+        status: updatedBooking.status,
+      });
+    }
   } catch (err) {
     console.warn('[payment] webhook dispatch failed:', err?.message || err);
   }

@@ -27,12 +27,19 @@ const DEFAULT_TIMEOUT_MS = 8_000;
 // a public contract with subscribers. Adding is cheap; renaming breaks
 // every integration.
 export const EVENT_NAMES = [
+  // Money-flow events (S108)
   'booking.created',
   'booking.lunas',
   'booking.cancelled',
   'payment.received',
   'refund.issued',
   'komisi.payout',
+  // Stage 127 — ops-level events. Partners running an external CRM /
+  // helpdesk often want booking + incident state churn, not just money.
+  'booking.status_changed',
+  'booking.notes_updated',
+  'incident.created',
+  'incident.resolved',
 ];
 
 export function sign(secret, body) {
@@ -209,6 +216,25 @@ export async function testFireWebhook({ webhook, eventName = 'test.ping', custom
       bookingId: 'demo-bk-123', bookingNo: 'RP-TEST-00001',
       refundAmount: 2_000_000, fullRefund: false, reason: 'admin test-fire',
       bookingStatus: 'CANCELLED',
+    },
+    'booking.status_changed': {
+      bookingId: 'demo-bk-123', bookingNo: 'RP-TEST-00001',
+      paketId: 'demo-paket', previousStatus: 'BOOKED', status: 'DP_PAID',
+    },
+    'booking.notes_updated': {
+      bookingId: 'demo-bk-123', bookingNo: 'RP-TEST-00001', paketId: 'demo-paket',
+      notesPreview: 'Catatan tambahan: jemaah meminta kursi dekat jendela.',
+      actorEmail: 'admin@religio.pro',
+    },
+    'incident.created': {
+      incidentId: 'demo-inc-1', type: 'MEDICAL', paketId: 'demo-paket',
+      paketSlug: 'demo-paket', crewEmail: 'crew@religio.pro',
+      message: 'Demo incident from test-fire', locationLabel: 'Hotel Madinah',
+    },
+    'incident.resolved': {
+      incidentId: 'demo-inc-1', type: 'MEDICAL', paketId: 'demo-paket',
+      paketSlug: 'demo-paket', resolution: 'Jemaah sudah ditangani tim medis.',
+      resolvedByEmail: 'admin@religio.pro',
     },
   };
   const payload = customPayload || samples[eventName] || samples['test.ping'];
