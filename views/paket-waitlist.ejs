@@ -58,6 +58,12 @@
   .status-tag.waiting   { color: var(--gold-300); border-color: var(--gold-300); }
   .status-tag.promoted  { color: var(--emerald); border-color: var(--emerald); background: rgba(74,143,109,0.08); }
   .status-tag.cancelled { color: var(--ruby); border-color: var(--ruby); }
+
+  /* Stage 44 — highlight pulse + scroll target when ?promoteOldest=1 */
+  .tbl tbody tr.highlight td { box-shadow: inset 3px 0 0 var(--gold-300), 0 0 0 1px var(--gold-300); background: rgba(212,175,107,0.06); }
+  .promote-hint { background: rgba(212,175,107,0.08); border: 1px solid var(--gold-300); color: var(--cream-100); padding: 10px 14px; border-radius: var(--r-sm); margin-bottom: 12px; font-family: var(--font-mono); font-size: 11.5px; }
+  .promote-hint strong { color: var(--gold-300); }
+  .promote-hint a { color: var(--gold-300); text-decoration: none; }
 </style>
 </head>
 <body data-screen-label="02 Admin · Waitlist">
@@ -71,6 +77,15 @@
   <% } %>
   <% if (typeof flash !== 'undefined' && flash.err) { %>
     <div class="err-banner"><%= flash.err %></div>
+  <% } %>
+  <% if (typeof promoteOldest !== 'undefined' && promoteOldest && typeof highlightId !== 'undefined' && highlightId) { %>
+    <div class="promote-hint">
+      ⏱️ <strong>Jemaah terlama</strong> di-highlight di bawah. Tinggal pilih kelas + paxCount lalu klik <strong>Promote</strong>.
+    </div>
+  <% } else if (typeof promoteOldest !== 'undefined' && promoteOldest) { %>
+    <div class="promote-hint">
+      Tidak ada jemaah <strong>WAITING</strong> di paket ini — mungkin sudah di-promote oleh admin lain.
+    </div>
   <% } %>
   <div class="head">
     <div>
@@ -102,8 +117,10 @@
         </tr>
       </thead>
       <tbody>
-        <% rows.forEach(function(r) { %>
-          <tr class="<%= r.status.toLowerCase() %>">
+        <% rows.forEach(function(r) {
+          const isHighlight = typeof highlightId !== 'undefined' && highlightId === r.id;
+        %>
+          <tr id="row-<%= r.id %>" class="<%= r.status.toLowerCase() %> <%= isHighlight ? 'highlight' : '' %>">
             <td class="sx">
               <%= fmt.date(r.createdAt) %>
               <% if (r.promotedAt) { %><div>promote <%= fmt.date(r.promotedAt) %></div><% } %>
@@ -148,5 +165,19 @@
     </table>
   <% } %>
 </div>
+<% if (typeof highlightId !== 'undefined' && highlightId) { %>
+<script>
+  // Stage 44 — scroll the highlighted row into view + focus the kelas
+  // dropdown so the admin can immediately tab through the form.
+  (function() {
+    var id = <%- JSON.stringify(highlightId) %>;
+    var row = document.getElementById('row-' + id);
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    var sel = row.querySelector('select[name="kelas"]');
+    if (sel) setTimeout(function() { sel.focus(); }, 400);
+  })();
+</script>
+<% } %>
 </body>
 </html>

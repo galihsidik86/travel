@@ -1278,6 +1278,62 @@
         <% } %>
       </div>
 
+      <!-- Stage 43 — Manifest close countdown -->
+      <% if (manifestClosing && manifestClosing.counts.total > 0) {
+        const overdueCount = manifestClosing.counts.overdue;
+      %>
+        <div class="panel <%= overdueCount > 0 ? 'mc-warn' : '' %>" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Manifest tutup segera</h3>
+            <span class="meta">
+              <%= manifestClosing.counts.urgent %> URGENT
+              <% if (overdueCount > 0) { %>· <strong style="color:var(--ruby);"><%= overdueCount %> OVERDUE</strong><% } %>
+            </span>
+          </div>
+          <div class="mc-list">
+            <% manifestClosing.rows.forEach(function(r) {
+              const cls = r.overdue ? 'ruby' :
+                          r.hoursUntilClose <= 24 ? 'amber' :
+                          r.hoursUntilClose <= 48 ? 'gold-300' : 'emerald';
+              const label = r.overdue
+                ? `OVERDUE · ${Math.abs(r.hoursUntilClose)}h yang lalu`
+                : (r.hoursUntilClose <= 24
+                    ? `tutup dalam ${r.hoursUntilClose}j`
+                    : `tutup dalam ${Math.round(r.hoursUntilClose / 24)}h`);
+            %>
+              <div class="mc-row">
+                <div class="mc-title">
+                  <a href="/admin/paket/<%= r.slug %>/edit"><%= r.title %></a>
+                  <span class="mc-sub">
+                    <%= r.kursiTerisi %>/<%= r.kursiTotal %> kursi
+                    · <%= r.seatsRemaining %> tersisa
+                    · berangkat <%= fmt.date(r.departureDate) %>
+                  </span>
+                </div>
+                <div class="mc-when" style="color:var(--<%= cls %>);"><%= label %></div>
+                <form method="POST" action="/admin/paket/<%= r.slug %>/extend-manifest-close" style="margin:0;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="hours" value="24">
+                  <button type="submit" class="mc-btn">+ 24 jam</button>
+                </form>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+        <style>
+          .panel.mc-warn { border-left: 3px solid var(--ruby); }
+          .mc-list { display: flex; flex-direction: column; gap: 8px; }
+          .mc-row { display: grid; grid-template-columns: 1fr 200px 90px; gap: 14px; align-items: center; padding: 10px 14px; background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); }
+          .mc-title { min-width: 0; }
+          .mc-title a { color: var(--cream-100); text-decoration: none; font-size: 13.5px; font-weight: 500; }
+          .mc-title .mc-sub { display: block; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 2px; }
+          .mc-when { font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-align: right; }
+          .mc-btn { background: var(--gold-300); color: var(--ink-1000); border: 0; padding: 7px 12px; border-radius: 3px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; font-weight: 600; cursor: pointer; text-transform: uppercase; }
+          .mc-btn:hover { background: var(--gold-200); }
+          @media (max-width: 720px) { .mc-row { grid-template-columns: 1fr; } }
+        </style>
+      <% } %>
+
       <!-- Stage 40 — Per-paket forecast (14d velocity → days-to-full) -->
       <% if (paketForecasts && paketForecasts.length > 0) { %>
         <div class="panel" style="margin-top:16px;">
@@ -1591,11 +1647,12 @@
               <th class="num">Revenue</th>
               <th class="num">Komisi earned</th>
               <th class="num">Komisi paid</th>
+              <th class="num" style="width:130px;">30h trend</th>
             </tr>
           </thead>
           <tbody>
             <% if (topAgents.length === 0) { %>
-              <tr><td colspan="8" style="text-align:center;color:var(--ink-200);">Belum ada agen.</td></tr>
+              <tr><td colspan="9" style="text-align:center;color:var(--ink-200);">Belum ada agen.</td></tr>
             <% } %>
             <% topAgents.forEach(function(a) { %>
               <tr>
@@ -1612,11 +1669,48 @@
                 <td class="num amt"><%= fmt.rpFull(a.revenue) %></td>
                 <td class="num amt gold"><%= fmt.rpFull(a.komisiEarned) %></td>
                 <td class="num amt"><%= fmt.rpFull(a.komisiPaid) %></td>
+                <td class="num spark-cell">
+                  <%
+                    // Stage 45 — inline SVG sparkline. Path drawn 120x28; the
+                    // peak value scales the y-axis so every agent's chart uses
+                    // the full vertical space (so a slow agent's small spike
+                    // is still visible). 30 daily points, oldest→newest.
+                    const spark = a.sparkline;
+                  %>
+                  <% if (!spark || spark.every((v) => v === 0)) { %>
+                    <span style="color:var(--ink-300);font-family:var(--font-mono);font-size:10.5px;">—</span>
+                  <% } else {
+                    const W = 120, H = 28, padX = 1, padY = 2;
+                    const maxV = Math.max(...spark);
+                    const step = (W - padX * 2) / (spark.length - 1);
+                    const path = spark.map((v, i) => {
+                      const x = padX + i * step;
+                      const y = maxV === 0 ? H - padY : H - padY - (v / maxV) * (H - padY * 2);
+                      return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+                    }).join(' ');
+                    const total = spark.reduce((s, v) => s + v, 0);
+                    const lastWeek = spark.slice(-7).reduce((s, v) => s + v, 0);
+                    const prevWeek = spark.slice(-14, -7).reduce((s, v) => s + v, 0);
+                    const trendUp = lastWeek > prevWeek;
+                    const trendFlat = lastWeek === prevWeek;
+                  %>
+                    <svg width="<%= W %>" height="<%= H %>" viewBox="0 0 <%= W %> <%= H %>" style="display:block;margin-left:auto;">
+                      <path d="<%= path %>" fill="none" stroke="var(--gold-300)" stroke-width="1.5"/>
+                    </svg>
+                    <span class="spark-sub" style="color:var(--<%= trendUp ? 'emerald' : trendFlat ? 'ink-200' : 'ruby' %>);">
+                      <%= trendUp ? '▲' : trendFlat ? '=' : '▼' %> <%= total %> total · <%= lastWeek %> 7h
+                    </span>
+                  <% } %>
+                </td>
               </tr>
             <% }) %>
           </tbody>
         </table>
       </div>
+      <style>
+        .spark-cell { text-align: right; vertical-align: middle; }
+        .spark-cell .spark-sub { display: block; font-family: var(--font-mono); font-size: 9.5px; margin-top: 2px; letter-spacing: 0.04em; text-align: right; }
+      </style>
 
       <!-- Date range filter (affects global funnel + source breakdown only) -->
       <%

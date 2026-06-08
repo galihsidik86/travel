@@ -47,7 +47,20 @@ router.get(
         : null,
       err: req.query.err ? decodeURIComponent(req.query.err) : null,
     };
-    res.render('paket-waitlist', { user: req.user, ...data, flash });
+    // Stage 44 — `?promoteOldest=1` from the slot-freed email lights up
+    // the oldest WAITING row so the admin can act in one click. Pure UI
+    // hint — the actual promotion still goes through the same POST flow.
+    const promoteOldest = req.query.promoteOldest === '1';
+    let highlightId = null;
+    if (promoteOldest && Array.isArray(data.rows)) {
+      const oldest = data.rows
+        .filter((r) => r.status === 'WAITING')
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))[0];
+      highlightId = oldest?.id || null;
+    }
+    res.render('paket-waitlist', {
+      user: req.user, ...data, flash, promoteOldest, highlightId,
+    });
   }),
 );
 router.post(
@@ -268,6 +281,19 @@ router.post(
       }
       throw err;
     }
+  }),
+);
+
+// Stage 43 — POST /admin/paket/:slug/extend-manifest-close — one-click
+// extension of manifestClosesAt from the overview countdown panel.
+router.post(
+  '/:slug/extend-manifest-close',
+  asyncHandler(async (req, res) => {
+    const { extendManifestClose } = await import('../services/manifestClose.js');
+    const hours = Math.max(1, Math.min(168, Number(req.body?.hours) || 24));
+    const updated = await extendManifestClose({ slug: req.params.slug, hours });
+    if (!updated) return res.redirect('/admin?tab=overview&err=paket_not_found');
+    res.redirect('/admin?tab=overview&ok=manifest_extended');
   }),
 );
 

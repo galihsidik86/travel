@@ -9,6 +9,7 @@ import { getNeedsAttention } from './needsAttention.js';
 import { getRefundAnalytics } from './refundAnalytics.js';
 import { getPaketForecasts } from './paketForecast.js';
 import { getKomisiAging } from './komisiAging.js';
+import { getManifestClosing } from './manifestClose.js';
 import { pillsForJemaah } from './jemaahDocs.js';
 
 const HOT_STATUSES = ['PENDING', 'BOOKED', 'DP_PAID', 'PARTIAL'];
@@ -135,6 +136,27 @@ export async function getAdminOverview(opts = {}) {
     leadCounts.set(row.agentId, entry);
   }
 
+  // Stage 45 — per-agent 30-day booking sparkline. Built from the existing
+  // `bookings` array (no extra query) by bucketing per agent × local day.
+  // The agents .bookings shape only includes id/status/totalAmount — we
+  // need createdAt, which is on the top-level `bookings` array used for
+  // KPIs. Pre-compute a per-agent daily-count map once.
+  const SPARKLINE_DAYS = 30;
+  const sparkStart = new Date(startOfDay.getTime() - (SPARKLINE_DAYS - 1) * 86_400_000);
+  const sparkBuckets = new Map(); // agentId → number[30]
+  for (const b of bookings) {
+    if (!b.agentId) continue;
+    if (b.createdAt < sparkStart) continue;
+    const dayIdx = Math.floor((b.createdAt.getTime() - sparkStart.getTime()) / 86_400_000);
+    if (dayIdx < 0 || dayIdx >= SPARKLINE_DAYS) continue;
+    let arr = sparkBuckets.get(b.agentId);
+    if (!arr) {
+      arr = new Array(SPARKLINE_DAYS).fill(0);
+      sparkBuckets.set(b.agentId, arr);
+    }
+    arr[dayIdx] += 1;
+  }
+
   // Top agents (sorted by lunas revenue desc)
   const topAgents = agents
     .map((a) => {
@@ -155,6 +177,9 @@ export async function getAdminOverview(opts = {}) {
         leadTotal,
         leadConverted: lc.CONVERTED,
         leadConvPct: leadTotal === 0 ? null : Math.round((lc.CONVERTED / leadTotal) * 100),
+        // Stage 45 — 30 daily booking counts oldest→newest; null when the
+        // agent has zero recent activity so the view can render a dash.
+        sparkline: sparkBuckets.get(a.id) ?? null,
       };
     })
     .sort((a, b) => b.revenue - a.revenue);
@@ -276,6 +301,14 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getKomisiAging failed:', err?.message || err);
   }
 
+  // Stage 43 — manifest closing countdown (urgent within 72h or overdue).
+  let manifestClosing = null;
+  try {
+    manifestClosing = await getManifestClosing();
+  } catch (err) {
+    console.warn('[admin-overview] getManifestClosing failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -288,6 +321,7 @@ export async function getAdminOverview(opts = {}) {
     refundAnalytics,
     paketForecasts,
     komisiAging,
+    manifestClosing,
     analytics: {
       funnel: globalFunnel,
       sourceBreakdown: globalSourceBreakdown,

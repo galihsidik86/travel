@@ -885,6 +885,10 @@ export async function notifyWaitlistSlotFreed({ paketId, freedSeats, sourceBooki
     waitingCount: String(waiting.length),
     rowsBlock: rowLines.join('\n'),
     waitlistLink: `/admin/paket/${paket.slug}/waitlist`,
+    // Stage 44 — deep link auto-scrolls to + highlights the oldest WAITING
+    // entry and pre-fills its promote form. Admin can also pick someone
+    // else manually — this is a nudge, not a forced choice.
+    waitlistLinkPromote: `/admin/paket/${paket.slug}/waitlist?promoteOldest=1`,
   };
   const { subject, body } = renderTemplate('WAITLIST_SLOT_FREED', 'EMAIL', vars);
 
