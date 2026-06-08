@@ -1,0 +1,4 @@
+{
+  "subject": "[API] {{candidateCount}} key punya scope yang tidak terpakai (30d)",
+  "body": "Halo tim,\n\nReview mingguan API key scope usage.\n\nKey berikut punya scope yang granted tapi TIDAK pernah dipakai dalam {{windowDays}} hari terakhir. Pertimbangkan untuk scope-down — partner masih bisa pakai key yang sama, hanya kehilangan akses yang memang tidak mereka butuhkan.\n\n{{rowsBlock}}\n\nManage di {{adminLink}}.\n\n— sistem Religio Pro"
+}

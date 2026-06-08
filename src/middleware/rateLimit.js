@@ -49,7 +49,7 @@ export async function stopRateLimit() {
  */
 export function rateLimit({ windowMs, max, key = defaultKey, code = 'RATE_LIMITED' } = {}) {
   if (!windowMs || !max) throw new Error('rateLimit: windowMs and max required');
-  return async (req, _res, next) => {
+  return async (req, res, next) => {
     const s = getStore();
     const k = key(req);
     let count, resetAt;
@@ -59,8 +59,20 @@ export function rateLimit({ windowMs, max, key = defaultKey, code = 'RATE_LIMITE
       console.warn('[rateLimit] store error, failing open:', err.message);
       return next();
     }
+    // Stage 125 — surface remaining budget on every response (under
+    // limit AND on 429) so admins / users debugging "why am I locked
+    // out" can see exactly how long until reset. Same header set as
+    // the partner API (S115). Defensive on `res.setHeader` so the
+    // older test fixtures (plain-object res) don't crash — production
+    // express always has setHeader.
+    const setH = typeof res?.setHeader === 'function' ? res.setHeader.bind(res) : () => {};
+    const resetSec = Math.ceil(resetAt / 1000);
+    setH('X-RateLimit-Limit', String(max));
+    setH('X-RateLimit-Remaining', String(Math.max(0, max - count)));
+    setH('X-RateLimit-Reset', String(resetSec));
     if (count > max) {
-      const retryAfter = Math.ceil((resetAt - Date.now()) / 1000);
+      const retryAfter = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
+      setH('Retry-After', String(retryAfter));
       return next(
         new HttpError(
           429,

@@ -85,6 +85,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-incident-sla-alert': 7 * 24 * 60 * 60_000, // weekly (Stage 87)
   'send-task-overdue': 24 * 60 * 60_000, // daily (Stage 96)
   'retry-webhooks': 2 * 60_000, // every 2 min (Stage 109)
+  'send-api-scope-down': 7 * 24 * 60 * 60_000, // weekly (Stage 124)
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };
 

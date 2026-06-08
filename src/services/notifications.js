@@ -587,6 +587,56 @@ export async function notifyIncidentCreated({ incident, crew, paket }) {
 }
 
 /**
+ * Stage 124 — weekly OWNER digest listing API keys with granted but
+ * unused scopes over the last 30 days. Silent on healthy weeks
+ * (zero candidates → no email). Fan-out to OWNER+SUPERADMIN tier
+ * (same gate as /admin/api-keys CRUD).
+ */
+export async function notifyApiKeyScopeDown({ candidates }) {
+  if (!candidates || candidates.rows.length === 0) {
+    return { enqueued: 0, skipped: true };
+  }
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { enqueued: 0 };
+
+  const lines = candidates.rows.slice(0, 20).map((r, idx) => {
+    const used = r.used.length > 0 ? r.used.join(', ') : '(none)';
+    const unused = r.unused.join(', ');
+    return `${idx + 1}. ${r.name}\n   used:    ${used}\n   unused:  ${unused}\n   requests: ${r.requestCount}`;
+  });
+  const more = Math.max(0, candidates.rows.length - 20);
+  if (more > 0) lines.push(`  · + ${more} key lainnya…`);
+
+  const vars = {
+    candidateCount: String(candidates.rows.length),
+    windowDays: String(candidates.windowDays),
+    rowsBlock: lines.join('\n\n'),
+    adminLink: '/admin/api-keys',
+  };
+  const { subject, body } = renderTemplate('API_KEY_SCOPE_DOWN_OWNER', 'EMAIL', vars);
+
+  let enqueued = 0;
+  await Promise.all(admins.map(async (a) => {
+    await enqueueNotification({
+      type: 'API_KEY_SCOPE_DOWN_OWNER', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject, body,
+      payload: { candidateCount: candidates.rows.length, windowDays: candidates.windowDays },
+    });
+    enqueued += 1;
+  }));
+  return { enqueued, recipients: admins.length };
+}
+
+/**
  * Stage 96 — daily fan-out of overdue tasks (past dueAt + grace period
  * and still OPEN). EMAIL to OWNER/SUPERADMIN/MANAJER_OPS so the team
  * notices stuck tasks even when the assignee is the bottleneck.

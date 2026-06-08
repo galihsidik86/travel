@@ -7,7 +7,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import {
   listWebhooks, createWebhook, updateWebhookStatus, deleteWebhook, testFireWebhook,
-  rotateWebhookSecret, EVENT_NAMES,
+  rotateWebhookSecret, replayDelivery, EVENT_NAMES,
 } from '../services/webhooks.js';
 
 const router = Router();
@@ -119,6 +119,19 @@ router.post(
   }),
 );
 
+// Stage 126 — replay a specific delivery row immediately. Re-uses the
+// stored payload + signature so the partner sees identical bytes; bumps
+// attemptCount the same way the cron retry does so manual replays still
+// count toward the MAX cap.
+router.post(
+  '/:id/deliveries/:deliveryId/replay',
+  asyncHandler(async (req, res) => {
+    const r = await replayDelivery({ deliveryId: req.params.deliveryId });
+    const q = r.ok ? 'ok' : encodeURIComponent(r.reason || 'unknown');
+    res.redirect(`/admin/webhooks/${req.params.id}/deliveries?replay=${q}`);
+  }),
+);
+
 // Stage 109 — per-webhook delivery list (last 100). Lets admin see the
 // retry queue + diagnose stuck rows.
 router.get(
@@ -137,7 +150,10 @@ router.get(
         createdAt: true,
       },
     });
-    res.render('admin-webhook-deliveries', { user: req.user, webhook, deliveries });
+    res.render('admin-webhook-deliveries', {
+      user: req.user, webhook, deliveries,
+      flash: { replay: req.query.replay || null },
+    });
   }),
 );
 

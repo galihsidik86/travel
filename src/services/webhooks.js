@@ -251,6 +251,39 @@ export async function testFireWebhook({ webhook, eventName = 'test.ping', custom
 }
 
 /**
+ * Stage 126 — admin one-click replay of a SPECIFIC delivery. Useful
+ * when partner just fixed their endpoint and admin wants immediate
+ * feedback without waiting for the next retry-cron tick.
+ *
+ * Re-uses the stored payload + signature so the partner sees the same
+ * bytes they would've seen on a queued retry. Bumps attemptCount like
+ * `processPendingDeliveries` does — so manual replays count toward
+ * the MAX_DELIVERY_ATTEMPTS cap.
+ *
+ * Refuses on SUSPENDED webhook or already-burned attempt count so
+ * admin can't get the row into a weird state.
+ */
+export async function replayDelivery({ deliveryId }) {
+  const delivery = await db.webhookDelivery.findUnique({
+    where: { id: deliveryId },
+    include: {
+      webhook: { select: { id: true, url: true, secret: true, prevSecret: true, prevSecretExpiresAt: true, status: true } },
+    },
+  });
+  if (!delivery) return { ok: false, reason: 'not_found' };
+  if (!delivery.webhook) return { ok: false, reason: 'webhook_gone' };
+  if (delivery.webhook.status !== 'ACTIVE') return { ok: false, reason: 'webhook_suspended' };
+  if (delivery.attemptCount >= MAX_DELIVERY_ATTEMPTS) {
+    return { ok: false, reason: 'max_attempts_reached' };
+  }
+  const r = await attemptDelivery(
+    delivery.webhook, delivery.payload, delivery.signature, delivery.eventName,
+    delivery, delivery.attemptCount + 1,
+  );
+  return { ok: true, attemptResult: r };
+}
+
+/**
  * Stage 109 — retry job. Picks PENDING deliveries whose nextRetryAt has
  * elapsed and re-fires them. Run via `npm run job:retry-webhooks` cron
  * (every 2 min) or HTTP trigger.

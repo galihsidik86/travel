@@ -75,6 +75,9 @@ MAILTO=""
 # Monday 07:20 — per-crew (MUTHAWWIF) weekly recap + upcoming trip prep (Stage 65)
 20 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-crew-weekly-digest >> /var/log/religio/crew-weekly.log 2>&1
 
+# Monday 07:23 — API key scope-down digest (Stage 124). 30d window.
+23 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-api-scope-down >> /var/log/religio/api-scope-down.log 2>&1
+
 # Monday 07:25 — incident SLA breach alert for the previous full Mon-Sun week (Stage 87)
 # Silent on healthy weeks; fires only when at least one (type, metric) p95 crosses the budget.
 25 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-incident-sla-alert >> /var/log/religio/incident-sla.log 2>&1

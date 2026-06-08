@@ -21,6 +21,8 @@ import { getIncidentSlaBreaches } from '../services/incidentSlaAlert.js';
 import { notifyIncidentSlaBreach, notifyTaskOverdueEscalation } from '../services/notifications.js';
 import { getOverdueTasks } from '../services/tasks.js';
 import { processPendingDeliveries } from '../services/webhooks.js';
+import { getApiKeyScopeDownCandidates } from '../services/apiKeyScopeDown.js';
+import { notifyApiKeyScopeDown } from '../services/notifications.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -228,6 +230,22 @@ router.post(
   '/retry-webhooks',
   asyncHandler(async (_req, res) => {
     const result = await runJob('retry-webhooks', () => processPendingDeliveries({ limit: 100 }));
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-api-scope-down',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-api-scope-down', async () => {
+      const candidates = await getApiKeyScopeDownCandidates({ days: 30 });
+      const fan = await notifyApiKeyScopeDown({ candidates });
+      return {
+        candidateCount: candidates.rows.length,
+        enqueued: fan.enqueued ?? 0,
+        skipped: fan.skipped ?? false,
+      };
+    });
     res.json(result);
   }),
 );

@@ -35,6 +35,17 @@
     · Showing last <%= deliveries.length %> attempts (newest first)
   </div>
 
+  <% if (typeof flash !== 'undefined' && flash && flash.replay) {
+    const ok = flash.replay === 'ok';
+    const cls = ok ? 'emerald' : 'ruby';
+    const msg = ok ? 'Replay fired — refresh untuk lihat hasilnya.'
+                   : 'Replay gagal: ' + flash.replay;
+  %>
+    <div style="padding:10px 14px;border-radius:var(--r-sm);margin-bottom:14px;font-family:var(--font-mono);font-size:11.5px;background:rgba(74,143,109,0.08);border:1px solid var(--<%= cls %>);color:var(--<%= cls %>);">
+      <%= msg %>
+    </div>
+  <% } %>
+
   <div class="panel">
     <% if (deliveries.length === 0) { %>
       <div class="empty">— belum ada delivery. Trigger sebuah event (booking/payment) untuk mulai —</div>
@@ -50,10 +61,16 @@
             <th>Last attempt</th>
             <th>Next retry</th>
             <th>Error</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          <% deliveries.forEach(function(d) { %>
+          <% deliveries.forEach(function(d) {
+            // S126 — replay only meaningful when attemptCount < 5 (cap) and
+            // the row didn't already SUCCEED. Show button regardless; service
+            // refuses with a friendly reason for terminal cases.
+            const canReplay = d.attemptCount < 5;
+          %>
             <tr>
               <td><%= fmt.date(d.createdAt) %></td>
               <td><%= d.eventName %></td>
@@ -63,6 +80,16 @@
               <td><%= d.lastAttemptAt ? fmt.date(d.lastAttemptAt) : '—' %></td>
               <td><%= d.nextRetryAt ? fmt.date(d.nextRetryAt) : '—' %></td>
               <td class="err"><%= d.lastError || '' %></td>
+              <td>
+                <% if (canReplay) { %>
+                  <form method="POST" action="/admin/webhooks/<%= webhook.id %>/deliveries/<%= d.id %>/replay" style="margin:0;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:3px 9px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.08em;cursor:pointer;border-radius:3px;" title="Re-fire this delivery NOW (bumps attempt count)">↻ REPLAY</button>
+                  </form>
+                <% } else { %>
+                  <span style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);">max attempts</span>
+                <% } %>
+              </td>
             </tr>
           <% }) %>
         </tbody>
