@@ -794,7 +794,45 @@
     <% }) %>
   </div>
   <% } %>
+
+  <!-- Stage 63 — testimonials (PUBLISHED only, paket-specific OR generic) -->
+  <% if (typeof testimonials !== 'undefined' && testimonials.length > 0) { %>
+  <div class="testimonials">
+    <h3 class="testimonials__title">Apa kata jemaah <em>kami</em></h3>
+    <div class="testimonials__grid">
+      <% testimonials.forEach(function(t) { %>
+        <div class="testi">
+          <div class="testi__rating"><%= '★'.repeat(t.rating) %><span style="color:rgba(255,255,255,0.18);"><%= '☆'.repeat(5 - t.rating) %></span></div>
+          <p class="testi__body">"<%= t.body %>"</p>
+          <div class="testi__author">
+            <% if (t.photoUrl) { %>
+              <img class="testi__photo" src="<%= t.photoUrl %>" alt="<%= t.jemaahName %>" loading="lazy">
+            <% } %>
+            <div>
+              <div class="testi__name"><%= t.jemaahName %></div>
+              <% if (t.jemaahCity) { %><div class="testi__city"><%= t.jemaahCity %></div><% } %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+  <% } %>
 </section>
+
+<style>
+  .testimonials { margin: 48px auto 0; max-width: 1080px; padding: 0 24px; }
+  .testimonials__title { font-family: var(--font-display); font-size: 28px; font-weight: 500; color: var(--cream-100); margin: 0 0 24px; letter-spacing: -0.015em; }
+  .testimonials__title em { font-style: italic; color: var(--gold-300); }
+  .testimonials__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .testi { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 22px; }
+  .testi__rating { font-family: var(--font-mono); font-size: 14px; color: var(--gold-300); letter-spacing: 0.1em; margin-bottom: 10px; }
+  .testi__body { font-family: var(--font-body); font-size: 13.5px; line-height: 1.6; color: var(--cream-200); margin: 0 0 14px; font-style: italic; }
+  .testi__author { display: flex; align-items: center; gap: 10px; }
+  .testi__photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+  .testi__name { font-family: var(--font-mono); font-size: 11.5px; color: var(--cream-100); letter-spacing: 0.06em; font-weight: 600; }
+  .testi__city { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); margin-top: 2px; }
+</style>
 
 <!-- FAQ -->
 <section class="section faq">

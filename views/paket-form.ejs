@@ -526,6 +526,26 @@
         </div>
       </div>
 
+      <!-- Stage 61 — ads spend (ROI input) -->
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-ads-spend">Ads spend (Rp)</label></div>
+          <input class="input" type="number" id="f-ads-spend" name="adsSpendIdr"
+                 min="0" step="1"
+                 placeholder="mis. 5000000"
+                 value="<%= paket.adsSpendIdr || '' %>">
+          <% if (errors.adsSpendIdr) { %><div class="field-err"><%= errors.adsSpendIdr %></div><% } %>
+          <div class="helper">Total budget iklan untuk paket ini (Meta + Google + TikTok + dst). Kosongkan untuk paket organic — leaderboard akan render "—" ROI, bukan 0×.</div>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-ads-notes">Catatan kampanye (opsional)</label></div>
+          <textarea class="input" id="f-ads-notes" name="adsNotes" rows="2"
+                    placeholder="mis. Meta: 3 jt · Google: 1,5 jt · TT: 500 rb"
+                    style="resize:vertical;"><%= paket.adsNotes || '' %></textarea>
+          <div class="helper">Tidak ditampilkan ke jemaah.</div>
+        </div>
+      </div>
+
       <!-- Stage 39 — lifetime profitability gauge. Edit-mode only; same math as
            the leaderboard so adjusting "Biaya per pax" above changes the pill
            below on next save. -->

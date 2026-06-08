@@ -29,6 +29,7 @@ import jobsRouter from './routes/jobs.js';
 import notificationsRouter from './routes/notifications.js';
 import paymentIntentsRouter from './routes/paymentIntents.js';
 import incidentsRouter from './routes/incidents.js';
+import testimonialsRouter from './routes/testimonials.js';
 import pushRouter from './routes/push.js';
 import waitlistRouter from './routes/waitlist.js';
 import paymentsRouter from './routes/payments.js';
@@ -135,6 +136,7 @@ export function createApp() {
   app.use('/admin/notifications', notificationsRouter);
   app.use('/admin/payment-intents', paymentIntentsRouter);
   app.use('/admin/incidents', incidentsRouter);
+  app.use('/admin/testimonials', testimonialsRouter);
   app.use('/admin', adminRouter);
 
   // Static — existing design package (index.html, screens/, shared/, uploads/)

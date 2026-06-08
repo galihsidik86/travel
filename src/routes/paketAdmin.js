@@ -136,6 +136,11 @@ function paketToForm(paket) {
       ? Number(paket.costPerPaxIdr.toString?.() ?? paket.costPerPaxIdr).toString()
       : '',
     costNotes: paket.costNotes ?? '',
+    // Stage 61 — same Decimal → string preprocessing as cost.
+    adsSpendIdr: paket.adsSpendIdr != null
+      ? Number(paket.adsSpendIdr.toString?.() ?? paket.adsSpendIdr).toString()
+      : '',
+    adsNotes: paket.adsNotes ?? '',
     prices: KELAS.map((kelas) => byKelas[kelas] || { kelas, label: '', caption: '', priceIdr: '', cicilanIdr: '', cicilanMonths: '', isFeatured: false }),
   };
 }

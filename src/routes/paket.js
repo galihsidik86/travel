@@ -5,6 +5,7 @@ import { env } from '../env.js';
 import { db } from '../lib/db.js';
 import { getPaketBySlug, getAgentBySlug } from '../services/paket.js';
 import { getOrSetVisitorId, recordPaketView, pickHeroVariant } from '../services/paketView.js';
+import { getPublishedTestimonialsForPaket } from '../services/testimonialAdmin.js';
 
 export const paketHtmlRouter = Router();
 export const paketJsonRouter = Router();
@@ -75,9 +76,18 @@ paketHtmlRouter.get(
     if (heroVariant === 'B' && paket.ctaTextVariantB) ctaText = paket.ctaTextVariantB;
     else if (heroVariant === 'A' && paket.ctaTextVariantA) ctaText = paket.ctaTextVariantA;
 
+    // Stage 63 — load PUBLISHED testimonials (paket-specific OR generic).
+    // Best-effort: failure shouldn't break the landing page.
+    let testimonials = [];
+    try {
+      testimonials = await getPublishedTestimonialsForPaket(paket.id);
+    } catch (err) {
+      console.warn('[paket-landing] testimonials load failed:', err?.message || err);
+    }
+
     res.render('paket', {
       paket, agent, currentUser: req.user || null, prefillJemaah,
-      heroVariant, ctaText,
+      heroVariant, ctaText, testimonials,
     });
   }),
 );

@@ -247,6 +247,7 @@ export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
           slug: true, title: true, departureDate: true, status: true,
           costPerPaxIdr: true,                 // stage 22 — profitability input
           clonedFromId: true,                   // stage 34 — YoY lineage
+          adsSpendIdr: true,                    // stage 61 — ROI input
         },
       },
     },
@@ -269,6 +270,9 @@ export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
         costPerPaxIdr: toNumber(b.paket.costPerPaxIdr),
         // Stage 34 — parent in clone lineage, if any.
         clonedFromId: b.paket.clonedFromId,
+        // Stage 61 — total ads spend allocated to this paket. Null when
+        // admin hasn't tracked it (typical for organic-only paket).
+        adsSpendIdr: toNumber(b.paket.adsSpendIdr),
         totalBookings: 0,
         hotCount: 0,
         lunasCount: 0,
@@ -327,6 +331,13 @@ export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
     const marginPct = totalCostIdr != null && r.lunasRevenue > 0
       ? Math.round((netMarginIdr / r.lunasRevenue) * 100)
       : null;
+    // Stage 61 — ROI = revenue / ads spend. Null when adsSpendIdr is
+    // not tracked (avoids misleading "no ads → infinite ROI"). Multiplier
+    // form (3.5x = revenue 3.5× of ad spend) is more intuitive than %
+    // for marketing teams.
+    const roiX = r.adsSpendIdr != null && r.adsSpendIdr > 0
+      ? Math.round((r.lunasRevenue / r.adsSpendIdr) * 10) / 10
+      : null;
     return {
       ...r,
       agentCount: r.agentIds.size,
@@ -335,6 +346,8 @@ export async function getPerPaketLeaderboard({ from, to, limit = 8 } = {}) {
       totalCostIdr,
       netMarginIdr,
       marginPct,
+      adsSpendIdr: r.adsSpendIdr,
+      roiX,
       conversionPct: r.totalBookings === 0
         ? null
         : Math.round((r.lunasCount / r.totalBookings) * 100),

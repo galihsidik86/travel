@@ -30,6 +30,13 @@ export const PaketSchema = z.object({
   heroTitleHtmlVariantB: optStrLong, // Stage 50 — optional A/B test copy
   ctaTextVariantA: optStr, // Stage 52 — optional CTA button text override
   ctaTextVariantB: optStr,
+  // Stage 61 — ROI input. 3-state preprocessor: empty→null (clear),
+  // missing→undefined (no change), valid number→stored.
+  adsSpendIdr: z.preprocess(
+    (v) => v === '' || v == null ? null : Number(v),
+    z.union([z.number().min(0).max(1e15), z.null()]).optional(),
+  ),
+  adsNotes: optStrLong,
   arabicTagline: optStrLong,
   translitTagline: optStrLong,
   departureDate: reqDate,
@@ -103,6 +110,11 @@ function toPaketData(parsed, userId) {
     heroTitleHtmlVariantB: parsed.heroTitleHtmlVariantB ?? null,
     ctaTextVariantA: parsed.ctaTextVariantA ?? null,
     ctaTextVariantB: parsed.ctaTextVariantB ?? null,
+    // Stage 61 — same 3-state pattern as costPerPaxIdr.
+    ...(parsed.adsSpendIdr !== undefined
+      ? { adsSpendIdr: parsed.adsSpendIdr == null ? null : parsed.adsSpendIdr.toFixed(2) }
+      : {}),
+    ...(parsed.adsNotes !== undefined ? { adsNotes: parsed.adsNotes ?? null } : {}),
     arabicTagline: parsed.arabicTagline ?? null,
     translitTagline: parsed.translitTagline ?? null,
     departureDate: parsed.departureDate,

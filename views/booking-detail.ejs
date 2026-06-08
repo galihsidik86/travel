@@ -568,40 +568,84 @@
         </div>
       </div>
 
-      <!-- Timeline -->
+      <!-- Stage 62 — vertical timeline grouped by event category -->
+      <%
+        // Categorise each audit row so the timeline reads as a narrative:
+        //   ● created  (booking created)
+        //   $ money    (payment, refund, komisi)
+        //   ✕ cancel   (cancelled, transfer)
+        //   📝 notes   (notes edits + claim)
+        //   • other    (everything else)
+        function categorise(h) {
+          const a = h.after || {};
+          if (h.action === 'CREATE') return { key: 'created', icon: '●', cls: 'emerald' };
+          if (a.method || a.paidAmount != null || h.entity === 'Payment' || h.entity === 'Komisi' || h.entity === 'KomisiPayout') {
+            return { key: 'money', icon: '$', cls: 'gold' };
+          }
+          if (a.cancelReason || a.status === 'CANCELLED' || a.status === 'REFUNDED' || a.transfer) {
+            return { key: 'cancel', icon: '✕', cls: 'ruby' };
+          }
+          if (h.action === 'NOTES_UPDATE' || a.notes !== undefined || a.merged || a.claim) {
+            return { key: 'notes', icon: '📝', cls: 'sapphire' };
+          }
+          return { key: 'other', icon: '•', cls: 'ink-100' };
+        }
+      %>
       <div class="panel">
         <h3>Timeline (<%= b.history.length %>)</h3>
         <% if (b.history.length === 0) { %>
           <div style="text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);padding:18px 0;">Tidak ada riwayat audit.</div>
         <% } %>
-        <div class="timeline">
-          <% b.history.forEach(function(h) { %>
-            <div class="timeline__row action-<%= h.action.toLowerCase() %>">
-              <div class="t"><%= fmt.date(h.createdAt) %> · <%= new Date(h.createdAt).toISOString().slice(11,16) %></div>
-              <div class="a">
-                <%= h.action %>
-                <% if (h.actorEmail) { %> · <span class="who"><%= h.actorEmail %></span><% } %>
-              </div>
-              <% if (h.after && Object.keys(h.after).length) { %>
-                <%
-                  // Render a compact summary of the change
-                  const after = h.after;
-                  const parts = [];
-                  if (after.status) parts.push('status=' + after.status);
-                  if (after.paidAmount != null) parts.push('paid=' + (after.paidAmount).toLocaleString('id-ID'));
-                  if (after.method) parts.push(after.method);
-                  if (after.roomNo) parts.push('kamar=' + after.roomNo);
-                  if (after.cancelReason) parts.push('reason=' + after.cancelReason);
-                  if (after.bookingNo) parts.push('no=' + after.bookingNo);
-                %>
-                <% if (parts.length) { %>
-                  <div class="snap"><%= parts.join(' · ') %></div>
+        <div class="vt">
+          <% b.history.forEach(function(h) {
+            const cat = categorise(h);
+            const after = h.after || {};
+            const parts = [];
+            if (after.status) parts.push('status=' + after.status);
+            if (after.paidAmount != null) parts.push('paid=' + (after.paidAmount).toLocaleString('id-ID'));
+            if (after.method) parts.push(after.method);
+            if (after.roomNo) parts.push('kamar=' + after.roomNo);
+            if (after.cancelReason) parts.push('reason=' + after.cancelReason);
+            if (after.bookingNo) parts.push('no=' + after.bookingNo);
+            if (after.fieldsCopied) parts.push('merged ' + after.fieldsCopied.length + ' fields');
+            if (after.docsTransferred != null) parts.push(after.docsTransferred + ' docs');
+            if (after.transfer) parts.push('transfer agen');
+            if (after.kursiFreed) parts.push('kursi freed=' + after.kursiFreed);
+          %>
+            <div class="vt-row">
+              <div class="vt-bullet" style="color:var(--<%= cat.cls %>);border-color:var(--<%= cat.cls %>);"><%= cat.icon %></div>
+              <div class="vt-body">
+                <div class="vt-head">
+                  <span class="vt-action"><%= h.action.replace(/_/g, ' ') %></span>
+                  <% if (h.entity && h.entity !== 'Booking') { %>
+                    <span class="vt-entity"><%= h.entity %></span>
+                  <% } %>
+                  <span class="vt-time"><%= fmt.date(h.createdAt) %> · <%= new Date(h.createdAt).toISOString().slice(11,16) %></span>
+                </div>
+                <% if (h.actorEmail) { %>
+                  <div class="vt-actor">oleh <%= h.actorEmail %><% if (h.actorRole) { %> · <%= h.actorRole %><% } %></div>
                 <% } %>
-              <% } %>
+                <% if (parts.length) { %>
+                  <div class="vt-snap"><%= parts.join(' · ') %></div>
+                <% } %>
+              </div>
             </div>
           <% }) %>
         </div>
       </div>
+      <style>
+        .vt { display: flex; flex-direction: column; gap: 4px; position: relative; padding-left: 4px; }
+        .vt::before { content: ''; position: absolute; left: 13px; top: 14px; bottom: 14px; width: 1px; background: var(--hairline-color, var(--ink-700)); }
+        .vt-row { display: grid; grid-template-columns: 28px 1fr; gap: 12px; padding: 8px 0; align-items: start; position: relative; }
+        .vt-bullet { width: 22px; height: 22px; border: 1px solid; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 11px; background: var(--ink-900); margin-top: 2px; z-index: 1; flex-shrink: 0; }
+        .vt-body { min-width: 0; }
+        .vt-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+        .vt-action { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--cream-100); letter-spacing: 0.06em; text-transform: uppercase; }
+        .vt-entity { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); padding: 1px 5px; border: 1px solid var(--ink-700); border-radius: 3px; letter-spacing: 0.06em; }
+        .vt-time { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); }
+        .vt-actor { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); margin-top: 2px; }
+        .vt-snap { font-family: var(--font-mono); font-size: 10.5px; color: var(--cream-200); margin-top: 4px; padding: 4px 8px; background: var(--ink-1000); border: 1px dashed var(--ink-700); border-radius: 3px; word-break: break-word; }
+      </style>
     </div>
   </div>
 </div>

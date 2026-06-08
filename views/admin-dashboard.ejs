@@ -607,6 +607,9 @@
         <a href="/admin/incidents" class="rail__item" style="text-decoration:none;">
           Insiden lapangan
         </a>
+        <a href="/admin/testimonials" class="rail__item" style="text-decoration:none;">
+          Testimonials
+        </a>
       <% } %>
     </nav>
 
@@ -1244,6 +1247,30 @@
                     <span style="font-style:italic;">— margin: set "Biaya per pax" di paket edit</span>
                   <% } %>
                 </div>
+                <% if (p.adsSpendIdr != null) {
+                  // Stage 61 — ROI row. roiX null when adsSpendIdr=0 (clean
+                  // dev fixture); render "—" rather than ∞.
+                  const roiCls = p.roiX == null ? 'ink-200'
+                              : p.roiX >= 5 ? 'emerald'
+                              : p.roiX >= 3 ? 'gold-300'
+                              : p.roiX >= 1 ? 'amber' : 'ruby';
+                %>
+                  <div style="display:flex;gap:14px;margin-top:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);flex-wrap:wrap;border-top:var(--hairline-soft);padding-top:6px;">
+                    <span>ads <%= fmt.rpShort(p.adsSpendIdr) %></span>
+                    <% if (p.netMarginIdr != null) {
+                      // net margin AFTER ads spend (different from S22 margin)
+                      const netAfterAds = p.netMarginIdr - p.adsSpendIdr;
+                      const naaCls = netAfterAds >= 0 ? 'emerald' : 'ruby';
+                    %>
+                      <span style="color:var(--<%= naaCls %>);">
+                        net post-ads <%= netAfterAds < 0 ? '−' : '' %><%= fmt.rpShort(Math.abs(netAfterAds)) %>
+                      </span>
+                    <% } %>
+                    <span style="margin-left:auto;color:var(--<%= roiCls %>);font-weight:600;">
+                      <%= p.roiX != null ? p.roiX + '×' : '—' %> ROI
+                    </span>
+                  </div>
+                <% } %>
                 <% if (p.previousSeason) {
                   const prev = p.previousSeason;
                   const revUp = prev.revenueDelta >= 0;

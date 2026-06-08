@@ -420,6 +420,12 @@ model Paket {
   // misleading "0%" or "100%" when costs aren't tracked yet).
   costPerPaxIdr Decimal? @db.Decimal(15, 2)
   costNotes     String?  @db.Text
+  // Stage 61 — total ads spend allocated to this paket. Optional; when set,
+  // leaderboard computes ROI = lunasRevenue / adsSpend. Null = "tidak
+  // dilacak" (most paket promoted organically) — leaderboard renders "—"
+  // rather than 0% (avoid misleading "no ads → infinite ROI" reading).
+  adsSpendIdr   Decimal? @db.Decimal(15, 2)
+  adsNotes      String?  @db.Text
 
   // Stage 34 — paket clone lineage (S18 created the clone flow; this is the
   // back-reference column). Null when the paket is an original. Populated by
@@ -448,12 +454,49 @@ model Paket {
   agentOverrides  AgentPaketKomisi[]
   waitlist        PaketWaitlist[]
   views           PaketView[]
+  testimonials    Testimonial[]
 
   @@index([slug])
   @@index([status])
   @@index([departureDate])
   @@index([deletedAt])
   @@index([clonedFromId])
+}
+
+// Stage 63 — testimonial. Admin-curated; optionally tied to a paket
+// (jemaah X tells story about Aqsa trip 2026). DRAFT keeps it off the
+// public page until admin reviews; PUBLISHED renders on /p/:slug. No
+// soft-delete — testimonials are admin-authored, removable cleanly.
+enum TestimonialStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Testimonial {
+  id        String            @id @default(cuid())
+  // Nullable paket FK: testimonial may be paket-specific (renders on that
+  // landing) or generic (admin shows across all paket).
+  paketId   String?
+  paket     Paket?            @relation(fields: [paketId], references: [id], onDelete: SetNull)
+
+  jemaahName String           @db.VarChar(120)
+  jemaahCity String?          @db.VarChar(120)
+  body       String           @db.Text
+  rating     Int              @default(5) // 1-5; defaults to 5 (no neutral testimonials shown publicly)
+
+  // Public-facing photo lives in /uploads/testimonials/ (the design package's
+  // public asset dir, so no auth gating). Optional — text testimonials work too.
+  photoUrl   String?          @db.VarChar(255)
+
+  status     TestimonialStatus @default(DRAFT)
+  // Sort order on the landing. Admin picks. Lower = first.
+  sortOrder  Int               @default(0)
+
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([status, sortOrder])
+  @@index([paketId])
 }
 
 // Stage 26 — paket waitlist. When kursi penuh, jemaah can leave name +

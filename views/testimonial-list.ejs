@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Testimonials</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { display: flex; justify-content: space-between; align-items: end; gap: 18px; flex-wrap: wrap; margin-bottom: 22px; }
+  .head h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-top: 8px; letter-spacing: 0.1em; }
+  .head .btn { background: var(--gold-300); color: var(--ink-1000); border: 0; padding: 10px 16px; border-radius: 3px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; cursor: pointer; text-decoration: none; }
+  .ok-banner { padding: 10px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11.5px; margin-bottom: 14px; background: rgba(74,143,109,0.08); border: 1px solid rgba(74,143,109,0.4); color: var(--emerald); }
+  .filters { display: flex; gap: 10px; margin-bottom: 14px; }
+  .filters a { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 12px; border: 1px solid var(--ink-700); border-radius: 3px; text-decoration: none; color: var(--ink-100); }
+  .filters a.on { color: var(--gold-300); border-color: var(--gold-300); }
+  .tbl { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+  .tbl thead th { text-align: left; padding: 10px 12px; background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); font-weight: 500; border-bottom: var(--hairline); }
+  .tbl tbody td { padding: 11px 12px; border-bottom: var(--hairline-soft); font-size: 12.5px; color: var(--cream-200); vertical-align: top; }
+  .tbl tbody tr:hover { background: rgba(255,255,255,0.02); }
+  .tbl a { color: var(--gold-300); text-decoration: none; }
+  .pill { font-family: var(--font-mono); font-size: 9.5px; padding: 2px 6px; border: 1px solid; border-radius: 3px; letter-spacing: 0.1em; }
+  .pill.draft     { color: var(--ink-100); border-color: var(--ink-100); }
+  .pill.published { color: var(--emerald); border-color: var(--emerald); }
+  .empty { padding: 48px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Testimonials">
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← KEMBALI KE ADMIN</a></div>
+  <% if (flash && flash.ok) { %><div class="ok-banner"><%= flash.ok %></div><% } %>
+  <div class="head">
+    <div>
+      <h1>Testimonials</h1>
+      <div class="sub"><%= rows.length %> ENTRI · public-facing untuk /p/:slug</div>
+    </div>
+    <a class="btn" href="/admin/testimonials/new">+ TAMBAH</a>
+  </div>
+  <div class="filters">
+    <a href="/admin/testimonials" class="<%= !status ? 'on' : '' %>">SEMUA</a>
+    <a href="/admin/testimonials?status=PUBLISHED" class="<%= status === 'PUBLISHED' ? 'on' : '' %>">PUBLISHED</a>
+    <a href="/admin/testimonials?status=DRAFT" class="<%= status === 'DRAFT' ? 'on' : '' %>">DRAFT</a>
+  </div>
+  <% if (rows.length === 0) { %>
+    <div class="tbl"><div class="empty">Belum ada testimonial. Klik "+ TAMBAH" untuk membuat.</div></div>
+  <% } else { %>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Jemaah</th>
+          <th>Rating</th>
+          <th>Paket</th>
+          <th>Status</th>
+          <th>Sort</th>
+          <th>Body (preview)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(function(r) { %>
+          <tr>
+            <td>
+              <a href="/admin/testimonials/<%= r.id %>/edit"><%= r.jemaahName %></a>
+              <% if (r.jemaahCity) { %><div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);"><%= r.jemaahCity %></div><% } %>
+            </td>
+            <td style="font-family:var(--font-mono);"><%= '★'.repeat(r.rating) %><span style="color:var(--ink-300);"><%= '☆'.repeat(5 - r.rating) %></span></td>
+            <td>
+              <% if (r.paket) { %>
+                <a href="/p/<%= r.paket.slug %>" target="_blank" rel="noopener"><%= r.paket.title %></a>
+              <% } else { %>
+                <span style="color:var(--ink-200);font-style:italic;">semua paket</span>
+              <% } %>
+            </td>
+            <td><span class="pill <%= r.status.toLowerCase() %>"><%= r.status %></span></td>
+            <td style="font-family:var(--font-mono);"><%= r.sortOrder %></td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);max-width:340px;">
+              <%= r.body.length > 100 ? r.body.slice(0, 100) + '…' : r.body %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+</body>
+</html>
