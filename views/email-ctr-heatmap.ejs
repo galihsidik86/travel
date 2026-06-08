@@ -77,6 +77,7 @@
   <h1>Email click <em>heatmap</em></h1>
   <div class="sub">
     Tipe notif: <strong style="color:var(--cream-100);"><%= heatmap.type %></strong>
+    · Channel: <strong style="color:var(--<%= heatmap.channel === 'WA' ? 'emerald' : heatmap.channel === 'EMAIL' ? 'sapphire' : 'cream-100' %>);"><%= heatmap.channel || 'EMAIL+WA' %></strong>
     · jendela <%= heatmap.windowDays %> hari terakhir
     · <%= heatmap.totals.urls %> URL unik
     · <%= heatmap.totals.clicks %> total klik

@@ -1,0 +1,4 @@
+{
+  "subject": "[SLA] {{breachCount}} insiden tipe melewati budget minggu lalu ({{windowFrom}} → {{windowTo}})",
+  "body": "Halo tim,\n\nSLA breach summary untuk minggu {{windowFrom}} → {{windowTo}}.\nTotal insiden minggu itu: {{incidentsTotal}}\nBudget yang dilewati: {{breachCount}}\n\n— DETAIL\n{{rowsBlock}}\n\nBudget reference per tipe ada di src/services/incidentSlaAlert.js — kalau real-world p95 stabil over- atau under- budget selama 3 bulan, pertimbangkan revisi.\n\nLihat detail SLA + tren: {{slaLink}}\n\n— sistem Religio Pro"
+}

@@ -17,6 +17,8 @@ import { getTrafficAnomalies } from '../services/trafficAnomaly.js';
 import { getLandingSpeed } from '../services/paketView.js';
 import { buildCrewWeeklyDigest, listActiveCrewForDigest } from '../services/crewWeeklyDigest.js';
 import { escalateStaleIncidents } from '../services/incidentEscalate.js';
+import { getIncidentSlaBreaches } from '../services/incidentSlaAlert.js';
+import { notifyIncidentSlaBreach } from '../services/notifications.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -216,6 +218,24 @@ router.post(
   '/send-incident-escalate',
   asyncHandler(async (_req, res) => {
     const result = await runJob('send-incident-escalate', () => escalateStaleIncidents());
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-incident-sla-alert',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-incident-sla-alert', async () => {
+      const breaches = await getIncidentSlaBreaches();
+      const fan = await notifyIncidentSlaBreach({ breaches });
+      return {
+        breachCount: breaches.counts.breaches,
+        incidentsTotal: breaches.counts.incidentsTotal,
+        recipients: fan.recipients ?? 0,
+        enqueued: fan.enqueued ?? 0,
+        skipped: fan.skipped ?? false,
+      };
+    });
     res.json(result);
   }),
 );

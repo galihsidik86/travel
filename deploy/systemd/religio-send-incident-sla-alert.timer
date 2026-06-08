@@ -1,0 +1,11 @@
+[Unit]
+Description=Religio Pro — weekly incident SLA breach alert (Monday 07:25)
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+OnCalendar=Mon *-*-* 07:25:00
+Persistent=true
+Unit=religio-send-incident-sla-alert.service
+
+[Install]
+WantedBy=timers.target

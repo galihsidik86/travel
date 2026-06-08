@@ -69,6 +69,10 @@ MAILTO=""
 # Monday 07:20 — per-crew (MUTHAWWIF) weekly recap + upcoming trip prep (Stage 65)
 20 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-crew-weekly-digest >> /var/log/religio/crew-weekly.log 2>&1
 
+# Monday 07:25 — incident SLA breach alert for the previous full Mon-Sun week (Stage 87)
+# Silent on healthy weeks; fires only when at least one (type, metric) p95 crosses the budget.
+25 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-incident-sla-alert >> /var/log/religio/incident-sla.log 2>&1
+
 # Nightly 01:15 — mysqldump + gzip + 14-day rotation. See deploy/backup.example.sh.
 15 1  * * *   religio  /srv/religio-pro/deploy/backup.sh                     >> /var/log/religio/backup.log         2>&1
 

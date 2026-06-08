@@ -138,6 +138,7 @@ enum NotificationType {
   FIRST_PAYMENT_THANKS // first PAID payment lands → jemaah (Stage 75)
   INCIDENT_ESCALATED // OPEN incident > 60 min unacked → OWNER tier (Stage 80)
   BOOKING_NOTE_MENTION // @-mention in booking notes → mentioned user (Stage 81)
+  INCIDENT_SLA_BREACH_OWNER // last-week p95 ack/resolve breached budget → OWNER tier (Stage 87)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -228,6 +229,8 @@ model User {
   incidentsResolved Incident[]         @relation("IncidentResolver")
   pushSubscriptions PushSubscription[]
   testimonials      Testimonial[]      @relation("TestimonialSubmitter")
+  mentionsReceived  BookingMention[]   @relation("MentionedUser")
+  mentionsAuthored  BookingMention[]   @relation("MentionedByActor")
 
   @@index([role])
   @@index([deletedAt])
@@ -558,6 +561,37 @@ model EmailClick {
   @@index([notificationId])
 }
 
+// Stage 86 — booking-note @-mention audit. One row per (booking, user)
+// per save that introduced a new mention of that user. Lets staff see
+// "what bookings was I tagged in this week" without scanning the notif
+// queue. Mirrors S81's notif fan-out — every new mention spawns one
+// row here AND one Notification row, keeping the inbox + the history
+// surface in sync.
+//
+// Why a denormalised table instead of querying Notification rows: the
+// notif queue can be pruned (S14 retention), the inbox-style surfaces
+// need a separate persistence layer. Composite index on `(userEmail,
+// createdAt)` keeps per-user listing fast even as the table grows.
+model BookingMention {
+  id            String   @id @default(cuid())
+
+  bookingId     String
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  userEmail     String   @db.VarChar(190)
+  userId        String?
+  user          User?    @relation("MentionedUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  mentionedById String?
+  mentionedBy   User?    @relation("MentionedByActor", fields: [mentionedById], references: [id], onDelete: SetNull)
+  mentionedByEmail String? @db.VarChar(190)
+
+  createdAt DateTime @default(now())
+
+  @@index([userEmail, createdAt])
+  @@index([bookingId, createdAt])
+}
+
 // Stage 48 — public paket landing page visit counter. Used to compute
 // conversion rate (bookings ÷ unique visits) per paket. Identified by
 // a non-httpOnly cookie `rp_vis` (32-hex random) set on first visit; the
@@ -831,6 +865,7 @@ model Booking {
   komisi          Komisi[]
   paymentIntents  PaymentIntent[]
   attendanceMarks AttendanceMark[]
+  mentions        BookingMention[]
 
   @@index([paketId])
   @@index([agentId])

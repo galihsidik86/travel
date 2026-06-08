@@ -1,9 +1,13 @@
-// Stage 79 — per-notif-type CTR over a rolling window.
+// Stage 79/85 — per-(type, channel) CTR over a rolling window.
 //
 // CTR = unique-click rate, computed as:
-//   - sent      = count(Notification where status=SENT in window, channel=EMAIL)
+//   - sent      = count(Notification where status=SENT in window)
 //   - clicked   = count(Notification with at least one EmailClick row)
 //   - ctrPct    = clicked / sent × 100
+//
+// S85 — channels now include WA. The EmailClick model carries clicks
+// for both channels (since /r/<token> is channel-agnostic); the model
+// name is historical and isn't renamed to keep migration risk low.
 //
 // Why unique-click and not raw click volume:
 //   - One recipient clicking the link 5 times shouldn't read as "500% CTR"
@@ -11,57 +15,60 @@
 //     "how many tabs did they open"
 //
 // Excluded:
-//   - Non-EMAIL channels (WA doesn't go through /r/<token>)
 //   - SKIPPED / PENDING / FAILED rows (denominator = SENT only)
-//   - Types with <5 SENT in window (sample too small to declare CTR;
+//   - Channels other than EMAIL / WA (CONSOLE never goes out to a recipient)
+//   - Combos with <5 SENT in window (sample too small to declare CTR;
 //     marked `lowSample: true` so view can dim them)
 
 import { db } from './../lib/db.js';
 
 const ONE_DAY_MS = 86_400_000;
+const DEFAULT_CHANNELS = ['EMAIL', 'WA'];
 
-export async function getEmailCtrByType({ now = new Date(), days = 30 } = {}) {
+export async function getEmailCtrByType({ now = new Date(), days = 30, channels = DEFAULT_CHANNELS } = {}) {
   const start = new Date(now.getTime() - days * ONE_DAY_MS);
   start.setHours(0, 0, 0, 0);
   const end = new Date(now);
   end.setHours(0, 0, 0, 0);
   end.setTime(end.getTime() + ONE_DAY_MS);
 
-  // SENT counts per type. groupBy is fastest here.
+  // SENT counts per (type, channel). groupBy is fastest here.
   const sentRows = await db.notification.groupBy({
-    by: ['type'],
+    by: ['type', 'channel'],
     where: {
-      channel: 'EMAIL',
+      channel: { in: channels },
       status: 'SENT',
       sentAt: { gte: start, lt: end },
     },
     _count: { _all: true },
   });
   if (sentRows.length === 0) {
-    return { rows: [], windowDays: days, totals: { sent: 0, clicked: 0, ctrPct: null } };
+    return { rows: [], windowDays: days, channels, totals: { sent: 0, clicked: 0, ctrPct: null } };
   }
-  const sentByType = new Map(sentRows.map((r) => [r.type, r._count._all]));
+  // Key is `${type}::${channel}` so the same type across channels stays distinct.
+  const sentByKey = new Map(sentRows.map((r) => [`${r.type}::${r.channel}`, r._count._all]));
 
-  // Clicked counts per type — needs a join through EmailClick → Notification.
-  // Use a raw groupBy via notification with `clicks: { some: {} }` predicate.
+  // Clicked counts per (type, channel) — same predicate path as S79.
   const clickedRows = await db.notification.groupBy({
-    by: ['type'],
+    by: ['type', 'channel'],
     where: {
-      channel: 'EMAIL',
+      channel: { in: channels },
       status: 'SENT',
       sentAt: { gte: start, lt: end },
       clicks: { some: {} },
     },
     _count: { _all: true },
   });
-  const clickedByType = new Map(clickedRows.map((r) => [r.type, r._count._all]));
+  const clickedByKey = new Map(clickedRows.map((r) => [`${r.type}::${r.channel}`, r._count._all]));
 
-  const rows = [...sentByType.entries()]
-    .map(([type, sent]) => {
-      const clicked = clickedByType.get(type) || 0;
+  const rows = [...sentByKey.entries()]
+    .map(([key, sent]) => {
+      const [type, channel] = key.split('::');
+      const clicked = clickedByKey.get(key) || 0;
       const ctrPct = sent > 0 ? Math.round((clicked / sent) * 1000) / 10 : null;
       return {
         type,
+        channel,
         sent,
         clicked,
         ctrPct,
@@ -69,8 +76,8 @@ export async function getEmailCtrByType({ now = new Date(), days = 30 } = {}) {
       };
     })
     // Default sort: highest sample first so admin sees the most reliable
-    // numbers at the top. Tie-break by type name for stability.
-    .sort((a, b) => b.sent - a.sent || a.type.localeCompare(b.type));
+    // numbers at the top. Tie-break by type+channel for stability.
+    .sort((a, b) => b.sent - a.sent || a.type.localeCompare(b.type) || a.channel.localeCompare(b.channel));
 
   const totalSent = rows.reduce((s, r) => s + r.sent, 0);
   const totalClicked = rows.reduce((s, r) => s + r.clicked, 0);
@@ -81,6 +88,7 @@ export async function getEmailCtrByType({ now = new Date(), days = 30 } = {}) {
   return {
     rows,
     windowDays: days,
+    channels,
     totals: { sent: totalSent, clicked: totalClicked, ctrPct: overallCtr },
   };
 }
@@ -102,8 +110,8 @@ export async function getEmailCtrByType({ now = new Date(), days = 30 } = {}) {
  * `sharePct` (per-URL ÷ total clicks for this type) so admin sees relative
  * weight, not just raw numbers.
  */
-export async function getEmailClickHeatmap({ type, now = new Date(), days = 30 } = {}) {
-  if (!type) return { type: null, rows: [], totals: { clicks: 0, urls: 0 } };
+export async function getEmailClickHeatmap({ type, channel = null, now = new Date(), days = 30 } = {}) {
+  if (!type) return { type: null, channel, rows: [], totals: { clicks: 0, urls: 0 } };
   const start = new Date(now.getTime() - days * ONE_DAY_MS);
   start.setHours(0, 0, 0, 0);
   const end = new Date(now);
@@ -116,26 +124,28 @@ export async function getEmailClickHeatmap({ type, now = new Date(), days = 30 }
   // Type is a Prisma enum — an unknown string throws "Invalid value for
   // argument `type`". Wrap so callers can pass a bookmarked-but-since-
   // renamed type without a 500.
+  //
+  // S85 — optional `channel` narrows the lens. Null channel = both EMAIL
+  // and WA combined (useful for the type-only drill from the panel link).
+  const notifFilter = {
+    type,
+    sentAt: { gte: start, lt: end },
+    channel: channel ? channel : { in: DEFAULT_CHANNELS },
+  };
   let clicks;
   try {
     clicks = await db.emailClick.findMany({
-      where: {
-        notification: {
-          channel: 'EMAIL',
-          type,
-          sentAt: { gte: start, lt: end },
-        },
-      },
+      where: { notification: notifFilter },
       select: { targetUrl: true, clickCount: true },
     });
   } catch (err) {
     if (String(err?.message || '').includes('Invalid value for argument `type`')) {
-      return { type, rows: [], totals: { clicks: 0, urls: 0 }, windowDays: days };
+      return { type, channel, rows: [], totals: { clicks: 0, urls: 0 }, windowDays: days };
     }
     throw err;
   }
   if (clicks.length === 0) {
-    return { type, rows: [], totals: { clicks: 0, urls: 0 }, windowDays: days };
+    return { type, channel, rows: [], totals: { clicks: 0, urls: 0 }, windowDays: days };
   }
 
   // Normalise: keep path (+ query for /r/ wrapped urls already unwrapped at
@@ -176,6 +186,7 @@ export async function getEmailClickHeatmap({ type, now = new Date(), days = 30 }
 
   return {
     type,
+    channel,
     rows,
     totals: { clicks: totalClicks, urls: rows.length },
     windowDays: days,

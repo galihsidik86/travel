@@ -32,11 +32,16 @@ router.get(
       || overview.paketList.find((p) => p.status === 'ACTIVE')?.slug
       || overview.paketList[0]?.slug
       || null;
-    const [manifest, finance, bunking, paketRecap] = await Promise.all([
+    const { getMyMentions } = await import('../services/bookingMentions.js');
+    const [manifest, finance, bunking, paketRecap, myMentions] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
       recapSlug ? getPaketWeeklyRecap({ slug: recapSlug }) : Promise.resolve(null),
+      // Stage 86 — viewer's own mentions over last 30d. Best-effort so a
+      // table-missing or schema-drift never breaks the overview render.
+      getMyMentions({ userEmail: req.user.email, days: 30 })
+        .catch((err) => { console.warn('[admin] getMyMentions failed:', err?.message || err); return null; }),
     ]);
     res.render('admin-dashboard', {
       user: req.user,
@@ -46,6 +51,7 @@ router.get(
       bunking,
       paketRecap,
       recapSlug,
+      myMentions,
       activeTab: req.query.tab || 'overview',
       range,
     });
@@ -93,12 +99,15 @@ router.get(
   }),
 );
 
-// Stage 84 — per-URL click heatmap drill-down for one notif type.
+// Stage 84/85 — per-URL click heatmap drill-down for one notif type.
+// ?channel=EMAIL|WA narrows the lens; omit for combined view.
 router.get(
   '/email-ctr/:type',
   asyncHandler(async (req, res) => {
     const { getEmailClickHeatmap } = await import('../services/emailCtr.js');
-    const heatmap = await getEmailClickHeatmap({ type: req.params.type, days: 30 });
+    const channelQ = (req.query.channel || '').toString().toUpperCase();
+    const channel = (channelQ === 'EMAIL' || channelQ === 'WA') ? channelQ : null;
+    const heatmap = await getEmailClickHeatmap({ type: req.params.type, channel, days: 30 });
     res.render('email-ctr-heatmap', { user: req.user, heatmap });
   }),
 );

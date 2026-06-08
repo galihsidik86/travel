@@ -26,8 +26,12 @@ function sign(payload) {
 }
 
 /**
- * Encode a target URL into a tracked redirect path. Returns the relative
- * path `/r/<token>`. Caller appends to baseUrl in the email template.
+ * Encode a target URL into a tracked redirect URL. When `PUBLIC_BASE_URL`
+ * is configured (production), returns an absolute URL — required for WA
+ * (S85), where clients only auto-detect URLs with scheme + host. Without
+ * the env, falls back to a path-only `/r/<token>` (backwards-compatible
+ * with the original S77 wrap shape, and fine for email clients that
+ * render `<a>` tags from the surrounding HTML).
  *
  * Only http(s) absolute or absolute-path URLs are tracked. Other inputs
  * (mailto: tel: anchors) pass through unwrapped — the redirect URL would
@@ -38,7 +42,9 @@ export function wrapUrl(notifId, url) {
   if (!/^https?:\/\//.test(url) && !url.startsWith('/')) return url;
   const enc = b64url(url);
   const sig = sign(`${notifId}.${enc}`);
-  return `/r/${notifId}.${enc}.${sig}`;
+  const path = `/r/${notifId}.${enc}.${sig}`;
+  const base = env.PUBLIC_BASE_URL ? env.PUBLIC_BASE_URL.replace(/\/$/, '') : '';
+  return base + path;
 }
 
 /**

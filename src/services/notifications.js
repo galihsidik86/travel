@@ -149,12 +149,18 @@ export async function dispatchNotification(notif) {
     });
   }
 
-  // Stage 77 — for EMAIL channel only, rewrite absolute + absolute-path
-  // URLs in the body to go through /r/<token> so we can record clicks.
-  // Mutates a copy of the notif object; the DB row stays unchanged so
-  // admin viewers still show the original link text.
+  // Stage 77/85 — for EMAIL + WA channels, rewrite absolute + absolute-
+  // path URLs in the body to go through /r/<token> so we can record
+  // clicks. Mutates a copy of the notif object; the DB row stays
+  // unchanged so admin viewers still show the original link text.
+  //
+  // S85 — WA now wraps too. Requires PUBLIC_BASE_URL to be set in env
+  // (WA clients only auto-detect absolute http(s) URLs — path-only
+  // /r/<token> wouldn't be a clickable link). Without the env, wrapUrl
+  // returns the bare path, which is fine for email (HTML renders the
+  // anchor) but silently no-op for WA — acceptable degradation for dev.
   let toSend = notif;
-  if (notif.channel === 'EMAIL' && notif.body) {
+  if ((notif.channel === 'EMAIL' || notif.channel === 'WA') && notif.body) {
     try {
       const { wrapUrl } = await import('../lib/emailClickToken.js');
       // Match http(s) URLs OR root-absolute paths. Stop at whitespace.
@@ -548,6 +554,55 @@ export async function notifyIncidentCreated({ incident, crew, paket }) {
 }
 
 /**
+ * Stage 87 — weekly SLA breach summary fan-out to OWNER/SUPERADMIN/
+ * MANAJER_OPS. Silent when nothing breached — healthy weeks shouldn't
+ * generate inbox noise. Per-row format: "SOS · ack p95 12m (budget 5m,
+ * over 140%, sample 4)" — admin can see the worst breach first.
+ */
+export async function notifyIncidentSlaBreach({ breaches }) {
+  if (!breaches || breaches.rows.length === 0) {
+    return { enqueued: 0, skipped: true };
+  }
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { enqueued: 0 };
+
+  const rowLines = breaches.rows.map((r, idx) => {
+    const metricLabel = r.metric === 'ack' ? 'Ack' : 'Resolve';
+    return `${idx + 1}. ${r.type} · ${metricLabel} p95 ${r.fmt.p95} (budget ${r.fmt.budget}, +${r.overByPct}%, n=${r.sample})`;
+  });
+
+  const vars = {
+    windowFrom: breaches.window.from,
+    windowTo: breaches.window.to,
+    breachCount: String(breaches.counts.breaches),
+    incidentsTotal: String(breaches.counts.incidentsTotal),
+    rowsBlock: rowLines.join('\n'),
+    slaLink: '/admin/incidents',
+  };
+  const { subject, body } = renderTemplate('INCIDENT_SLA_BREACH_OWNER', 'EMAIL', vars);
+
+  let enqueued = 0;
+  await Promise.all(admins.map(async (a) => {
+    await enqueueNotification({
+      type: 'INCIDENT_SLA_BREACH_OWNER', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject, body,
+      payload: { breachCount: breaches.counts.breaches, windowFrom: breaches.window.from },
+    });
+    enqueued += 1;
+  }));
+  return { enqueued, recipients: admins.length };
+}
+
+/**
  * Stage 80 — second-tier escalation when an OPEN incident sits unacked
  * past the threshold (default 60min). EMAIL-only fan-out to OWNER tier
  * (not the whole admin desk that already got stage 13's first alert).
@@ -649,6 +704,23 @@ export async function notifyBookingNoteMention({ booking, mentions, actor }) {
       payload: { bookingNo: booking.bookingNo, actorEmail: actor?.email ?? null },
       relatedEntity: 'Booking', relatedEntityId: booking.id,
     });
+    // Stage 86 — also stamp BookingMention so the per-user mention
+    // history surface ("/admin overview → my mentions") has a stable
+    // index that survives notif-queue pruning. Best-effort; failure
+    // here must never break the notif enqueue above.
+    try {
+      await db.bookingMention.create({
+        data: {
+          bookingId: booking.id,
+          userEmail: u.email,
+          userId: u.id,
+          mentionedById: actor?.id || null,
+          mentionedByEmail: actor?.email || null,
+        },
+      });
+    } catch (err) {
+      console.warn('[booking-mention] history insert failed:', err?.message || err);
+    }
     enqueued += 1;
   }));
   return { enqueued, recipients: recipients.length };
