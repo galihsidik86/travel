@@ -203,6 +203,57 @@ export function buildOpenApiSpec({ baseUrl = '' } = {}) {
           },
         },
       },
+      '/api/v1/audit': {
+        get: {
+          summary: 'List AuditLog rows for a single entity (S120)',
+          security: [{ bearerAuth: ['read:audit'] }],
+          parameters: [
+            { name: 'entity',   in: 'query', required: true, schema: { type: 'string', example: 'Booking' } },
+            { name: 'entityId', in: 'query', required: true, schema: { type: 'string' } },
+            { name: 'page',     in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
+            { name: 'limit',    in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 50 } },
+          ],
+          responses: {
+            200: {
+              description: 'Paginated audit rows (newest first)',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      data: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'string' },
+                            action: { type: 'string' },
+                            actorEmail: { type: 'string', nullable: true },
+                            actorRole: { type: 'string', nullable: true },
+                            before: { type: 'object', nullable: true, additionalProperties: true },
+                            after: { type: 'object', nullable: true, additionalProperties: true },
+                            ip: { type: 'string', nullable: true },
+                            createdAt: { type: 'string', format: 'date-time' },
+                          },
+                        },
+                      },
+                      pagination: { $ref: '#/components/schemas/Pagination' },
+                      filters: {
+                        type: 'object',
+                        properties: { entity: { type: 'string' }, entityId: { type: 'string' } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: 'Missing entity/entityId', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            403: { $ref: '#/components/responses/Forbidden' },
+            429: { $ref: '#/components/responses/RateLimited' },
+          },
+        },
+      },
       '/api/v1/paket': {
         get: {
           summary: 'List ACTIVE paket',

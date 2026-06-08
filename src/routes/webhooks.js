@@ -6,7 +6,8 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import {
-  listWebhooks, createWebhook, updateWebhookStatus, deleteWebhook, testFireWebhook, EVENT_NAMES,
+  listWebhooks, createWebhook, updateWebhookStatus, deleteWebhook, testFireWebhook,
+  rotateWebhookSecret, EVENT_NAMES,
 } from '../services/webhooks.js';
 
 const router = Router();
@@ -22,7 +23,14 @@ router.get(
     const webhooks = await listWebhooks();
     res.render('admin-webhooks', {
       user: req.user, webhooks, eventNames: EVENT_NAMES,
-      flash: { ok: req.query.ok || null, err: req.query.err || null },
+      flash: {
+        ok: req.query.ok || null,
+        err: req.query.err || null,
+        // S118 — surface the newly rotated secret ONCE
+        rotatedSecret: req.query.rotatedSecret || null,
+        rotatedFor: req.query.rotatedFor || null,
+        graceUntil: req.query.graceUntil || null,
+      },
     });
   }),
 );
@@ -61,6 +69,32 @@ router.post(
         id: req.params.id, status: req.body?.status,
       });
       res.redirect('/admin/webhooks?ok=status');
+    } catch (err) {
+      if (err instanceof HttpError) {
+        return res.redirect('/admin/webhooks?err=' + encodeURIComponent(err.message));
+      }
+      throw err;
+    }
+  }),
+);
+
+// Stage 118 — rotate the webhook signing secret. Returns the new secret
+// once via the same flash-via-query pattern as API key creation. Old
+// secret stays valid for `graceHours` (default 24, capped 1..168).
+router.post(
+  '/:id/rotate-secret',
+  asyncHandler(async (req, res) => {
+    try {
+      const result = await rotateWebhookSecret({
+        req, actor: actorFrom(req),
+        id: req.params.id,
+        graceHours: req.body?.graceHours,
+      });
+      const u = new URL('/admin/webhooks', 'http://x');
+      u.searchParams.set('rotatedSecret', result.newSecret);
+      u.searchParams.set('rotatedFor', req.params.id);
+      u.searchParams.set('graceUntil', result.prevSecretExpiresAt.toISOString());
+      res.redirect(u.pathname + u.search);
     } catch (err) {
       if (err instanceof HttpError) {
         return res.redirect('/admin/webhooks?err=' + encodeURIComponent(err.message));

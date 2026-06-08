@@ -594,6 +594,12 @@ model Webhook {
   id          String   @id @default(cuid())
   url         String   @db.VarChar(500)
   secret      String   @db.VarChar(120)
+  // Stage 118 — overlap secret during rotation. While prevSecret is set
+  // AND prevSecretExpiresAt is in the future, every outbound POST also
+  // carries `X-Religio-Signature-Prev` so partners can verify against
+  // EITHER secret while they swap in the new one.
+  prevSecret           String?   @db.VarChar(120)
+  prevSecretExpiresAt  DateTime?
   events      Json     // array of strings, e.g. ["booking.created", "payment.received"]
   status      WebhookStatus @default(ACTIVE)
   description String?  @db.Text

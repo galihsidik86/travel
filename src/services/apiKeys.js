@@ -23,7 +23,7 @@ import { db } from '../lib/db.js';
 import { audit } from '../lib/audit.js';
 import { HttpError } from '../middleware/error.js';
 
-export const KNOWN_SCOPES = ['read:bookings', 'read:paket', 'read:notifs'];
+export const KNOWN_SCOPES = ['read:bookings', 'read:paket', 'read:notifs', 'read:audit'];
 
 function generateSecret() {
   return randomBytes(32).toString('hex');

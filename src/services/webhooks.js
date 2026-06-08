@@ -67,7 +67,9 @@ function nextDelayMs(failedAttemptCount) {
 export async function dispatchEvent(eventName, payload) {
   const subs = await db.webhook.findMany({
     where: { status: 'ACTIVE' },
-    select: { id: true, url: true, secret: true, events: true },
+    // S118: prev* fields needed so attemptDelivery can dual-sign during
+    // a rotation grace window.
+    select: { id: true, url: true, secret: true, prevSecret: true, prevSecretExpiresAt: true, events: true },
   });
   const matched = subs.filter((s) => {
     const list = Array.isArray(s.events) ? s.events : [];
@@ -110,14 +112,25 @@ async function attemptDelivery(sub, body, signature, eventName, delivery, attemp
   const timer = setTimeout(() => ctrl.abort('timeout'), DEFAULT_TIMEOUT_MS);
   let status = null, err = null, ok = false;
   try {
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Religio-Signature': signature,
+      'X-Religio-Event': eventName,
+    };
+    // Stage 119 — Idempotency-Key tied to the persisted delivery row id.
+    // Partners can dedupe across our retries (e.g. their endpoint actually
+    // succeeded but timed out responding — our retry shouldn't double-bill
+    // them on their side). Skipped when there's no delivery row (e.g. a
+    // pre-S109 caller, though that path is gone in practice).
+    if (delivery?.id) headers['Idempotency-Key'] = delivery.id;
+    // Stage 118 — during the secret rotation grace window, ALSO sign with
+    // the previous secret so partners verifying against either key still
+    // accept the request. After expiry, only the current signature ships.
+    if (sub.prevSecret && sub.prevSecretExpiresAt && new Date(sub.prevSecretExpiresAt) > new Date()) {
+      headers['X-Religio-Signature-Prev'] = sign(sub.prevSecret, body);
+    }
     const res = await fetch(sub.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Religio-Signature': signature,
-        'X-Religio-Event': eventName,
-      },
-      body, signal: ctrl.signal,
+      method: 'POST', headers, body, signal: ctrl.signal,
     });
     status = res.status;
     ok = res.ok;
@@ -253,7 +266,8 @@ export async function processPendingDeliveries({ limit = 50 } = {}) {
     take: limit,
     orderBy: { nextRetryAt: 'asc' },
     include: {
-      webhook: { select: { id: true, url: true, secret: true, status: true } },
+      // S118: prev* fields needed for dual-sign during rotation grace window.
+      webhook: { select: { id: true, url: true, secret: true, prevSecret: true, prevSecretExpiresAt: true, status: true } },
     },
   });
   let processed = 0, succeeded = 0, failed = 0, requeued = 0, skipped = 0;
@@ -327,6 +341,48 @@ export async function updateWebhookStatus({ req, actor, id, status }) {
     after: { status },
   });
   return updated;
+}
+
+/**
+ * Stage 118 — rotate a webhook's signing secret with an overlap window.
+ *
+ *   - New secret minted + stored as `secret`
+ *   - Old secret moves to `prevSecret`, expiry = now + `graceHours`
+ *   - During the grace window every outbound POST carries TWO headers:
+ *       X-Religio-Signature       (signed with the NEW secret)
+ *       X-Religio-Signature-Prev  (signed with the OLD secret)
+ *     so partners can verify against EITHER while they swap config.
+ *
+ * Returns the new plaintext secret ONCE (admin must surface it via the
+ * route response — we never store anything retrievable afterwards).
+ *
+ * If a previous rotation hasn't yet expired and admin rotates again,
+ * the in-flight prev is replaced by the previously-current secret; the
+ * older one disappears (admin has only ever advertised TWO secrets to
+ * partners — current + prev — so the 3rd-most-recent isn't useful).
+ */
+export async function rotateWebhookSecret({ req, actor, id, graceHours = 24 }) {
+  const before = await db.webhook.findUnique({ where: { id } });
+  if (!before) throw new HttpError(404, 'Webhook tidak ditemukan', 'WEBHOOK_NOT_FOUND');
+
+  const grace = Math.max(1, Math.min(168, parseInt(graceHours, 10) || 24));
+  const newSecret = randomBytes(32).toString('hex');
+  const expiry = new Date(Date.now() + grace * 60 * 60_000);
+  const updated = await db.webhook.update({
+    where: { id },
+    data: {
+      secret: newSecret,
+      prevSecret: before.secret,
+      prevSecretExpiresAt: expiry,
+    },
+  });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'Webhook', entityId: id,
+    before: { secretRotated: true },
+    after: { secretRotated: true, prevSecretExpiresAt: expiry, graceHours: grace },
+  });
+  return { webhook: updated, newSecret, prevSecretExpiresAt: expiry };
 }
 
 export async function deleteWebhook({ req, actor, id }) {

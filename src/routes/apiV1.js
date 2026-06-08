@@ -209,4 +209,63 @@ router.get(
   }),
 );
 
+// Stage 120 — partner audit log read. Lets partner CRMs surface
+// "who changed what" inside their own UI without raw DB access.
+//
+// Required: ?entity=<Booking|Payment|...>&entityId=<id>
+//   Entity is the AuditLog.entity string (Prisma model name basically).
+//   Filters scoped to one entity/id to keep payloads bounded — bulk
+//   audit feeds are a future-stage concern.
+//
+// Pagination same shape as /bookings (page + limit, cap 100).
+router.get(
+  '/audit',
+  requireApiScope('read:audit'),
+  apiKeyRateLimit,
+  asyncHandler(async (req, res) => {
+    const entity = (req.query.entity || '').toString();
+    const entityId = (req.query.entityId || '').toString();
+    if (!entity || !entityId) {
+      return res.status(400).json({
+        error: { code: 'BAD_PARAMS', message: 'entity and entityId query params required' },
+      });
+    }
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(req.query.limit, 10) || DEFAULT_LIMIT));
+
+    const where = { entity, entityId };
+    const [total, rows] = await Promise.all([
+      db.auditLog.count({ where }),
+      db.auditLog.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true, action: true,
+          actorEmail: true, actorRole: true,
+          before: true, after: true,
+          ip: true, createdAt: true,
+        },
+      }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    res.json({
+      data: rows.map((r) => ({
+        id: r.id,
+        action: r.action,
+        actorEmail: r.actorEmail,
+        actorRole: r.actorRole,
+        before: r.before ?? null,
+        after: r.after ?? null,
+        ip: r.ip || null,
+        createdAt: r.createdAt.toISOString(),
+      })),
+      pagination: { page, limit, total, totalPages, hasMore: page < totalPages },
+      filters: { entity, entityId },
+    });
+  }),
+);
+
 export default router;
