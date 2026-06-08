@@ -32,6 +32,8 @@ const SKIP_PATH_PREFIXES = [
   // S111 — inbound webhook receivers verify signatures per source;
   // CSRF cookies don't reach them anyway (partners don't have our cookies).
   '/api/webhook-in/',
+  // S114 — partner-facing read API uses S113 Bearer-token auth.
+  '/api/v1/',
 ];
 
 function shouldSkip(req) {

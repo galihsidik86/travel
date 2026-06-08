@@ -45,10 +45,73 @@ export const VERIFIERS = {
 
 // ─── Per-source handlers ─────────────────────────────────────
 // Empty map = pure passive receiver. Add handlers when wiring an
-// integration (e.g. fonnte delivery receipt → flip Notification.status).
+// integration.
 export const HANDLERS = {
-  // fonnte: async (payload, headers) => { ... },
+  // Stage 112 — Fonnte delivery receipt → flip Notification.status on
+  // downstream failure; annotate payload on success.
+  fonnte: handleFonnteDelivery,
 };
+
+/**
+ * Stage 112 — Fonnte delivery receipt handler. Match-by-phone strategy
+ * (no provider message id is stored on Notification) — latest WA notif
+ * to the same recipient within last 24h. Realistic 1-msg-per-min-per-
+ * recipient usage makes false positives negligible.
+ *
+ * On status=failed → flip Notification.status = FAILED + stamp reason,
+ * clear nextRetryAt (the message DID leave our side; downstream failure,
+ * not a transport issue worth retrying from the queue).
+ *
+ * On status=delivered/read → leave SENT, annotate `payload.fonnteDelivery`.
+ */
+async function handleFonnteDelivery(payload, _headers) {
+  if (!payload) return;
+  const rawTarget = payload.target || payload.recipient || payload.to;
+  const status = (payload.status || '').toString().toLowerCase();
+  if (!rawTarget || !status) return;
+
+  const digits = String(rawTarget).replace(/\D/g, '');
+  if (!digits) return;
+  const normalised = digits.replace(/^0/, '62');
+
+  const last24h = new Date(Date.now() - 24 * 60 * 60_000);
+  const candidates = await db.notification.findMany({
+    where: {
+      channel: 'WA',
+      status: 'SENT',
+      sentAt: { gte: last24h },
+    },
+    orderBy: { sentAt: 'desc' },
+    take: 50,
+    select: { id: true, recipientPhone: true, payload: true },
+  });
+
+  const match = candidates.find((n) => {
+    if (!n.recipientPhone) return false;
+    const nd = n.recipientPhone.replace(/\D/g, '').replace(/^0/, '62');
+    return nd === normalised;
+  });
+  if (!match) return;
+
+  if (status === 'failed' || status === 'error') {
+    await db.notification.update({
+      where: { id: match.id },
+      data: {
+        status: 'FAILED',
+        error: 'Fonnte delivery failed: ' + (payload.reason || 'unknown'),
+        nextRetryAt: null,
+      },
+    });
+  } else {
+    const existing = match.payload && typeof match.payload === 'object' ? match.payload : {};
+    await db.notification.update({
+      where: { id: match.id },
+      data: {
+        payload: { ...existing, fonnteDelivery: { status, at: new Date().toISOString() } },
+      },
+    });
+  }
+}
 
 const KNOWN_SOURCES = new Set([...Object.keys(VERIFIERS), ...Object.keys(HANDLERS)]);
 

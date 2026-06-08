@@ -32,6 +32,8 @@ import incidentsRouter from './routes/incidents.js';
 import testimonialsRouter from './routes/testimonials.js';
 import webhooksRouter from './routes/webhooks.js';
 import inboundWebhooksRouter, { inboundWebhooksAdminRouter } from './routes/inboundWebhooks.js';
+import apiKeysRouter from './routes/apiKeys.js';
+import apiV1Router from './routes/apiV1.js';
 import crewPublicRouter from './routes/crewPublic.js';
 import agentPublicRouter, { agentLeaderboardRouter } from './routes/agentPublic.js';
 import emailClickRedirectRouter from './routes/emailClickRedirect.js';
@@ -111,6 +113,8 @@ export function createApp() {
   app.use('/api/payments', paymentsRouter);
   app.use('/api/refunds', refundsRouter);
   app.use('/api/admin/jobs', jobsRouter);
+  // Stage 114 — partner-facing read API. Bearer-token auth via S113 keys.
+  app.use('/api/v1', apiV1Router);
   app.use('/api/admin/push', pushRouter);
   app.use('/api/bunking', bunkingRouter);
   app.use('/api/jemaah', jemaahDocsRouter);
@@ -155,6 +159,7 @@ export function createApp() {
   app.use('/admin/testimonials', testimonialsRouter);
   app.use('/admin/webhooks', webhooksRouter);
   app.use('/admin/inbound-webhooks', inboundWebhooksAdminRouter);
+  app.use('/admin/api-keys', apiKeysRouter);
   app.use('/admin', adminRouter);
 
   // Static — existing design package (index.html, screens/, shared/, uploads/)

@@ -7,38 +7,39 @@ import { db, makeTag } from './_helpers.js';
 import { receiveInbound, listInbound, replayInbound } from '../src/services/inboundWebhooks.js';
 
 test('receiveInbound: no verifier configured → signatureValid=null + RECEIVED', async (t) => {
-  const tag = makeTag('inb-na');
-  delete process.env.WEBHOOK_IN_FONNTE_SECRET;  // force "no rule"
+  // Use a source with no verifier AND no handler so status stays RECEIVED.
+  // (Fonnte gained a handler in S112, so it would flip to HANDLED.)
+  delete process.env.WEBHOOK_IN_GENERIC_SECRET;
   const r = await receiveInbound({
-    source: 'fonnte',
+    source: 'noverifier-test-only',
     rawBody: '{"hello":"world"}',
     headers: { 'content-type': 'application/json' },
   });
   t.after(async () => { if (r.id) await db.inboundWebhook.delete({ where: { id: r.id } }); });
 
   assert.equal(r.status, 'RECEIVED');
-  assert.equal(r.signatureValid, null, 'no env → no rule → null');
+  assert.equal(r.signatureValid, null, 'unknown source → no rule → null');
 });
 
-test('receiveInbound: valid HMAC signature → signatureValid=true + RECEIVED', async (t) => {
-  const tag = makeTag('inb-ok');
-  process.env.WEBHOOK_IN_FONNTE_SECRET = 'secret-xyz';
+test('receiveInbound: valid HMAC signature → signatureValid=true', async (t) => {
+  process.env.WEBHOOK_IN_GENERIC_SECRET = 'secret-xyz';
   const body = JSON.stringify({ msg: 'hi' });
   const sig = createHmac('sha256', 'secret-xyz').update(body).digest('hex');
   const r = await receiveInbound({
-    source: 'fonnte',
+    source: 'generic',
     rawBody: body,
     headers: {
       'content-type': 'application/json',
-      'x-fonnte-signature': 'sha256=' + sig,
+      'x-religio-signature': 'sha256=' + sig,
     },
   });
   t.after(async () => {
     if (r.id) await db.inboundWebhook.delete({ where: { id: r.id } });
-    delete process.env.WEBHOOK_IN_FONNTE_SECRET;
+    delete process.env.WEBHOOK_IN_GENERIC_SECRET;
   });
 
   assert.equal(r.signatureValid, true);
+  // generic has no handler → status stays RECEIVED
   assert.equal(r.status, 'RECEIVED');
 });
 
@@ -87,8 +88,9 @@ test('receiveInbound: only x-/content-type/user-agent headers kept', async (t) =
 });
 
 test('replayInbound: returns no_handler_for_source when no handler registered', async (t) => {
+  // Use a source with no handler (generic). Fonnte now has one (S112).
   const r = await receiveInbound({
-    source: 'fonnte',
+    source: 'generic',
     rawBody: '{}',
     headers: { 'content-type': 'application/json' },
   });

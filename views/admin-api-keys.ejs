@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — API keys</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 8px; font-weight: 500; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-bottom: 22px; letter-spacing: 0.04em; }
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 18px 22px; margin-bottom: 16px; }
+  .panel h2 { font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--cream-100); margin: 0 0 14px; }
+  .field { margin-bottom: 12px; }
+  .label { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+  .input { background: var(--ink-1000); border: var(--hairline-soft); color: var(--cream-100); padding: 8px 12px; border-radius: var(--r-sm); font-family: inherit; font-size: 13px; width: 100%; box-sizing: border-box; }
+  .scopes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .scopes-grid label { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--cream-100); cursor: pointer; }
+  .btn-primary { background: var(--gold-300); color: var(--ink-1000); border: 0; padding: 8px 18px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; border-radius: 3px; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: var(--hairline-soft); color: var(--cream-100); vertical-align: top; }
+  th { color: var(--ink-300); font-weight: 400; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  tr.suspended td { opacity: 0.55; }
+  .scope-pill { display: inline-block; background: var(--ink-1000); border: var(--hairline-soft); border-radius: 3px; padding: 1px 6px; font-size: 9.5px; color: var(--ink-100); margin: 1px 2px; }
+  .status-tag { display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 10px; letter-spacing: 0.08em; }
+  .status-tag.active { background: rgba(74,143,109,0.12); color: var(--emerald); border: 1px solid var(--emerald); }
+  .status-tag.suspended { background: rgba(212,175,55,0.10); color: var(--gold-300); border: 1px solid var(--gold-300); }
+  .btn-row { background: transparent; border: 1px solid var(--ink-700); color: var(--ink-100); padding: 3px 9px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em; cursor: pointer; border-radius: 3px; }
+  .btn-row.del { border-color: var(--ruby); color: var(--ruby); }
+  .empty { color: var(--ink-300); font-style: italic; text-align: center; padding: 30px 0; }
+
+  .token-flash {
+    padding: 16px 20px;
+    border-radius: var(--r-md);
+    margin-bottom: 18px;
+    background: rgba(74,143,109,0.08);
+    border: 2px solid var(--emerald);
+  }
+  .token-flash h3 {
+    color: var(--emerald); font-family: var(--font-display); margin: 0 0 8px; font-size: 16px;
+  }
+  .token-flash code {
+    display: block; padding: 10px 12px;
+    background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm);
+    color: var(--gold-300); font-size: 12px; word-break: break-all;
+    user-select: all;
+  }
+  .token-flash .warn { color: var(--ruby); font-family: var(--font-mono); font-size: 10.5px; margin-top: 8px; letter-spacing: 0.04em; }
+
+  .flash { padding: 10px 14px; border-radius: var(--r-sm); margin-bottom: 14px; font-family: var(--font-mono); font-size: 11.5px; }
+  .flash.ok { background: rgba(74,143,109,0.1); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(181,86,74,0.1); border: 1px solid var(--ruby); color: var(--ruby); }
+</style>
+</head>
+<body data-screen-label="02 Admin · API keys">
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← KEMBALI</a> · API KEYS</div>
+  <h1>API <em>keys</em></h1>
+  <div class="sub">
+    Partner systems pakai header <code>Authorization: Bearer rp_&lt;id&gt;.&lt;secret&gt;</code> untuk read-only access ke API.
+    Scope mengontrol resource yang boleh dibaca. Token plaintext hanya ditampilkan SEKALI saat create — store di password manager.
+  </div>
+
+  <% if (flash.token) { %>
+    <div class="token-flash">
+      <h3>✓ Token baru dibuat — salin sekarang</h3>
+      <code><%= flash.token %></code>
+      <div class="warn">⚠ Token ini TIDAK akan ditampilkan lagi. Refresh halaman = hilang.</div>
+    </div>
+  <% } %>
+  <% if (flash.ok) { %><div class="flash ok">Tersimpan.</div><% } %>
+  <% if (flash.err) { %><div class="flash err"><%= flash.err %></div><% } %>
+
+  <div class="panel">
+    <h2>+ API key baru</h2>
+    <form method="POST" action="/admin/api-keys">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label class="label" for="ak-name">Nama (partner / use case)</label>
+        <input id="ak-name" class="input" name="name" required maxlength="120" placeholder="mis. Zapier ke Google Sheets">
+      </div>
+      <div class="field">
+        <label class="label">Scopes</label>
+        <div class="scopes-grid">
+          <% knownScopes.forEach(function(s) { %>
+            <label><input type="checkbox" name="scopes" value="<%= s %>"> <code><%= s %></code></label>
+          <% }) %>
+        </div>
+      </div>
+      <button type="submit" class="btn-primary">GENERATE TOKEN</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Active keys (<%= keys.length %>)</h2>
+    <% if (keys.length === 0) { %>
+      <div class="empty">— belum ada key. Generate di atas untuk berikan partner access —</div>
+    <% } else { %>
+      <table>
+        <thead>
+          <tr>
+            <th>Nama · ID</th>
+            <th>Scopes</th>
+            <th>Status</th>
+            <th>Dibuat / Last use</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% keys.forEach(function(k) {
+            const sc = Array.isArray(k.scopes) ? k.scopes : [];
+          %>
+            <tr class="<%= k.status === 'SUSPENDED' ? 'suspended' : '' %>">
+              <td>
+                <strong><%= k.name %></strong><br>
+                <code style="color:var(--ink-200);font-size:9.5px;">id: <%= k.id %></code>
+              </td>
+              <td>
+                <% sc.forEach(function(s) { %><span class="scope-pill"><%= s %></span><% }) %>
+              </td>
+              <td><span class="status-tag <%= k.status.toLowerCase() %>"><%= k.status %></span></td>
+              <td>
+                <%= fmt.date(k.createdAt) %><br>
+                <span style="color:var(--ink-200);font-size:10px;">
+                  used: <%= k.lastUsedAt ? fmt.date(k.lastUsedAt) : 'never' %>
+                </span>
+              </td>
+              <td style="text-align:right;white-space:nowrap;">
+                <form method="POST" action="/admin/api-keys/<%= k.id %>/status" style="display:inline;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="status" value="<%= k.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' %>">
+                  <button type="submit" class="btn-row"><%= k.status === 'ACTIVE' ? 'SUSPEND' : 'ACTIVATE' %></button>
+                </form>
+                <form method="POST" action="/admin/api-keys/<%= k.id %>/delete" style="display:inline;margin-left:4px;" onsubmit="return confirm('Hapus permanen API key <%= k.name %>? Partner akan kehilangan akses.')">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn-row del">HAPUS</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

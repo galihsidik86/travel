@@ -1,0 +1,145 @@
+// Stage 113 — API keys for partner systems.
+//
+// Token format: `rp_<id>.<secret>` where `id` is the ApiKey row PK
+// (cuid; non-secret) and `secret` is a 32-byte hex string shown once
+// at creation. Lookup by id → bcrypt-compare secret. Splitting id from
+// secret lets the auth middleware do an O(1) lookup instead of scanning
+// every key's hash.
+//
+// Scopes (JSON array on the row) form a simple capability list. Routes
+// declare a required scope; the middleware refuses requests whose key
+// doesn't include it. Standard scopes:
+//
+//   read:bookings    — list / get bookings
+//   read:paket       — list paket + landing data
+//   read:notifs      — webhook integrations might read delivery state
+//
+// SUSPENDED status fails auth without deleting the row — admin can
+// rotate or revoke without losing the audit trail.
+
+import { randomBytes } from 'node:crypto';
+import bcrypt from 'bcryptjs';
+import { db } from '../lib/db.js';
+import { audit } from '../lib/audit.js';
+import { HttpError } from '../middleware/error.js';
+
+export const KNOWN_SCOPES = ['read:bookings', 'read:paket', 'read:notifs'];
+
+function generateSecret() {
+  return randomBytes(32).toString('hex');
+}
+
+export function formatToken(id, secret) {
+  return `rp_${id}.${secret}`;
+}
+
+function parseToken(raw) {
+  if (!raw || !raw.startsWith('rp_')) return null;
+  const rest = raw.slice(3);
+  const dot = rest.indexOf('.');
+  if (dot < 1) return null;
+  return { id: rest.slice(0, dot), secret: rest.slice(dot + 1) };
+}
+
+export async function listApiKeys() {
+  return db.apiKey.findMany({
+    orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+    include: { createdBy: { select: { email: true } } },
+  });
+}
+
+export async function createApiKey({ req, actor, name, scopes }) {
+  const cleanName = (name || '').trim().slice(0, 120);
+  if (cleanName.length < 2) throw new HttpError(400, 'Nama minimal 2 karakter', 'BAD_NAME');
+  const cleanScopes = Array.isArray(scopes)
+    ? scopes.filter((s) => KNOWN_SCOPES.includes(s))
+    : [];
+  if (cleanScopes.length === 0) throw new HttpError(400, 'Pilih minimal satu scope', 'NO_SCOPES');
+
+  const secret = generateSecret();
+  const hashedKey = await bcrypt.hash(secret, 10);
+  const created = await db.apiKey.create({
+    data: {
+      name: cleanName,
+      hashedKey,
+      scopes: cleanScopes,
+      createdById: actor?.id || null,
+    },
+  });
+  await audit({
+    req, actor,
+    action: 'CREATE', entity: 'ApiKey', entityId: created.id,
+    after: { name: cleanName, scopes: cleanScopes },
+  });
+  // Return the token ONCE — caller must surface it; the secret is not
+  // retrievable afterwards.
+  return { ...created, token: formatToken(created.id, secret) };
+}
+
+export async function updateApiKeyStatus({ req, actor, id, status }) {
+  if (!['ACTIVE', 'SUSPENDED'].includes(status)) {
+    throw new HttpError(400, 'Status tidak valid', 'BAD_STATUS');
+  }
+  const before = await db.apiKey.findUnique({ where: { id } });
+  if (!before) throw new HttpError(404, 'API key tidak ditemukan', 'KEY_NOT_FOUND');
+  if (before.status === status) return before;
+  const updated = await db.apiKey.update({ where: { id }, data: { status } });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'ApiKey', entityId: id,
+    before: { status: before.status },
+    after: { status },
+  });
+  return updated;
+}
+
+export async function deleteApiKey({ req, actor, id }) {
+  const before = await db.apiKey.findUnique({ where: { id } });
+  if (!before) throw new HttpError(404, 'API key tidak ditemukan', 'KEY_NOT_FOUND');
+  await db.apiKey.delete({ where: { id } });
+  await audit({
+    req, actor,
+    action: 'DELETE', entity: 'ApiKey', entityId: id,
+    before: { name: before.name, scopes: before.scopes },
+  });
+  return { id };
+}
+
+/**
+ * Resolve a `Authorization: Bearer <token>` header to an ApiKey row.
+ * Returns null on any failure (bad shape, unknown id, secret mismatch,
+ * SUSPENDED status). NEVER throws — the middleware decides how to react.
+ *
+ * Stamps lastUsedAt on successful resolve (best-effort, doesn't block).
+ */
+export async function resolveBearerToken(header) {
+  if (!header || !header.startsWith('Bearer ')) return null;
+  const parsed = parseToken(header.slice(7).trim());
+  if (!parsed) return null;
+  const row = await db.apiKey.findUnique({ where: { id: parsed.id } });
+  if (!row || row.status !== 'ACTIVE') return null;
+  const ok = await bcrypt.compare(parsed.secret, row.hashedKey);
+  if (!ok) return null;
+  // Fire-and-forget — don't block the request on this patch
+  db.apiKey.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } })
+    .catch(() => {});
+  return row;
+}
+
+// Express middleware factory — requires Bearer auth + a specific scope.
+// Use BEFORE route handler:
+//   router.get('/x', requireApiScope('read:bookings'), handler)
+export function requireApiScope(scope) {
+  return async function apiScopeGuard(req, res, next) {
+    const key = await resolveBearerToken(req.headers.authorization || '');
+    if (!key) {
+      return res.status(401).json({ error: { code: 'BAD_API_KEY', message: 'Invalid or missing API key' } });
+    }
+    const scopes = Array.isArray(key.scopes) ? key.scopes : [];
+    if (!scopes.includes(scope)) {
+      return res.status(403).json({ error: { code: 'INSUFFICIENT_SCOPE', message: `Requires scope: ${scope}` } });
+    }
+    req.apiKey = key;
+    next();
+  };
+}

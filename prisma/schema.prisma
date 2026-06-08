@@ -237,6 +237,7 @@ model User {
   tasksAssigned       Task[]             @relation("TaskAssignee")
   tasksCreated        Task[]             @relation("TaskCreator")
   webhooksCreated     Webhook[]          @relation("WebhookCreator")
+  apiKeysCreated      ApiKey[]           @relation("ApiKeyCreator")
 
   @@index([role])
   @@index([deletedAt])
@@ -692,6 +693,32 @@ enum InboundWebhookStatus {
   REJECTED       // signature explicitly invalid; stored for audit, NOT handled
   HANDLED        // a registered handler processed it (or no handler — but the rule is "accept")
   HANDLER_ERROR  // a registered handler threw
+}
+
+// Stage 113 — API keys for partner systems. Authorization: Bearer rp_<id>.<secret>
+// resolves a synthetic actor whose RBAC is governed by `scopes` (JSON
+// array of strings like ['read:bookings']). The full secret is shown
+// ONCE at creation; only a bcrypt hash is stored. `lastUsedAt` patched
+// per request for observability — admin can spot dormant keys + revoke.
+// SUSPENDED keys stay in the DB (audit) but fail auth.
+model ApiKey {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(120)
+  hashedKey   String   @db.VarChar(120)
+  scopes      Json     // ["read:bookings", ...]
+  status      ApiKeyStatus @default(ACTIVE)
+
+  createdAt   DateTime @default(now())
+  createdById String?
+  createdBy   User?    @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  lastUsedAt  DateTime?
+
+  @@index([status])
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 // Stage 88 — :code shortcuts for booking-note @-mentions. Saves admins
