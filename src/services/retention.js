@@ -40,6 +40,11 @@ export const DEFAULTS = Object.freeze({
   // soft-deleted so the agent's pipeline view stays focused on workable
   // leads. CONVERTED leads stay forever (booking history).
   staleLeadDays:     Number(process.env.RETENTION_STALE_LEAD_DAYS)     || 180,
+  // Stage 102 — JEMAAH user soft-delete: accounts that never made a
+  // non-cancelled booking AND haven't logged in for ≥365 days. Bookings
+  // FK is SetNull on User delete, so real-paid bookings keep their
+  // jemaahProfile link intact even after the user row is gone.
+  inactiveJemaahDays: Number(process.env.RETENTION_INACTIVE_JEMAAH_DAYS) || 365,
 });
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -66,12 +71,15 @@ export async function pruneRetentionWindows({ req, actor, now = new Date(), wind
     // kept for audit). Soft not hard, so a manager can still review what
     // was archived by querying with `deletedAt: { not: null }`.
     staleLeads:   await archiveStaleLeads(now, w.staleLeadDays),
+    // Stage 102 — soft-delete inactive jemaah accounts (no bookings, no recent login)
+    inactiveJemaah: await pruneInactiveJemaah(now, w.inactiveJemaahDays),
   };
   const affected = result.notifSent.deleted
     + result.notifFailed.deleted
     + result.jobRun.deleted
     + result.intentFailed.deleted
-    + result.staleLeads.archived;
+    + result.staleLeads.archived
+    + result.inactiveJemaah.softDeleted;
 
   // Audit the sweep itself so the prune is visible in the timeline. Single
   // row; per-row deletes are intentionally NOT audited (would defeat the
@@ -166,4 +174,49 @@ async function archiveStaleLeads(now, days) {
     data: { deletedAt: now },
   });
   return { archived: count, cutoff: cutoff.toISOString(), windowDays: days };
+}
+
+/**
+ * Stage 102 — soft-delete JEMAAH users who never made a real booking and
+ * haven't logged in for ≥N days. Bounded growth on the User table without
+ * losing real customers.
+ *
+ * Eligibility (ALL of):
+ *   - role = JEMAAH
+ *   - deletedAt = null (not already soft-deleted)
+ *   - createdAt < cutoff (account itself has aged ≥N days)
+ *   - lastLoginAt < cutoff OR lastLoginAt = null (no recent login at all)
+ *   - NO non-CANCELLED, non-REFUNDED bookings (`bookings: { none: {...} }`)
+ *
+ * The booking FK from User uses SetNull on delete, so any historical
+ * paid bookings keep their `jemaahProfile` link via the profile FK; only
+ * the `jemaahUserId` column drops to NULL. The JemaahProfile itself is
+ * never touched — that's the customer record, the User row is just the
+ * login credential.
+ *
+ * Soft-deletes (sets `User.deletedAt`) rather than hard-deleting so the
+ * audit trail can still resolve the email if needed. Per-row audits are
+ * deliberately skipped (same bounded-growth purpose as other prunes);
+ * the count lands in the wrapper's single audit row.
+ */
+async function pruneInactiveJemaah(now, days) {
+  const cutoff = cutoffDate(now, days);
+  const result = await db.user.updateMany({
+    where: {
+      role: 'JEMAAH',
+      deletedAt: null,
+      createdAt: { lt: cutoff },
+      OR: [
+        { lastLoginAt: null },
+        { lastLoginAt: { lt: cutoff } },
+      ],
+      bookings: {
+        none: {
+          status: { notIn: ['CANCELLED', 'REFUNDED'] },
+        },
+      },
+    },
+    data: { deletedAt: now },
+  });
+  return { softDeleted: result.count, cutoff: cutoff.toISOString(), windowDays: days };
 }

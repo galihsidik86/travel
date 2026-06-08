@@ -1974,6 +1974,48 @@
         </div>
       <% } %>
 
+      <!-- Stage 100 — cross-agent komisi pipeline forecast -->
+      <% if (networkForecast && networkForecast.totals.bookings > 0) { %>
+        <div class="panel" style="margin-top:16px;border-left:3px solid var(--gold-300);">
+          <div class="panel__head">
+            <h3>Proyeksi komisi seluruh agen (<%= networkForecast.windowDays %> hari)</h3>
+            <span class="meta">
+              <%= networkForecast.totals.agentCount %> AGEN ·
+              <%= networkForecast.totals.bookings %> BOOKING AKTIF ·
+              <strong style="color:var(--gold-300);">Rp <%= fmt.rpShort(networkForecast.totals.expectedIdr) %></strong> EXPECTED
+            </span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:10px;">
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">PER AGEN · TOP 10</div>
+              <% networkForecast.perAgent.slice(0, 10).forEach(function(a) { %>
+                <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;padding:6px 0;border-bottom:var(--hairline-soft);font-family:var(--font-mono);font-size:11.5px;">
+                  <a href="/a/<%= a.slug %>" style="color:var(--cream-100);text-decoration:none;"><%= a.displayName || a.slug %></a>
+                  <span style="color:var(--ink-200);font-size:10px;"><%= a.bookings %> bk</span>
+                  <span style="color:var(--gold-300);font-weight:600;">Rp <%= fmt.rpShort(a.expectedIdr) %></span>
+                </div>
+              <% }) %>
+              <% if (networkForecast.perAgent.length > 10) { %>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);margin-top:6px;">+ <%= networkForecast.perAgent.length - 10 %> agen lainnya…</div>
+              <% } %>
+            </div>
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">PER BULAN KEBERANGKATAN</div>
+              <% networkForecast.perMonth.forEach(function(m) { %>
+                <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;padding:6px 0;border-bottom:var(--hairline-soft);font-family:var(--font-mono);font-size:11.5px;">
+                  <span style="color:var(--cream-100);"><%= m.month === 'unscheduled' ? 'Belum terjadwal' : m.month %></span>
+                  <span style="color:var(--ink-200);font-size:10px;"><%= m.bookings %> bk</span>
+                  <span style="color:var(--gold-300);font-weight:600;">Rp <%= fmt.rpShort(m.expectedIdr) %></span>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+          <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
+            Weighted: PENDING ×30%, BOOKED ×50%, DP_PAID ×70%, PARTIAL ×85%. Untuk cash-flow planning outflow komisi.
+          </div>
+        </div>
+      <% } %>
+
       <!-- Stage 41 — Komisi liability aging -->
       <% if (komisiAging && komisiAging.grandTotal.count > 0) { %>
         <div class="panel" style="margin-top:16px;">

@@ -152,7 +152,11 @@
       <% } %>
       <a href="/saya/bookings/<%= b.id %>/print" target="_blank" rel="noopener"
          style="color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
-        🖨 CETAK VOUCHER
+        🖨 CETAK
+      </a>
+      <a href="/saya/bookings/<%= b.id %>/voucher.pdf"
+         style="color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
+        ⇩ PDF
       </a>
     </div>
   </div>

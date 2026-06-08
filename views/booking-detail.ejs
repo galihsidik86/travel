@@ -261,10 +261,16 @@
 
   <div class="crumb" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
     <a href="/admin?tab=manifest&manifestPaket=<%= b.paket.slug %>">← KEMBALI KE MANIFEST</a>
-    <a href="/admin/bookings/<%= b.id %>/print" target="_blank" rel="noopener"
-       style="color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
-      🖨 CETAK VOUCHER
-    </a>
+    <span style="display:inline-flex;gap:6px;">
+      <a href="/admin/bookings/<%= b.id %>/print" target="_blank" rel="noopener"
+         style="color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
+        🖨 CETAK
+      </a>
+      <a href="/admin/bookings/<%= b.id %>/voucher.pdf"
+         style="color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
+        ⇩ PDF
+      </a>
+    </span>
   </div>
 
   <script>

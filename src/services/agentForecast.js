@@ -153,4 +153,68 @@ export async function getAgentCommissionForecast({ agentId, windowDays = 90, now
   };
 }
 
+/**
+ * Stage 100 — network-wide forecast rollup. Calls per-agent S99 for every
+ * ACTIVE agent and aggregates. For N agents this is N round-trips to the
+ * DB — fine at typical scale (≤50 agents), revisit if it grows.
+ *
+ * Returns:
+ *   perAgent: [{ agentId, slug, displayName, bookings, expectedIdr }]
+ *   perMonth: [{ month, bookings, expectedIdr }]   // grand-total per month
+ *   totals:   { bookings, expectedIdr, agentCount }
+ */
+export async function getAllAgentsCommissionForecast({ windowDays = 90, now = new Date() } = {}) {
+  const agents = await db.agentProfile.findMany({
+    where: {
+      user: { status: 'ACTIVE', deletedAt: null },
+    },
+    select: { id: true, slug: true, displayName: true },
+    orderBy: { slug: 'asc' },
+  });
+
+  const perAgent = [];
+  const monthAccum = new Map();   // month → { bookings, expectedIdr }
+  let totalBookings = 0;
+  let totalExpected = 0;
+  let agentCount = 0;
+
+  for (const a of agents) {
+    const r = await getAgentCommissionForecast({ agentId: a.id, windowDays, now });
+    if (r.totals.bookings === 0) continue;
+    agentCount += 1;
+    totalBookings += r.totals.bookings;
+    totalExpected += r.totals.expectedIdr;
+    perAgent.push({
+      agentId: a.id,
+      slug: a.slug,
+      displayName: a.displayName,
+      bookings: r.totals.bookings,
+      expectedIdr: r.totals.expectedIdr,
+    });
+    for (const m of r.rows) {
+      if (!monthAccum.has(m.month)) monthAccum.set(m.month, { bookings: 0, expectedIdr: 0 });
+      const slot = monthAccum.get(m.month);
+      slot.bookings += m.bookings;
+      slot.expectedIdr += m.expectedIdr;
+    }
+  }
+
+  // Sort: per-agent by expected desc (biggest first); per-month chronological
+  perAgent.sort((a, z) => z.expectedIdr - a.expectedIdr);
+  const perMonth = Array.from(monthAccum.entries())
+    .map(([month, v]) => ({ month, bookings: v.bookings, expectedIdr: v.expectedIdr }))
+    .sort((a, z) => {
+      if (a.month === 'unscheduled') return 1;
+      if (z.month === 'unscheduled') return -1;
+      return a.month.localeCompare(z.month);
+    });
+
+  return {
+    perAgent,
+    perMonth,
+    totals: { bookings: totalBookings, expectedIdr: totalExpected, agentCount },
+    windowDays,
+  };
+}
+
 export { STATUS_PROBABILITY, DEFAULT_KOMISI_RATE };

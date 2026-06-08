@@ -223,6 +223,17 @@ router.get(
   }),
 );
 
+// ── GET /admin/bookings/:id/voucher.pdf (Stage 101 — PDF download) ──
+router.get(
+  '/:id/voucher.pdf',
+  requireRole(...VIEW_ROLES),
+  asyncHandler(async (req, res) => {
+    const data = await getAdminBookingVoucher(req.params.id);
+    const { streamVoucherPdf } = await import('../services/bookingVoucherPdf.js');
+    streamVoucherPdf(data, res);
+  }),
+);
+
 // ── POST /admin/bookings/:id/notes ───────────────────────────
 const NotesSchema = z.object({
   notes: z.string().max(2000).optional(),

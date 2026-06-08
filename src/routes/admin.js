@@ -34,16 +34,19 @@ router.get(
       || null;
     const { getMyMentions } = await import('../services/bookingMentions.js');
     const { getMyOpenTasks } = await import('../services/tasks.js');
-    const [manifest, finance, bunking, paketRecap, myMentions, myTasks] = await Promise.all([
+    const { getAllAgentsCommissionForecast } = await import('../services/agentForecast.js');
+    const [manifest, finance, bunking, paketRecap, myMentions, myTasks, networkForecast] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
       recapSlug ? getPaketWeeklyRecap({ slug: recapSlug }) : Promise.resolve(null),
       getMyMentions({ userEmail: req.user.email, days: 30 })
         .catch((err) => { console.warn('[admin] getMyMentions failed:', err?.message || err); return null; }),
-      // Stage 91 — viewer's open tasks. Best-effort.
       getMyOpenTasks({ assigneeEmail: req.user.email })
         .catch((err) => { console.warn('[admin] getMyOpenTasks failed:', err?.message || err); return null; }),
+      // Stage 100 — cross-agent komisi pipeline. Best-effort.
+      getAllAgentsCommissionForecast({ windowDays: 90 })
+        .catch((err) => { console.warn('[admin] network forecast failed:', err?.message || err); return null; }),
     ]);
     res.render('admin-dashboard', {
       user: req.user,
@@ -55,6 +58,7 @@ router.get(
       recapSlug,
       myMentions,
       myTasks,
+      networkForecast,
       activeTab: req.query.tab || 'overview',
       range,
     });

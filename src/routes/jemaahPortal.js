@@ -135,6 +135,17 @@ router.get(
   }),
 );
 
+// Stage 101 — jemaah-side voucher as PDF download.
+router.get(
+  '/saya/bookings/:id/voucher.pdf',
+  asyncHandler(async (req, res) => {
+    const { getJemaahBookingVoucher } = await import('../services/bookingVoucher.js');
+    const data = await getJemaahBookingVoucher(req.user.id, req.params.id);
+    const { streamVoucherPdf } = await import('../services/bookingVoucherPdf.js');
+    streamVoucherPdf(data, res);
+  }),
+);
+
 router.get(
   '/saya/notifications',
   asyncHandler(async (req, res) => {
