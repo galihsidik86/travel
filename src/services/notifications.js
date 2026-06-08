@@ -329,6 +329,22 @@ export async function notifyBookingCreated(booking) {
       relatedEntity: 'Booking', relatedEntityId: booking.id,
     }),
   ]);
+
+  // Stage 93 — push to /saya PWA if jemaah subscribed. Best-effort; never
+  // throws back (the EMAIL+WA above are the load-bearing channels).
+  if (recipientUserId) {
+    try {
+      const { pushToUser } = await import('./webPush.js');
+      await pushToUser(recipientUserId, {
+        title: `Booking ${booking.bookingNo} terkirim`,
+        body: `${booking.paket?.title || 'Paket'} · ${booking.kelas} · ${booking.paxCount} pax`,
+        url: `/saya/bookings/${booking.id}`,
+        tag: `booking-${booking.id}`,
+      });
+    } catch (err) {
+      console.warn('[push] booking-created jemaah push failed:', err?.message || err);
+    }
+  }
 }
 
 export async function notifyPaymentReceived({ booking, payment }) {
@@ -339,14 +355,31 @@ export async function notifyPaymentReceived({ booking, payment }) {
     amountFormatted: fmtRp(amt),
   };
   const { subject, body } = renderTemplate('PAYMENT_RECEIVED', 'WA', vars);
+  const recipientUserId = booking.jemaah?.userId ?? booking.jemaahUserId ?? null;
   await enqueueNotification({
     type: 'PAYMENT_RECEIVED', channel: 'WA',
     recipientPhone: booking.jemaah?.phone,
-    recipientUserId: booking.jemaah?.userId ?? booking.jemaahUserId ?? null,
+    recipientUserId,
     subject, body,
     payload: { bookingNo: booking.bookingNo, paymentId: payment.id, amount: amt },
     relatedEntity: 'Payment', relatedEntityId: payment.id,
   });
+
+  // Stage 93 — push to /saya PWA. Money-event push is high-signal — jemaah
+  // wants to know the receipt landed. Best-effort.
+  if (recipientUserId) {
+    try {
+      const { pushToUser } = await import('./webPush.js');
+      await pushToUser(recipientUserId, {
+        title: `Pembayaran Rp ${fmtRp(amt)} diterima`,
+        body: `Booking ${booking.bookingNo} · ${payment.method}`,
+        url: `/saya/bookings/${booking.id}`,
+        tag: `payment-${payment.id}`,
+      });
+    } catch (err) {
+      console.warn('[push] payment-received jemaah push failed:', err?.message || err);
+    }
+  }
 }
 
 export async function notifyRefundIssued({ booking, refundAmount, fullRefund, reason }) {

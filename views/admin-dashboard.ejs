@@ -694,6 +694,64 @@
         </article>
       </div>
 
+      <!-- Stage 91 — viewer's OPEN tasks (from @user TODO ... in notes) -->
+      <% if (myTasks && myTasks.totals.open > 0) {
+        const overdueClass = myTasks.totals.overdue > 0 ? 'border-left:3px solid var(--ruby);' : 'border-left:3px solid var(--gold-300);';
+      %>
+        <div class="panel" style="margin-bottom:16px; <%= overdueClass %>">
+          <div class="panel__head">
+            <h3>Tugas saya</h3>
+            <span class="meta">
+              <%= myTasks.totals.open %> OPEN
+              <% if (myTasks.totals.overdue > 0) { %>
+                · <strong style="color:var(--ruby);"><%= myTasks.totals.overdue %> overdue</strong>
+              <% } %>
+            </span>
+          </div>
+          <div style="display:grid;gap:8px;">
+            <% myTasks.rows.forEach(function(t) {
+              const dueClass = t.dueAt && new Date(t.dueAt).getTime() < Date.now() ? 'is-overdue'
+                : t.dueAt ? 'is-soon' : '';
+              const dueLabel = t.dueAt ? fmt.date(t.dueAt) : '—';
+            %>
+              <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px 12px;background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);">
+                <div>
+                  <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);letter-spacing:0.06em;">
+                    <a href="/admin/bookings/<%= t.booking.id %>" style="color:var(--gold-300);text-decoration:none;font-weight:600;"><%= t.booking.bookingNo %></a>
+                    · <%= (t.booking.jemaah?.fullName || '—') %>
+                    · <%= (t.booking.paket?.title || '—') %>
+                    <% if (t.createdByEmail) { %>
+                      <span style="color:var(--ink-300);"> · oleh <%= t.createdByEmail %></span>
+                    <% } %>
+                  </div>
+                  <div style="color:var(--cream-100);font-size:13px;margin-top:4px;"><%= t.body %></div>
+                  <div style="font-family:var(--font-mono);font-size:10.5px;margin-top:4px;color:var(--<%= dueClass === 'is-overdue' ? 'ruby' : dueClass === 'is-soon' ? 'amber' : 'ink-200' %>);letter-spacing:0.04em;">
+                    Due: <%= dueLabel %><% if (dueClass === 'is-overdue') { %> · TERLAMBAT<% } %>
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+                  <form method="POST" action="/admin/tasks/<%= t.id %>/complete" style="margin:0;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="_back" value="/admin">
+                    <button type="submit" style="background:transparent;border:1px solid var(--emerald);color:var(--emerald);padding:4px 12px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;cursor:pointer;border-radius:3px;">✓ DONE</button>
+                  </form>
+                  <form method="POST" action="/admin/tasks/<%= t.id %>/cancel" style="margin:0;" onsubmit="return confirm('Batalkan task ini?')">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="_back" value="/admin">
+                    <button type="submit" style="background:transparent;border:1px solid var(--ink-700);color:var(--ink-200);padding:4px 12px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;cursor:pointer;border-radius:3px;">CANCEL</button>
+                  </form>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+          <% if (myTasks.totals.open > myTasks.totals.shown) { %>
+            <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);">
+              + <%= myTasks.totals.open - myTasks.totals.shown %> task lainnya
+            </div>
+          <% } %>
+        </div>
+      <% } %>
+
       <!-- Stage 86 — viewer's @-mention inbox over the last 30 days -->
       <% if (myMentions && myMentions.totals.count > 0) { %>
         <div class="panel" style="margin-bottom:16px;border-left:3px solid var(--gold-300);">

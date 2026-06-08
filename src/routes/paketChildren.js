@@ -11,6 +11,9 @@ import {
 } from '../services/paketAdmin.js';
 import { assignCrewToPaket, unassignCrewFromPaket } from '../services/crewPortal.js';
 import { setPaketOverride, clearPaketOverride } from '../services/agentPaketKomisi.js';
+import { addCostLine, updateCostLine, deleteCostLine } from '../services/paketCostLines.js';
+import { db } from '../lib/db.js';
+import { HttpError } from '../middleware/error.js';
 
 const router = Router({ mergeParams: true });
 
@@ -176,6 +179,50 @@ router.delete(
       paketSlug: req.params.slug, agentId: req.params.agentId,
     });
     res.json({ ok: true });
+  }),
+);
+
+// ── Cost lines (Stage 92) ────────────────────────────────────
+async function paketIdFromSlug(slug) {
+  const p = await db.paket.findUnique({ where: { slug }, select: { id: true } });
+  if (!p) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+  return p.id;
+}
+
+router.post(
+  '/:slug/cost-lines',
+  asyncHandler(async (req, res) => {
+    const paketId = await paketIdFromSlug(req.params.slug);
+    const result = await addCostLine({
+      req, actor: actorFrom(req),
+      paketId,
+      category: req.body?.category,
+      amountIdr: req.body?.amountIdr,
+      vendorNote: req.body?.vendorNote,
+    });
+    res.status(201).json(result);
+  }),
+);
+
+router.patch(
+  '/:slug/cost-lines/:id',
+  asyncHandler(async (req, res) => {
+    const result = await updateCostLine({
+      req, actor: actorFrom(req),
+      id: req.params.id,
+      category: req.body?.category,
+      amountIdr: req.body?.amountIdr,
+      vendorNote: req.body?.vendorNote,
+    });
+    res.json(result);
+  }),
+);
+
+router.delete(
+  '/:slug/cost-lines/:id',
+  asyncHandler(async (req, res) => {
+    const result = await deleteCostLine({ req, actor: actorFrom(req), id: req.params.id });
+    res.json(result);
   }),
 );
 

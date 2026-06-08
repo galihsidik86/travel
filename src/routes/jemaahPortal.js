@@ -448,4 +448,49 @@ router.post(
   }),
 );
 
+// ── Stage 93 — jemaah push subscribe/unsubscribe ─────────────
+// Parallel to /api/admin/push but scoped to JEMAAH role only. Same
+// PushSubscription table — userId distinguishes admin vs jemaah subs.
+router.get(
+  '/api/saya/push/config',
+  ...requireJemaah,
+  asyncHandler(async (_req, res) => {
+    const { getPublicKey, getPushMode } = await import('../services/webPush.js');
+    res.json({ publicKey: getPublicKey(), mode: getPushMode() });
+  }),
+);
+
+router.post(
+  '/api/saya/push/subscribe',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    const { subscribePush } = await import('../services/webPush.js');
+    try {
+      const row = await subscribePush({
+        userId: req.user.id,
+        subscription: req.body?.subscription || req.body,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      res.json({ ok: true, id: row.id });
+    } catch (err) {
+      if (err.code === 'BAD_SUBSCRIPTION') {
+        return res.status(400).json({ error: { code: 'BAD_SUBSCRIPTION', message: err.message } });
+      }
+      throw err;
+    }
+  }),
+);
+
+router.post(
+  '/api/saya/push/unsubscribe',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    const { unsubscribePush } = await import('../services/webPush.js');
+    const endpoint = req.body?.endpoint || null;
+    const id = req.body?.id || null;
+    const r = await unsubscribePush({ endpoint, id, userId: req.user.id });
+    res.json(r);
+  }),
+);
+
 export default router;

@@ -526,6 +526,105 @@
         </div>
       </div>
 
+      <!-- Stage 92 — cost lines breakdown (overrides costPerPaxIdr when present) -->
+      <% if (mode === 'edit' && typeof costLines !== 'undefined') {
+        const totalLines = costLines.reduce((s, l) => s + Number(l.amountIdr.toString()), 0);
+      %>
+        <div style="margin-top:18px;padding:16px;background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.1em;text-transform:uppercase;">
+              Rincian per vendor (otomatis sum ke biaya per pax)
+            </div>
+            <% if (costLines.length > 0) { %>
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);">
+                Total: <strong><%= fmt.rpShort(totalLines) %></strong>
+              </div>
+            <% } %>
+          </div>
+          <div id="cost-lines-list" style="display:flex;flex-direction:column;gap:6px;">
+            <% costLines.forEach(function(line) { %>
+              <div data-line-id="<%= line.id %>" style="display:grid;grid-template-columns:140px 1fr 140px auto;gap:8px;align-items:center;padding:6px;background:var(--ink-900);border:var(--hairline-soft);border-radius:3px;">
+                <span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);"><%= costCategoryLabel(line.category) %></span>
+                <span style="font-size:12px;color:var(--cream-200);"><%= line.vendorNote || '—' %></span>
+                <span style="font-family:var(--font-mono);font-size:12px;color:var(--cream-100);text-align:right;"><%= fmt.rpShort(line.amountIdr) %></span>
+                <button type="button" data-action="del-cost-line" data-id="<%= line.id %>"
+                  style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:2px 8px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.08em;cursor:pointer;border-radius:3px;">×</button>
+              </div>
+            <% }) %>
+          </div>
+          <% if (costLines.length === 0) { %>
+            <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);font-style:italic;padding:6px 0;">
+              — belum ada vendor line. Tambah di bawah untuk breakdown otomatis. Tanpa line, gunakan "Biaya per pax (Rp)" di atas sebagai estimasi manual.
+            </div>
+          <% } %>
+
+          <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--ink-700);">
+            <div style="display:grid;grid-template-columns:140px 1fr 140px auto;gap:8px;align-items:center;">
+              <select id="ncl-cat" class="input" style="padding:6px 8px;font-size:11px;">
+                <% costCategories.forEach(function(c) { %>
+                  <option value="<%= c %>"><%= costCategoryLabel(c) %></option>
+                <% }) %>
+              </select>
+              <input id="ncl-note" class="input" type="text" placeholder="vendor / note" maxlength="200" style="padding:6px 8px;font-size:11px;">
+              <input id="ncl-amount" class="input" type="number" placeholder="0" min="0" step="1" style="padding:6px 8px;font-size:11px;text-align:right;">
+              <button type="button" id="ncl-add"
+                style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:4px 14px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.1em;cursor:pointer;border-radius:3px;">+ TAMBAH</button>
+            </div>
+            <div id="cost-line-err" style="display:none;margin-top:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--ruby);"></div>
+          </div>
+        </div>
+        <script>
+        (function() {
+          const slug = '<%= paket.slug %>';
+          const addBtn = document.getElementById('ncl-add');
+          const errBox = document.getElementById('cost-line-err');
+          function showErr(msg) { errBox.textContent = msg; errBox.style.display = 'block'; }
+          function hideErr() { errBox.style.display = 'none'; }
+
+          if (addBtn) {
+            addBtn.addEventListener('click', async () => {
+              hideErr();
+              const body = {
+                category: document.getElementById('ncl-cat').value,
+                amountIdr: document.getElementById('ncl-amount').value,
+                vendorNote: document.getElementById('ncl-note').value,
+              };
+              if (!body.amountIdr) { showErr('Amount wajib diisi'); return; }
+              try {
+                const r = await fetch('/api/paket/' + slug + '/cost-lines', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'same-origin',
+                  body: JSON.stringify(body),
+                });
+                if (!r.ok) {
+                  const d = await r.json().catch(() => ({}));
+                  showErr(d?.error?.message || 'Gagal simpan');
+                  return;
+                }
+                location.reload();
+              } catch (e) { showErr('Gagal simpan: ' + e.message); }
+            });
+          }
+
+          document.querySelectorAll('[data-action="del-cost-line"]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              if (!confirm('Hapus line ini?')) return;
+              const id = btn.dataset.id;
+              try {
+                const r = await fetch('/api/paket/' + slug + '/cost-lines/' + id, {
+                  method: 'DELETE',
+                  credentials: 'same-origin',
+                });
+                if (!r.ok) { showErr('Gagal hapus'); return; }
+                location.reload();
+              } catch (e) { showErr('Gagal hapus: ' + e.message); }
+            });
+          });
+        })();
+        </script>
+      <% } %>
+
       <!-- Stage 61 — ads spend (ROI input) -->
       <div class="grid-2">
         <div class="field">

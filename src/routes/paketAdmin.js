@@ -209,7 +209,8 @@ router.get(
     // Stage 60 — also load the daily-view sparkline for the trend chart
     // above the hero-title field.
     const { getPaketABBreakdown, getPaketDailyViews } = await import('../services/paketView.js');
-    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, abBreakdown, viewTrend] = await Promise.all([
+    const { listCostLines, COST_CATEGORIES, getCategoryLabel } = await import('../services/paketCostLines.js');
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, abBreakdown, viewTrend, costLines] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
       db.agentProfile.findMany({
@@ -221,6 +222,7 @@ router.get(
       getPaketProfitabilitySnapshot(paket.id),
       paket.heroTitleHtmlVariantB ? getPaketABBreakdown({ paketId: paket.id }) : Promise.resolve(null),
       getPaketDailyViews({ paketId: paket.id, days: 30 }),
+      listCostLines(paket.id),
     ]);
     res.render('paket-form', {
       user: req.user, mode: 'edit', paket: paketToForm(paket),
@@ -228,6 +230,7 @@ router.get(
       availableCrew, assignedCrew,
       availableAgents, paketOverrides,
       profitability, abBreakdown, viewTrend,
+      costLines, costCategories: COST_CATEGORIES, costCategoryLabel: getCategoryLabel,
     });
   }),
 );

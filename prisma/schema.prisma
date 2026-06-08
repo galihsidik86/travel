@@ -233,6 +233,8 @@ model User {
   mentionsAuthored  BookingMention[]   @relation("MentionedByActor")
   shortcodesAsTarget  MentionShortcode[] @relation("ShortcodeTarget")
   shortcodesAuthored  MentionShortcode[] @relation("ShortcodeCreator")
+  tasksAssigned       Task[]             @relation("TaskAssignee")
+  tasksCreated        Task[]             @relation("TaskCreator")
 
   @@index([role])
   @@index([deletedAt])
@@ -485,6 +487,7 @@ model Paket {
   waitlist        PaketWaitlist[]
   views           PaketView[]
   testimonials    Testimonial[]
+  costLines       PaketCostLine[]
 
   @@index([slug])
   @@index([status])
@@ -590,6 +593,85 @@ model MentionShortcode {
   createdAt   DateTime @default(now())
   createdById String?
   createdBy   User?    @relation("ShortcodeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+}
+
+// Stage 92 — per-paket cost breakdown by vendor category. When at least
+// one PaketCostLine exists for a paket, `Paket.costPerPaxIdr` becomes
+// derived: the auto-sync trigger writes SUM(lines.amountIdr) back to the
+// column on every line write. When zero lines exist, the manual override
+// stays editable (admin can still type a single rough estimate without
+// breaking the line surface down).
+//
+// `category` is a closed enum — keeps the leaderboard's cross-paket
+// rollup tidy (per-category sums across paket let admin see "we always
+// underbudget visa"). Free-form `vendorNote` carries vendor name +
+// payment terms; not aggregated.
+model PaketCostLine {
+  id          String   @id @default(cuid())
+  paketId     String
+  paket       Paket    @relation(fields: [paketId], references: [id], onDelete: Cascade)
+
+  category    CostCategory
+  amountIdr   Decimal  @db.Decimal(15, 2)
+  vendorNote  String?  @db.Text
+  sortOrder   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([paketId, sortOrder])
+}
+
+enum CostCategory {
+  HOTEL
+  FLIGHT
+  VISA
+  MEALS
+  GROUND_OPS
+  GUIDE
+  INSURANCE
+  OTHER
+}
+
+// Stage 91 — mention-driven follow-up tasks. When admin types something
+// like `@cs@religio.pro TODO check passport expiry by 2026-06-20` in a
+// booking note, the parser extracts the assignee + body + due date and
+// creates a Task here. Surfaces on /admin overview as "Tugas saya".
+//
+// Why not reuse Notification: notifs are append-only "we tried to tell
+// you" rows; tasks have state (OPEN → DONE/CANCELLED) and the inbox
+// surface needs that. Keeping them separate matches the S86/S81 split.
+model Task {
+  id          String   @id @default(cuid())
+
+  bookingId   String
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  assigneeEmail String   @db.VarChar(190)
+  assigneeId    String?
+  assignee      User?    @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  body        String   @db.Text
+  dueAt       DateTime?
+  status      TaskStatus @default(OPEN)
+
+  createdById String?
+  createdBy   User?    @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdByEmail String? @db.VarChar(190)
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  completedById String?
+  completedByEmail String? @db.VarChar(190)
+
+  @@index([assigneeEmail, status, createdAt])
+  @@index([bookingId, status])
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  CANCELLED
 }
 
 // Stage 86 — booking-note @-mention audit. One row per (booking, user)
@@ -897,6 +979,7 @@ model Booking {
   paymentIntents  PaymentIntent[]
   attendanceMarks AttendanceMark[]
   mentions        BookingMention[]
+  tasks           Task[]
 
   @@index([paketId])
   @@index([agentId])

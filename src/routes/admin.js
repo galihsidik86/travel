@@ -33,15 +33,17 @@ router.get(
       || overview.paketList[0]?.slug
       || null;
     const { getMyMentions } = await import('../services/bookingMentions.js');
-    const [manifest, finance, bunking, paketRecap, myMentions] = await Promise.all([
+    const { getMyOpenTasks } = await import('../services/tasks.js');
+    const [manifest, finance, bunking, paketRecap, myMentions, myTasks] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
       recapSlug ? getPaketWeeklyRecap({ slug: recapSlug }) : Promise.resolve(null),
-      // Stage 86 — viewer's own mentions over last 30d. Best-effort so a
-      // table-missing or schema-drift never breaks the overview render.
       getMyMentions({ userEmail: req.user.email, days: 30 })
         .catch((err) => { console.warn('[admin] getMyMentions failed:', err?.message || err); return null; }),
+      // Stage 91 — viewer's open tasks. Best-effort.
+      getMyOpenTasks({ assigneeEmail: req.user.email })
+        .catch((err) => { console.warn('[admin] getMyOpenTasks failed:', err?.message || err); return null; }),
     ]);
     res.render('admin-dashboard', {
       user: req.user,
@@ -52,6 +54,7 @@ router.get(
       paketRecap,
       recapSlug,
       myMentions,
+      myTasks,
       activeTab: req.query.tab || 'overview',
       range,
     });
@@ -96,6 +99,28 @@ router.get(
     const data = await getPrintManifest(req.params.slug);
     if (!data) return res.status(404).type('text/plain').send('Paket tidak ditemukan');
     res.render('print-manifest', { user: req.user, ...data });
+  }),
+);
+
+// Stage 91 — task complete/cancel. POST-only state transitions; same RBAC
+// as the rest of /admin (any of 4 admin roles can mark their own tasks).
+router.post(
+  '/tasks/:id/complete',
+  asyncHandler(async (req, res) => {
+    const { completeTask } = await import('../services/tasks.js');
+    // Anyone in the 4 admin roles can mark a task DONE — they help each
+    // other clear queues. completedByEmail records who did it.
+    await completeTask({ id: req.params.id, actor: { id: req.user.id, email: req.user.email } });
+    res.redirect(req.body?._back || '/admin');
+  }),
+);
+
+router.post(
+  '/tasks/:id/cancel',
+  asyncHandler(async (req, res) => {
+    const { cancelTask } = await import('../services/tasks.js');
+    await cancelTask({ id: req.params.id, actor: { id: req.user.id, email: req.user.email } });
+    res.redirect(req.body?._back || '/admin');
   }),
 );
 

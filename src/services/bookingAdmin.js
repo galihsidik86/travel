@@ -151,6 +151,16 @@ export async function updateBookingNotes({ req, actor, bookingId, notes }) {
     }
   }
 
+  // Stage 91 — extract `@email TODO ...` follow-ups into Task rows.
+  // Non-blocking same as mention fan-out; idempotent on (booking, email,
+  // body) so re-saving the same notes is a no-op.
+  try {
+    const { upsertTodosForBooking } = await import('./tasks.js');
+    await upsertTodosForBooking({ bookingId, notes: next, actor });
+  } catch (err) {
+    console.warn('[task] upsert failed:', err?.message || err);
+  }
+
   return updated;
 }
 

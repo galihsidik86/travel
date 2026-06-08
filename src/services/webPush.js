@@ -144,6 +144,40 @@ async function sendOne(sub, payload) {
  *
  * Returns { delivered, failed, gone } — counts only. Never throws.
  */
+/**
+ * Stage 93 — fan out a push payload to every PushSubscription owned by
+ * a SPECIFIC user (intended for jemaah). Mirrors pushToAdmins but scoped
+ * by userId — used by notifyBookingCreated etc. to push booking/payment
+ * notifs in real-time when the jemaah has the /saya PWA installed.
+ *
+ * Silent when userId is missing or no subscriptions exist (jemaah didn't
+ * install the PWA / disabled notifications). Push is purely additive
+ * here — the EMAIL/WA channels still fire via the queue.
+ */
+export async function pushToUser(userId, payload) {
+  if (!userId) return { delivered: 0, failed: 0, gone: 0, skipped: true };
+  try {
+    const subs = await db.pushSubscription.findMany({
+      where: {
+        userId,
+        user: { status: 'ACTIVE', deletedAt: null },
+      },
+    });
+    if (subs.length === 0) return { delivered: 0, failed: 0, gone: 0 };
+    const results = await Promise.all(subs.map((s) => sendOne(s, payload)));
+    let delivered = 0, failed = 0, gone = 0;
+    for (const r of results) {
+      if (r.ok) delivered += 1;
+      else if (r.status === 'gone') gone += 1;
+      else failed += 1;
+    }
+    return { delivered, failed, gone };
+  } catch (err) {
+    console.warn('[push] pushToUser failed:', err?.message || err);
+    return { delivered: 0, failed: 0, gone: 0, error: String(err?.message || err) };
+  }
+}
+
 export async function pushToAdmins(payload) {
   try {
     const subs = await db.pushSubscription.findMany({
