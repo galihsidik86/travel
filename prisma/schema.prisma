@@ -724,12 +724,42 @@ model ApiKey {
   createdBy   User?    @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
   lastUsedAt  DateTime?
 
+  requestLogs ApiRequestLog[]
+
   @@index([status])
 }
 
 enum ApiKeyStatus {
   ACTIVE
   SUSPENDED
+}
+
+// Stage 121 — per-request log for partner API calls. Lets admin spot
+// hammered endpoints, integration regressions (5xx spikes), and
+// per-key request volume / latency. S122 adds `scope` so admin can
+// also audit "what data did partner X actually pull this week".
+//
+// Logged AFTER the response (res.on('finish')) so status + duration
+// reflect the real outcome. apiKeyId nullable so requests that fail
+// auth (no valid token) still leave a trail.
+//
+// Pruned by the weekly retention job (60 day default — analytics
+// need a window long enough to spot trends, short enough that the
+// table doesn't dominate disk for high-traffic partners).
+model ApiRequestLog {
+  id           String   @id @default(cuid())
+  apiKeyId     String?
+  apiKey       ApiKey?  @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  path         String   @db.VarChar(255)
+  method       String   @db.VarChar(10)
+  statusCode   Int
+  durationMs   Int
+  scope        String?  @db.VarChar(40)
+  ip           String?  @db.VarChar(45)
+  ts           DateTime @default(now())
+
+  @@index([apiKeyId, ts])
+  @@index([ts])
 }
 
 // Stage 88 — :code shortcuts for booking-note @-mentions. Saves admins

@@ -77,6 +77,56 @@
   <% if (flash.ok) { %><div class="flash ok">Tersimpan.</div><% } %>
   <% if (flash.err) { %><div class="flash err"><%= flash.err %></div><% } %>
 
+  <!-- Stage 121/122 — per-key analytics over last 7 days -->
+  <% if (typeof analytics !== 'undefined' && analytics && analytics.rows.length > 0) { %>
+    <div class="panel">
+      <h2>Aktivitas <%= analytics.windowDays %> hari (<%= analytics.totals.requests %> req · <%= analytics.totals.errors5xx %> err 5xx)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th class="num">Req</th>
+            <th class="num">5xx</th>
+            <th class="num">p50 / p95</th>
+            <th>Scope used / unused</th>
+            <th>Top endpoints</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% analytics.rows.forEach(function(r) {
+            const errClass = r.errorRate5xxPct >= 5 ? 'ruby' : r.errorRate5xxPct > 0 ? 'amber' : 'emerald';
+          %>
+            <tr>
+              <td><strong style="color:var(--cream-100);"><%= r.name %></strong></td>
+              <td class="num"><%= r.requests %></td>
+              <td class="num">
+                <span style="color:var(--<%= errClass %>);font-weight:600;">
+                  <%= r.errors5xx %><% if (r.errors5xx > 0) { %> (<%= r.errorRate5xxPct %>%)<% } %>
+                </span>
+              </td>
+              <td class="num"><%= r.p50DurationMs %>/<%= r.p95DurationMs %>ms</td>
+              <td>
+                <% r.scopeUsage.forEach(function(s) { %>
+                  <span class="scope-pill" style="border-color:var(--emerald);color:var(--emerald);"><%= s.scope %> · <%= s.count %></span>
+                <% }) %>
+                <% r.unusedScopes.forEach(function(s) { %>
+                  <span class="scope-pill" style="border-color:var(--ruby);color:var(--ruby);" title="granted but unused — candidate for scope-down">⤬ <%= s %></span>
+                <% }) %>
+              </td>
+              <td>
+                <% r.topPaths.slice(0, 3).forEach(function(p) { %>
+                  <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-100);">
+                    <span style="color:var(--gold-300);"><%= p.count %></span> <%= p.path %>
+                  </div>
+                <% }) %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
   <div class="panel">
     <h2>+ API key baru</h2>
     <form method="POST" action="/admin/api-keys">

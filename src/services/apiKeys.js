@@ -146,8 +146,42 @@ export function requireApiScope(scope) {
       return res.status(403).json({ error: { code: 'INSUFFICIENT_SCOPE', message: `Requires scope: ${scope}` } });
     }
     req.apiKey = key;
+    // S122 — stash the scope this route required so the request-log
+    // middleware can record it for per-scope rollup.
+    req.apiUsedScope = scope;
     next();
   };
+}
+
+/**
+ * Stage 121/122 — log every partner API request to ApiRequestLog.
+ * Mount at the TOP of /api/v1 (BEFORE auth) so 401s also leave a trail.
+ *
+ * Captures status + duration in `res.on('finish')` so the row reflects
+ * the real outcome. apiKeyId is nullable: failing-auth requests have
+ * no resolved key. **Fire-and-forget** — log write failures are caught
+ * + printed but never block / delay the request.
+ */
+export function apiRequestLog(req, res, next) {
+  const start = Date.now();
+  res.on('finish', () => {
+    const apiKeyId = req.apiKey?.id || null;
+    const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() || null;
+    db.apiRequestLog.create({
+      data: {
+        apiKeyId,
+        path: ((req.baseUrl || '') + (req.path || '')).slice(0, 255),
+        method: req.method.slice(0, 10),
+        statusCode: res.statusCode || 0,
+        durationMs: Date.now() - start,
+        scope: req.apiUsedScope || null,
+        ip: ip ? ip.slice(0, 45) : null,
+      },
+    }).catch((err) => {
+      console.warn('[apiRequestLog] insert failed:', err?.message || err);
+    });
+  });
+  next();
 }
 
 /**

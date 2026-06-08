@@ -9,10 +9,14 @@
 
 import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
-import { requireApiScope, apiKeyRateLimit } from '../services/apiKeys.js';
+import { requireApiScope, apiKeyRateLimit, apiRequestLog } from '../services/apiKeys.js';
 import { db } from '../lib/db.js';
 
 const router = Router();
+
+// Stage 121/122 — log every partner API request (incl. failing-auth +
+// docs hits) so admin can audit usage + spot regressions.
+router.use(apiRequestLog);
 
 // Stage 116 — OpenAPI discovery surface. No auth (the spec itself is
 // public; partners need it to know how to authenticate).

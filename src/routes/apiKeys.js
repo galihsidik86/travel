@@ -18,12 +18,15 @@ function actorFrom(req) {
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const keys = await listApiKeys();
-    // newToken comes back from POST via query — display once + clear by
-    // copying out of the URL after the user has it. Plain query param OK;
-    // the token is the partner's responsibility once leaked.
+    const { getApiKeyAnalytics } = await import('../services/apiAnalytics.js');
+    const [keys, analytics] = await Promise.all([
+      listApiKeys(),
+      // S121/S122 — best-effort; analytics failure shouldn't break CRUD.
+      getApiKeyAnalytics({ days: 7 })
+        .catch((err) => { console.warn('[admin] api analytics failed:', err?.message || err); return null; }),
+    ]);
     res.render('admin-api-keys', {
-      user: req.user, keys, knownScopes: KNOWN_SCOPES,
+      user: req.user, keys, knownScopes: KNOWN_SCOPES, analytics,
       flash: {
         token: req.query.token || null,
         ok: req.query.ok || null,

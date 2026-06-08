@@ -45,6 +45,9 @@ export const DEFAULTS = Object.freeze({
   // FK is SetNull on User delete, so real-paid bookings keep their
   // jemaahProfile link intact even after the user row is gone.
   inactiveJemaahDays: Number(process.env.RETENTION_INACTIVE_JEMAAH_DAYS) || 365,
+  // Stage 121 — ApiRequestLog retention. 60d = enough trend window for
+  // the per-key analytics panel without letting traffic dominate disk.
+  apiRequestLogDays: Number(process.env.RETENTION_API_REQUEST_LOG_DAYS) || 60,
 });
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -73,13 +76,16 @@ export async function pruneRetentionWindows({ req, actor, now = new Date(), wind
     staleLeads:   await archiveStaleLeads(now, w.staleLeadDays),
     // Stage 102 — soft-delete inactive jemaah accounts (no bookings, no recent login)
     inactiveJemaah: await pruneInactiveJemaah(now, w.inactiveJemaahDays),
+    // Stage 121 — drop old ApiRequestLog rows past retention window
+    apiRequestLog: await pruneApiRequestLog(now, w.apiRequestLogDays),
   };
   const affected = result.notifSent.deleted
     + result.notifFailed.deleted
     + result.jobRun.deleted
     + result.intentFailed.deleted
     + result.staleLeads.archived
-    + result.inactiveJemaah.softDeleted;
+    + result.inactiveJemaah.softDeleted
+    + result.apiRequestLog.deleted;
 
   // Audit the sweep itself so the prune is visible in the timeline. Single
   // row; per-row deletes are intentionally NOT audited (would defeat the
@@ -219,4 +225,17 @@ async function pruneInactiveJemaah(now, days) {
     data: { deletedAt: now },
   });
   return { softDeleted: result.count, cutoff: cutoff.toISOString(), windowDays: days };
+}
+
+/**
+ * Stage 121 — prune old ApiRequestLog rows. Trend visibility past N days
+ * isn't useful for the analytics panel; partners hammering daily can
+ * generate millions of rows otherwise.
+ */
+async function pruneApiRequestLog(now, days) {
+  const cutoff = cutoffDate(now, days);
+  const { count } = await db.apiRequestLog.deleteMany({
+    where: { ts: { lt: cutoff } },
+  });
+  return { deleted: count, cutoff: cutoff.toISOString(), windowDays: days };
 }
