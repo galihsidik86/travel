@@ -7,7 +7,7 @@ import { HttpError } from '../middleware/error.js';
 import {
   CreateUserSchema, UpdateUserSchema, PasswordSchema,
   listUsers, getUserById, createUser, updateUser, setPassword,
-  suspendUser, reactivateUser, META,
+  suspendUser, reactivateUser, restoreUser, META,
 } from '../services/userAdmin.js';
 import {
   listShortcodes, createShortcode, deleteShortcode, listStaffForShortcode,
@@ -55,10 +55,22 @@ router.get(
     const search = (req.query.q || '').trim();
     const role = req.query.role || 'ALL';
     const status = req.query.status || 'ALL';
-    const users = await listUsers({ search, role, status });
+    // Stage 104 — deleted filter: ACTIVE (default) / DELETED / ALL.
+    const deleted = (req.query.deleted || 'ACTIVE').toUpperCase();
+    const validDeleted = ['ACTIVE', 'DELETED', 'ALL'].includes(deleted) ? deleted : 'ACTIVE';
+    const users = await listUsers({ search, role, status, deleted: validDeleted });
     res.render('users-list', {
-      user: req.user, users, search, role, status, META,
+      user: req.user, users, search, role, status, META, deleted: validDeleted,
     });
+  }),
+);
+
+// ── POST /admin/users/:id/restore (S104) ─────────────────────
+router.post(
+  '/:id/restore',
+  asyncHandler(async (req, res) => {
+    await restoreUser({ req, actor: actorFrom(req), userId: req.params.id });
+    res.redirect('/admin/users?deleted=ACTIVE&ok=restored');
   }),
 );
 

@@ -224,13 +224,25 @@ router.get(
 );
 
 // ── GET /admin/bookings/:id/voucher.pdf (Stage 101 — PDF download) ──
+// Stage 103: ?lang=id|en|ar optional (defaults to id).
 router.get(
   '/:id/voucher.pdf',
   requireRole(...VIEW_ROLES),
   asyncHandler(async (req, res) => {
     const data = await getAdminBookingVoucher(req.params.id);
     const { streamVoucherPdf } = await import('../services/bookingVoucherPdf.js');
-    streamVoucherPdf(data, res);
+    streamVoucherPdf(data, res, { lang: req.query.lang });
+  }),
+);
+
+// ── GET /admin/bookings/:id/bundle.zip (Stage 105 — dossier export) ──
+router.get(
+  '/:id/bundle.zip',
+  requireRole(...VIEW_ROLES),
+  asyncHandler(async (req, res) => {
+    const data = await getAdminBookingVoucher(req.params.id);
+    const { streamBookingBundle } = await import('../services/bookingBundle.js');
+    await streamBookingBundle(data, res);
   }),
 );
 

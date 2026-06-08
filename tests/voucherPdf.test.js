@@ -66,6 +66,34 @@ test('streamVoucherPdf: sanitises filename (no path traversal)', async (t) => {
   assert.ok(!disp.includes('/'), 'no path separators in filename');
 });
 
+test('streamVoucherPdf: lang variants → distinct filenames; unknown falls back to id', async (t) => {
+  const tag = makeTag('pdf-lang');
+  const j = await tempJemaah(t, tag);
+  const paket = await tempPaket(t, tag);
+  const booking = await tempBooking({ paket, jemaahProfileId: j.jemaah.id });
+  const voucher = await getAdminBookingVoucher(booking.id);
+
+  async function run(lang) {
+    const fake = new FakeResponse();
+    const done = awaitFinish(fake);
+    streamVoucherPdf(voucher, fake, lang ? { lang } : undefined);
+    await done;
+    return fake;
+  }
+
+  const fakeId = await run(null);
+  assert.ok(!fakeId.headers['content-disposition'].includes('_en'), 'id (default) has no lang suffix');
+
+  const fakeEn = await run('en');
+  assert.ok(fakeEn.headers['content-disposition'].includes('_en.pdf'));
+
+  const fakeAr = await run('ar');
+  assert.ok(fakeAr.headers['content-disposition'].includes('_ar.pdf'));
+
+  const fakeBad = await run('xx');
+  assert.ok(!fakeBad.headers['content-disposition'].includes('_xx'), 'unknown lang falls back to id');
+});
+
 test('streamVoucherPdf: handles paket without optional fields', async (t) => {
   const tag = makeTag('pdf-min');
   const j = await tempJemaah(t, tag);

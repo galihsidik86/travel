@@ -48,7 +48,21 @@ function foldLine(line) {
 export async function generateBookingIcs({ userId, bookingId, now = new Date() }) {
   const booking = await getMyBooking(userId, bookingId);
   if (!booking) return null;
+  return renderIcsFromBooking(booking, now);
+}
+
+/**
+ * Stage 105 — admin-context ICS rendering. Caller pre-loaded the booking
+ * (any flow with auth already done). Avoids re-resolving via getMyBooking
+ * which is jemaah-scoped.
+ */
+export function renderIcsFromBooking(booking, now = new Date()) {
+  if (!booking) return null;
   if (!booking.paket?.departureDate || !booking.paket?.returnDate) return null;
+  return _ics(booking, now);
+}
+
+function _ics(booking, now) {
 
   // Build the VEVENT body. End date in DTEND is exclusive per spec, so we
   // add one day to returnDate.

@@ -93,8 +93,18 @@ function guardEscalation(actor, targetRole) {
     'ROLE_ESCALATION_BLOCKED');
 }
 
-export async function listUsers({ search, role, status } = {}) {
-  const where = { deletedAt: null };
+/**
+ * @param {object} opts
+ * @param {'ACTIVE'|'DELETED'|'ALL'} [opts.deleted='ACTIVE']  S104 deleted-account filter:
+ *   ACTIVE (default)  → `deletedAt: null`
+ *   DELETED           → `deletedAt: { not: null }`
+ *   ALL               → no deletedAt filter
+ */
+export async function listUsers({ search, role, status, deleted = 'ACTIVE' } = {}) {
+  const where = {};
+  if (deleted === 'ACTIVE') where.deletedAt = null;
+  else if (deleted === 'DELETED') where.deletedAt = { not: null };
+  // 'ALL' → no filter
   if (role && role !== 'ALL') where.role = role;
   if (status && status !== 'ALL') where.status = status;
   if (search) {
@@ -113,6 +123,28 @@ export async function listUsers({ search, role, status } = {}) {
       crew:  { select: { languages: true, experience: true, slug: true, titlePrefix: true, bio: true, photoUrl: true } },
     },
   });
+}
+
+/**
+ * Stage 104 — undo a soft-delete. Sets `deletedAt = null`. Records an
+ * AUDIT row so it's clear who restored the account + when. Idempotent on
+ * already-active rows (no-op + no audit).
+ */
+export async function restoreUser({ req, actor, userId }) {
+  const before = await db.user.findUnique({ where: { id: userId } });
+  if (!before) throw new HttpError(404, 'User tidak ditemukan', 'USER_NOT_FOUND');
+  if (!before.deletedAt) return before;  // already active, no-op
+  const updated = await db.user.update({
+    where: { id: userId },
+    data: { deletedAt: null },
+  });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'User', entityId: userId,
+    before: { deletedAt: before.deletedAt },
+    after: { deletedAt: null, restored: true, email: updated.email },
+  });
+  return updated;
 }
 
 /**

@@ -123,8 +123,13 @@
         <option value="<%= s %>" <%= status === s ? 'selected' : '' %>><%= s %></option>
       <% }) %>
     </select>
+    <select class="input" name="deleted" onchange="this.form.submit()">
+      <option value="ACTIVE"  <%= deleted === 'ACTIVE'  ? 'selected' : '' %>>Aktif (default)</option>
+      <option value="DELETED" <%= deleted === 'DELETED' ? 'selected' : '' %>>Soft-deleted</option>
+      <option value="ALL"     <%= deleted === 'ALL'     ? 'selected' : '' %>>Semua (termasuk deleted)</option>
+    </select>
     <button type="submit" class="btn btn--ghost btn--sm">Filter</button>
-    <% if (search || role !== 'ALL' || status !== 'ALL') { %>
+    <% if (search || role !== 'ALL' || status !== 'ALL' || deleted !== 'ACTIVE') { %>
       <a href="/admin/users" style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);text-decoration:none;letter-spacing:0.08em;">RESET</a>
     <% } %>
   </form>
@@ -145,9 +150,9 @@
         <tr><td colspan="6" class="empty">Tidak ada user yang cocok dengan filter.</td></tr>
       <% } %>
       <% users.forEach(function(u) { %>
-        <tr>
+        <tr<% if (u.deletedAt) { %> style="opacity:0.55;background:rgba(181,86,74,0.04);"<% } %>>
           <td>
-            <div class="nm"><%= u.fullName %></div>
+            <div class="nm"><%= u.fullName %><% if (u.deletedAt) { %> <span style="color:var(--ruby);font-size:10px;">[DELETED]</span><% } %></div>
             <div class="sx"><%= u.email %><% if (u.phone) { %> · <%= u.phone %><% } %></div>
           </td>
           <td><span class="role-tag <%= u.role.toLowerCase() %>"><%= u.role %></span></td>
@@ -179,7 +184,17 @@
             <% } %>
           </td>
           <td style="text-align:right;">
-            <a href="/admin/users/<%= u.id %>/edit" class="edit-btn">EDIT</a>
+            <% if (u.deletedAt) { %>
+              <span style="font-family:var(--font-mono);font-size:10px;color:var(--ruby);letter-spacing:0.08em;">
+                ✕ <%= fmt.date(u.deletedAt) %>
+              </span>
+              <form method="POST" action="/admin/users/<%= u.id %>/restore" style="display:inline;margin-left:6px;" onsubmit="return confirm('Restore akun <%= u.email %>?')">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="edit-btn" style="border-color:var(--emerald);color:var(--emerald);">RESTORE</button>
+              </form>
+            <% } else { %>
+              <a href="/admin/users/<%= u.id %>/edit" class="edit-btn">EDIT</a>
+            <% } %>
           </td>
         </tr>
       <% }) %>
