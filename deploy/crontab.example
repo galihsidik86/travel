@@ -41,6 +41,9 @@ MAILTO=""
 # Every 15 minutes — escalate unacked OPEN incidents past 60min to OWNER tier (Stage 80)
 */15 * * * *  religio  cd /srv/religio-pro && npm run job:send-incident-escalate >> /var/log/religio/incident-escalate.log 2>&1
 
+# Every 2 minutes — retry PENDING webhook deliveries (Stage 109). Exponential backoff 1m/5m/30m/2h/12h.
+*/2 * * * *   religio  cd /srv/religio-pro && npm run job:retry-webhooks >> /var/log/religio/webhook-retry.log 2>&1
+
 # Daily 07:00 — fan out yesterday's activity digest to ACTIVE OWNER users (Stage 27)
 0  7  * * *   religio  cd /srv/religio-pro && npm run job:send-daily-digest  >> /var/log/religio/digest.log         2>&1
 

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Inbound webhooks</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 8px; font-weight: 500; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-bottom: 22px; }
+
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 18px 22px; margin-bottom: 16px; }
+  .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filter-bar select, .filter-bar a { background: var(--ink-1000); border: var(--hairline-soft); color: var(--cream-100); padding: 6px 10px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; }
+  .filter-bar a { color: var(--gold-300); text-decoration: none; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 10.5px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: var(--hairline-soft); color: var(--cream-100); vertical-align: top; }
+  th { color: var(--ink-300); font-weight: 400; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 9.5px; letter-spacing: 0.06em; }
+  .pill.received      { background: rgba(74,158,255,0.08); color: var(--sapphire); border: 1px solid var(--sapphire); }
+  .pill.handled       { background: rgba(74,143,109,0.12); color: var(--emerald); border: 1px solid var(--emerald); }
+  .pill.rejected      { background: rgba(181,86,74,0.10); color: var(--ruby); border: 1px solid var(--ruby); }
+  .pill.handler_error { background: rgba(212,175,55,0.10); color: var(--gold-300); border: 1px solid var(--gold-300); }
+  .sig-ok { color: var(--emerald); }
+  .sig-bad { color: var(--ruby); }
+  .sig-na  { color: var(--ink-300); font-style: italic; }
+  .body-preview { font-family: var(--font-mono); font-size: 10px; color: var(--ink-100); white-space: pre-wrap; max-height: 80px; overflow: hidden; }
+  .btn-replay { background: transparent; border: 1px solid var(--gold-300); color: var(--gold-300); padding: 3px 9px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em; cursor: pointer; border-radius: 3px; }
+  .empty { color: var(--ink-300); font-style: italic; text-align: center; padding: 30px 0; }
+  .flash { padding: 10px 14px; border-radius: var(--r-sm); margin-bottom: 14px; font-family: var(--font-mono); font-size: 11.5px; }
+  .flash.ok { background: rgba(74,143,109,0.1); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(181,86,74,0.1); border: 1px solid var(--ruby); color: var(--ruby); }
+</style>
+</head>
+<body data-screen-label="02 Admin · Inbound webhooks">
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← KEMBALI</a> · INBOUND WEBHOOKS</div>
+  <h1>Inbound <em>webhooks</em></h1>
+  <div class="sub">
+    Partner-side POST landing di <code>/api/webhook-in/&lt;source&gt;</code> tersimpan di sini terlepas dari validitas signature.
+    Configured sources: <%= knownSources.join(', ') || '(none)' %>
+  </div>
+
+  <% if (flash.replay === 'ok') { %><div class="flash ok">Replay sukses.</div><% }
+     else if (flash.replay) { %><div class="flash err">Replay gagal: <%= flash.replay %></div><% } %>
+
+  <div class="panel">
+    <form method="GET" class="filter-bar">
+      <select name="source" onchange="this.form.submit()">
+        <option value="">Semua source</option>
+        <% knownSources.forEach(function(s) { %>
+          <option value="<%= s %>" <%= filters.source === s ? 'selected' : '' %>><%= s %></option>
+        <% }) %>
+      </select>
+      <select name="status" onchange="this.form.submit()">
+        <option value="">Semua status</option>
+        <option value="RECEIVED"      <%= filters.status === 'RECEIVED' ? 'selected' : '' %>>RECEIVED</option>
+        <option value="HANDLED"       <%= filters.status === 'HANDLED' ? 'selected' : '' %>>HANDLED</option>
+        <option value="REJECTED"      <%= filters.status === 'REJECTED' ? 'selected' : '' %>>REJECTED</option>
+        <option value="HANDLER_ERROR" <%= filters.status === 'HANDLER_ERROR' ? 'selected' : '' %>>HANDLER_ERROR</option>
+      </select>
+      <% if (filters.source || filters.status) { %>
+        <a href="/admin/inbound-webhooks">RESET</a>
+      <% } %>
+    </form>
+  </div>
+
+  <div class="panel">
+    <% if (rows.length === 0) { %>
+      <div class="empty">— belum ada inbound webhook untuk filter ini —</div>
+    <% } else { %>
+      <table>
+        <thead>
+          <tr>
+            <th>Received</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Sig</th>
+            <th>Payload preview</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(function(r) { %>
+            <tr>
+              <td><%= fmt.date(r.receivedAt) %></td>
+              <td><strong style="color:var(--gold-300);"><%= r.source %></strong></td>
+              <td>
+                <span class="pill <%= r.status.toLowerCase() %>"><%= r.status %></span>
+                <% if (r.handlerError) { %>
+                  <div style="color:var(--ruby);font-size:9.5px;margin-top:3px;"><%= r.handlerError %></div>
+                <% } %>
+              </td>
+              <td>
+                <% if (r.signatureValid === true) { %>
+                  <span class="sig-ok">✓ ok</span>
+                <% } else if (r.signatureValid === false) { %>
+                  <span class="sig-bad">✕ bad</span>
+                <% } else { %>
+                  <span class="sig-na">n/a</span>
+                <% } %>
+              </td>
+              <td class="body-preview"><%= (r.payload || '').slice(0, 400) %><%= (r.payload || '').length > 400 ? '…' : '' %></td>
+              <td style="text-align:right;">
+                <form method="POST" action="/admin/inbound-webhooks/<%= r.id %>/replay" style="display:inline;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn-replay" title="Re-run registered handler">REPLAY</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

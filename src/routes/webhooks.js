@@ -70,6 +70,28 @@ router.post(
   }),
 );
 
+// Stage 109 — per-webhook delivery list (last 100). Lets admin see the
+// retry queue + diagnose stuck rows.
+router.get(
+  '/:id/deliveries',
+  asyncHandler(async (req, res) => {
+    const { db } = await import('../lib/db.js');
+    const webhook = await db.webhook.findUnique({ where: { id: req.params.id } });
+    if (!webhook) return res.status(404).type('text/plain').send('Webhook tidak ditemukan');
+    const deliveries = await db.webhookDelivery.findMany({
+      where: { webhookId: webhook.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      select: {
+        id: true, eventName: true, status: true, attemptCount: true,
+        lastStatusCode: true, lastError: true, lastAttemptAt: true, nextRetryAt: true,
+        createdAt: true,
+      },
+    });
+    res.render('admin-webhook-deliveries', { user: req.user, webhook, deliveries });
+  }),
+);
+
 router.post(
   '/:id/delete',
   asyncHandler(async (req, res) => {

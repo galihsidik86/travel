@@ -2492,9 +2492,14 @@
           <p>Tambahkan paket dulu untuk melihat manifesnya.</p>
         </div>
       <% } else { %>
+        <!-- Stage 110 — bulk select + dossier export. The action bar
+             auto-shows when ≥1 row is checked. -->
+        <form id="bulk-bundle-form" method="POST" action="/admin/manifest/<%= manifest.paket.slug %>/bundles.zip">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <table class="tbl">
           <thead>
             <tr>
+              <th style="width:32px;"><input type="checkbox" id="bulk-check-all" title="Pilih semua" style="cursor:pointer;"></th>
               <th style="width:140px;">ID Booking</th>
               <th>Nama</th>
               <th>Dokumen</th>
@@ -2508,7 +2513,7 @@
           </thead>
           <tbody>
             <% if (manifest.bookings.length === 0) { %>
-              <tr><td colspan="9" style="text-align:center;color:var(--ink-200);">Belum ada booking untuk paket ini.</td></tr>
+              <tr><td colspan="10" style="text-align:center;color:var(--ink-200);">Belum ada booking untuk paket ini.</td></tr>
             <% } %>
             <% manifest.bookings.forEach(function(b) { %>
               <%
@@ -2518,6 +2523,7 @@
                 const closed = b.status === 'CANCELLED' || b.status === 'REFUNDED' || sisa <= 0;
               %>
               <tr>
+                <td><input class="bulk-row" type="checkbox" name="bookingIds" value="<%= b.id %>" style="cursor:pointer;"></td>
                 <td>
                   <a href="/admin/bookings/<%= b.id %>" class="id" style="text-decoration:none;"><%= b.bookingNo %></a>
                 </td>
@@ -2578,6 +2584,59 @@
             <% }) %>
           </tbody>
         </table>
+        </form>
+        <!-- Stage 110 — floating action bar, hidden until ≥1 row checked -->
+        <div id="bulk-bar" hidden style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink-900);border:1px solid var(--gold-300);border-radius:var(--r-md);padding:12px 20px;display:flex;align-items:center;gap:14px;box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:80;font-family:var(--font-mono);font-size:11.5px;">
+          <span style="color:var(--gold-300);"><span id="bulk-count">0</span> booking dipilih</span>
+          <button type="button" id="bulk-pdf" style="background:var(--gold-300);color:var(--ink-1000);border:0;padding:7px 14px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:600;">⇩ PDF dossier</button>
+          <button type="button" id="bulk-csv" style="background:transparent;color:var(--gold-300);border:1px solid var(--gold-300);padding:7px 14px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;">⇩ CSV dossier</button>
+          <button type="button" id="bulk-clear" style="background:transparent;color:var(--ink-200);border:1px solid var(--ink-700);padding:7px 10px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;cursor:pointer;border-radius:3px;">×</button>
+        </div>
+        <script>
+        (function() {
+          const form = document.getElementById('bulk-bundle-form');
+          const bar = document.getElementById('bulk-bar');
+          const count = document.getElementById('bulk-count');
+          const checkAll = document.getElementById('bulk-check-all');
+          if (!form) return;
+          function rowCheckboxes() {
+            return Array.from(form.querySelectorAll('input.bulk-row[type="checkbox"]'));
+          }
+          function paint() {
+            const checked = rowCheckboxes().filter((c) => c.checked);
+            const n = checked.length;
+            count.textContent = n;
+            if (n > 0) bar.hidden = false;
+            else bar.hidden = true;
+            // master state
+            if (checkAll) {
+              const all = rowCheckboxes();
+              checkAll.checked = n > 0 && n === all.length;
+              checkAll.indeterminate = n > 0 && n < all.length;
+            }
+          }
+          form.addEventListener('change', (e) => {
+            if (e.target.matches('input.bulk-row[type="checkbox"]')) paint();
+          });
+          if (checkAll) checkAll.addEventListener('change', () => {
+            rowCheckboxes().forEach((c) => { c.checked = checkAll.checked; });
+            paint();
+          });
+          document.getElementById('bulk-pdf').addEventListener('click', () => {
+            form.action = form.action.split('?')[0]; // pdf is default
+            form.submit();
+          });
+          document.getElementById('bulk-csv').addEventListener('click', () => {
+            form.action = form.action.split('?')[0] + '?format=csv';
+            form.submit();
+          });
+          document.getElementById('bulk-clear').addEventListener('click', () => {
+            rowCheckboxes().forEach((c) => { c.checked = false; });
+            paint();
+          });
+          paint();
+        })();
+        </script>
       <% } %>
     </section>
 

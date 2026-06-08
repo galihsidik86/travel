@@ -29,6 +29,9 @@ const TOKEN_BYTES = 32;
 const SKIP_PATH_PREFIXES = [
   '/api/payments/midtrans/webhook',
   '/api/health',
+  // S111 — inbound webhook receivers verify signatures per source;
+  // CSRF cookies don't reach them anyway (partners don't have our cookies).
+  '/api/webhook-in/',
 ];
 
 function shouldSkip(req) {

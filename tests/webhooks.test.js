@@ -141,14 +141,138 @@ test('dispatchEvent: failure stamps lastError + counts as failed', async (t) => 
     req: fakeReq, actor: actor(u),
     url: 'https://x.io/h', events: ['payment.received'],
   });
-  t.after(() => db.webhook.deleteMany({ where: { id: wh.id } }));
+  t.after(async () => {
+    await db.webhookDelivery.deleteMany({ where: { webhookId: wh.id } });
+    await db.webhook.delete({ where: { id: wh.id } });
+  });
 
   const r = await dispatchEvent('payment.received', { x: 1 });
-  assert.equal(r.failed, 1);
+  // S109: first failure is queued for retry (not yet terminal "failed")
+  assert.equal(r.queued, 1);
+  assert.equal(r.failed, 0);
   assert.equal(r.delivered, 0);
   const after = await db.webhook.findUnique({ where: { id: wh.id }, select: { lastError: true, lastStatus: true } });
   assert.match(after.lastError, /ECONNREFUSED/);
   assert.equal(after.lastStatus, null);
+});
+
+test('dispatchEvent: failure inserts WebhookDelivery with PENDING + nextRetryAt', async (t) => {
+  const tag = makeTag('wh-retry');
+  const u = await tempUser(t, tag, { role: 'OWNER' });
+  const originalFetch = global.fetch;
+  global.fetch = async () => { throw new Error('refused'); };
+  t.after(() => { global.fetch = originalFetch; });
+
+  const wh = await createWebhook({
+    req: fakeReq, actor: actor(u),
+    url: 'https://x.io/h', events: ['booking.created'],
+  });
+  t.after(async () => {
+    await db.webhookDelivery.deleteMany({ where: { webhookId: wh.id } });
+    await db.webhook.delete({ where: { id: wh.id } });
+  });
+
+  const r = await dispatchEvent('booking.created', { x: 1 });
+  assert.equal(r.matched, 1);
+  assert.equal(r.queued, 1);
+
+  const deliveries = await db.webhookDelivery.findMany({ where: { webhookId: wh.id } });
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0].status, 'PENDING');
+  assert.equal(deliveries[0].attemptCount, 1);
+  assert.ok(deliveries[0].nextRetryAt instanceof Date);
+  assert.match(deliveries[0].lastError, /refused/);
+});
+
+test('dispatchEvent: success → SUCCEEDED + nextRetryAt cleared', async (t) => {
+  const tag = makeTag('wh-success');
+  const u = await tempUser(t, tag, { role: 'OWNER' });
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({ status: 200, ok: true });
+  t.after(() => { global.fetch = originalFetch; });
+
+  const wh = await createWebhook({
+    req: fakeReq, actor: actor(u),
+    url: 'https://x.io/h', events: ['booking.created'],
+  });
+  t.after(async () => {
+    await db.webhookDelivery.deleteMany({ where: { webhookId: wh.id } });
+    await db.webhook.delete({ where: { id: wh.id } });
+  });
+
+  await dispatchEvent('booking.created', { x: 1 });
+  const deliveries = await db.webhookDelivery.findMany({ where: { webhookId: wh.id } });
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0].status, 'SUCCEEDED');
+  assert.equal(deliveries[0].nextRetryAt, null);
+});
+
+test('processPendingDeliveries: re-fires PENDING + flips SUCCEEDED on success', async (t) => {
+  const { processPendingDeliveries } = await import('../src/services/webhooks.js');
+  const tag = makeTag('wh-proc');
+  const u = await tempUser(t, tag, { role: 'OWNER' });
+
+  const wh = await createWebhook({
+    req: fakeReq, actor: actor(u),
+    url: 'https://x.io/h', events: ['payment.received'],
+  });
+  const body = JSON.stringify({ x: 1 });
+  const d = await db.webhookDelivery.create({
+    data: {
+      webhookId: wh.id, eventName: 'payment.received', payload: body, signature: sign(wh.secret, body),
+      status: 'PENDING', attemptCount: 1,
+      nextRetryAt: new Date(Date.now() - 60_000),
+      lastError: 'previously timed out',
+    },
+  });
+  t.after(async () => {
+    await db.webhookDelivery.deleteMany({ where: { id: d.id } });
+    await db.webhook.delete({ where: { id: wh.id } });
+  });
+
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({ status: 200, ok: true });
+  t.after(() => { global.fetch = originalFetch; });
+
+  const r = await processPendingDeliveries();
+  assert.ok(r.succeeded >= 1);
+
+  const after = await db.webhookDelivery.findUnique({ where: { id: d.id } });
+  assert.equal(after.status, 'SUCCEEDED');
+  assert.equal(after.attemptCount, 2);
+});
+
+test('processPendingDeliveries: skips SUSPENDED webhook subs', async (t) => {
+  const { processPendingDeliveries } = await import('../src/services/webhooks.js');
+  const tag = makeTag('wh-susp-d');
+  const u = await tempUser(t, tag, { role: 'OWNER' });
+
+  const wh = await createWebhook({
+    req: fakeReq, actor: actor(u),
+    url: 'https://x.io/h', events: ['booking.created'],
+  });
+  await updateWebhookStatus({ req: fakeReq, actor: actor(u), id: wh.id, status: 'SUSPENDED' });
+  const body = JSON.stringify({});
+  const d = await db.webhookDelivery.create({
+    data: {
+      webhookId: wh.id, eventName: 'booking.created', payload: body, signature: sign(wh.secret, body),
+      status: 'PENDING', attemptCount: 1,
+      nextRetryAt: new Date(Date.now() - 60_000),
+    },
+  });
+  t.after(async () => {
+    await db.webhookDelivery.deleteMany({ where: { id: d.id } });
+    await db.webhook.delete({ where: { id: wh.id } });
+  });
+
+  let calls = 0;
+  const originalFetch = global.fetch;
+  global.fetch = async () => { calls += 1; return { status: 200, ok: true }; };
+  t.after(() => { global.fetch = originalFetch; });
+
+  const r = await processPendingDeliveries();
+  assert.ok(r.skipped >= 1);
+  assert.equal(calls, 0, 'must NOT fetch for SUSPENDED sub');
 });
 
 test('EVENT_NAMES: stable canonical list', () => {

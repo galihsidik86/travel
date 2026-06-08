@@ -609,12 +609,89 @@ model Webhook {
   lastError     String?    @db.Text
   lastEventName String?    @db.VarChar(80)
 
+  deliveries    WebhookDelivery[]
+
   @@index([status])
 }
 
 enum WebhookStatus {
   ACTIVE
   SUSPENDED
+}
+
+// Stage 109 — per-attempt delivery log + retry queue. Closes the
+// "at-most-once" gap from S108 for partners who care about reliability.
+//
+// Each row is ONE delivery (with attempt count tracked inline). PENDING
+// means "queued for retry"; SUCCEEDED is terminal; FAILED is terminal
+// after MAX attempts. The retry job picks PENDING rows whose nextRetryAt
+// has elapsed and re-fires them.
+//
+// Payload + signature stored verbatim so a retry uses the SAME signature
+// the original attempt used — receivers comparing against a timestamp
+// inside the body don't see drift on retry.
+model WebhookDelivery {
+  id          String   @id @default(cuid())
+  webhookId   String
+  webhook     Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  eventName   String   @db.VarChar(80)
+  payload     String   @db.LongText
+  signature   String   @db.VarChar(80)
+
+  status         WebhookDeliveryStatus @default(PENDING)
+  attemptCount   Int     @default(0)
+  lastStatusCode Int?
+  lastError      String?  @db.Text
+  lastAttemptAt  DateTime?
+  nextRetryAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, nextRetryAt])
+  @@index([webhookId, createdAt])
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+// Stage 111 — inbound webhook receiver. Partner systems (Fonnte delivery
+// receipts, Zapier triggers, Midtrans-like callbacks) POST signed payloads
+// here. Every hit lands as a row regardless of signature validity — admin
+// can audit attempted forgeries the same way they audit real events.
+//
+// `source` is the URL-segment name (e.g. /api/webhook-in/fonnte → "fonnte").
+// Per-source signature verification rules are configured in code
+// (src/services/inboundWebhooks.js → VERIFIERS) — DB keeps no per-source
+// secret because secrets belong in env (rotation, ops, etc).
+//
+// `signatureValid` is `null` when the source has no verifier (intentional
+// "accept anything" mode for dev/testing), `true` when verified, `false`
+// when explicitly mismatched (still stored — that's the audit trail).
+model InboundWebhook {
+  id            String   @id @default(cuid())
+  source        String   @db.VarChar(80)
+  headers       Json     // selected headers (signature + content-type + UA)
+  payload       String   @db.LongText
+  signatureValid Boolean?  // null = source has no verifier configured
+
+  status        InboundWebhookStatus @default(RECEIVED)
+  handlerError  String?  @db.Text
+
+  receivedAt    DateTime @default(now())
+
+  @@index([source, receivedAt])
+  @@index([status, receivedAt])
+}
+
+enum InboundWebhookStatus {
+  RECEIVED
+  REJECTED       // signature explicitly invalid; stored for audit, NOT handled
+  HANDLED        // a registered handler processed it (or no handler — but the rule is "accept")
+  HANDLER_ERROR  // a registered handler threw
 }
 
 // Stage 88 — :code shortcuts for booking-note @-mentions. Saves admins

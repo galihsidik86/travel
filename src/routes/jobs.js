@@ -20,6 +20,7 @@ import { escalateStaleIncidents } from '../services/incidentEscalate.js';
 import { getIncidentSlaBreaches } from '../services/incidentSlaAlert.js';
 import { notifyIncidentSlaBreach, notifyTaskOverdueEscalation } from '../services/notifications.js';
 import { getOverdueTasks } from '../services/tasks.js';
+import { processPendingDeliveries } from '../services/webhooks.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -219,6 +220,14 @@ router.post(
   '/send-incident-escalate',
   asyncHandler(async (_req, res) => {
     const result = await runJob('send-incident-escalate', () => escalateStaleIncidents());
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/retry-webhooks',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('retry-webhooks', () => processPendingDeliveries({ limit: 100 }));
     res.json(result);
   }),
 );

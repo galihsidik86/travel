@@ -30,6 +30,7 @@
     "job:send-incident-escalate": "node --env-file-if-exists=.env src/jobs/send-incident-escalate.js",
     "job:send-incident-sla-alert": "node --env-file-if-exists=.env src/jobs/send-incident-sla-alert.js",
     "job:send-task-overdue": "node --env-file-if-exists=.env src/jobs/send-task-overdue.js",
+    "job:retry-webhooks": "node --env-file-if-exists=.env src/jobs/retry-webhooks.js",
     "job:prune": "node --env-file-if-exists=.env src/jobs/prune.js"
   },
   "prisma": {

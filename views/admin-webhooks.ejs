@@ -130,7 +130,8 @@
                 <% } %>
               </td>
               <td style="text-align:right;white-space:nowrap;">
-                <form method="POST" action="/admin/webhooks/<%= w.id %>/status" style="display:inline;">
+                <a href="/admin/webhooks/<%= w.id %>/deliveries" class="btn-row" style="text-decoration:none;color:var(--gold-300);border-color:var(--gold-300);">LOG</a>
+                <form method="POST" action="/admin/webhooks/<%= w.id %>/status" style="display:inline;margin-left:4px;">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="status" value="<%= w.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' %>">
                   <button type="submit" class="btn-row toggle <%= w.status === 'SUSPENDED' ? 'activate' : '' %>">

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Webhook deliveries · <%= webhook.url %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 8px; font-weight: 500; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-bottom: 22px; letter-spacing: 0.04em; word-break: break-all; }
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 18px 22px; }
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: var(--hairline-soft); color: var(--cream-100); }
+  th { color: var(--ink-300); font-weight: 400; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 10px; letter-spacing: 0.08em; }
+  .pill.pending   { background: rgba(212,175,55,0.10); color: var(--gold-300); border: 1px solid var(--gold-300); }
+  .pill.succeeded { background: rgba(74,143,109,0.12); color: var(--emerald); border: 1px solid var(--emerald); }
+  .pill.failed    { background: rgba(181,86,74,0.10); color: var(--ruby); border: 1px solid var(--ruby); }
+  .err { color: var(--ruby); font-size: 10px; }
+  .empty { color: var(--ink-300); font-style: italic; text-align: center; padding: 30px 0; }
+</style>
+</head>
+<body data-screen-label="02 Admin · Webhook deliveries">
+<div class="wrap">
+  <div class="crumb"><a href="/admin/webhooks">← WEBHOOKS</a> · DELIVERIES</div>
+  <h1>Delivery <em>log</em></h1>
+  <div class="sub">
+    Target: <strong style="color:var(--gold-300);"><%= webhook.url %></strong>
+    · Status: <%= webhook.status %>
+    · Showing last <%= deliveries.length %> attempts (newest first)
+  </div>
+
+  <div class="panel">
+    <% if (deliveries.length === 0) { %>
+      <div class="empty">— belum ada delivery. Trigger sebuah event (booking/payment) untuk mulai —</div>
+    <% } else { %>
+      <table>
+        <thead>
+          <tr>
+            <th>Created</th>
+            <th>Event</th>
+            <th>Status</th>
+            <th>Attempt</th>
+            <th>HTTP</th>
+            <th>Last attempt</th>
+            <th>Next retry</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% deliveries.forEach(function(d) { %>
+            <tr>
+              <td><%= fmt.date(d.createdAt) %></td>
+              <td><%= d.eventName %></td>
+              <td><span class="pill <%= d.status.toLowerCase() %>"><%= d.status %></span></td>
+              <td><%= d.attemptCount %>/5</td>
+              <td><%= d.lastStatusCode != null ? d.lastStatusCode : '—' %></td>
+              <td><%= d.lastAttemptAt ? fmt.date(d.lastAttemptAt) : '—' %></td>
+              <td><%= d.nextRetryAt ? fmt.date(d.nextRetryAt) : '—' %></td>
+              <td class="err"><%= d.lastError || '' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

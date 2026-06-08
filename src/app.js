@@ -31,6 +31,7 @@ import paymentIntentsRouter from './routes/paymentIntents.js';
 import incidentsRouter from './routes/incidents.js';
 import testimonialsRouter from './routes/testimonials.js';
 import webhooksRouter from './routes/webhooks.js';
+import inboundWebhooksRouter, { inboundWebhooksAdminRouter } from './routes/inboundWebhooks.js';
 import crewPublicRouter from './routes/crewPublic.js';
 import agentPublicRouter, { agentLeaderboardRouter } from './routes/agentPublic.js';
 import emailClickRedirectRouter from './routes/emailClickRedirect.js';
@@ -128,6 +129,8 @@ export function createApp() {
   app.use('/agen-leaderboard', agentLeaderboardRouter);
   // Stage 77 — email click tracking redirect (/r/<token>)
   app.use('/r', emailClickRedirectRouter);
+  // Stage 111 — inbound webhook receiver (POST /api/webhook-in/:source)
+  app.use('/api/webhook-in', inboundWebhooksRouter);
 
   // Jemaah self-service portal: HTML /register (public), /saya (JEMAAH), /api/saya/claim
   app.use('/', jemaahPortalRouter);
@@ -151,6 +154,7 @@ export function createApp() {
   app.use('/admin/incidents', incidentsRouter);
   app.use('/admin/testimonials', testimonialsRouter);
   app.use('/admin/webhooks', webhooksRouter);
+  app.use('/admin/inbound-webhooks', inboundWebhooksAdminRouter);
   app.use('/admin', adminRouter);
 
   // Static — existing design package (index.html, screens/, shared/, uploads/)
