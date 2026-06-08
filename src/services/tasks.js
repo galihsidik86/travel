@@ -146,6 +146,45 @@ export async function completeTask({ id, actor }) {
   });
 }
 
+/**
+ * Stage 96 — overdue task escalation. Finds OPEN tasks whose dueAt is
+ * past `now - graceHours` so the assignee had ample time to clear them.
+ *
+ *   `escalatedAt` field doesn't exist on Task (kept lean) — instead the
+ *   notif dedup is "no notif fired for this (taskId) in last 7 days".
+ *   That's looser than the S80 set-once flag but avoids a schema change
+ *   for a periodic nudge.
+ *
+ * Silent on empty (no overdue tasks → no email). Returns the candidate
+ * list so the CLI can log + the notify helper can fan out.
+ */
+export async function getOverdueTasks({ now = new Date(), graceHours = 48 } = {}) {
+  const cutoff = new Date(now.getTime() - graceHours * 60 * 60_000);
+  const rows = await db.task.findMany({
+    where: {
+      status: 'OPEN',
+      dueAt: { lt: cutoff },
+    },
+    orderBy: { dueAt: 'asc' },   // most overdue first
+    select: {
+      id: true, body: true, dueAt: true, createdAt: true,
+      assigneeEmail: true,
+      booking: {
+        select: {
+          id: true, bookingNo: true,
+          jemaah: { select: { fullName: true } },
+          paket: { select: { title: true, slug: true } },
+        },
+      },
+    },
+  });
+  return {
+    rows,
+    counts: { overdue: rows.length, graceHours },
+    cutoffAt: cutoff,
+  };
+}
+
 export async function cancelTask({ id, actor }) {
   return db.task.update({
     where: { id },

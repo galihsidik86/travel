@@ -50,6 +50,9 @@ MAILTO=""
 # Daily 08:30 — anomaly alert when paket views drop ≥50% vs 7d avg (Stage 53)
 30 8  * * *   religio  cd /srv/religio-pro && npm run job:send-traffic-anomaly >> /var/log/religio/traffic-anomaly.log 2>&1
 
+# Daily 09:00 — overdue task escalation (Stage 96). 48h grace + 7d dedup per recipient.
+0  9  * * *   religio  cd /srv/religio-pro && npm run job:send-task-overdue >> /var/log/religio/task-overdue.log 2>&1
+
 # Daily 08:45 — landing slow alert when p95 latency > 800ms (Stage 58)
 45 8  * * *   religio  cd /srv/religio-pro && npm run job:send-landing-slow >> /var/log/religio/landing-slow.log 2>&1
 

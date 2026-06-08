@@ -209,6 +209,18 @@
     </div>
   </div>
 
+  <!-- Stage 94 — push toggle. Hidden by JS when browser doesn't support PushManager. -->
+  <div class="panel push-panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div id="rp-push-bar" style="display:none;align-items:center;gap:12px;flex:1;min-width:240px;">
+      <span style="font-size:24px;">🔔</span>
+      <span id="rp-push-status" style="font-family:var(--font-mono);font-size:11.5px;color:var(--ink-200);letter-spacing:0.04em;">…</span>
+    </div>
+    <div>
+      <button type="button" id="rp-push-enable" style="display:none;background:var(--gold-300);color:var(--ink-1000);border:0;padding:8px 18px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:600;">AKTIFKAN</button>
+      <button type="button" id="rp-push-disable" style="display:none;background:transparent;border:1px solid var(--ink-700);color:var(--ink-200);padding:8px 18px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;">MATIKAN</button>
+    </div>
+  </div>
+
   <!-- Claim form -->
   <div class="panel">
     <h3>Klaim booking</h3>
@@ -314,5 +326,7 @@
   });
 </script>
 <%- include('partials/mobile-tabs') %>
+<!-- Stage 94 — jemaah push subscribe (loads after the SW is registered) -->
+<script src="/shared/push-jemaah.js" defer></script>
 </body>
 </html>

@@ -587,6 +587,76 @@ export async function notifyIncidentCreated({ incident, crew, paket }) {
 }
 
 /**
+ * Stage 96 — daily fan-out of overdue tasks (past dueAt + grace period
+ * and still OPEN). EMAIL to OWNER/SUPERADMIN/MANAJER_OPS so the team
+ * notices stuck tasks even when the assignee is the bottleneck.
+ *
+ * **Dedup window**: skips firing when an INCIDENT_SLA_BREACH_OWNER /
+ * TASK_OVERDUE_ESCALATION notif for the same admin email landed in the
+ * last 7 days. The "stuck task" signal isn't more useful daily — weekly
+ * is plenty.
+ *
+ * Silent on empty (overdue list = []).
+ */
+export async function notifyTaskOverdueEscalation({ overdueResult }) {
+  if (!overdueResult || overdueResult.rows.length === 0) {
+    return { enqueued: 0, skipped: true };
+  }
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { enqueued: 0 };
+
+  // Dedup: filter admins who already got this notif in last 7 days.
+  // Cheap predicate since the recipient set is small.
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60_000);
+  const recentEmails = await db.notification.findMany({
+    where: {
+      type: 'TASK_OVERDUE_ESCALATION',
+      sentAt: { gte: sevenDaysAgo },
+      recipientEmail: { in: admins.map((a) => a.email) },
+    },
+    select: { recipientEmail: true },
+  });
+  const cooledOff = new Set(recentEmails.map((r) => r.recipientEmail));
+  const fresh = admins.filter((a) => !cooledOff.has(a.email));
+  if (fresh.length === 0) return { enqueued: 0, skipped: true };
+
+  const inline = overdueResult.rows.slice(0, 10);
+  const more = Math.max(0, overdueResult.rows.length - inline.length);
+  const rowLines = inline.map((r, idx) => {
+    const days = r.dueAt ? Math.floor((Date.now() - r.dueAt.getTime()) / 86_400_000) : '?';
+    return `${idx + 1}. ${r.booking.bookingNo} (${r.booking.jemaah?.fullName || '—'}) · ${r.assigneeEmail} · ${days}h overdue · ${r.body}`;
+  });
+  if (more > 0) rowLines.push(`  + ${more} task lainnya…`);
+
+  const vars = {
+    overdueCount: String(overdueResult.counts.overdue),
+    graceHours: String(overdueResult.counts.graceHours),
+    rowsBlock: rowLines.join('\n'),
+  };
+  const { subject, body } = renderTemplate('TASK_OVERDUE_ESCALATION', 'EMAIL', vars);
+
+  let enqueued = 0;
+  await Promise.all(fresh.map(async (a) => {
+    await enqueueNotification({
+      type: 'TASK_OVERDUE_ESCALATION', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject, body,
+      payload: { overdueCount: overdueResult.counts.overdue, graceHours: overdueResult.counts.graceHours },
+    });
+    enqueued += 1;
+  }));
+  return { enqueued, recipients: fresh.length, dedupedRecipients: admins.length - fresh.length };
+}
+
+/**
  * Stage 87 — weekly SLA breach summary fan-out to OWNER/SUPERADMIN/
  * MANAJER_OPS. Silent when nothing breached — healthy weeks shouldn't
  * generate inbox noise. Per-row format: "SOS · ack p95 12m (budget 5m,

@@ -139,6 +139,7 @@ enum NotificationType {
   INCIDENT_ESCALATED // OPEN incident > 60 min unacked → OWNER tier (Stage 80)
   BOOKING_NOTE_MENTION // @-mention in booking notes → mentioned user (Stage 81)
   INCIDENT_SLA_BREACH_OWNER // last-week p95 ack/resolve breached budget → OWNER tier (Stage 87)
+  TASK_OVERDUE_ESCALATION // Task past dueAt + 48h still OPEN → OWNER tier (Stage 96)
   GENERIC // catch-all for ad-hoc notifs
 }
 

@@ -118,6 +118,100 @@ export async function deleteCostLine({ req, actor, id }) {
  * Cross-paket per-category rollup. Sums by category across all ACTIVE
  * (non-archived, non-deleted) paket. Used by leaderboard insight panel.
  */
+/**
+ * Stage 95 — outlier detection per cost-line vs network median.
+ *
+ * For each category that THIS paket has at least one line in, look up
+ * the per-paket TOTAL spend in that category across the network and
+ * compute the median. Flag this paket's amount as:
+ *
+ *   - 'high'   when amount >= 2× median
+ *   - 'low'    when amount <= 0.5× median (likely missing a sub-line)
+ *   - null     within normal range OR sample too small (<3 paket)
+ *
+ * Why per-paket TOTAL not per-line: admin may have 1 line "Hotel ALL"
+ * or 3 lines "Hotel Madinah / Mekkah / Aqsa". Comparing per-line would
+ * make the multi-line paket look "low" everywhere; comparing the total
+ * per-paket per-category is apples-to-apples.
+ *
+ * Median (not mean) so a single outrageous outlier in the network
+ * doesn't move the benchmark for everyone else.
+ */
+export async function getCostBenchmarks({ paketId }) {
+  if (!paketId) return [];
+
+  // 1. This paket's totals per category
+  const myLines = await db.paketCostLine.findMany({
+    where: { paketId },
+    select: { category: true, amountIdr: true },
+  });
+  if (myLines.length === 0) return [];
+
+  const myTotals = new Map();
+  for (const l of myLines) {
+    const prev = myTotals.get(l.category) || 0;
+    myTotals.set(l.category, prev + Number(l.amountIdr.toString()));
+  }
+
+  // 2. Per-paket totals across the network for the categories we care about
+  const categories = [...myTotals.keys()];
+  const networkLines = await db.paketCostLine.findMany({
+    where: {
+      category: { in: categories },
+      paket: { deletedAt: null, status: { not: 'ARCHIVED' } },
+    },
+    select: { paketId: true, category: true, amountIdr: true },
+  });
+
+  // Aggregate per (paketId, category)
+  const networkByCat = new Map();   // category → Map<paketId, total>
+  for (const cat of categories) networkByCat.set(cat, new Map());
+  for (const l of networkLines) {
+    const pmap = networkByCat.get(l.category);
+    if (!pmap) continue;
+    const prev = pmap.get(l.paketId) || 0;
+    pmap.set(l.paketId, prev + Number(l.amountIdr.toString()));
+  }
+
+  // 3. Compute median per category + classify
+  function median(arr) {
+    if (arr.length === 0) return null;
+    const sorted = arr.slice().sort((a, z) => a - z);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
+      : sorted[mid];
+  }
+
+  const out = [];
+  for (const cat of categories) {
+    const pmap = networkByCat.get(cat);
+    const totals = [...pmap.values()];
+    const med = median(totals);
+    const myAmount = myTotals.get(cat);
+    let flag = null;
+    if (totals.length >= 3 && med > 0) {
+      if (myAmount >= med * 2) flag = 'high';
+      else if (myAmount <= med * 0.5) flag = 'low';
+    }
+    out.push({
+      category: cat,
+      label: getCategoryLabel(cat),
+      amount: myAmount,
+      networkMedian: med,
+      networkSample: totals.length,
+      deltaPct: (med != null && med > 0)
+        ? Math.round((myAmount / med - 1) * 100)
+        : null,
+      flag,
+    });
+  }
+  // Sort: flagged 'high' first (most urgent), then 'low', then null.
+  const flagRank = { high: 0, low: 1, null: 2 };
+  out.sort((a, b) => (flagRank[a.flag] ?? 2) - (flagRank[b.flag] ?? 2));
+  return out;
+}
+
 export async function getCostByCategoryAcrossPaket() {
   const rows = await db.paketCostLine.groupBy({
     by: ['category'],

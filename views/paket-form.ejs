@@ -526,6 +526,30 @@
         </div>
       </div>
 
+      <!-- Stage 95 — benchmark flags per category vs network median -->
+      <% if (mode === 'edit' && typeof costBenchmarks !== 'undefined' && costBenchmarks.some((b) => b.flag)) { %>
+        <div style="margin-top:14px;padding:12px 14px;background:rgba(212,175,55,0.06);border:1px solid var(--gold-300);border-radius:var(--r-sm);">
+          <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--gold-300);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">
+            ⚠ Benchmark vs jaringan paket lain
+          </div>
+          <% costBenchmarks.filter((b) => b.flag).forEach(function(b) {
+            const cls = b.flag === 'high' ? 'ruby' : 'amber';
+            const symbol = b.flag === 'high' ? '▲' : '▼';
+            const verb = b.flag === 'high' ? 'lebih tinggi' : 'lebih rendah';
+          %>
+            <div style="font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);margin:4px 0;">
+              <strong style="color:var(--<%= cls %>);"><%= symbol %> <%= b.label %></strong>:
+              <%= fmt.rpShort(b.amount) %>
+              <span style="color:var(--ink-200);">vs median jaringan <%= fmt.rpShort(b.networkMedian) %></span>
+              <span style="color:var(--<%= cls %>);">(<%= b.deltaPct > 0 ? '+' : '' %><%= b.deltaPct %>% <%= verb %>, n=<%= b.networkSample %>)</span>
+            </div>
+          <% }) %>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);margin-top:6px;letter-spacing:0.04em;">
+            Cek apakah angka ini benar — bisa typo, vendor overcharge, atau memang paket tier lain.
+          </div>
+        </div>
+      <% } %>
+
       <!-- Stage 92 — cost lines breakdown (overrides costPerPaxIdr when present) -->
       <% if (mode === 'edit' && typeof costLines !== 'undefined') {
         const totalLines = costLines.reduce((s, l) => s + Number(l.amountIdr.toString()), 0);

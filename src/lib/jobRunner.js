@@ -83,6 +83,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-crew-weekly-digest': 7 * 24 * 60 * 60_000, // weekly (Stage 65)
   'send-incident-escalate': 15 * 60_000, // every 15 min (Stage 80) — 60min threshold means tight cadence pays off
   'send-incident-sla-alert': 7 * 24 * 60 * 60_000, // weekly (Stage 87)
+  'send-task-overdue': 24 * 60 * 60_000, // daily (Stage 96)
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };
 

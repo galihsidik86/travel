@@ -1,0 +1,4 @@
+{
+  "subject": "[TUGAS] {{overdueCount}} task overdue > {{graceHours}}j — perlu tindak lanjut",
+  "body": "Halo tim,\n\n{{overdueCount}} task booking overdue > {{graceHours}} jam dan masih OPEN.\n\n— DETAIL\n{{rowsBlock}}\n\nMark DONE / CANCEL di dashboard /admin atau di halaman booking masing-masing.\n\n— sistem Religio Pro"
+}

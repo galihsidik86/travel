@@ -1,0 +1,11 @@
+[Unit]
+Description=Religio Pro — daily overdue task escalation (09:00)
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+OnCalendar=*-*-* 09:00:00
+Persistent=true
+Unit=religio-send-task-overdue.service
+
+[Install]
+WantedBy=timers.target

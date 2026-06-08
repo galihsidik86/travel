@@ -18,7 +18,8 @@ import { getLandingSpeed } from '../services/paketView.js';
 import { buildCrewWeeklyDigest, listActiveCrewForDigest } from '../services/crewWeeklyDigest.js';
 import { escalateStaleIncidents } from '../services/incidentEscalate.js';
 import { getIncidentSlaBreaches } from '../services/incidentSlaAlert.js';
-import { notifyIncidentSlaBreach } from '../services/notifications.js';
+import { notifyIncidentSlaBreach, notifyTaskOverdueEscalation } from '../services/notifications.js';
+import { getOverdueTasks } from '../services/tasks.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -218,6 +219,22 @@ router.post(
   '/send-incident-escalate',
   asyncHandler(async (_req, res) => {
     const result = await runJob('send-incident-escalate', () => escalateStaleIncidents());
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-task-overdue',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-task-overdue', async () => {
+      const overdueResult = await getOverdueTasks();
+      const fan = await notifyTaskOverdueEscalation({ overdueResult });
+      return {
+        overdueCount: overdueResult.counts.overdue,
+        enqueued: fan.enqueued ?? 0,
+        skipped: fan.skipped ?? false,
+      };
+    });
     res.json(result);
   }),
 );
