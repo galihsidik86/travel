@@ -364,6 +364,33 @@
           </div>
         </div>
 
+        <!-- Stage 49/50/51 — attribution snapshot. Hidden when nothing was
+             captured (e.g. admin walk-in booking, very old row pre-S48). -->
+        <% if (b.firstViewAt || b.viewCount > 0 || b.heroVariant || b.utmSource) {
+          const visitDays = b.firstViewAt
+            ? Math.max(0, Math.floor((new Date(b.createdAt).getTime() - new Date(b.firstViewAt).getTime()) / 86_400_000))
+            : null;
+        %>
+          <div style="margin-top:14px;padding:12px 14px;background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.04em;">
+            <span style="color:var(--ink-200);text-transform:uppercase;letter-spacing:0.14em;font-size:10px;">Attribution</span><br>
+            <% if (b.viewCount > 0) { %>
+              <span style="color:var(--cream-100);">visit <strong><%= b.viewCount %>×</strong> sebelum booking</span>
+              <% if (visitDays !== null) { %> · pertama <%= visitDays %>h sebelum <% } %>
+              ·
+            <% } %>
+            <% if (b.heroVariant) { %>
+              <span style="color:var(--gold-300);">varian hero <%= b.heroVariant %></span> ·
+            <% } %>
+            <% if (b.utmCampaign || b.utmSource || b.utmMedium) { %>
+              <span style="color:var(--cream-200);">
+                via <%= b.utmSource || '—' %><% if (b.utmMedium) { %> / <%= b.utmMedium %><% } %><% if (b.utmCampaign) { %> · <%= b.utmCampaign %><% } %>
+              </span>
+            <% } else if (b.viewCount > 0) { %>
+              <span style="color:var(--ink-200);">direct / no UTM</span>
+            <% } %>
+          </div>
+        <% } %>
+
         <div class="money-row">
           <div class="cell">
             <div class="l">Total</div>

@@ -394,6 +394,9 @@ model Paket {
   routeTo     String?
 
   heroDescription String? @db.LongText
+  // Stage 50 — optional variant B for hero title A/B test. When set, the
+  // public landing serves A or B 50/50 (deterministic per visitor cookie).
+  heroTitleHtmlVariantB String? @db.Text
   inclusions      Json
   exclusions      Json
   trustBadges     Json?
@@ -471,6 +474,15 @@ model PaketView {
   visitorId String   // random 32-hex from rp_vis cookie
   dayKey    String   // YYYY-MM-DD local date so multi-refresh per day = 1 row
   agentSlug String?  // captured from `?a=` query, if present
+  // Stage 50 — which hero variant was served on this visit ('A' or 'B').
+  // Null when the paket has no variant B set (no test running).
+  heroVariant String? @db.VarChar(1)
+  // Stage 51 — UTM tags captured from the landing query (first-touch).
+  // Stored on the first visit row per (paket, visitor); later visits keep
+  // the original attribution via the upsert update-no-op pattern.
+  utmSource   String? @db.VarChar(80)
+  utmMedium   String? @db.VarChar(80)
+  utmCampaign String? @db.VarChar(120)
   createdAt DateTime @default(now())
 
   @@unique([paketId, visitorId, dayKey])
@@ -672,6 +684,16 @@ model Booking {
   agentId      String?
   agent        AgentProfile? @relation("BookingAgent", fields: [agentId], references: [id])
   agentSlugCap String? // snapshot slug saat booking (untuk audit kalau slug berubah)
+
+  // Stage 49/50/51 — visit attribution snapshot at booking time. Resolved
+  // from the rp_vis cookie at /api/booking POST and stamped here. Mutable
+  // never — these reflect "how did this booking come to be".
+  firstViewAt     DateTime?
+  viewCount       Int     @default(0)
+  heroVariant     String? @db.VarChar(1)
+  utmSource       String? @db.VarChar(80)
+  utmMedium       String? @db.VarChar(80)
+  utmCampaign     String? @db.VarChar(120)
 
   // bunking assignment (NULL = belum di-assign ke kamar)
   roomId String?

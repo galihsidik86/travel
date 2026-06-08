@@ -23,7 +23,7 @@ const KELAS_VALUES = new Set(['QUAD', 'TRIPLE', 'DOUBLE', 'VVIP']);
  *
  * @returns {{ booking, agent, paket, jemaah, selfBooked }}
  */
-export async function createBooking({ req, paketSlug, agentSlug, fullName, phone, kelas, paxCount, notes, loggedInUser = null, adminCreator = null }) {
+export async function createBooking({ req, paketSlug, agentSlug, fullName, phone, kelas, paxCount, notes, loggedInUser = null, adminCreator = null, visitorAttribution = null }) {
   // Admin booking-on-behalf overrides the loggedInUser linking — the admin
   // session is the actor, not the jemaah.
   if (adminCreator) loggedInUser = null;
@@ -91,6 +91,16 @@ export async function createBooking({ req, paketSlug, agentSlug, fullName, phone
         totalAmount: totalAmount.toFixed(2),
         currency: 'IDR',
         status: 'PENDING',
+        // Stage 49/50/51 — attribution snapshot. visitorAttribution is
+        // resolved from the rp_vis cookie in the route layer; null when
+        // the booking came from a path that doesn't carry view history
+        // (admin walk-in, jemaah portal /saya/paket etc.). Never mutated.
+        firstViewAt: visitorAttribution?.firstViewAt ?? null,
+        viewCount: visitorAttribution?.viewCount ?? 0,
+        heroVariant: visitorAttribution?.heroVariant ?? null,
+        utmSource:   visitorAttribution?.utmSource   ?? null,
+        utmMedium:   visitorAttribution?.utmMedium   ?? null,
+        utmCampaign: visitorAttribution?.utmCampaign ?? null,
       },
     });
 

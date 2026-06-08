@@ -4,6 +4,8 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { optionalAuth } from '../middleware/auth.js';
 import { createBooking } from '../services/booking.js';
+import { getVisitorAttribution } from '../services/paketView.js';
+import { db } from '../lib/db.js';
 
 const router = Router();
 
@@ -28,9 +30,33 @@ router.post(
   asyncHandler(async (req, res) => {
     const data = BookingSchema.parse(req.body);
     const { forceAnonymous, ...inputs } = data;
+
+    // Stage 49/50/51 — resolve attribution from the rp_vis cookie. Best-
+    // effort: a missing cookie or no prior views just yields null, which
+    // createBooking stores as "no attribution captured" (defaults all
+    // attribution columns to NULL / 0 viewCount).
+    let visitorAttribution = null;
+    try {
+      const visitorId = req.cookies?.rp_vis;
+      if (visitorId && /^[0-9a-f]{32}$/.test(visitorId)) {
+        const paket = await db.paket.findUnique({
+          where: { slug: inputs.paketSlug },
+          select: { id: true },
+        });
+        if (paket) {
+          visitorAttribution = await getVisitorAttribution({
+            paketId: paket.id, visitorId,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[booking] visitor-attribution lookup failed:', err?.message || err);
+    }
+
     const { booking, agent, paket, selfBooked } = await createBooking({
       req, ...inputs,
       loggedInUser: forceAnonymous ? null : (req.user || null),
+      visitorAttribution,
     });
 
     res.status(201).json({

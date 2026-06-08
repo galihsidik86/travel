@@ -199,7 +199,10 @@ router.get(
     const { listPaketOverrides } = await import('../services/agentPaketKomisi.js');
     // Stage 39 — profitability snapshot, used inline next to the cost input.
     const { getPaketProfitabilitySnapshot } = await import('../services/paketProfitability.js');
-    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability] = await Promise.all([
+    // Stage 50 — A/B breakdown only fetched when variantB is configured;
+    // skips an unnecessary query for the common single-variant case.
+    const { getPaketABBreakdown } = await import('../services/paketView.js');
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, abBreakdown] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
       db.agentProfile.findMany({
@@ -209,13 +212,14 @@ router.get(
       }),
       listPaketOverrides(req.params.slug),
       getPaketProfitabilitySnapshot(paket.id),
+      paket.heroTitleHtmlVariantB ? getPaketABBreakdown({ paketId: paket.id }) : Promise.resolve(null),
     ]);
     res.render('paket-form', {
       user: req.user, mode: 'edit', paket: paketToForm(paket),
       errors: {}, formError: null,
       availableCrew, assignedCrew,
       availableAgents, paketOverrides,
-      profitability,
+      profitability, abBreakdown,
     });
   }),
 );

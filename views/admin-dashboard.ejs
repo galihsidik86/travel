@@ -1479,6 +1479,45 @@
         </style>
       <% } %>
 
+      <!-- Stage 51 — UTM campaign breakdown -->
+      <% if (utmBreakdown && utmBreakdown.rows.length > 0) { %>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Sumber kampanye (UTM)</h3>
+            <span class="meta"><%= utmBreakdown.window.days %> HARI · <%= utmBreakdown.rows.length %> SUMBER</span>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Sumber</th>
+                <th class="num">Visit</th>
+                <th class="num">Booking</th>
+                <th class="num">Konv %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% utmBreakdown.rows.forEach(function(r) {
+                const cls = r.conversionPct == null ? 'ink-200'
+                  : r.conversionPct >= 5 ? 'emerald'
+                  : r.conversionPct >= 2 ? 'gold-300'
+                  : r.conversionPct >= 1 ? 'amber' : 'ruby';
+              %>
+                <tr>
+                  <td<%= r.isDirect ? ' style="color:var(--ink-200);font-style:italic;"' : '' %>>
+                    <%= r.label %>
+                  </td>
+                  <td class="num" style="font-family:var(--font-mono);"><%= r.visits %></td>
+                  <td class="num" style="font-family:var(--font-mono);color:var(--gold-300);"><%= r.bookings %></td>
+                  <td class="num" style="font-family:var(--font-mono);color:var(--<%= cls %>);font-weight:600;">
+                    <%= r.conversionPct ?? '—' %>%
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+
       <!-- Stage 35 — Refund analytics (last 90 days, top 10 per dimension) -->
       <% if (refundAnalytics && refundAnalytics.totals.refunded > 0) { %>
         <div class="panel" style="margin-top:16px;">

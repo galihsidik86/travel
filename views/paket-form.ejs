@@ -340,10 +340,61 @@
       </div>
 
       <div class="field">
-        <div class="label-row"><label class="label" for="f-hero">Hero Title HTML</label></div>
+        <div class="label-row"><label class="label" for="f-hero">Hero Title HTML <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-left:6px;">VARIAN A</span></label></div>
         <textarea class="input" id="f-hero" name="heroTitleHtml" rows="3"><%= paket.heroTitleHtml || '' %></textarea>
         <div class="helper">HTML dipercaya — boleh &lt;em&gt; dan &lt;br&gt;</div>
       </div>
+
+      <!-- Stage 50 — optional variant B for hero A/B test -->
+      <div class="field">
+        <div class="label-row">
+          <label class="label" for="f-hero-b">Hero Title HTML <span style="font-family:var(--font-mono);font-size:10px;color:var(--gold-300);margin-left:6px;">VARIAN B (opsional)</span></label>
+        </div>
+        <textarea class="input" id="f-hero-b" name="heroTitleHtmlVariantB" rows="3" placeholder="Kosongkan kalau tidak ada A/B test"><%= paket.heroTitleHtmlVariantB || '' %></textarea>
+        <div class="helper">Kalau diisi, landing /p/<%= paket.slug || '<slug>' %> serve A atau B 50/50 (deterministik per visitor cookie). Konversi per varian tampil di bawah ketika sudah ada data.</div>
+      </div>
+
+      <%
+        // Stage 50 — surface A/B breakdown when variantB is configured AND
+        // we have at least some traffic. Computed in the route handler.
+        const ab = typeof abBreakdown !== 'undefined' ? abBreakdown : null;
+      %>
+      <% if (paket.heroTitleHtmlVariantB && ab && (ab.A.visits > 0 || ab.B.visits > 0)) { %>
+        <div class="panel" style="background:var(--ink-1000);margin-top:8px;padding:14px 16px;">
+          <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:10px;">
+            A/B konversi · <%= ab.window.days %> hari
+            <% if (ab.winner) { %>
+              <span style="float:right;color:var(--<%= ab.winner === 'tie' ? 'ink-200' : 'emerald' %>);">
+                Pemenang: <%= ab.winner === 'tie' ? 'Seri' : ('Varian ' + ab.winner) %>
+              </span>
+            <% } else { %>
+              <span style="float:right;color:var(--amber);">Belum cukup data (&lt;30 visit)</span>
+            <% } %>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+            <% ['A','B'].forEach(function(v) {
+              const r = ab[v];
+              const cls = r.conversionPct == null ? 'ink-200'
+                : r.conversionPct >= 5 ? 'emerald'
+                : r.conversionPct >= 2 ? 'gold-300'
+                : r.conversionPct >= 1 ? 'amber' : 'ruby';
+              const isWin = ab.winner === v;
+            %>
+              <div style="background:var(--ink-900);border:1px solid <%= isWin ? 'var(--emerald)' : 'var(--ink-700)' %>;border-radius:var(--r-sm);padding:10px 14px;">
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--<%= isWin ? 'emerald' : 'ink-100' %>);letter-spacing:0.12em;">
+                  VARIAN <%= v %><% if (isWin) { %> ★<% } %>
+                </div>
+                <div style="font-family:var(--font-display);font-size:22px;color:var(--<%= cls %>);margin-top:4px;font-weight:500;">
+                  <%= r.conversionPct ?? '—' %>%
+                </div>
+                <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:4px;">
+                  <%= r.visits %> visit · <%= r.bookings %> booking
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
 
       <div class="field">
         <div class="label-row"><label class="label" for="f-herodesc">Deskripsi hero</label></div>

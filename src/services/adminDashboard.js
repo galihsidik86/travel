@@ -10,7 +10,7 @@ import { getRefundAnalytics } from './refundAnalytics.js';
 import { getPaketForecasts } from './paketForecast.js';
 import { getKomisiAging } from './komisiAging.js';
 import { getManifestClosing } from './manifestClose.js';
-import { getPaketConversion } from './paketView.js';
+import { getPaketConversion, getUtmBreakdown } from './paketView.js';
 import { pillsForJemaah } from './jemaahDocs.js';
 
 const HOT_STATUSES = ['PENDING', 'BOOKED', 'DP_PAID', 'PARTIAL'];
@@ -318,6 +318,14 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getPaketConversion failed:', err?.message || err);
   }
 
+  // Stage 51 — UTM campaign breakdown (last 30d).
+  let utmBreakdown = null;
+  try {
+    utmBreakdown = await getUtmBreakdown();
+  } catch (err) {
+    console.warn('[admin-overview] getUtmBreakdown failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -332,6 +340,7 @@ export async function getAdminOverview(opts = {}) {
     komisiAging,
     manifestClosing,
     paketConversion,
+    utmBreakdown,
     analytics: {
       funnel: globalFunnel,
       sourceBreakdown: globalSourceBreakdown,

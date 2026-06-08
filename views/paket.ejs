@@ -356,7 +356,13 @@
         <span class="eyebrow" style="color:var(--ink-200);"><%= paket.durationDays %> Hari · <%= paket.durationDays - 1 %> Malam</span>
       </div>
 
-      <h1 class="hero__title"><%- paket.heroTitleHtml || paket.title %></h1>
+      <%
+        // Stage 50 — pick variant B copy when configured + visitor was bucketed B.
+        const heroHtml = (typeof heroVariant !== 'undefined' && heroVariant === 'B' && paket.heroTitleHtmlVariantB)
+          ? paket.heroTitleHtmlVariantB
+          : (paket.heroTitleHtml || paket.title);
+      %>
+      <h1 class="hero__title"><%- heroHtml %></h1>
 
       <% if (paket.arabicTagline) { %><p class="hero__arabic"><%= paket.arabicTagline %></p><% } %>
       <% if (paket.translitTagline) { %><p class="hero__translit"><%= paket.translitTagline %></p><% } %>

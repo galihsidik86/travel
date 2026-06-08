@@ -27,6 +27,7 @@ export const PaketSchema = z.object({
   title: z.string().min(3, 'Judul minimal 3 karakter').max(190),
   subtitle: optStr,
   heroTitleHtml: optStrLong,
+  heroTitleHtmlVariantB: optStrLong, // Stage 50 — optional A/B test copy
   arabicTagline: optStrLong,
   translitTagline: optStrLong,
   departureDate: reqDate,
@@ -97,6 +98,7 @@ function toPaketData(parsed, userId) {
     title: parsed.title,
     subtitle: parsed.subtitle ?? null,
     heroTitleHtml: parsed.heroTitleHtml ?? null,
+    heroTitleHtmlVariantB: parsed.heroTitleHtmlVariantB ?? null,
     arabicTagline: parsed.arabicTagline ?? null,
     translitTagline: parsed.translitTagline ?? null,
     departureDate: parsed.departureDate,
@@ -583,6 +585,7 @@ export async function clonePaket({ req, actor, sourceSlug, input }) {
         title: data.newTitle,
         subtitle: source.subtitle,
         heroTitleHtml: source.heroTitleHtml,
+        heroTitleHtmlVariantB: source.heroTitleHtmlVariantB,
         arabicTagline: source.arabicTagline,
         translitTagline: source.translitTagline,
         departureDate: data.newDepartureDate,
