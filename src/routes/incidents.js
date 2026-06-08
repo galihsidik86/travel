@@ -41,8 +41,12 @@ router.get(
   asyncHandler(async (req, res) => {
     const incident = await getIncident(req.params.id);
     if (!incident) throw new HttpError(404, 'Insiden tidak ditemukan', 'NOT_FOUND');
+    // Stage 89 — pass SLA budget for the incident's type so the timeline
+    // can draw budget markers + flag breaches inline.
+    const { SLA_BUDGETS } = await import('../services/incidentSlaAlert.js');
+    const slaBudget = SLA_BUDGETS[incident.type] || null;
     res.render('incident-detail', {
-      user: req.user, incident, typeLabels: TYPE_LABELS,
+      user: req.user, incident, typeLabels: TYPE_LABELS, slaBudget,
       flash: { ack: req.query.ack === 'ok', resolved: req.query.resolved === 'ok' },
     });
   }),

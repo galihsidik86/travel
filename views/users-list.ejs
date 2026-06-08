@@ -102,7 +102,10 @@
       <h1>Users &amp; <em>peran</em></h1>
       <div class="sub"><%= users.length %> user · <%= user.role %> session</div>
     </div>
-    <a href="/admin/users/new" class="btn btn--primary">+ User Baru</a>
+    <div style="display:flex;gap:8px;">
+      <a href="/admin/users/shortcodes" class="btn" style="background:transparent;border:1px solid var(--ink-700);color:var(--cream-100);">: Shortcuts</a>
+      <a href="/admin/users/new" class="btn btn--primary">+ User Baru</a>
+    </div>
   </div>
 
   <form method="GET" action="/admin/users" class="filter-bar">

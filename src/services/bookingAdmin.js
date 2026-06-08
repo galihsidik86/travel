@@ -51,6 +51,46 @@ function extractMentionEmails(text) {
   return Array.from(out);
 }
 
+// Stage 88 — :code shortcut expansion. `:ops` in notes resolves to the
+// shortcode's user email and rewrites to `@user@religio.pro`. Done at
+// save time so the stored text is stable + readable + the S81 mention
+// parser stays unchanged. Unknown codes are LEFT AS-IS (admin typo
+// shouldn't silently disappear; visible in the saved notes as `:typo`).
+//
+// Grammar: same leading-boundary rule as @-mentions. Code is [a-z0-9_-]+
+// (case-insensitive on input; lowercased before lookup).
+const SHORTCODE_RE = /(^|\s):([a-zA-Z0-9_-]+)\b/g;
+
+async function expandShortcodes(text) {
+  if (!text || !text.includes(':')) return text;
+  // Collect distinct codes first to one batched DB lookup
+  const codes = new Set();
+  let m;
+  SHORTCODE_RE.lastIndex = 0;
+  while ((m = SHORTCODE_RE.exec(text)) !== null) {
+    codes.add(m[2].toLowerCase());
+  }
+  if (codes.size === 0) return text;
+
+  const rows = await db.mentionShortcode.findMany({
+    where: { code: { in: [...codes] } },
+    select: { code: true, user: { select: { email: true, deletedAt: true, status: true } } },
+  });
+  const lookup = new Map();
+  for (const r of rows) {
+    if (!r.user || r.user.deletedAt || r.user.status !== 'ACTIVE') continue;
+    if (!r.user.email) continue;
+    lookup.set(r.code.toLowerCase(), r.user.email);
+  }
+  if (lookup.size === 0) return text;
+
+  SHORTCODE_RE.lastIndex = 0;
+  return text.replace(SHORTCODE_RE, (full, lead, code) => {
+    const email = lookup.get(code.toLowerCase());
+    return email ? `${lead}@${email}` : full;
+  });
+}
+
 /**
  * Update a booking's free-text notes. Idempotent; safe to call repeatedly.
  *   - Trims whitespace; empty string is stored as null.
@@ -63,7 +103,10 @@ function extractMentionEmails(text) {
  *     doesn't re-fire the notif.
  */
 export async function updateBookingNotes({ req, actor, bookingId, notes }) {
-  const cleaned = (notes ?? '').toString().trim().slice(0, 2000);
+  // Stage 88 — expand :code shortcuts → @user.email BEFORE trim/cap
+  // so length checks see the final stored text, not the abbreviated form.
+  const expanded = await expandShortcodes(notes ?? '');
+  const cleaned = expanded.toString().trim().slice(0, 2000);
   const before = await db.booking.findUnique({
     where: { id: bookingId },
     select: { id: true, notes: true },

@@ -231,6 +231,8 @@ model User {
   testimonials      Testimonial[]      @relation("TestimonialSubmitter")
   mentionsReceived  BookingMention[]   @relation("MentionedUser")
   mentionsAuthored  BookingMention[]   @relation("MentionedByActor")
+  shortcodesAsTarget  MentionShortcode[] @relation("ShortcodeTarget")
+  shortcodesAuthored  MentionShortcode[] @relation("ShortcodeCreator")
 
   @@index([role])
   @@index([deletedAt])
@@ -328,6 +330,15 @@ model JemaahProfile {
   // Notif opt-out per channel (5jj). Defaults to opt-in (true).
   notifEmail Boolean @default(true)
   notifWa    Boolean @default(true)
+
+  // Stage 90 — WA consent audit trail (UU PDP / GDPR friendly). Stamped
+  // when notifWa flips: consent on → consentAt set + withdrawn cleared;
+  // consent off → withdrawnAt set + consent unchanged (so the "last
+  // explicit grant" survives a later withdrawal). New profiles default
+  // to consentAt=createdAt (registration is the consent moment) — set
+  // by the seed + register flow, not by an automatic trigger.
+  notifWaConsentAt    DateTime?
+  notifWaWithdrawnAt  DateTime?
 
   bookings       Booking[]
   documents      JemaahDocument[]
@@ -559,6 +570,26 @@ model EmailClick {
 
   @@unique([notificationId, targetUrl])
   @@index([notificationId])
+}
+
+// Stage 88 — :code shortcuts for booking-note @-mentions. Saves admins
+// from typing the full @email@domain. `code` is the short token (e.g.
+// "cs", "finance"), lowercase-only, unique. Expansion happens at save
+// time in updateBookingNotes — the stored notes carry the full
+// @user.email so audits + diff-by-email semantics (S81) stay simple.
+//
+// Cascade on user delete (FK SetNull) keeps the shortcut row alive
+// when the target user is removed; admin then sees the empty link and
+// can repoint or delete the code.
+model MentionShortcode {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(40)
+  userId      String?
+  user        User?    @relation("ShortcodeTarget", fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  createdById String?
+  createdBy   User?    @relation("ShortcodeCreator", fields: [createdById], references: [id], onDelete: SetNull)
 }
 
 // Stage 86 — booking-note @-mention audit. One row per (booking, user)

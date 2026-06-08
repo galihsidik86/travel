@@ -64,6 +64,42 @@
   .tl .when { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.08em; }
   .tl .what { color: var(--cream-100); font-size: 13px; margin-top: 2px; }
   .tl .by { font-family: var(--font-mono); font-size: 10.5px; color: var(--gold-300); }
+  .tl.escalated .dot { background: var(--amber); }
+  .tl.pending .dot { background: var(--ruby); }
+  .leg-elapsed {
+    display: inline-block; margin-left: 10px;
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.06em;
+    padding: 1px 6px; border: var(--hairline-soft); border-radius: 3px;
+  }
+  .leg-elapsed.is-breach { color: var(--ruby); border-color: var(--ruby); font-weight: 600; }
+
+  /* S89 — SLA budget bar */
+  .sla-bar-wrap { margin-bottom: 20px; }
+  .sla-bar-l {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); letter-spacing: 0.08em; margin-bottom: 6px;
+  }
+  .sla-bar {
+    position: relative; height: 14px; background: var(--ink-1000);
+    border: var(--hairline-soft); border-radius: 7px; overflow: hidden;
+  }
+  .sla-bar__track {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: var(--emerald); opacity: 0.5;
+    transition: width 0.3s;
+  }
+  .sla-bar__track.is-warn  { background: var(--amber); opacity: 0.6; }
+  .sla-bar__track.is-breach{ background: var(--ruby);  opacity: 0.7; }
+  .sla-bar__ackmark, .sla-bar__resmark {
+    position: absolute; top: -2px; bottom: -2px; width: 2px;
+  }
+  .sla-bar__ackmark { background: var(--gold-300); }
+  .sla-bar__resmark { background: var(--gold-300); right: 0; }
+  .sla-bar__legend {
+    font-family: var(--font-mono); font-size: 9.5px;
+    color: var(--ink-300); margin-top: 4px; letter-spacing: 0.1em;
+  }
 
   @media (max-width: 720px) {
     .grid-2 { grid-template-columns: 1fr; }
@@ -126,8 +162,54 @@
     </div>
   </div>
 
+  <%
+    // Stage 89 — per-leg elapsed time + SLA budget comparison.
+    function fmtDur(ms) {
+      if (ms == null || ms < 0) return '—';
+      if (ms < 60_000) return Math.round(ms / 1000) + 's';
+      if (ms < 3_600_000) return Math.round(ms / 60_000) + 'm';
+      if (ms < 86_400_000) {
+        const h = Math.floor(ms / 3_600_000);
+        const m = Math.round((ms % 3_600_000) / 60_000);
+        return m ? h + 'j ' + m + 'm' : h + 'j';
+      }
+      return Math.round(ms / 86_400_000) + 'h';
+    }
+    const createdMs = new Date(incident.createdAt).getTime();
+    const ackMs = incident.ackedAt ? new Date(incident.ackedAt).getTime() - createdMs : null;
+    const escMs = incident.escalatedAt ? new Date(incident.escalatedAt).getTime() - createdMs : null;
+    const resMs = incident.resolvedAt ? new Date(incident.resolvedAt).getTime() - createdMs : null;
+    const openAgeMs = (incident.status !== 'RESOLVED') ? (Date.now() - createdMs) : null;
+
+    // Budget breach flags (only when budget is known)
+    const ackBreach = slaBudget && ackMs != null && ackMs > slaBudget.ackMs;
+    const ackPending = slaBudget && ackMs == null && openAgeMs != null && openAgeMs > slaBudget.ackMs;
+    const resBreach = slaBudget && resMs != null && resMs > slaBudget.resolveMs;
+    const resPending = slaBudget && resMs == null && openAgeMs != null && openAgeMs > slaBudget.resolveMs;
+  %>
+
   <div class="panel">
     <h3>Timeline</h3>
+    <% if (slaBudget) { %>
+      <div class="sla-bar-wrap">
+        <div class="sla-bar-l">SLA <%= incident.type %>: ack ≤ <%= fmtDur(slaBudget.ackMs) %> · resolve ≤ <%= fmtDur(slaBudget.resolveMs) %></div>
+        <div class="sla-bar">
+          <% const fullBudgetMs = slaBudget.resolveMs;
+             const ackPct = Math.min(100, Math.round(slaBudget.ackMs / fullBudgetMs * 100));
+             // Track current age against budget. Cap at 100 for visual sanity.
+             const trackMs = resMs != null ? resMs : (openAgeMs ?? 0);
+             const trackPct = Math.min(100, Math.round(trackMs / fullBudgetMs * 100));
+             const trackClass = resBreach || resPending ? 'is-breach' : (ackBreach || ackPending ? 'is-warn' : 'is-ok');
+          %>
+          <div class="sla-bar__track <%= trackClass %>" style="width: <%= trackPct %>%;"></div>
+          <div class="sla-bar__ackmark" style="left: <%= ackPct %>%;" title="Ack budget"></div>
+          <div class="sla-bar__resmark" title="Resolve budget"></div>
+        </div>
+        <div class="sla-bar__legend">
+          0 · ack mark · resolve mark (100%)
+        </div>
+      </div>
+    <% } %>
     <div class="timeline">
       <div class="tl created">
         <div class="dot"></div>
@@ -142,8 +224,35 @@
           <div class="dot"></div>
           <div>
             <div class="when"><%= fmt.date(incident.ackedAt) %></div>
-            <div class="what">Di-acknowledge</div>
+            <div class="what">
+              Di-acknowledge
+              <span class="leg-elapsed <%= ackBreach ? 'is-breach' : '' %>">
+                +<%= fmtDur(ackMs) %><% if (slaBudget) { %> / budget <%= fmtDur(slaBudget.ackMs) %><% } %>
+              </span>
+            </div>
             <div class="by">oleh <%= incident.ackedBy?.fullName || incident.ackedBy?.email || '—' %></div>
+          </div>
+        </div>
+      <% } else if (ackPending) { %>
+        <div class="tl pending is-breach">
+          <div class="dot"></div>
+          <div>
+            <div class="when">⏱ belum di-ack</div>
+            <div class="what">
+              Sudah <span class="leg-elapsed is-breach"><%= fmtDur(openAgeMs) %></span> melewati budget <%= fmtDur(slaBudget.ackMs) %>
+            </div>
+          </div>
+        </div>
+      <% } %>
+      <% if (incident.escalatedAt) { %>
+        <div class="tl escalated">
+          <div class="dot"></div>
+          <div>
+            <div class="when"><%= fmt.date(incident.escalatedAt) %></div>
+            <div class="what">
+              Escalated ke OWNER tier
+              <span class="leg-elapsed">+<%= fmtDur(escMs) %> sejak dibuat</span>
+            </div>
           </div>
         </div>
       <% } %>
@@ -152,8 +261,23 @@
           <div class="dot"></div>
           <div>
             <div class="when"><%= fmt.date(incident.resolvedAt) %></div>
-            <div class="what">Resolved<% if (incident.resolution) { %>: <%= incident.resolution %><% } %></div>
+            <div class="what">
+              Resolved<% if (incident.resolution) { %>: <%= incident.resolution %><% } %>
+              <span class="leg-elapsed <%= resBreach ? 'is-breach' : '' %>">
+                total <%= fmtDur(resMs) %><% if (slaBudget) { %> / budget <%= fmtDur(slaBudget.resolveMs) %><% } %>
+              </span>
+            </div>
             <div class="by">oleh <%= incident.resolvedBy?.fullName || incident.resolvedBy?.email || '—' %></div>
+          </div>
+        </div>
+      <% } else if (resPending) { %>
+        <div class="tl pending is-breach">
+          <div class="dot"></div>
+          <div>
+            <div class="when">⏱ belum resolved</div>
+            <div class="what">
+              Sudah <span class="leg-elapsed is-breach"><%= fmtDur(openAgeMs) %></span> melewati budget <%= fmtDur(slaBudget.resolveMs) %>
+            </div>
           </div>
         </div>
       <% } %>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Mention shortcuts</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0 0 10px; letter-spacing: -0.015em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; margin-bottom: 24px; }
+
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 20px 24px; margin-bottom: 18px; }
+  .panel h2 { font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--cream-100); margin: 0 0 14px; }
+
+  .form-row { display: grid; grid-template-columns: 200px 1fr auto; gap: 10px; align-items: center; }
+  .input { background: var(--ink-1000); border: var(--hairline-soft); color: var(--cream-100); padding: 8px 12px; border-radius: var(--r-sm); font-family: inherit; font-size: 13px; }
+  .input:focus { outline: 1px solid var(--gold-300); }
+  .btn-primary { background: var(--gold-300); color: var(--ink-1000); border: 0; padding: 8px 18px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; border-radius: 3px; font-weight: 600; }
+  .btn-primary:hover { background: var(--gold-400, var(--gold-300)); }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: var(--hairline-soft); color: var(--cream-100); }
+  th { color: var(--ink-300); font-weight: 400; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  td.code { color: var(--gold-300); font-weight: 600; }
+  td.user { color: var(--cream-100); }
+  td.actions { text-align: right; }
+  .btn-del { background: transparent; border: 1px solid var(--ruby); color: var(--ruby); padding: 4px 10px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; cursor: pointer; border-radius: 3px; }
+  .btn-del:hover { background: rgba(181,86,74,0.1); }
+  .empty { color: var(--ink-300); font-style: italic; padding: 20px 0; text-align: center; }
+
+  .flash { padding: 10px 14px; border-radius: var(--r-sm); margin-bottom: 14px; font-family: var(--font-mono); font-size: 11.5px; }
+  .flash.ok { background: rgba(74,143,109,0.1); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(181,86,74,0.1); border: 1px solid var(--ruby); color: var(--ruby); }
+
+  .hint { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-300); margin-top: 6px; }
+</style>
+</head>
+<body data-screen-label="02 Admin · Mention shortcuts">
+<div class="wrap">
+  <div class="crumb">
+    <a href="/admin/users">← USERS</a> · MENTION SHORTCUTS
+  </div>
+  <h1>Mention <em>shortcuts</em></h1>
+  <div class="sub">
+    Tag staff cepat di catatan booking. Ketik <code>:cs</code> → otomatis jadi <code>@cs@religio.pro</code> saat simpan.
+  </div>
+
+  <% if (flash.created) { %><div class="flash ok">Shortcut dibuat.</div><% } %>
+  <% if (flash.deleted) { %><div class="flash ok">Shortcut dihapus.</div><% } %>
+  <% if (flash.err) { %><div class="flash err"><%= flash.err %></div><% } %>
+
+  <div class="panel">
+    <h2>+ Shortcut baru</h2>
+    <form method="POST" action="/admin/users/shortcodes" class="form-row">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input class="input" type="text" name="code" placeholder="cs" pattern="[a-zA-Z0-9_-]+" maxlength="40" required>
+      <select class="input" name="userId" required>
+        <option value="">-- pilih target user --</option>
+        <% staff.forEach(function(s) { %>
+          <option value="<%= s.id %>"><%= s.fullName %> · <%= s.email %> · <%= s.role %></option>
+        <% }) %>
+      </select>
+      <button type="submit" class="btn-primary">SIMPAN</button>
+    </form>
+    <div class="hint">
+      Code huruf kecil + angka + <code>_</code> / <code>-</code> · max 40 char · unique global
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Shortcuts aktif (<%= shortcodes.length %>)</h2>
+    <% if (shortcodes.length === 0) { %>
+      <div class="empty">— belum ada shortcut, tambah di atas —</div>
+    <% } else { %>
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Target</th>
+            <th>Role</th>
+            <th>Dibuat</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% shortcodes.forEach(function(s) {
+            const dead = !s.user || s.user.deletedAt || s.user.status !== 'ACTIVE';
+          %>
+            <tr>
+              <td class="code">:<%= s.code %></td>
+              <td class="user" style="<%= dead ? 'color:var(--ruby);' : '' %>">
+                <% if (s.user) { %>
+                  <%= s.user.fullName %> · <%= s.user.email %>
+                  <% if (dead) { %><span style="font-size:10px;"> (suspended/deleted)</span><% } %>
+                <% } else { %>
+                  <em>(user dihapus)</em>
+                <% } %>
+              </td>
+              <td><%= s.user?.role || '—' %></td>
+              <td><%= fmt.date(s.createdAt) %></td>
+              <td class="actions">
+                <form method="POST" action="/admin/users/shortcodes/<%= s.id %>/delete" style="display:inline;" onsubmit="return confirm('Hapus shortcut :<%= s.code %>?')">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="btn-del">HAPUS</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

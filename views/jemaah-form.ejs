@@ -283,6 +283,20 @@
         <textarea class="input" id="f-notes" name="notes" rows="3"><%= target.notes || '' %></textarea>
         <div class="helper">Mis. lansia, kursi roda, alergi makanan, mahram</div>
       </div>
+      <% if (target.notifWaConsentAt || target.notifWaWithdrawnAt) { %>
+        <div class="field">
+          <div class="label-row"><label class="label">Audit konsen WA (S90)</label></div>
+          <div class="helper" style="line-height:1.6;">
+            Status: <strong style="color:var(--<%= target.notifWa ? 'emerald' : 'ruby' %>);"><%= target.notifWa ? 'aktif' : 'dicabut' %></strong>
+            <% if (target.notifWaConsentAt) { %>
+              · Persetujuan: <strong><%= fmt.dateLong(target.notifWaConsentAt) %></strong>
+            <% } %>
+            <% if (target.notifWaWithdrawnAt) { %>
+              · Terakhir dicabut: <strong style="color:var(--ruby);"><%= fmt.dateLong(target.notifWaWithdrawnAt) %></strong>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
     </div>
 
     <div class="footer-row">

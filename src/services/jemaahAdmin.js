@@ -108,6 +108,18 @@ export async function updateJemaah({ req, actor, jemaahId, input }) {
     if (clash) throw new HttpError(409, `Paspor ${input.passportNo} sudah dipakai jemaah lain`, 'PASSPORT_TAKEN');
   }
 
+  // Stage 90 — WA consent audit. When notifWa flips compared to the
+  // before state, stamp the corresponding timestamp:
+  //   false → true: consentAt = now (re-opted in); leave withdrawnAt
+  //                 alone so the most recent withdrawal stays in history.
+  //   true → false: withdrawnAt = now; consentAt unchanged (the last
+  //                 explicit grant survives as the durable consent date).
+  const consentPatch = {};
+  if (input.notifWa !== undefined && input.notifWa !== before.notifWa) {
+    if (input.notifWa === true) consentPatch.notifWaConsentAt = new Date();
+    if (input.notifWa === false) consentPatch.notifWaWithdrawnAt = new Date();
+  }
+
   const updated = await db.jemaahProfile.update({
     where: { id: jemaahId },
     data: {
@@ -125,6 +137,7 @@ export async function updateJemaah({ req, actor, jemaahId, input }) {
       // Only update if explicitly sent (5jj — admin form may not include these)
       ...(input.notifEmail !== undefined ? { notifEmail: input.notifEmail } : {}),
       ...(input.notifWa !== undefined ? { notifWa: input.notifWa } : {}),
+      ...consentPatch,
     },
   });
   await audit({

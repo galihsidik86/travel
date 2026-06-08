@@ -386,7 +386,7 @@
                   <div id="mentionDropdown" class="mention-dd" hidden></div>
                 </div>
                 <div class="notes-form__actions">
-                  <span class="notes-form__hint">max 2000 karakter · @ untuk mention staff</span>
+                  <span class="notes-form__hint">max 2000 karakter · @email atau :code untuk mention staff</span>
                   <button type="submit" class="notes-form__save">SIMPAN</button>
                 </div>
               </form>
@@ -930,27 +930,6 @@
       rows = []; activeIdx = 0; triggerStart = -1;
     }
 
-    function render() {
-      dd.innerHTML = '';
-      if (rows.length === 0) {
-        dd.innerHTML = '<div class="mention-dd__empty">— tidak ada cocok —</div>';
-        dd.hidden = false;
-        return;
-      }
-      rows.forEach((r, i) => {
-        const div = document.createElement('div');
-        div.className = 'mention-dd__row' + (i === activeIdx ? ' is-active' : '');
-        div.innerHTML = '<span><strong>' + escapeHtml(r.fullName) + '</strong> · <span class="mention-dd__email">' + escapeHtml(r.email) + '</span></span>'
-          + '<span class="mention-dd__role">' + escapeHtml(r.role) + '</span>';
-        div.addEventListener('mousedown', (ev) => {
-          ev.preventDefault();  // keep textarea focus
-          commitPick(i);
-        });
-        dd.appendChild(div);
-      });
-      dd.hidden = false;
-    }
-
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, (c) => ({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -961,9 +940,12 @@
       const pick = rows[idx];
       if (!pick || triggerStart < 0) return hide();
       const before = ta.value.slice(0, triggerStart);
-      // Token spans from triggerStart (the `@`) through the cursor.
+      // Token spans from triggerStart (the trigger char) through the cursor.
       const after = ta.value.slice(ta.selectionStart);
-      const inserted = '@' + pick.email + ' ';
+      // S88 — :code picks insert `:code ` and rely on server-side expansion;
+      // @email picks insert the full email. The visible difference helps
+      // admins remember which form they used.
+      const inserted = pick.code ? (':' + pick.code + ' ') : ('@' + pick.email + ' ');
       ta.value = before + inserted + after;
       const newPos = (before + inserted).length;
       ta.selectionStart = ta.selectionEnd = newPos;
@@ -973,15 +955,42 @@
 
     function currentTrigger() {
       // Walk back from cursor: capture chars until whitespace or BOF.
-      // If the run starts with `@` and has at least 1 trailing char,
-      // it's a candidate trigger; the query is the run minus the `@`.
+      // Returns { start, token, kind } where kind ∈ 'email' | 'code'.
       const pos = ta.selectionStart;
       let i = pos - 1;
       while (i >= 0 && !/\s/.test(ta.value[i])) i -= 1;
       const start = i + 1;
-      if (ta.value[start] !== '@') return null;
+      const head = ta.value[start];
+      if (head !== '@' && head !== ':') return null;
       const token = ta.value.slice(start + 1, pos);
-      return { start, token };
+      return { start, token, kind: head === '@' ? 'email' : 'code' };
+    }
+
+    function render() {
+      dd.innerHTML = '';
+      if (rows.length === 0) {
+        dd.innerHTML = '<div class="mention-dd__empty">— tidak ada cocok —</div>';
+        dd.hidden = false;
+        return;
+      }
+      rows.forEach((r, i) => {
+        const div = document.createElement('div');
+        div.className = 'mention-dd__row' + (i === activeIdx ? ' is-active' : '');
+        // S88 — code rows render differently from email rows
+        if (r.code) {
+          div.innerHTML = '<span><strong>:' + escapeHtml(r.code) + '</strong> · <span class="mention-dd__email">' + escapeHtml(r.user.email) + '</span></span>'
+            + '<span class="mention-dd__role">' + escapeHtml(r.user.role) + '</span>';
+        } else {
+          div.innerHTML = '<span><strong>' + escapeHtml(r.fullName) + '</strong> · <span class="mention-dd__email">' + escapeHtml(r.email) + '</span></span>'
+            + '<span class="mention-dd__role">' + escapeHtml(r.role) + '</span>';
+        }
+        div.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();
+          commitPick(i);
+        });
+        dd.appendChild(div);
+      });
+      dd.hidden = false;
     }
 
     async function refresh() {
@@ -989,21 +998,28 @@
       if (!trig) return hide();
       triggerStart = trig.start;
       const q = trig.token;
-      if (q.length < 2) {
-        // Too short for the server search — but still show the affordance
-        // so user knows the mention surface is live.
+      // S88 — :code lookups can start matching after 1 char (codes are
+      // short by design); @email lookups still need 2 to avoid noise.
+      const minLen = trig.kind === 'code' ? 1 : 2;
+      if (q.length < minLen) {
         rows = []; activeIdx = 0;
-        dd.innerHTML = '<div class="mention-dd__empty">ketik min 2 huruf untuk cari…</div>';
+        const hint = trig.kind === 'code'
+          ? 'ketik kode shortcut…'
+          : 'ketik min 2 huruf untuk cari…';
+        dd.innerHTML = '<div class="mention-dd__empty">' + hint + '</div>';
         dd.hidden = false;
         return;
       }
+      const endpoint = trig.kind === 'code'
+        ? '/admin/bookings/shortcode-search'
+        : '/admin/bookings/mention-search';
       const reqId = ++inflight;
       try {
-        const r = await fetch('/admin/bookings/mention-search?q=' + encodeURIComponent(q), {
+        const r = await fetch(endpoint + '?q=' + encodeURIComponent(q), {
           headers: { 'Accept': 'application/json' },
           credentials: 'same-origin',
         });
-        if (reqId !== inflight) return;  // stale
+        if (reqId !== inflight) return;
         if (!r.ok) return hide();
         const data = await r.json();
         rows = data.rows || []; activeIdx = 0;

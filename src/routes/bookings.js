@@ -43,6 +43,30 @@ router.get(
   }),
 );
 
+// ── GET /admin/bookings/shortcode-search (S88 autocomplete) ──
+// Code-only substring match. Returns top 10 with resolved user.
+router.get(
+  '/shortcode-search',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    const q = (req.query.q || '').toString().trim().toLowerCase();
+    if (q.length < 1) return res.json({ rows: [] });
+    const rows = await db.mentionShortcode.findMany({
+      where: {
+        code: { contains: q },
+        user: { deletedAt: null, status: 'ACTIVE', email: { not: '' } },
+      },
+      take: 10,
+      orderBy: { code: 'asc' },
+      select: {
+        code: true,
+        user: { select: { email: true, fullName: true, role: true } },
+      },
+    });
+    res.json({ rows });
+  }),
+);
+
 // ── GET /admin/bookings (global search) ──────────────────────
 router.get(
   '/',

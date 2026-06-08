@@ -277,6 +277,17 @@
           <input type="checkbox" name="notifWa" <%= target.notifWa !== false ? 'checked' : '' %> value="on" style="accent-color:var(--gold-300);width:18px;height:18px;">
           <span>Kirim notifikasi via <strong style="color:var(--gold-300);">WhatsApp</strong> (semua jenis)</span>
         </label>
+        <% if (target.notifWaConsentAt || target.notifWaWithdrawnAt) { %>
+          <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);padding-left:28px;letter-spacing:0.04em;">
+            <% if (target.notifWaConsentAt) { %>
+              Persetujuan WA: <strong style="color:var(--emerald);"><%= fmt.dateLong(target.notifWaConsentAt) %></strong>
+            <% } %>
+            <% if (target.notifWaWithdrawnAt) { %>
+              <% if (target.notifWaConsentAt) { %> · <% } %>
+              Pencabutan terakhir: <strong style="color:var(--ruby);"><%= fmt.dateLong(target.notifWaWithdrawnAt) %></strong>
+            <% } %>
+          </div>
+        <% } %>
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
           <input type="checkbox" name="notifEmail" <%= target.notifEmail !== false ? 'checked' : '' %> value="on" style="accent-color:var(--gold-300);width:18px;height:18px;">
           <span>Kirim notifikasi via <strong style="color:var(--gold-300);">Email</strong> (semua jenis)</span>

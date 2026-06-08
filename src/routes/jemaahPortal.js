@@ -67,7 +67,10 @@ router.post(
       data: {
         email: data.email, passwordHash, role: 'JEMAAH',
         fullName: data.fullName, phone: data.phone,
-        jemaah: { create: { fullName: data.fullName, phone: data.phone } },
+        // S90 — stamp consentAt at registration so we have an authoritative
+        // "first opt-in" timestamp tied to a real user action (not a
+        // post-hoc backfill).
+        jemaah: { create: { fullName: data.fullName, phone: data.phone, notifWaConsentAt: new Date() } },
       },
     });
     await audit({

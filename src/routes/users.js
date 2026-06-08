@@ -9,6 +9,9 @@ import {
   listUsers, getUserById, createUser, updateUser, setPassword,
   suspendUser, reactivateUser, META,
 } from '../services/userAdmin.js';
+import {
+  listShortcodes, createShortcode, deleteShortcode, listStaffForShortcode,
+} from '../services/mentionShortcodes.js';
 
 const router = Router();
 
@@ -56,6 +59,56 @@ router.get(
     res.render('users-list', {
       user: req.user, users, search, role, status, META,
     });
+  }),
+);
+
+// ── GET /admin/users/shortcodes (S88) ────────────────────────
+// List + create + delete mention shortcuts. OWNER+SUPERADMIN gate
+// inherited from router.use above.
+router.get(
+  '/shortcodes',
+  asyncHandler(async (req, res) => {
+    const [shortcodes, staff] = await Promise.all([
+      listShortcodes(),
+      listStaffForShortcode(),
+    ]);
+    res.render('users-shortcodes', {
+      user: req.user, shortcodes, staff,
+      flash: { created: req.query.created || null, deleted: req.query.deleted || null, err: req.query.err || null },
+    });
+  }),
+);
+
+router.post(
+  '/shortcodes',
+  asyncHandler(async (req, res) => {
+    try {
+      await createShortcode({
+        req, actor: actorFrom(req),
+        code: req.body?.code, userId: req.body?.userId,
+      });
+      res.redirect('/admin/users/shortcodes?created=ok');
+    } catch (err) {
+      if (err instanceof HttpError) {
+        return res.redirect('/admin/users/shortcodes?err=' + encodeURIComponent(err.message));
+      }
+      throw err;
+    }
+  }),
+);
+
+router.post(
+  '/shortcodes/:id/delete',
+  asyncHandler(async (req, res) => {
+    try {
+      await deleteShortcode({ req, actor: actorFrom(req), id: req.params.id });
+      res.redirect('/admin/users/shortcodes?deleted=ok');
+    } catch (err) {
+      if (err instanceof HttpError) {
+        return res.redirect('/admin/users/shortcodes?err=' + encodeURIComponent(err.message));
+      }
+      throw err;
+    }
   }),
 );
 
