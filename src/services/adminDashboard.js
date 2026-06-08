@@ -10,6 +10,7 @@ import { getRefundAnalytics } from './refundAnalytics.js';
 import { getPaketForecasts } from './paketForecast.js';
 import { getKomisiAging } from './komisiAging.js';
 import { getManifestClosing } from './manifestClose.js';
+import { getPaketConversion } from './paketView.js';
 import { pillsForJemaah } from './jemaahDocs.js';
 
 const HOT_STATUSES = ['PENDING', 'BOOKED', 'DP_PAID', 'PARTIAL'];
@@ -309,6 +310,14 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getManifestClosing failed:', err?.message || err);
   }
 
+  // Stage 48 — public paket conversion funnel (last 30d).
+  let paketConversion = null;
+  try {
+    paketConversion = await getPaketConversion();
+  } catch (err) {
+    console.warn('[admin-overview] getPaketConversion failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -322,6 +331,7 @@ export async function getAdminOverview(opts = {}) {
     paketForecasts,
     komisiAging,
     manifestClosing,
+    paketConversion,
     analytics: {
       funnel: globalFunnel,
       sourceBreakdown: globalSourceBreakdown,

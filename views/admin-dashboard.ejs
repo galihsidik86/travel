@@ -1407,6 +1407,78 @@
         </style>
       <% } %>
 
+      <!-- Stage 48 — Public paket conversion funnel -->
+      <% if (paketConversion && paketConversion.rows.length > 0) {
+        const tot = paketConversion.totals;
+        const overall = tot.visits > 0
+          ? Math.round((tot.bookings / tot.visits) * 1000) / 10
+          : null;
+      %>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Konversi paket (landing → booking)</h3>
+            <span class="meta"><%= paketConversion.window.days %> HARI · <%= tot.visits %> VISIT · <%= tot.bookings %> BOOKING</span>
+          </div>
+          <div class="conv-kpis">
+            <div class="ck">
+              <div class="ck-l">Overall conversion</div>
+              <%
+                const ovCls = overall == null ? 'ink-200'
+                  : overall >= 5 ? 'emerald'
+                  : overall >= 2 ? 'gold-300'
+                  : overall >= 1 ? 'amber' : 'ruby';
+              %>
+              <div class="ck-v" style="color:var(--<%= ovCls %>);"><%= overall ?? '—' %>%</div>
+              <div class="ck-s">booking ÷ visit</div>
+            </div>
+            <div class="ck">
+              <div class="ck-l">Total visit unik</div>
+              <div class="ck-v"><%= tot.visits %></div>
+              <div class="ck-s"><%= paketConversion.rows.length %> paket aktif</div>
+            </div>
+          </div>
+          <table class="tbl conv-table">
+            <thead>
+              <tr>
+                <th>Paket</th>
+                <th class="num">Visit unik</th>
+                <th class="num">Booking</th>
+                <th class="num">Konv %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% paketConversion.rows.forEach(function(r) {
+                const cls = r.conversionPct == null ? 'ink-200'
+                  : r.conversionPct >= 5 ? 'emerald'
+                  : r.conversionPct >= 2 ? 'gold-300'
+                  : r.conversionPct >= 1 ? 'amber' : 'ruby';
+              %>
+                <tr>
+                  <td>
+                    <a href="/p/<%= r.paket.slug %>" target="_blank" rel="noopener" style="color:var(--cream-100);text-decoration:none;">
+                      <%= r.paket.title %>
+                    </a>
+                  </td>
+                  <td class="num"><%= r.visits %></td>
+                  <td class="num" style="color:var(--gold-300);"><%= r.bookings %></td>
+                  <td class="num" style="color:var(--<%= cls %>);font-weight:600;">
+                    <%= r.conversionPct ?? '—' %>%
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <style>
+          .conv-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px; }
+          .ck { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 12px 14px; }
+          .ck-l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+          .ck-v { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin-top: 4px; font-weight: 500; }
+          .ck-s { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); margin-top: 4px; }
+          .conv-table .num { text-align: right; font-family: var(--font-mono); font-size: 12px; }
+        </style>
+      <% } %>
+
       <!-- Stage 35 — Refund analytics (last 90 days, top 10 per dimension) -->
       <% if (refundAnalytics && refundAnalytics.totals.refunded > 0) { %>
         <div class="panel" style="margin-top:16px;">

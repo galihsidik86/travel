@@ -41,6 +41,9 @@ MAILTO=""
 # Daily 07:00 — fan out yesterday's activity digest to ACTIVE OWNER users (Stage 27)
 0  7  * * *   religio  cd /srv/religio-pro && npm run job:send-daily-digest  >> /var/log/religio/digest.log         2>&1
 
+# Daily 08:00 — nudge each agen about their stalled WARM/COLD leads (Stage 46)
+0  8  * * *   religio  cd /srv/religio-pro && npm run job:send-stalled-leads >> /var/log/religio/stalled-leads.log 2>&1
+
 # Monday 07:05 — weekly Mon-Sun recap to ACTIVE OWNER users (Stage 33)
 # Fires 5 min after the daily so they arrive in order: daily first, then weekly.
 5  7  * * 1   religio  cd /srv/religio-pro && npm run job:send-weekly-digest >> /var/log/religio/weekly.log         2>&1

@@ -1,0 +1,13 @@
+[Unit]
+Description=Religio Pro — daily 08:00 stalled-leads agent nudge
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+# Daily at 08:00 local — after the OWNER digest sequence (07:00-07:15).
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=religio-send-stalled-leads.service
+
+[Install]
+WantedBy=timers.target

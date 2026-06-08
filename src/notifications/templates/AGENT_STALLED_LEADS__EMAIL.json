@@ -1,0 +1,4 @@
+{
+  "subject": "Religio Pro · {{totalCount}} lead Anda perlu di-follow up",
+  "body": "Halo {{agentName}},\n\nAnda punya {{totalCount}} lead yang tidak ada update lebih dari {{staleDays}} hari ({{warmCount}} WARM · {{coldCount}} COLD):\n\n{{rowsBlock}}\n\nFollow-up di: {{agenLink}}\n\nNote: lead yang sudah lama tanpa kontak biasanya lebih sulit di-convert. Hubungi sekarang sebelum mereka pindah ke kompetitor.\n\n— sistem Religio Pro"
+}

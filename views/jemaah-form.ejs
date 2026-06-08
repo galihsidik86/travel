@@ -112,6 +112,14 @@
   }
   .doc-row__lbl { color: var(--cream-100); font-size: 14px; font-weight: 500; }
   .doc-row__verif { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); margin-left: auto; letter-spacing: 0.06em; }
+  /* Stage 47 — expiry warnings */
+  .doc-row.exp-warn   { border-left: 3px solid var(--amber); }
+  .doc-row.exp-urgent { border-left: 3px solid var(--ruby); }
+  .doc-row__exp { font-family: var(--font-mono); font-size: 10px; padding: 2px 6px; border-radius: 3px; border: 1px solid; margin-left: 8px; letter-spacing: 0.06em; }
+  .doc-row__exp.exp-warn   { color: var(--amber); border-color: var(--amber); background: rgba(201,147,59,0.08); }
+  .doc-row__exp.exp-urgent { color: var(--ruby);  border-color: var(--ruby);  background: rgba(181,86,74,0.08); }
+  .doc-renew { background: var(--gold-300); color: var(--ink-1000); border: 0; padding: 4px 8px; border-radius: 3px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em; font-weight: 600; cursor: pointer; margin-left: 8px; text-transform: uppercase; }
+  .doc-renew:hover { background: var(--gold-200); }
   .doc-row__form {
     display: grid;
     grid-template-columns: 130px 1fr 140px 1fr auto auto;
@@ -310,8 +318,24 @@
         const doc = docsByType.get(type);
         const state = doc ? doc.status.toLowerCase() : 'missing';
         const expISO = doc?.expiresAt ? new Date(doc.expiresAt).toISOString().slice(0,10) : '';
+        // Stage 47 — expiry warning bands. EXPIRED status renders a strong
+        // ruby badge, even if expiresAt is unset. PENDING/SUBMITTED/VERIFIED
+        // docs with expiresAt approaching get warn (≤60d) or urgent (≤14d
+        // or already past). REJECTED docs aren't surfaced — they're not
+        // active credentials.
+        let expWarn = null;
+        if (doc && doc.expiresAt && doc.status !== 'REJECTED') {
+          const daysLeft = Math.floor((new Date(doc.expiresAt).getTime() - Date.now()) / 86_400_000);
+          if (doc.status === 'EXPIRED' || daysLeft < 0) {
+            expWarn = { tier: 'urgent', label: `EXPIRED ${Math.abs(daysLeft)}h yang lalu` };
+          } else if (daysLeft <= 14) {
+            expWarn = { tier: 'urgent', label: `expire dalam ${daysLeft}h` };
+          } else if (daysLeft <= 60) {
+            expWarn = { tier: 'warn', label: `expire dalam ${daysLeft}h` };
+          }
+        }
       %>
-        <div class="doc-row" data-type="<%= type %>" data-doc-id="<%= doc?.id || '' %>">
+        <div class="doc-row<%= expWarn ? ' exp-' + expWarn.tier : '' %>" data-type="<%= type %>" data-doc-id="<%= doc?.id || '' %>">
           <div class="doc-row__head">
             <span class="doc-pill state-<%= state %>"><%= DOC_PILL[type] %></span>
             <span class="doc-row__lbl"><%= DOC_LABELS[type] %></span>
@@ -319,6 +343,10 @@
               <span class="doc-row__verif">verified <%= fmt.date(doc.verifiedAt) %></span>
             <% } else if (doc?.submittedAt) { %>
               <span class="doc-row__verif">submitted <%= fmt.date(doc.submittedAt) %></span>
+            <% } %>
+            <% if (expWarn) { %>
+              <span class="doc-row__exp exp-<%= expWarn.tier %>">⏱ <%= expWarn.label %></span>
+              <button type="button" class="doc-renew" title="Set ulang tanggal expire + status">↻ RENEW</button>
             <% } %>
           </div>
           <div class="doc-row__form">
@@ -458,6 +486,24 @@
           setDocErr('Tidak dapat menghubungi server');
           delBtn.disabled = false;
         }
+      });
+    }
+
+    // Stage 47 — Renew: reset the form fields so admin can re-enter
+    // the new doc info, then bring focus to the ref-number input. No
+    // server call here — actual save still goes through SIMPAN.
+    const renewBtn = row.querySelector('.doc-renew');
+    if (renewBtn) {
+      renewBtn.addEventListener('click', () => {
+        row.querySelector('.doc-status').value = 'PENDING';
+        row.querySelector('.doc-ref').value = '';
+        row.querySelector('.doc-exp').value = '';
+        const refIn = row.querySelector('.doc-ref');
+        refIn.focus();
+        // Visual confirmation that the row is now in "renew" mode
+        row.style.transition = 'background 0.4s';
+        row.style.background = 'rgba(212,175,107,0.10)';
+        setTimeout(() => { row.style.background = ''; }, 1500);
       });
     }
   });

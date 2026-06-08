@@ -5,13 +5,14 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { expireOverdueDocuments } from '../services/expireDocs.js';
-import { processPendingNotifications, notifyDailyDigest, notifyWeeklyDigest, notifyAgentWeeklyDigest, notifyPayoutReminder } from '../services/notifications.js';
+import { processPendingNotifications, notifyDailyDigest, notifyWeeklyDigest, notifyAgentWeeklyDigest, notifyPayoutReminder, notifyStalledLeads } from '../services/notifications.js';
 import { expireStaleIntents } from '../services/expireIntents.js';
 import { pruneRetentionWindows } from '../services/retention.js';
 import { buildDigestWithAttention } from '../services/dailyDigest.js';
 import { buildWeeklyDigest } from '../services/weeklyDigest.js';
 import { buildAgentWeeklyDigest, listActiveAgentsForDigest } from '../services/agentWeeklyDigest.js';
 import { getOverduePayoutCandidates } from '../services/payoutReminder.js';
+import { getStalledLeadsForAgent, listActiveAgentsForLeadsDigest } from '../services/stalledLeadsDigest.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -118,6 +119,31 @@ router.post(
         enqueued: fan.enqueued ?? 0,
         skipped: fan.skipped ?? false,
       };
+    });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-stalled-leads',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-stalled-leads', async () => {
+      const agents = await listActiveAgentsForLeadsDigest();
+      let enqueued = 0;
+      let skipped = 0;
+      let errors = 0;
+      for (const a of agents) {
+        try {
+          const digest = await getStalledLeadsForAgent({ agentId: a.id });
+          if (!digest || digest.rows.length === 0) { skipped += 1; continue; }
+          const r = await notifyStalledLeads({ agent: a, digest });
+          enqueued += r.enqueued ?? 0;
+        } catch (err) {
+          console.warn(`[stalled-leads] agent ${a.slug} failed:`, err?.message || err);
+          errors += 1;
+        }
+      }
+      return { agents: agents.length, enqueued, skipped, errors };
     });
     res.json(result);
   }),

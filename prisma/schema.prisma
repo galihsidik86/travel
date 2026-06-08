@@ -130,6 +130,7 @@ enum NotificationType {
   AGENT_WEEKLY_DIGEST // weekly summary → individual AGEN (Stage 36)
   PAYOUT_REMINDER_OWNER // weekly reminder of overdue payout candidates → admins (Stage 37)
   WAITLIST_SLOT_FREED // cancel freed a seat with WAITING candidates → admin (Stage 42)
+  AGENT_STALLED_LEADS // daily nudge → agen with cold lead pipeline (Stage 46)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -436,6 +437,7 @@ model Paket {
   incidents       Incident[]
   agentOverrides  AgentPaketKomisi[]
   waitlist        PaketWaitlist[]
+  views           PaketView[]
 
   @@index([slug])
   @@index([status])
@@ -455,6 +457,24 @@ enum WaitlistStatus {
   WAITING
   PROMOTED
   CANCELLED
+}
+
+// Stage 48 — public paket landing page visit counter. Used to compute
+// conversion rate (bookings ÷ unique visits) per paket. Identified by
+// a non-httpOnly cookie `rp_vis` (32-hex random) set on first visit; the
+// route upserts on `(paketId, visitorId, dayKey)` so refreshes within
+// the same day don't bloat the count. Cookie persists 1 year.
+model PaketView {
+  id        String   @id @default(cuid())
+  paketId   String
+  paket     Paket    @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  visitorId String   // random 32-hex from rp_vis cookie
+  dayKey    String   // YYYY-MM-DD local date so multi-refresh per day = 1 row
+  agentSlug String?  // captured from `?a=` query, if present
+  createdAt DateTime @default(now())
+
+  @@unique([paketId, visitorId, dayKey])
+  @@index([paketId, createdAt])
 }
 
 model PaketWaitlist {

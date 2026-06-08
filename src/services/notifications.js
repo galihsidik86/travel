@@ -906,6 +906,45 @@ export async function notifyWaitlistSlotFreed({ paketId, freedSeats, sourceBooki
   return { enqueued, recipients: admins.length };
 }
 
+/**
+ * Stage 46 — per-agent stalled-leads digest fan-out. Caller iterates
+ * agents and passes one digest per agent. Silent (no enqueue) when the
+ * agent's stalled list is empty — quiet days shouldn't generate noise.
+ */
+export async function notifyStalledLeads({ agent, digest }) {
+  if (!agent?.user?.email || !digest || digest.rows.length === 0) {
+    return { enqueued: 0, skipped: true };
+  }
+
+  const inline = digest.rows.slice(0, 8);
+  const more = Math.max(0, digest.rows.length - inline.length);
+  const rowLines = inline.map((l, idx) => {
+    const tag = l.status === 'WARM' ? '🔥' : '❄️';
+    const source = l.source ? ` · src ${l.source}` : '';
+    return `${idx + 1}. ${tag} ${l.fullName} · ${l.phone} · ${l.stalledDays}h tanpa update${source}`;
+  });
+  if (more > 0) rowLines.push(`  + ${more} lead lainnya…`);
+
+  const vars = {
+    agentName: agent.user.fullName || agent.displayName || 'Agen',
+    staleDays: String(digest.staleDays),
+    totalCount: String(digest.counts.total),
+    warmCount: String(digest.counts.warm),
+    coldCount: String(digest.counts.cold),
+    rowsBlock: rowLines.join('\n'),
+    agenLink: '/agen?tab=leads',
+  };
+  const { subject, body } = renderTemplate('AGENT_STALLED_LEADS', 'EMAIL', vars);
+  await enqueueNotification({
+    type: 'AGENT_STALLED_LEADS', channel: 'EMAIL',
+    recipientEmail: agent.user.email,
+    subject, body,
+    payload: { agentSlug: agent.slug, totalCount: digest.counts.total },
+    relatedEntity: 'AgentProfile', relatedEntityId: agent.id,
+  });
+  return { enqueued: 1 };
+}
+
 export async function notifyPayoutCreated({ payout, agent }) {
   const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
   const vars = {
