@@ -201,8 +201,10 @@ router.get(
     const { getPaketProfitabilitySnapshot } = await import('../services/paketProfitability.js');
     // Stage 50 — A/B breakdown only fetched when variantB is configured;
     // skips an unnecessary query for the common single-variant case.
-    const { getPaketABBreakdown } = await import('../services/paketView.js');
-    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, abBreakdown] = await Promise.all([
+    // Stage 60 — also load the daily-view sparkline for the trend chart
+    // above the hero-title field.
+    const { getPaketABBreakdown, getPaketDailyViews } = await import('../services/paketView.js');
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, abBreakdown, viewTrend] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
       db.agentProfile.findMany({
@@ -213,13 +215,14 @@ router.get(
       listPaketOverrides(req.params.slug),
       getPaketProfitabilitySnapshot(paket.id),
       paket.heroTitleHtmlVariantB ? getPaketABBreakdown({ paketId: paket.id }) : Promise.resolve(null),
+      getPaketDailyViews({ paketId: paket.id, days: 30 }),
     ]);
     res.render('paket-form', {
       user: req.user, mode: 'edit', paket: paketToForm(paket),
       errors: {}, formError: null,
       availableCrew, assignedCrew,
       availableAgents, paketOverrides,
-      profitability, abBreakdown,
+      profitability, abBreakdown, viewTrend,
     });
   }),
 );

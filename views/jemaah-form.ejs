@@ -396,6 +396,55 @@
     </div>
   </div>
 
+  <!-- Stage 59 — archived-lead reactivation hint. Surfaces prior CRM
+       conversations that S57 auto-archived out of the agent's pipeline. -->
+  <% if (typeof archivedLeads !== 'undefined' && archivedLeads.length > 0) { %>
+    <div class="panel" style="margin-top:24px;border-left:3px solid var(--gold-300);background:rgba(212,175,107,0.04);">
+      <h3 style="color:var(--gold-300);">📂 Histori CRM (lead arsip)</h3>
+      <p class="sub">
+        Jemaah ini punya <strong style="color:var(--cream-100);"><%= archivedLeads.length %></strong>
+        lead lama di CRM (sudah di-arsip karena tidak aktif &gt; 180 hari).
+        Cek context sebelumnya sebelum follow-up baru.
+      </p>
+      <table class="tbl" style="margin-top:8px;">
+        <thead>
+          <tr>
+            <th>Diarsipkan</th>
+            <th>Agen</th>
+            <th>Status terakhir</th>
+            <th>Source</th>
+            <th>Catatan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% archivedLeads.forEach(function(l) { %>
+            <tr>
+              <td style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">
+                <%= fmt.date(l.deletedAt) %>
+              </td>
+              <td>
+                <% if (l.agent) { %>
+                  <%= l.agent.displayName || l.agent.slug %>
+                <% } else { %>—<% } %>
+              </td>
+              <td>
+                <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--<%= l.status === 'LOST' ? 'ruby' : 'ink-100' %>);">
+                  <%= l.status %>
+                </span>
+              </td>
+              <td style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">
+                <%= l.source || '—' %>
+              </td>
+              <td style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-100);">
+                <%= l.notes ? (l.notes.length > 100 ? l.notes.slice(0, 100) + '…' : l.notes) : '—' %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
   <!-- ====== Riwayat booking (read-only) ====== -->
   <% if (target.bookings && target.bookings.length > 0) { %>
     <div class="panel" style="margin-top:24px;">

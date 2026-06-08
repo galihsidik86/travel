@@ -47,6 +47,9 @@ MAILTO=""
 # Daily 08:30 — anomaly alert when paket views drop ≥50% vs 7d avg (Stage 53)
 30 8  * * *   religio  cd /srv/religio-pro && npm run job:send-traffic-anomaly >> /var/log/religio/traffic-anomaly.log 2>&1
 
+# Daily 08:45 — landing slow alert when p95 latency > 800ms (Stage 58)
+45 8  * * *   religio  cd /srv/religio-pro && npm run job:send-landing-slow >> /var/log/religio/landing-slow.log 2>&1
+
 # Monday 07:05 — weekly Mon-Sun recap to ACTIVE OWNER users (Stage 33)
 # Fires 5 min after the daily so they arrive in order: daily first, then weekly.
 5  7  * * 1   religio  cd /srv/religio-pro && npm run job:send-weekly-digest >> /var/log/religio/weekly.log         2>&1

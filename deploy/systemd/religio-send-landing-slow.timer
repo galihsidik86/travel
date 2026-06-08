@@ -1,0 +1,13 @@
+[Unit]
+Description=Religio Pro — daily 08:45 landing-page speed check
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+# Daily 08:45 — after the traffic-anomaly check at 08:30.
+OnCalendar=*-*-* 08:45:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=religio-send-landing-slow.service
+
+[Install]
+WantedBy=timers.target

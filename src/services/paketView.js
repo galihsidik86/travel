@@ -333,6 +333,46 @@ export async function getLandingSpeed({ now = new Date(), days = 7 } = {}) {
 }
 
 /**
+ * Stage 60 — per-paket daily view counts for the last N days. Used by
+ * the paket-edit page sparkline so admin sees traffic trend before
+ * tweaking copy / pricing. Returns an array of `[date, count]` oldest
+ * → newest with zero-filled gaps (so a quiet day is a visible dip,
+ * not an x-axis collapse).
+ *
+ * Cheap by design — one groupBy query, then JS pads zeros.
+ */
+export async function getPaketDailyViews({ paketId, days = 30, now = new Date() } = {}) {
+  if (!paketId) return null;
+  const end = new Date(now);
+  end.setHours(0, 0, 0, 0);
+  end.setTime(end.getTime() + ONE_DAY_MS);
+  const start = new Date(end.getTime() - days * ONE_DAY_MS);
+
+  const rows = await db.paketView.findMany({
+    where: { paketId, createdAt: { gte: start, lt: end } },
+    select: { dayKey: true },
+  });
+  const counts = new Map();
+  for (const r of rows) {
+    counts.set(r.dayKey, (counts.get(r.dayKey) || 0) + 1);
+  }
+  // Zero-fill across the full window so the sparkline x-axis stays
+  // consistent (a paket with sporadic traffic doesn't render a
+  // distorted curve)
+  const out = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start.getTime() + i * ONE_DAY_MS);
+    const key = localYmd(d);
+    out.push({ dayKey: key, count: counts.get(key) || 0 });
+  }
+  return {
+    days,
+    total: out.reduce((s, r) => s + r.count, 0),
+    points: out, // oldest → newest
+  };
+}
+
+/**
  * Stage 51 — UTM campaign breakdown across all paket for the window.
  * Groups visits + non-cancelled bookings by (utmSource, utmMedium,
  * utmCampaign). Rows with all 3 null are bucketed as "(direct/none)".

@@ -994,6 +994,63 @@ export async function notifyTrafficAnomalies({ anomalies }) {
   return { enqueued, recipients: admins.length };
 }
 
+/**
+ * Stage 58 — landing slow alert. Called by send-landing-slow CLI when
+ * the previous-day p95 latency crossed the budget. Silent when:
+ *   - speed snapshot is null (no samples at all)
+ *   - p95 is within budget
+ *   - lowSample flag is true (don't fire on noisy data)
+ *
+ * Fan-out to ACTIVE OWNER/SUPERADMIN/MANAJER_OPS. KASIR excluded —
+ * perf is an engineering escalation, not a cashier action.
+ */
+export async function notifyLandingSlow({ speed }) {
+  if (!speed || !speed.overBudget || speed.lowSample) {
+    return { enqueued: 0, skipped: true };
+  }
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { enqueued: 0 };
+
+  const slowLines = (speed.perPaket || []).slice(0, 5).map((p, idx) =>
+    `${idx + 1}. ${p.paket.title} · p95 ${p.p95}ms · p50 ${p.p50}ms (${p.sample} sample)`
+  );
+  const perPaketBlock = slowLines.length > 0
+    ? '\nPaket terlambat (worst 5 by p95):\n' + slowLines.join('\n') + '\n'
+    : '';
+
+  const vars = {
+    p95: String(speed.p95),
+    p50: String(speed.p50),
+    p99: String(speed.p99),
+    budget: String(speed.budgetMs),
+    sample: String(speed.sample),
+    windowDays: String(speed.window.days),
+    perPaketBlock,
+    adminLink: '/admin',
+  };
+  const { subject, body } = renderTemplate('LANDING_SLOW_OWNER', 'EMAIL', vars);
+
+  let enqueued = 0;
+  await Promise.all(admins.map(async (a) => {
+    await enqueueNotification({
+      type: 'LANDING_SLOW_OWNER', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject, body,
+      payload: { p95: speed.p95, budgetMs: speed.budgetMs, sample: speed.sample },
+    });
+    enqueued += 1;
+  }));
+  return { enqueued, recipients: admins.length };
+}
+
 export async function notifyPayoutCreated({ payout, agent }) {
   const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
   const vars = {

@@ -339,6 +339,44 @@
         </div>
       </div>
 
+      <!-- Stage 60 — 30-day visit sparkline. Anchored above hero title
+           so admin sees traffic trend before tweaking copy that drives
+           it. Hidden when viewTrend absent (e.g. on /new) OR when zero
+           visits across the full window (no signal worth showing). -->
+      <% if (typeof viewTrend !== 'undefined' && viewTrend && viewTrend.total > 0) {
+        const points = viewTrend.points;
+        const W = 320, H = 36, padX = 1, padY = 2;
+        const maxV = Math.max(...points.map((p) => p.count));
+        const step = (W - padX * 2) / (points.length - 1);
+        const path = points.map((p, i) => {
+          const x = padX + i * step;
+          const y = maxV === 0 ? H - padY : H - padY - (p.count / maxV) * (H - padY * 2);
+          return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+        }).join(' ');
+        const lastWeek = points.slice(-7).reduce((s, p) => s + p.count, 0);
+        const prevWeek = points.slice(-14, -7).reduce((s, p) => s + p.count, 0);
+        const trendUp = lastWeek > prevWeek;
+        const trendFlat = lastWeek === prevWeek;
+      %>
+        <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:14px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.14em;text-transform:uppercase;">
+              Visit landing · <%= viewTrend.days %> hari
+            </div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);margin-top:2px;">
+              total <strong style="color:var(--gold-300);"><%= viewTrend.total %></strong>
+              · 7h <strong><%= lastWeek %></strong>
+              <span style="color:var(--<%= trendUp ? 'emerald' : trendFlat ? 'ink-200' : 'ruby' %>);">
+                (<%= trendUp ? '▲' : trendFlat ? '=' : '▼' %> vs minggu sebelumnya <%= prevWeek %>)
+              </span>
+            </div>
+          </div>
+          <svg width="<%= W %>" height="<%= H %>" viewBox="0 0 <%= W %> <%= H %>" style="display:block;flex-shrink:0;">
+            <path d="<%= path %>" fill="none" stroke="var(--gold-300)" stroke-width="1.5"/>
+          </svg>
+        </div>
+      <% } %>
+
       <div class="field">
         <div class="label-row"><label class="label" for="f-hero">Hero Title HTML <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-left:6px;">VARIAN A</span></label></div>
         <textarea class="input" id="f-hero" name="heroTitleHtml" rows="3"><%= paket.heroTitleHtml || '' %></textarea>

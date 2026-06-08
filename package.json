@@ -25,6 +25,7 @@
     "job:send-payout-reminder": "node --env-file-if-exists=.env src/jobs/send-payout-reminder.js",
     "job:send-stalled-leads": "node --env-file-if-exists=.env src/jobs/send-stalled-leads.js",
     "job:send-traffic-anomaly": "node --env-file-if-exists=.env src/jobs/send-traffic-anomaly.js",
+    "job:send-landing-slow": "node --env-file-if-exists=.env src/jobs/send-landing-slow.js",
     "job:prune": "node --env-file-if-exists=.env src/jobs/prune.js"
   },
   "prisma": {

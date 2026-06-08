@@ -79,6 +79,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-payout-reminder': 7 * 24 * 60 * 60_000, // weekly (Stage 37)
   'send-stalled-leads': 24 * 60 * 60_000, // daily (Stage 46)
   'send-traffic-anomaly': 24 * 60 * 60_000, // daily (Stage 53)
+  'send-landing-slow': 24 * 60 * 60_000, // daily (Stage 58)
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };
 

@@ -4,6 +4,7 @@ import { ZodError } from 'zod';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
+import { db } from '../lib/db.js';
 import {
   JemaahSchema, listJemaah, getJemaahById, updateJemaah, META,
 } from '../services/jemaahAdmin.js';
@@ -49,10 +50,36 @@ router.get(
       passportExpiry: jemaah.passportExpiry?.toISOString().slice(0, 10) || '',
       birthDate: jemaah.birthDate?.toISOString().slice(0, 10) || '',
     };
+    // Stage 59 — lead reactivation hint. Find any soft-deleted (archived)
+    // leads that match this jemaah's phone. Helpful when an admin opens
+    // a jemaah profile and there's prior CRM conversation context the
+    // S57 auto-archive pruned out of the active pipeline view.
+    let archivedLeads = [];
+    if (jemaah.phone) {
+      // Normalise phone to digits-only so a "0822-3399" jemaah matches
+      // an "08223399" archived lead and vice versa
+      const digits = jemaah.phone.replace(/[^0-9]/g, '');
+      if (digits.length >= 8) {
+        archivedLeads = await db.lead.findMany({
+          where: {
+            deletedAt: { not: null },
+            phone: { contains: digits.slice(-8) }, // last 8 digits — handles country code mismatches
+          },
+          orderBy: { deletedAt: 'desc' },
+          take: 5,
+          select: {
+            id: true, fullName: true, phone: true, source: true,
+            status: true, deletedAt: true, notes: true,
+            agent: { select: { slug: true, displayName: true } },
+          },
+        });
+      }
+    }
     res.render('jemaah-form', {
       user: req.user, target: flat,
       errors: {}, formError: null, META,
       DOC_TYPES, DOC_STATUSES, DOC_PILL,
+      archivedLeads,
     });
   }),
 );

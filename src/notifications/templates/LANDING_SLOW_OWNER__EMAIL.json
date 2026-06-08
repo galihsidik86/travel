@@ -1,0 +1,4 @@
+{
+  "subject": "Religio Pro · landing page lambat — p95 {{p95}}ms (budget {{budget}}ms)",
+  "body": "Halo tim Religio Pro,\n\nLanding page /p/<slug> kemarin p95-nya {{p95}}ms — di atas budget {{budget}}ms.\n\nSnapshot {{windowDays}} hari terakhir ({{sample}} sample):\n  p50: {{p50}}ms\n  p95: {{p95}}ms\n  p99: {{p99}}ms\n{{perPaketBlock}}\nKemungkinan penyebab:\n  - Query DB di paket landing route (paket include hotels+days+prices)\n  - Asset besar di hero/foto yang tidak di-cache\n  - Server CPU saturasi (cek /api/health uptime + load)\n  - Database connection pool habis\n\nDashboard: {{adminLink}}\n\n— sistem Religio Pro"
+}
