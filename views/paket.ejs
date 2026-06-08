@@ -766,9 +766,20 @@
         <% } %>
         <div class="submit-row">
           <span class="agree">Dengan mendaftar, saya menyetujui <a href="#">Syarat &amp; Ketentuan</a> dan <a href="#">Kebijakan Privasi UU PDP</a>.</span>
+          <%
+            // Stage 52 — variant-aware CTA. `ctaText` is passed from the
+            // route; defaults to "Kunci kursi saya →" preserved when no
+            // variant is set, so existing paket without A/B copy don't
+            // suddenly read "BOOK SEKARANG".
+            const ctaDefault = kursiSisa <= 0 ? 'Daftar waitlist →' : 'Kunci kursi saya →';
+            const ctaLabel = (typeof ctaText !== 'undefined' && ctaText && ctaText !== 'BOOK SEKARANG')
+              ? (kursiSisa <= 0 ? 'Daftar waitlist →' : ctaText) // waitlist label always wins when full
+              : ctaDefault;
+          %>
           <button class="btn btn--primary btn--lg" type="submit" id="booking-submit"
-                  data-full="<%= kursiSisa <= 0 ? '1' : '0' %>">
-            <%= kursiSisa <= 0 ? 'Daftar waitlist →' : 'Kunci kursi saya →' %>
+                  data-full="<%= kursiSisa <= 0 ? '1' : '0' %>"
+                  data-cta-default="<%= ctaDefault %>">
+            <%= ctaLabel %>
           </button>
         </div>
       </form>
@@ -945,7 +956,11 @@
           : '';
         errMount.innerHTML = `<div class="form-error">${msg}${details}</div>`;
         submit.disabled = false;
-        submit.textContent = isFull ? 'Daftar waitlist →' : 'Kunci kursi saya →';
+        // Stage 52 — restore variant CTA from data attr instead of
+        // hardcoding, so a B-bucketed visitor keeps seeing their variant.
+        submit.textContent = isFull
+          ? 'Daftar waitlist →'
+          : (submit.getAttribute('data-cta-default') || 'Kunci kursi saya →');
       }
     });
 

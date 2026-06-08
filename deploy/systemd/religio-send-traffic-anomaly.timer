@@ -1,0 +1,13 @@
+[Unit]
+Description=Religio Pro — daily 08:30 traffic anomaly check
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+
+[Timer]
+# Daily at 08:30 — after the stalled-leads digest at 08:00.
+OnCalendar=*-*-* 08:30:00
+Persistent=true
+RandomizedDelaySec=5min
+Unit=religio-send-traffic-anomaly.service
+
+[Install]
+WantedBy=timers.target

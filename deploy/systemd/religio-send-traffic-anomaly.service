@@ -1,0 +1,21 @@
+[Unit]
+Description=Religio Pro — daily paket traffic anomaly check
+Documentation=https://github.com/galihsidik86/travel/blob/main/deploy/DEPLOYMENT.md
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=religio
+Group=religio
+WorkingDirectory=/srv/religio-pro
+EnvironmentFile=/srv/religio-pro/.env
+ExecStart=/usr/bin/npm run job:send-traffic-anomaly
+StandardOutput=append:/var/log/religio/traffic-anomaly.log
+StandardError=append:/var/log/religio/traffic-anomaly.log
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/religio /srv/religio-pro/private

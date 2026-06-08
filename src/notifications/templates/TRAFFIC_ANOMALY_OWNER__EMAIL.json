@@ -1,0 +1,4 @@
+{
+  "subject": "Religio Pro · {{paketCount}} paket alami penurunan traffic ≥ {{threshold}}%",
+  "body": "Halo tim Religio Pro,\n\n{{paketCount}} paket mengalami penurunan jumlah visit kemarin sebesar ≥ {{threshold}}% dibanding rata-rata 7 hari sebelumnya (baseline minimum {{minBaseline}} visit/hari):\n\n{{rowsBlock}}\n\nKemungkinan penyebab:\n  - Ads campaign expired / paused\n  - Landing page broken (cek /p/<slug>)\n  - Kampanye organik turun signifikan\n  - Kompetitor naik di SERP\n\nDashboard: {{adminLink}}\n\n— sistem Religio Pro"
+}

@@ -945,6 +945,55 @@ export async function notifyStalledLeads({ agent, digest }) {
   return { enqueued: 1 };
 }
 
+/**
+ * Stage 53 — traffic anomaly fan-out. Silent when no anomalies (the
+ * common case on healthy days). One EMAIL per ACTIVE OWNER/SUPERADMIN/
+ * MANAJER_OPS, indexed by paket count in the payload.
+ */
+export async function notifyTrafficAnomalies({ anomalies }) {
+  if (!anomalies || anomalies.rows.length === 0) {
+    return { enqueued: 0, skipped: true };
+  }
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { enqueued: 0 };
+
+  const inline = anomalies.rows.slice(0, 10);
+  const more = Math.max(0, anomalies.rows.length - inline.length);
+  const rowLines = inline.map((r, idx) =>
+    `${idx + 1}. ${r.paket.title} · ${r.yesterday} visit (avg ${r.baselineMean}/hari) · turun ${r.dropPct}%`
+  );
+  if (more > 0) rowLines.push(`  · + ${more} paket lainnya…`);
+
+  const vars = {
+    paketCount: String(anomalies.rows.length),
+    threshold: String(anomalies.thresholds.dropThresholdPct),
+    minBaseline: String(anomalies.thresholds.minBaselineVisits),
+    rowsBlock: rowLines.join('\n'),
+    adminLink: '/admin',
+  };
+  const { subject, body } = renderTemplate('TRAFFIC_ANOMALY_OWNER', 'EMAIL', vars);
+
+  let enqueued = 0;
+  await Promise.all(admins.map(async (a) => {
+    await enqueueNotification({
+      type: 'TRAFFIC_ANOMALY_OWNER', channel: 'EMAIL',
+      recipientEmail: a.email,
+      subject, body,
+      payload: { paketCount: anomalies.rows.length, paketSlugs: anomalies.rows.map((r) => r.paket.slug) },
+    });
+    enqueued += 1;
+  }));
+  return { enqueued, recipients: admins.length };
+}
+
 export async function notifyPayoutCreated({ payout, agent }) {
   const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
   const vars = {

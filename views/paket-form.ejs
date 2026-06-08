@@ -354,6 +354,24 @@
         <div class="helper">Kalau diisi, landing /p/<%= paket.slug || '<slug>' %> serve A atau B 50/50 (deterministik per visitor cookie). Konversi per varian tampil di bawah ketika sudah ada data.</div>
       </div>
 
+      <!-- Stage 52 — CTA button text per variant. Reuses hero bucketing. -->
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row">
+            <label class="label" for="f-cta-a">CTA tombol <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-left:6px;">VARIAN A</span></label>
+          </div>
+          <input class="input" id="f-cta-a" name="ctaTextVariantA" maxlength="60" placeholder="default: Kunci kursi saya →" value="<%= paket.ctaTextVariantA || '' %>">
+          <div class="helper">Kosongkan untuk pakai default sistem.</div>
+        </div>
+        <div class="field">
+          <div class="label-row">
+            <label class="label" for="f-cta-b">CTA tombol <span style="font-family:var(--font-mono);font-size:10px;color:var(--gold-300);margin-left:6px;">VARIAN B (opsional)</span></label>
+          </div>
+          <input class="input" id="f-cta-b" name="ctaTextVariantB" maxlength="60" placeholder="mis. Daftar untuk Ramadhan 2027 →" value="<%= paket.ctaTextVariantB || '' %>">
+          <div class="helper">Bucketing visitor sama dengan hero A/B. Saat full → label "Daftar waitlist →" tetap dipakai.</div>
+        </div>
+      </div>
+
       <%
         // Stage 50 — surface A/B breakdown when variantB is configured AND
         // we have at least some traffic. Computed in the route handler.

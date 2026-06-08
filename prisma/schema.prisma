@@ -131,6 +131,7 @@ enum NotificationType {
   PAYOUT_REMINDER_OWNER // weekly reminder of overdue payout candidates → admins (Stage 37)
   WAITLIST_SLOT_FREED // cancel freed a seat with WAITING candidates → admin (Stage 42)
   AGENT_STALLED_LEADS // daily nudge → agen with cold lead pipeline (Stage 46)
+  TRAFFIC_ANOMALY_OWNER // paket view drop ≥50% vs 7d avg → admins (Stage 53)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -397,6 +398,11 @@ model Paket {
   // Stage 50 — optional variant B for hero title A/B test. When set, the
   // public landing serves A or B 50/50 (deterministic per visitor cookie).
   heroTitleHtmlVariantB String? @db.Text
+  // Stage 52 — optional CTA button text variants. Reuses the same heroVariant
+  // bucketing so one A/B run can test both surfaces at once. Both null →
+  // hardcoded default "BOOK SEKARANG" (no test running).
+  ctaTextVariantA String? @db.VarChar(60)
+  ctaTextVariantB String? @db.VarChar(60)
   inclusions      Json
   exclusions      Json
   trustBadges     Json?

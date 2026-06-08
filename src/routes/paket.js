@@ -55,9 +55,18 @@ paketHtmlRouter.get(
       console.warn('[paket-landing] view-track failed:', err?.message || err);
     }
 
+    // Stage 52 — pick CTA text per variant. Reuses the same heroVariant
+    // bucketing so admins running both A/B tests at once see correlated
+    // signals (variant B converts better because of hero OR CTA — but at
+    // least both surfaces are in lock-step per visitor).
+    const DEFAULT_CTA = 'BOOK SEKARANG';
+    let ctaText = DEFAULT_CTA;
+    if (heroVariant === 'B' && paket.ctaTextVariantB) ctaText = paket.ctaTextVariantB;
+    else if (heroVariant === 'A' && paket.ctaTextVariantA) ctaText = paket.ctaTextVariantA;
+
     res.render('paket', {
       paket, agent, currentUser: req.user || null, prefillJemaah,
-      heroVariant,
+      heroVariant, ctaText,
     });
   }),
 );

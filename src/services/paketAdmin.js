@@ -28,6 +28,8 @@ export const PaketSchema = z.object({
   subtitle: optStr,
   heroTitleHtml: optStrLong,
   heroTitleHtmlVariantB: optStrLong, // Stage 50 — optional A/B test copy
+  ctaTextVariantA: optStr, // Stage 52 — optional CTA button text override
+  ctaTextVariantB: optStr,
   arabicTagline: optStrLong,
   translitTagline: optStrLong,
   departureDate: reqDate,
@@ -99,6 +101,8 @@ function toPaketData(parsed, userId) {
     subtitle: parsed.subtitle ?? null,
     heroTitleHtml: parsed.heroTitleHtml ?? null,
     heroTitleHtmlVariantB: parsed.heroTitleHtmlVariantB ?? null,
+    ctaTextVariantA: parsed.ctaTextVariantA ?? null,
+    ctaTextVariantB: parsed.ctaTextVariantB ?? null,
     arabicTagline: parsed.arabicTagline ?? null,
     translitTagline: parsed.translitTagline ?? null,
     departureDate: parsed.departureDate,
@@ -586,6 +590,8 @@ export async function clonePaket({ req, actor, sourceSlug, input }) {
         subtitle: source.subtitle,
         heroTitleHtml: source.heroTitleHtml,
         heroTitleHtmlVariantB: source.heroTitleHtmlVariantB,
+        ctaTextVariantA: source.ctaTextVariantA,
+        ctaTextVariantB: source.ctaTextVariantB,
         arabicTagline: source.arabicTagline,
         translitTagline: source.translitTagline,
         departureDate: data.newDepartureDate,

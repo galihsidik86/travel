@@ -1823,6 +1823,59 @@
         .spark-cell .spark-sub { display: block; font-family: var(--font-mono); font-size: 9.5px; margin-top: 2px; letter-spacing: 0.04em; text-align: right; }
       </style>
 
+      <!-- Stage 54 — jemaah cohort retention -->
+      <% if (cohortRetention && cohortRetention.rows.length > 0) {
+        const sum = cohortRetention.summary;
+        const ovCls = sum.matureRetentionPct == null ? 'ink-200'
+          : sum.matureRetentionPct >= 30 ? 'emerald'
+          : sum.matureRetentionPct >= 15 ? 'gold-300'
+          : sum.matureRetentionPct >= 5  ? 'amber' : 'ruby';
+      %>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Retensi cohort jemaah (booking ke-2 dalam <%= cohortRetention.windowDays %>h)</h3>
+            <span class="meta">
+              <% if (sum.matureCohortCount > 0) { %>
+                <%= sum.matureCohortCount %> COHORT MATURE · <strong style="color:var(--<%= ovCls %>);"><%= sum.matureRetentionPct ?? '—' %>%</strong> RATA-RATA
+              <% } else { %>
+                BELUM ADA COHORT MATURE
+              <% } %>
+            </span>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Cohort</th>
+                <th class="num">Jemaah pertama</th>
+                <th class="num">Retained</th>
+                <th class="num">Retensi</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% cohortRetention.rows.forEach(function(c) {
+                const cls = c.retentionPct == null ? 'ink-200'
+                  : c.retentionPct >= 30 ? 'emerald'
+                  : c.retentionPct >= 15 ? 'gold-300'
+                  : c.retentionPct >= 5  ? 'amber' : 'ruby';
+              %>
+                <tr style="<%= c.mature ? '' : 'opacity:0.55;' %>">
+                  <td><strong style="color:var(--cream-100);"><%= c.label %></strong></td>
+                  <td class="num" style="font-family:var(--font-mono);"><%= c.total %></td>
+                  <td class="num" style="font-family:var(--font-mono);color:var(--gold-300);"><%= c.retained %></td>
+                  <td class="num" style="font-family:var(--font-mono);color:var(--<%= cls %>);font-weight:600;">
+                    <%= c.retentionPct ?? '—' %>%
+                  </td>
+                  <td style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">
+                    <%= c.mature ? 'mature' : 'belum mature (12h window belum lewat)' %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+
       <!-- Date range filter (affects global funnel + source breakdown only) -->
       <%
         const r = analytics.funnel.range;

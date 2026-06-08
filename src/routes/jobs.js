@@ -5,7 +5,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { expireOverdueDocuments } from '../services/expireDocs.js';
-import { processPendingNotifications, notifyDailyDigest, notifyWeeklyDigest, notifyAgentWeeklyDigest, notifyPayoutReminder, notifyStalledLeads } from '../services/notifications.js';
+import { processPendingNotifications, notifyDailyDigest, notifyWeeklyDigest, notifyAgentWeeklyDigest, notifyPayoutReminder, notifyStalledLeads, notifyTrafficAnomalies } from '../services/notifications.js';
 import { expireStaleIntents } from '../services/expireIntents.js';
 import { pruneRetentionWindows } from '../services/retention.js';
 import { buildDigestWithAttention } from '../services/dailyDigest.js';
@@ -13,6 +13,7 @@ import { buildWeeklyDigest } from '../services/weeklyDigest.js';
 import { buildAgentWeeklyDigest, listActiveAgentsForDigest } from '../services/agentWeeklyDigest.js';
 import { getOverduePayoutCandidates } from '../services/payoutReminder.js';
 import { getStalledLeadsForAgent, listActiveAgentsForLeadsDigest } from '../services/stalledLeadsDigest.js';
+import { getTrafficAnomalies } from '../services/trafficAnomaly.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -144,6 +145,22 @@ router.post(
         }
       }
       return { agents: agents.length, enqueued, skipped, errors };
+    });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-traffic-anomaly',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-traffic-anomaly', async () => {
+      const anomalies = await getTrafficAnomalies();
+      const fan = await notifyTrafficAnomalies({ anomalies });
+      return {
+        paketCount: anomalies.rows.length,
+        enqueued: fan.enqueued ?? 0,
+        skipped: fan.skipped ?? false,
+      };
     });
     res.json(result);
   }),
