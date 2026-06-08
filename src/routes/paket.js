@@ -85,9 +85,30 @@ paketHtmlRouter.get(
       console.warn('[paket-landing] testimonials load failed:', err?.message || err);
     }
 
+    // Stage 71 — pull assigned crew with public profiles. Skipped silently
+    // if no crew or none have a `slug` (crew opt-out by leaving slug null).
+    let publicCrew = [];
+    try {
+      publicCrew = await db.user.findMany({
+        where: {
+          role: 'MUTHAWWIF',
+          status: 'ACTIVE',
+          deletedAt: null,
+          crewAssignments: { some: { paketId: paket.id } },
+          crew: { slug: { not: null } },
+        },
+        select: {
+          fullName: true,
+          crew: { select: { slug: true, titlePrefix: true, photoUrl: true } },
+        },
+      });
+    } catch (err) {
+      console.warn('[paket-landing] public crew lookup failed:', err?.message || err);
+    }
+
     res.render('paket', {
       paket, agent, currentUser: req.user || null, prefillJemaah,
-      heroVariant, ctaText, testimonials,
+      heroVariant, ctaText, testimonials, publicCrew,
     });
   }),
 );

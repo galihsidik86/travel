@@ -141,12 +141,20 @@
 </head>
 <body data-screen-label="04 Portal Jemaah · Detail" class="has-m-tabs">
 <div class="wrap">
-  <div class="crumb" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+  <div class="crumb" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
     <a href="/saya">← KEMBALI KE PORTAL</a>
-    <a href="/saya/bookings/<%= b.id %>/print" target="_blank" rel="noopener"
-       style="color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
-      🖨 CETAK VOUCHER
-    </a>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <% if (b.paket.departureDate && b.status !== 'CANCELLED' && b.status !== 'REFUNDED') { %>
+        <a href="/saya/bookings/<%= b.id %>/calendar.ics"
+           style="color:var(--cream-100);text-decoration:none;border:1px solid var(--ink-100);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
+          📅 + KALENDER
+        </a>
+      <% } %>
+      <a href="/saya/bookings/<%= b.id %>/print" target="_blank" rel="noopener"
+         style="color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
+        🖨 CETAK VOUCHER
+      </a>
+    </div>
   </div>
 
   <%

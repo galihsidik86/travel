@@ -227,6 +227,24 @@ router.post(
   }),
 );
 
+// Stage 72 — ICS calendar export. Jemaah drops departure into phone
+// calendar. Auth-gated (requires JEMAAH session) + getMyBooking enforces
+// jemaahUserId ownership so cross-user enumeration returns 404.
+router.get(
+  '/saya/bookings/:id/calendar.ics',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    const { generateBookingIcs } = await import('../services/bookingIcs.js');
+    const out = await generateBookingIcs({
+      userId: req.user.id, bookingId: req.params.id,
+    });
+    if (!out) return res.status(404).type('text/plain').send('Booking tidak ditemukan');
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${out.filename}"`);
+    res.send(out.body);
+  }),
+);
+
 // Stage 69 — jemaah self-service testimonial submit. Lands in DRAFT for
 // admin review (admin still controls what appears on /p/:slug).
 //
@@ -306,6 +324,7 @@ router.post(
           rating: parsed.rating,
           jemaahCity: parsed.jemaahCity ?? null,
           status: 'DRAFT', // re-submit returns to admin review
+          submittedByUserId: req.user.id, // Stage 70 — link for notif on publish
         },
       });
       await audit({
@@ -323,6 +342,7 @@ router.post(
           body: parsed.body,
           rating: parsed.rating,
           status: 'DRAFT',
+          submittedByUserId: req.user.id, // Stage 70 — link for notif on publish
         },
       });
       await audit({

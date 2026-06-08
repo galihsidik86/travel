@@ -134,6 +134,7 @@ enum NotificationType {
   TRAFFIC_ANOMALY_OWNER // paket view drop ≥50% vs 7d avg → admins (Stage 53)
   LANDING_SLOW_OWNER // /p/:slug 95p latency > budget → admins (Stage 56)
   CREW_WEEKLY_DIGEST // weekly attendance + upcoming assignments → MUTHAWWIF (Stage 65)
+  TESTIMONIAL_PUBLISHED // admin promoted jemaah's testimonial → jemaah (Stage 70)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -223,6 +224,7 @@ model User {
   incidentsAcked    Incident[]         @relation("IncidentAcker")
   incidentsResolved Incident[]         @relation("IncidentResolver")
   pushSubscriptions PushSubscription[]
+  testimonials      Testimonial[]      @relation("TestimonialSubmitter")
 
   @@index([role])
   @@index([deletedAt])
@@ -358,6 +360,13 @@ model CrewProfile {
   user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   languages  String?
   experience Int?
+  // Stage 71 — public profile fields. `slug` is the URL path on /c/:slug
+  // (admin sets, lowercase a-z/0-9/dash). Bio + photo opt-in: when both
+  // null, the public route 404s so the crew can stay private.
+  slug        String? @unique @db.VarChar(120)
+  titlePrefix String? @db.VarChar(40)  // mis. "Ustadz", "H.", "KH."
+  bio         String? @db.Text
+  photoUrl    String? @db.VarChar(255)
 }
 
 // 5oo: M2M between Paket and MUTHAWWIF users — drives the crew portal manifest.
@@ -479,6 +488,12 @@ model Testimonial {
   // landing) or generic (admin shows across all paket).
   paketId   String?
   paket     Paket?            @relation(fields: [paketId], references: [id], onDelete: SetNull)
+
+  // Stage 69/70 — populated when a jemaah self-submits via /saya/bookings/
+  // :id/testimonial. Null when an admin authored it manually. S70 fires a
+  // notif to this user when admin flips DRAFT → PUBLISHED.
+  submittedByUserId String?
+  submittedBy       User?    @relation("TestimonialSubmitter", fields: [submittedByUserId], references: [id], onDelete: SetNull)
 
   jemaahName String           @db.VarChar(120)
   jemaahCity String?          @db.VarChar(120)

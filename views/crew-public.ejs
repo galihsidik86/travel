@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — <%= crew.titlePrefix ? crew.titlePrefix + ' ' : '' %><%= crew.fullName %></title>
+<meta name="description" content="Pembimbing muthawif perjalanan Religio Pro — <%= crew.fullName %><% if (crew.experience) { %>, pengalaman <%= crew.experience %>+ tahun<% } %>">
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 840px; margin: 0 auto; padding: 48px 24px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 28px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .hero { display: flex; gap: 28px; align-items: start; margin-bottom: 32px; flex-wrap: wrap; }
+  .hero__photo { flex-shrink: 0; }
+  .hero__photo img { width: 180px; height: 180px; object-fit: cover; border-radius: var(--r-md); border: 1px solid var(--ink-700); }
+  .hero__photo .placeholder { width: 180px; height: 180px; border-radius: var(--r-md); background: var(--ink-900); border: 1px dashed var(--ink-700); display: flex; align-items: center; justify-content: center; font-size: 60px; color: var(--ink-300); }
+  .hero__info { flex: 1; min-width: 280px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 8px; }
+  h1 { font-family: var(--font-display); font-size: 36px; font-weight: 500; color: var(--cream-100); margin: 0 0 8px; letter-spacing: -0.015em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .meta { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-100); letter-spacing: 0.06em; }
+  .meta span { margin-right: 16px; }
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 24px; margin-bottom: 18px; }
+  .panel h3 { font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--cream-100); margin: 0 0 14px; letter-spacing: -0.005em; }
+  .bio { font-family: var(--font-body); font-size: 14.5px; line-height: 1.65; color: var(--cream-200); white-space: pre-wrap; }
+  .paket-list { display: grid; gap: 10px; }
+  .paket-row { display: grid; grid-template-columns: 90px 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); text-decoration: none; color: var(--cream-100); }
+  .paket-row:hover { background: rgba(255,255,255,0.02); }
+  .paket-row .when { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.06em; }
+  .paket-row .title { font-size: 13.5px; color: var(--cream-100); }
+  .paket-row .arrow { color: var(--gold-300); }
+  .footer { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 40px; text-align: center; letter-spacing: 0.1em; }
+  @media (max-width: 600px) {
+    .hero__photo img, .hero__photo .placeholder { width: 140px; height: 140px; }
+    h1 { font-size: 28px; }
+  }
+</style>
+</head>
+<body data-screen-label="01 Public · Crew profile">
+<div class="wrap">
+  <div class="crumb"><a href="/">RELIGIO PRO</a> / KRU PEMBIMBING / <%= crew.fullName %></div>
+
+  <div class="hero">
+    <div class="hero__photo">
+      <% if (crew.photoUrl) { %>
+        <img src="<%= crew.photoUrl %>" alt="<%= crew.fullName %>" loading="lazy">
+      <% } else { %>
+        <div class="placeholder">🧑‍🏫</div>
+      <% } %>
+    </div>
+    <div class="hero__info">
+      <p class="eyebrow">Pembimbing perjalanan</p>
+      <h1><%= crew.titlePrefix ? crew.titlePrefix + ' ' : '' %><em><%= crew.fullName %></em></h1>
+      <div class="meta">
+        <% if (crew.experience) { %><span>Pengalaman <%= crew.experience %>+ tahun</span><% } %>
+        <% if (crew.languages) { %><span>Bahasa: <%= crew.languages %></span><% } %>
+      </div>
+    </div>
+  </div>
+
+  <% if (crew.bio) { %>
+    <div class="panel">
+      <h3>Tentang</h3>
+      <p class="bio"><%= crew.bio %></p>
+    </div>
+  <% } %>
+
+  <% if (crew.upcomingPaket && crew.upcomingPaket.length > 0) { %>
+    <div class="panel">
+      <h3>Perjalanan mendatang</h3>
+      <div class="paket-list">
+        <% crew.upcomingPaket.forEach(function(p) { %>
+          <a class="paket-row" href="/p/<%= p.slug %>">
+            <span class="when"><%= fmt.date(p.departureDate) %></span>
+            <span class="title"><%= p.title %><span style="color:var(--ink-200);font-family:var(--font-mono);font-size:10.5px;margin-left:8px;"><%= p.durationDays %>h</span></span>
+            <span class="arrow">→</span>
+          </a>
+        <% }) %>
+      </div>
+    </div>
+  <% } %>
+
+  <% if (crew.pastPaket && crew.pastPaket.length > 0) { %>
+    <div class="panel">
+      <h3>Perjalanan terakhir</h3>
+      <div class="paket-list">
+        <% crew.pastPaket.forEach(function(p) { %>
+          <div class="paket-row" style="cursor:default;">
+            <span class="when"><%= fmt.date(p.departureDate) %></span>
+            <span class="title" style="color:var(--ink-100);"><%= p.title %></span>
+            <span style="color:var(--ink-200);font-family:var(--font-mono);font-size:10.5px;">selesai</span>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  <% } %>
+
+  <div class="footer">
+    RELIGIO PRO · TIM PEMBIMBING TERPERCAYA
+  </div>
+</div>
+</body>
+</html>

@@ -1104,6 +1104,32 @@ export async function notifyCrewWeeklyDigest({ digest }) {
   return { enqueued: 1 };
 }
 
+/**
+ * Stage 70 — fire a notif to the jemaah whose testimonial was just promoted
+ * to PUBLISHED. Surfaces in the jemaah inbox (recipientUserId set) so the
+ * unread badge picks it up too.
+ */
+export async function notifyTestimonialPublished({ user, testimonial, paket }) {
+  if (!user?.email) return { enqueued: 0, skipped: true };
+  const paketTitle = paket?.title || 'paket Anda';
+  const vars = {
+    jemaahName: user.fullName || 'Jamaah',
+    paketTitle,
+    paketLink: paket?.slug ? `/p/${paket.slug}` : '/',
+    sayaLink: '/saya/notifications',
+  };
+  const { subject, body } = renderTemplate('TESTIMONIAL_PUBLISHED', 'EMAIL', vars);
+  await enqueueNotification({
+    type: 'TESTIMONIAL_PUBLISHED', channel: 'EMAIL',
+    recipientEmail: user.email,
+    recipientUserId: user.id,
+    subject, body,
+    payload: { testimonialId: testimonial.id, paketSlug: paket?.slug || null },
+    relatedEntity: 'Testimonial', relatedEntityId: testimonial.id,
+  });
+  return { enqueued: 1 };
+}
+
 export async function notifyPayoutCreated({ payout, agent }) {
   const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
   const vars = {

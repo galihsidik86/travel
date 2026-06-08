@@ -56,7 +56,13 @@ export async function updateTestimonial({ req, actor, id, input }) {
     const p = await db.paket.findUnique({ where: { id: data.paketId }, select: { id: true } });
     if (!p) throw new HttpError(400, 'Paket tidak ditemukan', 'INVALID_PAKET');
   }
-  const before = await db.testimonial.findUnique({ where: { id } });
+  const before = await db.testimonial.findUnique({
+    where: { id },
+    include: {
+      paket: { select: { slug: true, title: true } },
+      submittedBy: { select: { id: true, fullName: true, email: true, status: true, deletedAt: true } },
+    },
+  });
   if (!before) throw new HttpError(404, 'Testimonial tidak ditemukan', 'TESTIMONIAL_NOT_FOUND');
   const t = await db.testimonial.update({ where: { id }, data });
   await audit({
@@ -65,6 +71,31 @@ export async function updateTestimonial({ req, actor, id, input }) {
     before: { status: before.status, sortOrder: before.sortOrder },
     after: { status: t.status, sortOrder: t.sortOrder },
   });
+
+  // Stage 70 — fire a notif to the original jemaah when admin flips
+  // DRAFT → PUBLISHED. Skip when:
+  //   - testimonial was admin-authored (no submittedByUserId)
+  //   - submitter is suspended / soft-deleted (don't surprise them)
+  //   - transition is anything other than DRAFT → PUBLISHED
+  // Fire-and-forget — notif failure must not block the admin save.
+  if (
+    before.status === 'DRAFT' && t.status === 'PUBLISHED'
+    && before.submittedByUserId
+    && before.submittedBy
+    && before.submittedBy.status === 'ACTIVE'
+    && !before.submittedBy.deletedAt
+  ) {
+    try {
+      const { notifyTestimonialPublished } = await import('./notifications.js');
+      await notifyTestimonialPublished({
+        user: before.submittedBy,
+        testimonial: t,
+        paket: before.paket,
+      });
+    } catch (err) {
+      console.warn('[testimonialAdmin] notify publish failed:', err?.message || err);
+    }
+  }
   return t;
 }
 

@@ -795,6 +795,40 @@
   </div>
   <% } %>
 
+  <!-- Stage 71 — public crew profiles for assigned muthawif -->
+  <% if (typeof publicCrew !== 'undefined' && publicCrew.length > 0) { %>
+  <div class="crew-strip">
+    <div class="crew-strip__title">Ditemani <em>tim berpengalaman</em></div>
+    <div class="crew-strip__grid">
+      <% publicCrew.forEach(function(c) { %>
+        <a class="crew-card" href="/c/<%= c.crew.slug %>">
+          <% if (c.crew.photoUrl) { %>
+            <img class="crew-card__photo" src="<%= c.crew.photoUrl %>" alt="<%= c.fullName %>" loading="lazy">
+          <% } else { %>
+            <div class="crew-card__photo crew-card__placeholder">🧑‍🏫</div>
+          <% } %>
+          <div class="crew-card__name">
+            <%= c.crew.titlePrefix ? c.crew.titlePrefix + ' ' : '' %><%= c.fullName %>
+          </div>
+          <div class="crew-card__arrow">Profil →</div>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+  <style>
+    .crew-strip { margin: 36px auto 0; max-width: 1080px; padding: 0 24px; }
+    .crew-strip__title { font-family: var(--font-display); font-size: 24px; font-weight: 500; color: var(--cream-100); margin: 0 0 18px; letter-spacing: -0.01em; }
+    .crew-strip__title em { font-style: italic; color: var(--gold-300); }
+    .crew-strip__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+    .crew-card { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 16px; text-align: center; text-decoration: none; color: var(--cream-100); transition: border-color 0.15s; }
+    .crew-card:hover { border-color: var(--gold-300); }
+    .crew-card__photo { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 10px; }
+    .crew-card__placeholder { display: flex; align-items: center; justify-content: center; background: var(--ink-1000); border: 1px dashed var(--ink-700); font-size: 28px; color: var(--ink-300); }
+    .crew-card__name { font-family: var(--font-mono); font-size: 11.5px; color: var(--cream-100); letter-spacing: 0.04em; }
+    .crew-card__arrow { font-family: var(--font-mono); font-size: 10px; color: var(--gold-300); margin-top: 6px; letter-spacing: 0.08em; }
+  </style>
+  <% } %>
+
   <!-- Stage 63 — testimonials (PUBLISHED only, paket-specific OR generic) -->
   <% if (typeof testimonials !== 'undefined' && testimonials.length > 0) { %>
   <div class="testimonials">
