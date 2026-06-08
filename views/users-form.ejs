@@ -261,6 +261,20 @@
       <div class="field">
         <div class="label-row"><label class="label" for="f-bio">Bio</label></div>
         <textarea class="input" id="f-bio" name="bio" rows="3"><%= target.bio %></textarea>
+        <div class="helper">Bila isVerified + bio + foto terisi, profil publik tampil di <code>/a/&lt;slug&gt;</code>.</div>
+      </div>
+      <!-- Stage 74 — public photo for /a/:slug page -->
+      <div class="grid-2">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-agent-photo">Foto URL</label></div>
+          <input class="input" id="f-agent-photo" name="agentPhotoUrl" maxlength="255" value="<%= target.agentPhotoUrl || '' %>" placeholder="/uploads/agents/ahmad.jpg">
+          <div class="helper">Path relatif. Upload ke /uploads/agents/.</div>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-agent-ig">Instagram handle</label></div>
+          <input class="input" id="f-agent-ig" name="igHandle" maxlength="60" value="<%= target.igHandle || '' %>" placeholder="ahmad_religio">
+          <div class="helper">Tanpa @. Tampil sebagai tombol IG di profil publik.</div>
+        </div>
       </div>
       <div class="field">
         <div class="label-row"><label class="label" for="f-komisi-or">Override komisi (%)</label></div>
@@ -302,6 +316,36 @@
           <div class="label-row"><label class="label" for="f-exp">Pengalaman (tahun)</label></div>
           <input class="input" type="number" id="f-exp" name="experience" min="0" max="80" value="<%= target.experience %>">
         </div>
+      </div>
+
+      <!-- Stage 73 — public profile fields. Surface at /c/:slug when admin
+           fills both `slug` and at least one of bio/photoUrl. Empty stays
+           opt-out (no public page rendered). -->
+      <div class="role-help" style="margin-top:8px;">
+        Halaman publik <code>/c/&lt;slug&gt;</code> tampil kalau slug + (bio atau foto) terisi. Kosongkan untuk opt-out.
+      </div>
+      <div class="grid-2" style="margin-top:8px;">
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-crew-slug">Slug publik (/c/&lt;slug&gt;)</label></div>
+          <input class="input" id="f-crew-slug" name="crewSlug" maxlength="120" value="<%= target.crewSlug || '' %>" placeholder="mis. ustadz-ahmad-wibowo" pattern="[a-z0-9-]+">
+          <% if (errors.crewSlug) { %><div class="field-err"><%= errors.crewSlug %></div><% } %>
+          <div class="helper">Huruf kecil, angka, strip. Unik secara global.</div>
+        </div>
+        <div class="field">
+          <div class="label-row"><label class="label" for="f-crew-prefix">Gelar di depan nama</label></div>
+          <input class="input" id="f-crew-prefix" name="crewTitlePrefix" maxlength="40" value="<%= target.crewTitlePrefix || '' %>" placeholder="mis. Ustadz, H., KH.">
+          <div class="helper">Akan tampil sebelum nama di /c/&lt;slug&gt;.</div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-crew-photo">Foto URL</label></div>
+        <input class="input" id="f-crew-photo" name="crewPhotoUrl" maxlength="255" value="<%= target.crewPhotoUrl || '' %>" placeholder="/uploads/crew/ahmad.jpg">
+        <div class="helper">Path relatif. Upload ke /uploads/crew/ (folder publik).</div>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-crew-bio">Bio publik</label></div>
+        <textarea class="input" id="f-crew-bio" name="crewBio" rows="4" maxlength="2000" placeholder="Pengalaman, kualifikasi, dan apa yang membuat Anda diingat oleh jemaah."><%= target.crewBio || '' %></textarea>
+        <div class="helper">Akan ditampilkan ke calon jemaah di paket landing.</div>
       </div>
     </div>
 

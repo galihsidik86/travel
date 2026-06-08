@@ -36,6 +36,10 @@ function emptyUser() {
     komisiRateOverridePct: '',
     department: '', position: '',
     languages: '', experience: '',
+    // Stage 73 — crew public profile defaults
+    crewSlug: '', crewTitlePrefix: '', crewBio: '', crewPhotoUrl: '',
+    // Stage 74 — agent public profile defaults
+    agentPhotoUrl: '', igHandle: '',
   };
 }
 
@@ -121,6 +125,14 @@ router.get(
       position: target.staff?.position || '',
       languages: target.crew?.languages || '',
       experience: target.crew?.experience ?? '',
+      // Stage 73 — crew public profile fields
+      crewSlug: target.crew?.slug || '',
+      crewTitlePrefix: target.crew?.titlePrefix || '',
+      crewBio: target.crew?.bio || '',
+      crewPhotoUrl: target.crew?.photoUrl || '',
+      // Stage 74 — agent public profile fields
+      agentPhotoUrl: target.agent?.photoUrl || '',
+      igHandle: target.agent?.igHandle || '',
     };
     res.render('users-form', {
       user: req.user, mode: 'edit', target: flat,

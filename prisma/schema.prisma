@@ -135,6 +135,7 @@ enum NotificationType {
   LANDING_SLOW_OWNER // /p/:slug 95p latency > budget → admins (Stage 56)
   CREW_WEEKLY_DIGEST // weekly attendance + upcoming assignments → MUTHAWWIF (Stage 65)
   TESTIMONIAL_PUBLISHED // admin promoted jemaah's testimonial → jemaah (Stage 70)
+  FIRST_PAYMENT_THANKS // first PAID payment lands → jemaah (Stage 75)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -265,6 +266,9 @@ model AgentProfile {
   igHandle           String?
   whatsapp           String
   bio                String?  @db.Text
+  // Stage 74 — public profile photo. When set with bio + isVerified, the
+  // /a/:slug public page renders. Opt-in by default (no photo → no page).
+  photoUrl           String?  @db.VarChar(255)
   tier               String?
   joinedAt           DateTime @default(now())
   isVerified         Boolean  @default(false)

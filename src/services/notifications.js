@@ -1105,6 +1105,43 @@ export async function notifyCrewWeeklyDigest({ digest }) {
 }
 
 /**
+ * Stage 75 — first payment thanks. Fires once per booking after the first
+ * PAID payment lands. Onboarding tone ("thanks + what's next"), distinct
+ * from the neutral kuitansi notif (notifyPaymentReceived).
+ *
+ * Goes to whichever contact the booking has: linked jemaah user email
+ * preferred, profile email as fallback. recipientUserId set when booking
+ * is linked so the row appears in /saya/notifications with unread badge.
+ * Anonymous bookings get the email but no inbox row.
+ */
+export async function notifyFirstPaymentThanks({ booking, payment }) {
+  if (!booking) return { enqueued: 0, skipped: true };
+  const recipientUserId = booking.jemaahUserId ?? booking.jemaah?.userId ?? null;
+  const recipientEmail = booking.jemaah?.email || null;
+  const recipientPhone = booking.jemaah?.phone || null;
+  if (!recipientEmail) return { enqueued: 0, skipped: true };
+
+  const amt = Number(payment.amount?.toString?.() ?? payment.amount) || 0;
+  const vars = {
+    jemaahName: booking.jemaah?.fullName ?? '-',
+    bookingNo: booking.bookingNo,
+    paketTitle: booking.paket?.title ?? '-',
+    paymentAmount: fmtRp(amt).replace('Rp ', ''),
+    method: payment.method,
+    sayaLink: recipientUserId ? `/saya/bookings/${booking.id}` : '/',
+  };
+  const { subject, body } = renderTemplate('FIRST_PAYMENT_THANKS', 'EMAIL', vars);
+  await enqueueNotification({
+    type: 'FIRST_PAYMENT_THANKS', channel: 'EMAIL',
+    recipientEmail, recipientPhone, recipientUserId,
+    subject, body,
+    payload: { bookingNo: booking.bookingNo, paymentId: payment.id },
+    relatedEntity: 'Booking', relatedEntityId: booking.id,
+  });
+  return { enqueued: 1 };
+}
+
+/**
  * Stage 70 — fire a notif to the jemaah whose testimonial was just promoted
  * to PUBLISHED. Surfaces in the jemaah inbox (recipientUserId set) so the
  * unread badge picks it up too.

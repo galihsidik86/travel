@@ -31,6 +31,7 @@ import paymentIntentsRouter from './routes/paymentIntents.js';
 import incidentsRouter from './routes/incidents.js';
 import testimonialsRouter from './routes/testimonials.js';
 import crewPublicRouter from './routes/crewPublic.js';
+import agentPublicRouter from './routes/agentPublic.js';
 import pushRouter from './routes/push.js';
 import waitlistRouter from './routes/waitlist.js';
 import paymentsRouter from './routes/payments.js';
@@ -119,6 +120,8 @@ export function createApp() {
 
   // Stage 71 — public crew profile (/c/:slug)
   app.use('/c', crewPublicRouter);
+  // Stage 74 — public agent profile (/a/:slug)
+  app.use('/a', agentPublicRouter);
 
   // Jemaah self-service portal: HTML /register (public), /saya (JEMAAH), /api/saya/claim
   app.use('/', jemaahPortalRouter);

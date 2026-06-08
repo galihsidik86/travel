@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — <%= agent.displayName %></title>
+<meta name="description" content="Agen pendamping perjalanan Religio Pro — <%= agent.displayName %><% if (agent.lifetimeLunas > 0) { %>, <%= agent.lifetimeLunas %>+ jemaah lunas<% } %>">
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 840px; margin: 0 auto; padding: 48px 24px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 28px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .hero { display: flex; gap: 28px; align-items: start; margin-bottom: 32px; flex-wrap: wrap; }
+  .hero__photo img { width: 180px; height: 180px; object-fit: cover; border-radius: var(--r-md); border: 1px solid var(--ink-700); }
+  .hero__photo .placeholder { width: 180px; height: 180px; border-radius: var(--r-md); background: var(--ink-900); border: 1px dashed var(--ink-700); display: flex; align-items: center; justify-content: center; font-size: 60px; color: var(--ink-300); }
+  .hero__info { flex: 1; min-width: 280px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 8px; }
+  h1 { font-family: var(--font-display); font-size: 36px; font-weight: 500; color: var(--cream-100); margin: 0 0 8px; letter-spacing: -0.015em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .meta { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-100); letter-spacing: 0.06em; }
+  .meta span { margin-right: 16px; }
+  .verified { display: inline-block; background: rgba(74,143,109,0.08); border: 1px solid var(--emerald); color: var(--emerald); padding: 2px 8px; border-radius: 3px; font-size: 10px; letter-spacing: 0.12em; }
+  .actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 10px 16px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; text-decoration: none; }
+  .btn--wa { background: #25D366; color: white; }
+  .btn--ig { background: transparent; color: var(--cream-100); border: 1px solid var(--ink-700); }
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 24px; margin-bottom: 18px; }
+  .panel h3 { font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--cream-100); margin: 0 0 14px; letter-spacing: -0.005em; }
+  .bio { font-family: var(--font-body); font-size: 14.5px; line-height: 1.65; color: var(--cream-200); white-space: pre-wrap; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .stat { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 14px 16px; text-align: center; }
+  .stat__v { font-family: var(--font-display); font-size: 28px; color: var(--gold-300); font-weight: 500; }
+  .stat__l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 4px; }
+  .paket-list { display: grid; gap: 10px; }
+  .paket-row { display: grid; grid-template-columns: 90px 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); text-decoration: none; color: var(--cream-100); }
+  .paket-row:hover { background: rgba(255,255,255,0.02); }
+  .paket-row .when { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); }
+  .paket-row .title { font-size: 13.5px; color: var(--cream-100); }
+  .paket-row .arrow { color: var(--gold-300); }
+  .footer { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 40px; text-align: center; letter-spacing: 0.1em; }
+  @media (max-width: 600px) {
+    .hero__photo img, .hero__photo .placeholder { width: 140px; height: 140px; }
+    h1 { font-size: 28px; }
+  }
+</style>
+</head>
+<body data-screen-label="01 Public · Agent profile">
+<div class="wrap">
+  <%
+    const waNum = (agent.whatsapp || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
+    const waText = encodeURIComponent(`Halo ${agent.displayName}, saya tertarik dengan paket Religio Pro. Bisa konsultasi?`);
+  %>
+  <div class="crumb"><a href="/">RELIGIO PRO</a> / AGEN MITRA / <%= agent.displayName %></div>
+
+  <div class="hero">
+    <div class="hero__photo">
+      <% if (agent.photoUrl) { %>
+        <img src="<%= agent.photoUrl %>" alt="<%= agent.displayName %>" loading="lazy">
+      <% } else { %>
+        <div class="placeholder">👤</div>
+      <% } %>
+    </div>
+    <div class="hero__info">
+      <p class="eyebrow">Agen mitra terverifikasi</p>
+      <h1><em><%= agent.displayName %></em></h1>
+      <div class="meta">
+        <span class="verified">✓ TERVERIFIKASI</span>
+        <% if (agent.tier) { %><span><%= agent.tier %></span><% } %>
+      </div>
+      <div class="actions">
+        <% if (waNum) { %>
+          <a class="btn btn--wa" href="https://wa.me/<%= waNum %>?text=<%= waText %>" target="_blank" rel="noopener">💬 Chat WhatsApp</a>
+        <% } %>
+        <% if (agent.igHandle) { %>
+          <a class="btn btn--ig" href="https://instagram.com/<%= agent.igHandle.replace(/^@/, '') %>" target="_blank" rel="noopener">📷 @<%= agent.igHandle.replace(/^@/, '') %></a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="stats">
+      <div class="stat">
+        <div class="stat__v"><%= agent.lifetimeLunas %></div>
+        <div class="stat__l">Jemaah lunas</div>
+      </div>
+      <div class="stat">
+        <div class="stat__v"><%= agent.upcomingPaket.length %></div>
+        <div class="stat__l">Paket aktif</div>
+      </div>
+      <div class="stat">
+        <div class="stat__v"><%= Math.floor((Date.now() - new Date(agent.joinedAt).getTime()) / (365 * 86_400_000)) %><span style="font-size:18px;">+y</span></div>
+        <div class="stat__l">Bersama Religio Pro</div>
+      </div>
+    </div>
+  </div>
+
+  <% if (agent.bio) { %>
+    <div class="panel">
+      <h3>Tentang</h3>
+      <p class="bio"><%= agent.bio %></p>
+    </div>
+  <% } %>
+
+  <% if (agent.upcomingPaket && agent.upcomingPaket.length > 0) { %>
+    <div class="panel">
+      <h3>Paket yang dibawa</h3>
+      <div class="paket-list">
+        <% agent.upcomingPaket.forEach(function(p) { %>
+          <a class="paket-row" href="/p/<%= p.slug %>?a=<%= agent.slug %>">
+            <span class="when"><%= fmt.date(p.departureDate) %></span>
+            <span class="title"><%= p.title %><span style="color:var(--ink-200);font-family:var(--font-mono);font-size:10.5px;margin-left:8px;"><%= p.durationDays %>h · <%= p.kursiTerisi %>/<%= p.kursiTotal %> kursi</span></span>
+            <span class="arrow">→</span>
+          </a>
+        <% }) %>
+      </div>
+    </div>
+  <% } %>
+
+  <div class="footer">
+    RELIGIO PRO · NETWORK AGEN MITRA TERPERCAYA
+  </div>
+</div>
+</body>
+</html>

@@ -2,7 +2,7 @@ import { db } from '../lib/db.js';
 import { audit } from '../lib/audit.js';
 import { HttpError } from '../middleware/error.js';
 import { toNumber } from '../lib/format.js';
-import { notifyPaymentReceived } from './notifications.js';
+import { notifyPaymentReceived, notifyFirstPaymentThanks } from './notifications.js';
 
 const METHODS = new Set(['VA', 'QRIS', 'EWALLET', 'CARD', 'TRANSFER', 'CASH']);
 const CURRENCIES = new Set(['IDR', 'USD', 'SAR']);
@@ -141,10 +141,31 @@ export async function recordPayment({ req, actor, bookingId, amount, method, cur
     const bookingForNotif = await db.booking.findUnique({
       where: { id: bookingId },
       select: { id: true, bookingNo: true, jemaahUserId: true,
-        jemaah: { select: { fullName: true, phone: true, email: true, userId: true } } },
+        jemaah: { select: { fullName: true, phone: true, email: true, userId: true } },
+        paket: { select: { title: true, slug: true } } },
     });
     if (bookingForNotif) {
       await notifyPaymentReceived({ booking: bookingForNotif, payment });
+
+      // Stage 75 — when this is the first successful payment on this
+      // booking, send a "terima kasih" + onboarding note. The detection
+      // counts non-refund PAID rows; this current payment is already in
+      // the tx so count==1 means "this is the only one". Fires per booking
+      // not per paket — a returning jemaah gets one thanks per trip.
+      const priorPaidCount = await db.payment.count({
+        where: {
+          bookingId,
+          status: 'PAID',
+          // Exclude the row we just inserted
+          id: { not: payment.id },
+        },
+      });
+      if (priorPaidCount === 0) {
+        await notifyFirstPaymentThanks({
+          booking: bookingForNotif,
+          payment,
+        });
+      }
     }
   } catch (err) {
     console.error('[payment] notif failed:', err.message);

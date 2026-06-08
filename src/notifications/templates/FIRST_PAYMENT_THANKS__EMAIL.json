@@ -1,0 +1,4 @@
+{
+  "subject": "✨ Terima kasih sudah memilih kami — booking {{bookingNo}}",
+  "body": "Assalamu'alaikum {{jemaahName}},\n\nTerima kasih sudah mempercayakan perjalanan Anda kepada Religio Pro. Pembayaran pertama Anda untuk paket {{paketTitle}} sebesar Rp {{paymentAmount}} via {{method}} sudah kami terima.\n\nLangkah berikutnya:\n  1. Cek kelengkapan dokumen (paspor, vaksin, foto)\n  2. Ikuti jadwal manasik yang akan kami informasikan\n  3. Hubungi agen Anda untuk pertanyaan apa pun\n\nDetail booking: {{sayaLink}}\n\nMudah-mudahan Allah lancarkan persiapan dan perjalanan Anda.\n\n— sistem Religio Pro"
+}

@@ -47,6 +47,14 @@ export const CreateUserSchema = UserBaseSchema.extend({
   position: optStr,
   languages: optStr,
   experience: z.preprocess((v) => (blank(v) === undefined ? undefined : Number(v)), z.number().int().min(0).max(80).optional()),
+  // Stage 73 — crew public profile fields
+  crewSlug: optStr,
+  crewTitlePrefix: optStr,
+  crewBio: optStr,
+  crewPhotoUrl: optStr,
+  // Stage 74 — agent public profile photo + IG
+  agentPhotoUrl: optStr,
+  igHandle: optStr,
 });
 
 export const UpdateUserSchema = UserBaseSchema.extend({
@@ -61,6 +69,12 @@ export const UpdateUserSchema = UserBaseSchema.extend({
   position: optStr,
   languages: optStr,
   experience: z.preprocess((v) => (blank(v) === undefined ? undefined : Number(v)), z.number().int().min(0).max(80).optional()),
+  crewSlug: optStr,
+  crewTitlePrefix: optStr,
+  crewBio: optStr,
+  crewPhotoUrl: optStr,
+  agentPhotoUrl: optStr,
+  igHandle: optStr,
 });
 
 export const PasswordSchema = z.object({
@@ -94,9 +108,9 @@ export async function listUsers({ search, role, status } = {}) {
     take: 200,
     orderBy: [{ role: 'asc' }, { fullName: 'asc' }],
     include: {
-      agent: { select: { slug: true, tier: true, isVerified: true, komisiRateOverride: true } },
+      agent: { select: { slug: true, tier: true, isVerified: true, komisiRateOverride: true, photoUrl: true, igHandle: true } },
       staff: { select: { department: true, position: true } },
-      crew:  { select: { languages: true, experience: true } },
+      crew:  { select: { languages: true, experience: true, slug: true, titlePrefix: true, bio: true, photoUrl: true } },
     },
   });
 }
@@ -127,6 +141,9 @@ async function createProfileFor(tx, user, input) {
         komisiRateOverride: input.komisiRateOverridePct != null
           ? (input.komisiRateOverridePct / 100).toFixed(4)
           : null,
+        // Stage 74 — public profile fields for /a/:slug
+        photoUrl: input.agentPhotoUrl?.trim() || null,
+        igHandle: input.igHandle?.trim().replace(/^@/, '') || null,
       },
     });
   } else if (STAFF_ROLES.has(role)) {
@@ -143,6 +160,13 @@ async function createProfileFor(tx, user, input) {
         userId: user.id,
         languages: input.languages || null,
         experience: input.experience ?? null,
+        // Stage 73 — public profile fields. Slug must be unique globally;
+        // empty strings normalised to null so the @unique index doesn't
+        // conflict on the next muthawwif created without a slug.
+        slug:        input.crewSlug?.trim().toLowerCase() || null,
+        titlePrefix: input.crewTitlePrefix?.trim() || null,
+        bio:         input.crewBio?.trim() || null,
+        photoUrl:    input.crewPhotoUrl?.trim() || null,
       },
     });
   } else if (role === 'JEMAAH') {
@@ -227,6 +251,8 @@ export async function updateUser({ req, actor, userId, input }) {
           : { komisiRateOverride: input.komisiRateOverridePct === null
               ? null
               : (input.komisiRateOverridePct / 100).toFixed(4) };
+        // Stage 74 — normalise empty strings to null + strip leading @ on IG
+        const normPub = (v) => (v == null ? null : (typeof v === 'string' ? (v.trim() || null) : v));
         await tx.agentProfile.update({
           where: { userId: u.id },
           data: {
@@ -235,6 +261,10 @@ export async function updateUser({ req, actor, userId, input }) {
             whatsapp: input.whatsapp || existingAgent.whatsapp,
             bio: input.bio ?? existingAgent.bio,
             tier: input.tier ?? existingAgent.tier,
+            photoUrl: input.agentPhotoUrl !== undefined ? normPub(input.agentPhotoUrl) : existingAgent.photoUrl,
+            igHandle: input.igHandle !== undefined
+              ? (normPub(input.igHandle)?.replace(/^@/, '') ?? null)
+              : existingAgent.igHandle,
             ...overridePatch,
           },
         });
@@ -257,11 +287,19 @@ export async function updateUser({ req, actor, userId, input }) {
     } else if (u.role === 'MUTHAWWIF') {
       const existingCrew = await tx.crewProfile.findUnique({ where: { userId: u.id } });
       if (existingCrew) {
+        // Stage 73 — normalise empty-string crew fields to null (form
+        // posts blank inputs as "" which we want to mean "clear" so the
+        // @unique on slug doesn't keep stale data).
+        const norm = (v) => (v == null ? null : (typeof v === 'string' ? (v.trim() || null) : v));
         await tx.crewProfile.update({
           where: { userId: u.id },
           data: {
             languages: input.languages ?? existingCrew.languages,
             experience: input.experience ?? existingCrew.experience,
+            slug:        input.crewSlug !== undefined ? norm(input.crewSlug)?.toLowerCase() : existingCrew.slug,
+            titlePrefix: input.crewTitlePrefix !== undefined ? norm(input.crewTitlePrefix) : existingCrew.titlePrefix,
+            bio:         input.crewBio !== undefined ? norm(input.crewBio) : existingCrew.bio,
+            photoUrl:    input.crewPhotoUrl !== undefined ? norm(input.crewPhotoUrl) : existingCrew.photoUrl,
           },
         });
       } else {
