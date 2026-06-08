@@ -93,6 +93,16 @@ router.get(
   }),
 );
 
+// Stage 84 — per-URL click heatmap drill-down for one notif type.
+router.get(
+  '/email-ctr/:type',
+  asyncHandler(async (req, res) => {
+    const { getEmailClickHeatmap } = await import('../services/emailCtr.js');
+    const heatmap = await getEmailClickHeatmap({ type: req.params.type, days: 30 });
+    res.render('email-ctr-heatmap', { user: req.user, heatmap });
+  }),
+);
+
 // Stage 24 — month-grid view of paket departures.
 router.get(
   '/calendar',

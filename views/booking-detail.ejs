@@ -216,6 +216,35 @@
   }
   .notes-form__save:hover { background: rgba(212,175,55,0.08); }
 
+  /* S82 — mention autocomplete dropdown */
+  .mention-dd {
+    position: absolute; z-index: 50;
+    min-width: 240px; max-width: 360px; max-height: 200px;
+    overflow-y: auto;
+    background: var(--ink-900); border: 1px solid var(--gold-300);
+    border-radius: var(--r-sm);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    font-family: var(--font-mono); font-size: 11.5px;
+    padding: 4px 0;
+  }
+  .mention-dd__row {
+    padding: 6px 12px; cursor: pointer;
+    color: var(--cream-100);
+    display: flex; justify-content: space-between; gap: 10px;
+  }
+  .mention-dd__row:hover, .mention-dd__row.is-active {
+    background: rgba(212,175,55,0.12); color: var(--gold-300);
+  }
+  .mention-dd__email { color: inherit; }
+  .mention-dd__role {
+    color: var(--ink-200); font-size: 10px; letter-spacing: 0.1em;
+    align-self: center;
+  }
+  .mention-dd__empty {
+    padding: 8px 12px; color: var(--ink-300);
+    font-style: italic; font-size: 11px;
+  }
+
   .cancel-note {
     background: rgba(181,86,74,0.08); border: 1px solid rgba(181,86,74,0.3);
     color: var(--ruby);
@@ -351,10 +380,13 @@
             <% if (canEditNotes) { %>
               <form method="POST" action="/admin/bookings/<%= b.id %>/notes" class="notes-form">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <textarea name="notes" class="input" maxlength="2000" rows="2"
-                          placeholder="Catatan internal — mis. preferensi makanan, kontak alternatif, dst. Tag @email@religio.pro untuk notif."><%= b.notes || '' %></textarea>
+                <div class="notes-form__wrap" style="position:relative;">
+                  <textarea name="notes" id="notesTextarea" class="input" maxlength="2000" rows="2"
+                            placeholder="Catatan internal — mis. preferensi makanan, kontak alternatif, dst. Tag @email@religio.pro untuk notif."><%= b.notes || '' %></textarea>
+                  <div id="mentionDropdown" class="mention-dd" hidden></div>
+                </div>
                 <div class="notes-form__actions">
-                  <span class="notes-form__hint">max 2000 karakter · @email@domain untuk mention</span>
+                  <span class="notes-form__hint">max 2000 karakter · @ untuk mention staff</span>
                   <button type="submit" class="notes-form__save">SIMPAN</button>
                 </div>
               </form>
@@ -879,6 +911,119 @@
       if (transferModal) transferModal.classList.remove('is-open');
     }
   });
+
+  // ── S82 — @-mention autocomplete on the notes textarea ──────
+  (function initMentionAutocomplete() {
+    const ta = document.getElementById('notesTextarea');
+    const dd = document.getElementById('mentionDropdown');
+    if (!ta || !dd) return;
+
+    let activeIdx = 0;
+    let rows = [];
+    let triggerStart = -1;   // index in textarea where the `@` lives
+    let debounceTimer = null;
+    let inflight = 0;        // monotonic; stale fetches ignored
+
+    function hide() {
+      dd.hidden = true;
+      dd.innerHTML = '';
+      rows = []; activeIdx = 0; triggerStart = -1;
+    }
+
+    function render() {
+      dd.innerHTML = '';
+      if (rows.length === 0) {
+        dd.innerHTML = '<div class="mention-dd__empty">— tidak ada cocok —</div>';
+        dd.hidden = false;
+        return;
+      }
+      rows.forEach((r, i) => {
+        const div = document.createElement('div');
+        div.className = 'mention-dd__row' + (i === activeIdx ? ' is-active' : '');
+        div.innerHTML = '<span><strong>' + escapeHtml(r.fullName) + '</strong> · <span class="mention-dd__email">' + escapeHtml(r.email) + '</span></span>'
+          + '<span class="mention-dd__role">' + escapeHtml(r.role) + '</span>';
+        div.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();  // keep textarea focus
+          commitPick(i);
+        });
+        dd.appendChild(div);
+      });
+      dd.hidden = false;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    function commitPick(idx) {
+      const pick = rows[idx];
+      if (!pick || triggerStart < 0) return hide();
+      const before = ta.value.slice(0, triggerStart);
+      // Token spans from triggerStart (the `@`) through the cursor.
+      const after = ta.value.slice(ta.selectionStart);
+      const inserted = '@' + pick.email + ' ';
+      ta.value = before + inserted + after;
+      const newPos = (before + inserted).length;
+      ta.selectionStart = ta.selectionEnd = newPos;
+      ta.focus();
+      hide();
+    }
+
+    function currentTrigger() {
+      // Walk back from cursor: capture chars until whitespace or BOF.
+      // If the run starts with `@` and has at least 1 trailing char,
+      // it's a candidate trigger; the query is the run minus the `@`.
+      const pos = ta.selectionStart;
+      let i = pos - 1;
+      while (i >= 0 && !/\s/.test(ta.value[i])) i -= 1;
+      const start = i + 1;
+      if (ta.value[start] !== '@') return null;
+      const token = ta.value.slice(start + 1, pos);
+      return { start, token };
+    }
+
+    async function refresh() {
+      const trig = currentTrigger();
+      if (!trig) return hide();
+      triggerStart = trig.start;
+      const q = trig.token;
+      if (q.length < 2) {
+        // Too short for the server search — but still show the affordance
+        // so user knows the mention surface is live.
+        rows = []; activeIdx = 0;
+        dd.innerHTML = '<div class="mention-dd__empty">ketik min 2 huruf untuk cari…</div>';
+        dd.hidden = false;
+        return;
+      }
+      const reqId = ++inflight;
+      try {
+        const r = await fetch('/admin/bookings/mention-search?q=' + encodeURIComponent(q), {
+          headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin',
+        });
+        if (reqId !== inflight) return;  // stale
+        if (!r.ok) return hide();
+        const data = await r.json();
+        rows = data.rows || []; activeIdx = 0;
+        render();
+      } catch (_e) { /* network blip — keep current state */ }
+    }
+
+    ta.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(refresh, 120);
+    });
+    ta.addEventListener('keydown', (e) => {
+      if (dd.hidden) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % Math.max(rows.length, 1); render(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + Math.max(rows.length, 1)) % Math.max(rows.length, 1); render(); }
+      else if ((e.key === 'Enter' || e.key === 'Tab') && rows.length > 0) { e.preventDefault(); commitPick(activeIdx); }
+      else if (e.key === 'Escape') { e.preventDefault(); hide(); }
+    });
+    ta.addEventListener('blur', () => setTimeout(hide, 150));  // delay so click on row registers
+  })();
 </script>
 </body>
 </html>

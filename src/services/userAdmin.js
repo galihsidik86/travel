@@ -115,6 +115,38 @@ export async function listUsers({ search, role, status } = {}) {
   });
 }
 
+/**
+ * Stage 82 — mention autocomplete on the booking-notes textarea.
+ *
+ * Returns up to 10 ACTIVE staff users matching `q` substring (email OR
+ * fullName). Restricted to staff roles (OWNER/SUPERADMIN/MANAJER_OPS/
+ * KASIR/SALES) — the @-mention surface is staff shorthand, never a
+ * customer/jemaah ping. AGEN/MUTHAWWIF excluded too — they don't read
+ * the admin booking detail page.
+ *
+ * Empty / 1-char `q` returns []: protects against accidental full-table
+ * scans from the autocomplete debounce hammering on backspace.
+ */
+export async function searchStaffForMention({ q } = {}) {
+  const term = (q || '').trim();
+  if (term.length < 2) return [];
+  const users = await db.user.findMany({
+    where: {
+      deletedAt: null,
+      status: 'ACTIVE',
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS', 'KASIR', 'SALES'] },
+      OR: [
+        { email: { contains: term } },
+        { fullName: { contains: term } },
+      ],
+    },
+    take: 10,
+    orderBy: [{ role: 'asc' }, { fullName: 'asc' }],
+    select: { id: true, email: true, fullName: true, role: true },
+  });
+  return users;
+}
+
 export async function getUserById(userId) {
   return db.user.findUnique({
     where: { id: userId },

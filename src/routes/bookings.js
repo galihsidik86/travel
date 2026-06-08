@@ -6,6 +6,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import { db } from '../lib/db.js';
 import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent } from '../services/bookingAdmin.js';
+import { searchStaffForMention } from '../services/userAdmin.js';
 import { listIntentsForBooking, cancelStuckIntent } from '../services/paymentGateway.js';
 import { createBooking } from '../services/booking.js';
 import { searchBookings } from '../services/bookingsSearch.js';
@@ -27,6 +28,20 @@ function actorFrom(req) {
 const CancelSchema = z.object({
   reason: z.string().min(3, 'Alasan minimal 3 karakter').max(2000),
 });
+
+// ── GET /admin/bookings/mention-search (S82 autocomplete) ────
+// Returns up to 10 ACTIVE staff users matching ?q= substring as JSON.
+// Same RBAC as cancel/notes-edit — KASIR is view-only on notes, so they
+// don't get the dropdown either.
+router.get(
+  '/mention-search',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    const q = (req.query.q || '').toString();
+    const rows = await searchStaffForMention({ q });
+    res.json({ rows });
+  }),
+);
 
 // ── GET /admin/bookings (global search) ──────────────────────
 router.get(

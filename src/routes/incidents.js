@@ -6,6 +6,7 @@ import { HttpError } from '../middleware/error.js';
 import {
   listIncidents, getIncident, ackIncident, resolveIncident, TYPE_LABELS,
 } from '../services/incidents.js';
+import { getIncidentSlaReport } from '../services/incidentSla.js';
 
 const router = Router();
 router.use(requireAuth, requireRole('OWNER', 'SUPERADMIN', 'MANAJER_OPS'));
@@ -13,16 +14,24 @@ router.use(requireAuth, requireRole('OWNER', 'SUPERADMIN', 'MANAJER_OPS'));
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const result = await listIncidents({
-      status: req.query.status || 'ALL',
-      type: req.query.type || 'ALL',
-      page: req.query.page || 1,
-    });
+    const [result, sla] = await Promise.all([
+      listIncidents({
+        status: req.query.status || 'ALL',
+        type: req.query.type || 'ALL',
+        page: req.query.page || 1,
+      }),
+      // Stage 83 — best-effort; a report failure must NOT break the queue page
+      getIncidentSlaReport({ weeks: 8 }).catch((err) => {
+        console.warn('[incidents] SLA report failed:', err?.message || err);
+        return null;
+      }),
+    ]);
     res.render('incidents-list', {
       user: req.user,
       ...result,
       filters: { status: req.query.status || 'ALL', type: req.query.type || 'ALL' },
       typeLabels: TYPE_LABELS,
+      sla,
     });
   }),
 );

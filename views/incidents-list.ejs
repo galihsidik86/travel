@@ -26,6 +26,62 @@
   .kpi.acked .v { color: var(--amber); }
   .kpi.resolved .v { color: var(--emerald); }
 
+  /* S83 — SLA report panel */
+  .sla-panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 18px 20px; margin-bottom: 22px;
+  }
+  .sla-panel__header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .sla-panel__title {
+    font-family: var(--font-display); font-size: 16px; font-weight: 500;
+    color: var(--cream-100); margin: 0;
+  }
+  .sla-panel__window {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--ink-300); letter-spacing: 0.08em;
+  }
+  .sla-totals {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 16px;
+  }
+  .sla-cell {
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 10px 12px;
+  }
+  .sla-cell__l {
+    font-family: var(--font-mono); font-size: 9px;
+    color: var(--ink-300); letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .sla-cell__v {
+    font-family: var(--font-display); font-size: 18px;
+    color: var(--cream-100); margin-top: 4px;
+  }
+  .sla-cell__v.is-warn { color: var(--amber); }
+  .sla-cell__v.is-bad  { color: var(--ruby); }
+  .sla-table {
+    width: 100%; border-collapse: collapse;
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  .sla-table th, .sla-table td {
+    padding: 6px 8px; text-align: right;
+    border-bottom: var(--hairline-soft);
+    color: var(--cream-100);
+  }
+  .sla-table th {
+    color: var(--ink-300); font-weight: 400; font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .sla-table td.lbl, .sla-table th:first-child { text-align: left; }
+  .sla-table td.is-warn { color: var(--amber); }
+  .sla-table td.is-bad  { color: var(--ruby); font-weight: 600; }
+  @media (max-width: 720px) {
+    .sla-totals { grid-template-columns: repeat(2, 1fr); }
+    .sla-table { font-size: 10px; }
+  }
+
   .filter-bar { display: flex; gap: 8px; align-items: end; margin-bottom: 18px; flex-wrap: wrap; }
   .filter-bar select.input { padding: 6px 10px; font-size: 12px; background-color: var(--ink-1000); color: var(--cream-100); }
   .filter-bar .lbl { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; display: block; margin-bottom: 4px; }
@@ -80,6 +136,71 @@
     <div class="kpi acked"><div class="l">ACKED</div><div class="v"><%= countsByStatus.ACKED %></div></div>
     <div class="kpi resolved"><div class="l">RESOLVED</div><div class="v"><%= countsByStatus.RESOLVED %></div></div>
   </div>
+
+  <% if (sla && sla.totals.created > 0) { %>
+    <div class="sla-panel">
+      <div class="sla-panel__header">
+        <h2 class="sla-panel__title">SLA Insiden — <%= sla.weeks %> minggu terakhir</h2>
+        <div class="sla-panel__window">
+          <%= sla.window.from %> → <%= sla.window.to %> · <%= sla.totals.created %> insiden
+        </div>
+      </div>
+      <div class="sla-totals">
+        <div class="sla-cell">
+          <div class="sla-cell__l">Total dibuat</div>
+          <div class="sla-cell__v"><%= sla.totals.created %></div>
+        </div>
+        <div class="sla-cell">
+          <div class="sla-cell__l">Ack p50 / p95</div>
+          <div class="sla-cell__v"><%= sla.totals.fmt.ackP50 %> / <%= sla.totals.fmt.ackP95 %></div>
+        </div>
+        <div class="sla-cell">
+          <div class="sla-cell__l">Resolve p50 / p95</div>
+          <div class="sla-cell__v"><%= sla.totals.fmt.resolveP50 %> / <%= sla.totals.fmt.resolveP95 %></div>
+        </div>
+        <div class="sla-cell">
+          <div class="sla-cell__l">Escalation rate</div>
+          <div class="sla-cell__v <%= sla.totals.escalationRatePct != null && sla.totals.escalationRatePct >= 25 ? 'is-bad' : sla.totals.escalationRatePct != null && sla.totals.escalationRatePct >= 10 ? 'is-warn' : '' %>">
+            <%= sla.totals.escalationRatePct != null ? sla.totals.escalationRatePct + '%' : '—' %>
+          </div>
+        </div>
+      </div>
+      <table class="sla-table">
+        <thead>
+          <tr>
+            <th>Minggu</th>
+            <th>Dibuat</th>
+            <th>Ack</th>
+            <th>Resolve</th>
+            <th>Escalated</th>
+            <th>Ack p50</th>
+            <th>Ack p95</th>
+            <th>Resolve p50</th>
+            <th>Resolve p95</th>
+            <th>Esc%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% sla.rows.forEach(function(r) { %>
+            <tr>
+              <td class="lbl"><%= r.label %></td>
+              <td><%= r.created %></td>
+              <td><%= r.acked %></td>
+              <td><%= r.resolved %></td>
+              <td><%= r.escalated %></td>
+              <td><%= r.fmt.ackP50 %></td>
+              <td><%= r.fmt.ackP95 %></td>
+              <td><%= r.fmt.resolveP50 %></td>
+              <td><%= r.fmt.resolveP95 %></td>
+              <td class="<%= r.escalationRatePct != null && r.escalationRatePct >= 25 ? 'is-bad' : r.escalationRatePct != null && r.escalationRatePct >= 10 ? 'is-warn' : '' %>">
+                <%= r.escalationRatePct != null ? r.escalationRatePct + '%' : '—' %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
 
   <form method="GET" action="/admin/incidents" class="filter-bar">
     <div>
