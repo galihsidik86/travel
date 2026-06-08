@@ -149,9 +149,33 @@ export async function dispatchNotification(notif) {
     });
   }
 
+  // Stage 77 — for EMAIL channel only, rewrite absolute + absolute-path
+  // URLs in the body to go through /r/<token> so we can record clicks.
+  // Mutates a copy of the notif object; the DB row stays unchanged so
+  // admin viewers still show the original link text.
+  let toSend = notif;
+  if (notif.channel === 'EMAIL' && notif.body) {
+    try {
+      const { wrapUrl } = await import('../lib/emailClickToken.js');
+      // Match http(s) URLs OR root-absolute paths. Stop at whitespace.
+      const rewrite = (m) => wrapUrl(notif.id, m);
+      const wrappedBody = notif.body
+        // 1) absolute http(s) URLs
+        .replace(/https?:\/\/[^\s)>]+/g, rewrite)
+        // 2) root-absolute paths that look like internal links — match
+        //    the conservative whitelist used by the notif templates:
+        //    /saya, /admin, /agen, /crew, /p, /c, /a, /agen-leaderboard
+        .replace(/(^|[\s(])(\/(?:saya|admin|agen|crew|p|c|a|agen-leaderboard)[^\s)>]*)/g,
+                 (full, lead, path) => lead + wrapUrl(notif.id, path));
+      toSend = { ...notif, body: wrappedBody };
+    } catch (err) {
+      console.warn('[notif] click-wrap failed (sending raw):', err?.message || err);
+    }
+  }
+
   let result;
   try {
-    result = await send(notif);
+    result = await send(toSend);
   } catch (err) {
     result = { ok: false, error: err.message };
   }
@@ -177,11 +201,65 @@ export async function dispatchNotification(notif) {
       },
     });
   }
-  return db.notification.update({
+  const patch = failPatch(result.error || 'unknown sender error');
+  const updated = await db.notification.update({
     where: { id: notif.id },
-    data: failPatch(result.error || 'unknown sender error'),
+    data: patch,
   });
+
+  // Stage 78 — when this attempt was the FINAL failure (terminal status:
+  // nextRetryAt=null OR attemptCount >= MAX_ATTEMPTS) AND the row is an
+  // EMAIL channel AND the notif type is in the "critical" set AND there's
+  // a phone number on file, auto-enqueue a WA duplicate. Best-effort —
+  // never throws back to the caller (the original failure is already the
+  // observable signal).
+  const isTerminal = patch.nextRetryAt == null;
+  if (isTerminal && notif.channel === 'EMAIL' && CRITICAL_FALLBACK_TYPES.has(notif.type) && notif.recipientPhone) {
+    try {
+      // Idempotency: don't enqueue a second fallback if one already exists
+      const existing = await db.notification.findFirst({
+        where: {
+          channel: 'WA',
+          recipientPhone: notif.recipientPhone,
+          type: notif.type,
+          relatedEntity: notif.relatedEntity,
+          relatedEntityId: notif.relatedEntityId,
+        },
+        select: { id: true },
+      });
+      if (!existing) {
+        await enqueueNotification({
+          type: notif.type, channel: 'WA',
+          recipientPhone: notif.recipientPhone,
+          recipientUserId: notif.recipientUserId,
+          subject: notif.subject,
+          body: notif.body,
+          payload: { ...(notif.payload || {}), fallbackFromEmail: notif.id },
+          relatedEntity: notif.relatedEntity,
+          relatedEntityId: notif.relatedEntityId,
+        });
+      }
+    } catch (err) {
+      console.warn('[notif] WA fallback enqueue failed:', err?.message || err);
+    }
+  }
+
+  return updated;
 }
+
+// Stage 78 — notif types that warrant a WA fallback on EMAIL terminal
+// failure. Operational + jemaah-facing critical paths only. Bulk admin
+// digests (DAILY/WEEKLY/CREW/etc.) deliberately excluded — those land
+// in the queue dashboard if email bounces; spamming WA with weekly
+// summaries would be worse than missing the email.
+const CRITICAL_FALLBACK_TYPES = new Set([
+  'BOOKING_CREATED',
+  'PAYMENT_RECEIVED',
+  'BOOKING_LUNAS',
+  'REFUND_ISSUED',
+  'FIRST_PAYMENT_THANKS',
+  'PAYOUT_CREATED',
+]);
 
 /**
  * Process notifications ready for dispatch: any PENDING row, plus FAILED rows

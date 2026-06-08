@@ -532,6 +532,30 @@ enum WaitlistStatus {
   CANCELLED
 }
 
+// Stage 77 — email click tracking. Links in notification bodies are
+// rewritten through `/r/<token>` where <token> is a short-lived HMAC of
+// (notifId, targetUrl). The redirect handler upserts an EmailClick row
+// and 302s to the target. `firstClickAt` is the canonical conversion
+// signal — repeat clicks just bump the counter so admin can see "5
+// clicks across 3 days" patterns.
+//
+// Not pruned by stage 14 retention — admin needs the full history to
+// compute per-notif-type CTR over arbitrary windows.
+model EmailClick {
+  id              String   @id @default(cuid())
+  notificationId  String
+  notification    Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  targetUrl       String   @db.VarChar(500)
+  ipAddress       String?  @db.VarChar(45)
+  userAgent       String?  @db.VarChar(255)
+  firstClickAt    DateTime @default(now())
+  lastClickAt     DateTime @default(now())
+  clickCount      Int      @default(1)
+
+  @@unique([notificationId, targetUrl])
+  @@index([notificationId])
+}
+
 // Stage 48 — public paket landing page visit counter. Used to compute
 // conversion rate (bookings ÷ unique visits) per paket. Identified by
 // a non-httpOnly cookie `rp_vis` (32-hex random) set on first visit; the
@@ -1050,6 +1074,9 @@ model Notification {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Stage 77 — email click tracking back-relation
+  clicks EmailClick[]
 
   @@index([status])
   @@index([type])
