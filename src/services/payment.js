@@ -183,12 +183,16 @@ export async function recordPayment({ req, actor, bookingId, amount, method, cur
       amount: amt,
       method: payment.method,
       currency: payment.currency,
+      // S128 — paketId so per-paket subs can filter
+      paketId: updatedBooking.paketId,
       bookingStatus: updatedBooking.status,
     });
     if (statusChanged && updatedBooking.status === 'LUNAS') {
       await dispatchEvent('booking.lunas', {
         bookingId,
         bookingNo: updatedBooking.bookingNo,
+        // S128 — paketId so per-paket subs can filter
+        paketId: updatedBooking.paketId,
         totalAmount: Number(updatedBooking.totalAmount?.toString?.() ?? updatedBooking.totalAmount) || 0,
         finalPaymentId: payment.id,
       });

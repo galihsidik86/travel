@@ -20,9 +20,19 @@ function actorFrom(req) {
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const webhooks = await listWebhooks();
+    const { db } = await import('../lib/db.js');
+    const [webhooks, paketOptions] = await Promise.all([
+      listWebhooks(),
+      // S128 — non-archived + non-soft-deleted paket for the per-paket
+      // subscription dropdown. Sorted by title for predictable UI.
+      db.paket.findMany({
+        where: { status: { not: 'ARCHIVED' }, deletedAt: null },
+        select: { id: true, slug: true, title: true },
+        orderBy: { title: 'asc' },
+      }),
+    ]);
     res.render('admin-webhooks', {
-      user: req.user, webhooks, eventNames: EVENT_NAMES,
+      user: req.user, webhooks, eventNames: EVENT_NAMES, paketOptions,
       flash: {
         ok: req.query.ok || null,
         err: req.query.err || null,
@@ -49,6 +59,7 @@ router.post(
         url: req.body?.url,
         events,
         description: req.body?.description,
+        paketId: req.body?.paketId || null,
       });
       res.redirect('/admin/webhooks?ok=created');
     } catch (err) {

@@ -90,6 +90,16 @@
         <label class="label" for="wh-desc">Deskripsi (opsional)</label>
         <input id="wh-desc" class="input" name="description" maxlength="500" placeholder="mis. n8n flow untuk Slack notif">
       </div>
+      <div class="field">
+        <label class="label" for="wh-paket">Filter per paket (opsional)</label>
+        <select id="wh-paket" class="input" name="paketId">
+          <option value="">— Semua paket (default) —</option>
+          <% (paketOptions || []).forEach(function(p) { %>
+            <option value="<%= p.id %>"><%= p.title %> · <%= p.slug %></option>
+          <% }) %>
+        </select>
+        <div class="helper">Pilih paket spesifik agar partner hanya menerima event untuk paket tsb. Kosong = terima event semua paket.</div>
+      </div>
       <button type="submit" class="btn-primary">SIMPAN</button>
       <div class="helper">Secret ter-generate otomatis (32 bytes hex). Disimpan plaintext — gunakan untuk HMAC verification di partner side.</div>
     </form>
@@ -125,6 +135,11 @@
               </td>
               <td>
                 <% evs.forEach(function(e) { %><span class="ev-pill"><%= e %></span><% }) %>
+                <% if (w.paket) { %>
+                  <div style="margin-top:6px;font-family:var(--font-mono);font-size:9.5px;color:var(--gold-300);letter-spacing:0.06em;" title="Hanya menerima event untuk paket ini (S128)">
+                    🎯 PAKET: <%= w.paket.slug %>
+                  </div>
+                <% } %>
               </td>
               <td>
                 <span class="status-tag <%= w.status.toLowerCase() %>"><%= w.status %></span>

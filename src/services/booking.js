@@ -159,6 +159,8 @@ export async function createBooking({ req, paketSlug, agentSlug, fullName, phone
       totalAmount: Number(result.booking.totalAmount?.toString?.() ?? result.booking.totalAmount) || 0,
       kelas: result.booking.kelas,
       paxCount: result.booking.paxCount,
+      // S128 — paketId so per-paket subs can filter
+      paketId: paket.id,
       paketSlug: paket.slug,
       agentSlug: result.booking.agentSlugCap || null,
       jemaahName: result.jemaah?.fullName || null,

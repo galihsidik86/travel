@@ -123,6 +123,8 @@ export async function issueRefund({ req, actor, bookingId, amount, method, reaso
       refundAmount: amt,
       fullRefund: newPaid === 0,
       reason: reason.trim(),
+      // S128 — paketId so per-paket subs can filter
+      paketId: updatedBooking.paketId,
       bookingStatus: updatedBooking.status,
     });
   } catch (err) {

@@ -76,11 +76,23 @@ export async function dispatchEvent(eventName, payload) {
     where: { status: 'ACTIVE' },
     // S118: prev* fields needed so attemptDelivery can dual-sign during
     // a rotation grace window.
-    select: { id: true, url: true, secret: true, prevSecret: true, prevSecretExpiresAt: true, events: true },
+    // S128: paketId carries the per-paket subscription filter; null
+    // means "subscribe across every paket" (legacy default).
+    select: { id: true, url: true, secret: true, prevSecret: true, prevSecretExpiresAt: true, events: true, paketId: true },
   });
+  // S128 — when a subscription has paketId set, only deliver events
+  // whose payload.paketId matches. A subscription with paketId=null
+  // still receives every event (back-compat with pre-S128 subs).
+  // Events without a paketId in the payload (e.g. test.ping) only go
+  // to global subscriptions — a paket-scoped sub would have no way to
+  // know the event applied to "their" paket.
+  const payloadPaketId = payload?.paketId ?? null;
   const matched = subs.filter((s) => {
     const list = Array.isArray(s.events) ? s.events : [];
-    return list.includes(eventName);
+    if (!list.includes(eventName)) return false;
+    if (s.paketId == null) return true;             // global sub — always matches
+    if (payloadPaketId == null) return false;       // paket sub but event isn't paket-tagged
+    return s.paketId === payloadPaketId;
   });
   if (matched.length === 0) return { matched: 0, delivered: 0, failed: 0, queued: 0 };
 
@@ -358,16 +370,30 @@ const URL_RE = /^https?:\/\/.+/i;
 export async function listWebhooks() {
   return db.webhook.findMany({
     orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-    include: { createdBy: { select: { email: true } } },
+    include: {
+      createdBy: { select: { email: true } },
+      // S128 — paket title for the per-paket-filter pill in admin list
+      paket: { select: { id: true, slug: true, title: true } },
+    },
   });
 }
 
-export async function createWebhook({ req, actor, url, events, description }) {
+export async function createWebhook({ req, actor, url, events, description, paketId }) {
   if (!URL_RE.test(url || '')) throw new HttpError(400, 'URL harus http(s)://', 'BAD_URL');
   const cleanEvents = Array.isArray(events)
     ? events.filter((e) => EVENT_NAMES.includes(e))
     : [];
   if (cleanEvents.length === 0) throw new HttpError(400, 'Pilih minimal satu event', 'NO_EVENTS');
+
+  // S128 — optional per-paket subscription. Validate the paketId exists
+  // before insert; FK would reject anyway but the error message would
+  // be opaque.
+  let cleanPaketId = null;
+  if (paketId != null && paketId !== '') {
+    const paket = await db.paket.findUnique({ where: { id: paketId }, select: { id: true } });
+    if (!paket) throw new HttpError(400, 'Paket tidak ditemukan', 'BAD_PAKET');
+    cleanPaketId = paket.id;
+  }
 
   const secret = randomBytes(32).toString('hex');
   const created = await db.webhook.create({
@@ -375,12 +401,13 @@ export async function createWebhook({ req, actor, url, events, description }) {
       url, secret, events: cleanEvents,
       description: (description || '').trim() || null,
       createdById: actor?.id || null,
+      paketId: cleanPaketId,
     },
   });
   await audit({
     req, actor,
     action: 'CREATE', entity: 'Webhook', entityId: created.id,
-    after: { url, events: cleanEvents, description: created.description },
+    after: { url, events: cleanEvents, description: created.description, paketId: cleanPaketId },
   });
   return created;
 }

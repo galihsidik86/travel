@@ -492,6 +492,7 @@ model Paket {
   views           PaketView[]
   testimonials    Testimonial[]
   costLines       PaketCostLine[]
+  webhooks        Webhook[]          @relation("WebhookPaket")
 
   @@index([slug])
   @@index([status])
@@ -605,6 +606,14 @@ model Webhook {
   status      WebhookStatus @default(ACTIVE)
   description String?  @db.Text
 
+  // Stage 128 — optional per-paket filter. NULL = subscribe to events
+  // across every paket (existing behaviour). When set, dispatchEvent
+  // only delivers events whose payload.paketId matches this row. Lets
+  // a partner running ONE paket subscribe without getting hit by
+  // sibling-paket traffic.
+  paketId     String?
+  paket       Paket?   @relation("WebhookPaket", fields: [paketId], references: [id], onDelete: SetNull)
+
   createdAt   DateTime @default(now())
   createdById String?
   createdBy   User?    @relation("WebhookCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -620,6 +629,7 @@ model Webhook {
   deliveries    WebhookDelivery[]
 
   @@index([status])
+  @@index([paketId])
 }
 
 enum WebhookStatus {
