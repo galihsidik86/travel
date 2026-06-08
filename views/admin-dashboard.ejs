@@ -1464,6 +1464,65 @@
               <div class="ck-s"><%= paketConversion.rows.length %> paket aktif</div>
             </div>
           </div>
+          <%
+            // Stage 64 — testimonial split. Show only when both buckets
+            // have ≥10 visits so admin doesn't read into noise.
+            const ts = paketConversion.testimonialSplit;
+            const showSplit = ts && ts.withTestimonial.visits >= 10 && ts.withoutTestimonial.visits >= 10;
+          %>
+          <% if (showSplit) {
+            const liftCls = ts.liftPct == null ? 'ink-200'
+              : ts.liftPct > 20  ? 'emerald'
+              : ts.liftPct > 0   ? 'gold-300'
+              : ts.liftPct === 0 ? 'ink-200'
+              : 'ruby';
+          %>
+            <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:14px;">
+              <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:10px;">
+                Pengaruh testimonial · social proof split
+                <% if (ts.liftPct != null) { %>
+                  <span style="float:right;color:var(--<%= liftCls %>);font-weight:600;">
+                    Lift <%= ts.liftPct > 0 ? '+' : '' %><%= ts.liftPct %>%
+                  </span>
+                <% } %>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <%
+                  const w = ts.withTestimonial;
+                  const wo = ts.withoutTestimonial;
+                  function cvCls(pct) {
+                    if (pct == null) return 'ink-200';
+                    if (pct >= 5) return 'emerald';
+                    if (pct >= 2) return 'gold-300';
+                    if (pct >= 1) return 'amber';
+                    return 'ruby';
+                  }
+                %>
+                <div style="background:var(--ink-900);border:1px solid var(--ink-700);border-radius:var(--r-sm);padding:10px 14px;">
+                  <div style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">
+                    DENGAN TESTIMONIAL · <%= w.paketCount %> paket
+                  </div>
+                  <div style="font-family:var(--font-display);font-size:22px;color:var(--<%= cvCls(w.conversionPct) %>);margin-top:4px;font-weight:500;">
+                    <%= w.conversionPct ?? '—' %>%
+                  </div>
+                  <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-100);margin-top:4px;">
+                    <%= w.visits %> visit · <%= w.bookings %> booking
+                  </div>
+                </div>
+                <div style="background:var(--ink-900);border:1px solid var(--ink-700);border-radius:var(--r-sm);padding:10px 14px;">
+                  <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">
+                    TANPA TESTIMONIAL · <%= wo.paketCount %> paket
+                  </div>
+                  <div style="font-family:var(--font-display);font-size:22px;color:var(--<%= cvCls(wo.conversionPct) %>);margin-top:4px;font-weight:500;">
+                    <%= wo.conversionPct ?? '—' %>%
+                  </div>
+                  <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-100);margin-top:4px;">
+                    <%= wo.visits %> visit · <%= wo.bookings %> booking
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% } %>
           <table class="tbl conv-table">
             <thead>
               <tr>

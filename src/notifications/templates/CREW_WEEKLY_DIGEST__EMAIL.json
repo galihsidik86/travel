@@ -1,0 +1,4 @@
+{
+  "subject": "Religio Pro · ringkasan crew · {{label}}",
+  "body": "Assalamu'alaikum {{crewName}},\n\nBerikut ringkasan aktivitas Anda minggu {{label}}:\n\n— ATTENDANCE\nMark total: {{marksCount}}\nHadir: {{presentCount}}\nTidak hadir: {{absentCount}}\nPaket dipantau: {{paketTouched}}\n{{upcomingBlock}}\nCrew portal: {{crewLink}}\n\nSemoga Allah mudahkan tugas Anda. Jangan lupa cek manifest jemaah jauh-jauh hari sebelum keberangkatan.\n\n— sistem Religio Pro"
+}

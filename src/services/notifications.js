@@ -1051,6 +1051,46 @@ export async function notifyLandingSlow({ speed }) {
   return { enqueued, recipients: admins.length };
 }
 
+/**
+ * Stage 65 — per-crew weekly digest fan-out. Caller iterates active
+ * MUTHAWWIF users and passes one digest per crew. Silent when both the
+ * last-week activity AND upcoming paket list are empty (idle weeks
+ * shouldn't generate noise).
+ */
+export async function notifyCrewWeeklyDigest({ digest }) {
+  if (!digest || !digest.user?.email) return { enqueued: 0, skipped: true };
+  const noActivity = digest.counts.attendanceMarksCount === 0
+    && digest.upcomingPaket.length === 0;
+  if (noActivity) return { enqueued: 0, skipped: true };
+
+  const upLines = digest.upcomingPaket.slice(0, 5).map((p) =>
+    `  · ${p.title} · H-${p.daysUntilDeparture} (${p.durationDays}h trip) · ${p.kursiTerisi}/${p.kursiTotal} kursi`
+  );
+  const upcomingBlock = upLines.length > 0
+    ? '\n— PAKET MENDATANG (30 hari ke depan)\n' + upLines.join('\n') + '\n'
+    : '';
+
+  const vars = {
+    crewName: digest.user.fullName || 'Crew',
+    label: digest.label,
+    marksCount:        String(digest.counts.attendanceMarksCount),
+    presentCount:      String(digest.counts.presentCount),
+    absentCount:       String(digest.counts.absentCount),
+    paketTouched:      String(digest.counts.paketTouchedCount),
+    upcomingBlock,
+    crewLink: '/crew',
+  };
+  const { subject, body } = renderTemplate('CREW_WEEKLY_DIGEST', 'EMAIL', vars);
+  await enqueueNotification({
+    type: 'CREW_WEEKLY_DIGEST', channel: 'EMAIL',
+    recipientEmail: digest.user.email,
+    recipientUserId: digest.user.id,
+    subject, body,
+    payload: { weekStart: digest.weekStart, crewId: digest.user.id },
+  });
+  return { enqueued: 1 };
+}
+
 export async function notifyPayoutCreated({ payout, agent }) {
   const amt = Number(payout.amount?.toString?.() ?? payout.amount) || 0;
   const vars = {

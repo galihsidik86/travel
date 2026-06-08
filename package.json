@@ -26,6 +26,7 @@
     "job:send-stalled-leads": "node --env-file-if-exists=.env src/jobs/send-stalled-leads.js",
     "job:send-traffic-anomaly": "node --env-file-if-exists=.env src/jobs/send-traffic-anomaly.js",
     "job:send-landing-slow": "node --env-file-if-exists=.env src/jobs/send-landing-slow.js",
+    "job:send-crew-weekly-digest": "node --env-file-if-exists=.env src/jobs/send-crew-weekly-digest.js",
     "job:prune": "node --env-file-if-exists=.env src/jobs/prune.js"
   },
   "prisma": {

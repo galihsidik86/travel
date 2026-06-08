@@ -1042,5 +1042,104 @@
   })();
 </script>
 
+<!-- Stage 66 — soft conversion modal. Fires once per visitor (localStorage)
+     after they scroll past hero AND idle for 30s. WA-first because most
+     Indonesian conversions land in chat first, form second. -->
+<%
+  const agentWA = (typeof agent !== 'undefined' && agent && agent.whatsapp)
+    ? agent.whatsapp.replace(/[^0-9]/g, '').replace(/^0/, '62')
+    : '6285711234567'; // fallback office number
+  const agentName = (typeof agent !== 'undefined' && agent) ? agent.displayName : 'tim Religio Pro';
+  const waText = encodeURIComponent(`Halo ${agentName}, saya tertarik dengan paket ${paket.title}. Bisa konsultasi dulu?`);
+%>
+<div id="conv-modal" class="conv-modal" aria-hidden="true" role="dialog">
+  <div class="conv-modal__card">
+    <button class="conv-modal__close" type="button" aria-label="Tutup" id="conv-modal-close">×</button>
+    <div class="conv-modal__title">Butuh konsultasi dulu?</div>
+    <p class="conv-modal__body">
+      <%= agentName %> standby di WhatsApp — bisa cek slot, kelas tersisa, atau tanya rincian sebelum daftar.
+      Jawaban dalam 30 menit pada jam kerja.
+    </p>
+    <a class="conv-modal__cta" href="https://wa.me/<%= agentWA %>?text=<%= waText %>" target="_blank" rel="noopener" id="conv-modal-cta">
+      💬 Chat WhatsApp sekarang
+    </a>
+    <div class="conv-modal__dismiss">
+      <a href="#" id="conv-modal-later">Nanti saja</a>
+    </div>
+  </div>
+</div>
+<style>
+  .conv-modal { position: fixed; left: 0; right: 0; bottom: 16px; z-index: 9999; display: none; padding: 0 16px; pointer-events: none; }
+  .conv-modal.show { display: flex; justify-content: center; pointer-events: auto; animation: convSlide 0.32s ease-out; }
+  @keyframes convSlide { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .conv-modal__card { background: var(--ink-900); border: 1px solid var(--gold-300); border-radius: var(--r-md); padding: 18px 22px; max-width: 380px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); position: relative; }
+  .conv-modal__close { position: absolute; top: 6px; right: 10px; background: transparent; border: 0; color: var(--ink-200); font-size: 20px; cursor: pointer; line-height: 1; padding: 4px 8px; }
+  .conv-modal__close:hover { color: var(--cream-100); }
+  .conv-modal__title { font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--cream-100); margin-bottom: 8px; }
+  .conv-modal__body { font-family: var(--font-body); font-size: 13.5px; line-height: 1.5; color: var(--cream-200); margin: 0 0 16px; }
+  .conv-modal__cta { display: block; text-align: center; background: #25D366; color: white; padding: 12px 18px; border-radius: 6px; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; text-decoration: none; transition: filter 0.15s; }
+  .conv-modal__cta:hover { filter: brightness(1.1); }
+  .conv-modal__dismiss { text-align: center; margin-top: 10px; }
+  .conv-modal__dismiss a { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); text-decoration: underline; }
+</style>
+<script>
+  (function() {
+    // Stage 66 — guards before wiring:
+    //  - 24h cooldown after dismiss (localStorage)
+    //  - skip viewports too small (mobile bottom bar collisions)
+    const KEY = 'rp_conv_modal_dismissed';
+    const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+    try {
+      const prev = parseInt(localStorage.getItem(KEY) || '0', 10);
+      if (prev && Date.now() - prev < COOLDOWN_MS) return;
+    } catch {}
+    if (window.innerHeight < 500) return;
+
+    const modal = document.getElementById('conv-modal');
+    const closeBtn = document.getElementById('conv-modal-close');
+    const laterBtn = document.getElementById('conv-modal-later');
+    const cta = document.getElementById('conv-modal-cta');
+    if (!modal || !closeBtn) return;
+
+    let triggered = false;
+    let scrolledPastHero = false;
+    let idleTimer = null;
+
+    function dismiss() {
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+      try { localStorage.setItem(KEY, String(Date.now())); } catch {}
+    }
+    function show() {
+      if (triggered) return;
+      triggered = true;
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+    closeBtn.addEventListener('click', dismiss);
+    laterBtn.addEventListener('click', (e) => { e.preventDefault(); dismiss(); });
+    cta.addEventListener('click', () => {
+      // CTA click = success outcome; suppress next 24h
+      try { localStorage.setItem(KEY, String(Date.now())); } catch {}
+    });
+
+    // Trigger: scroll past hero (1× viewport) AND idle 30s with no input
+    function resetIdle() {
+      if (idleTimer) clearTimeout(idleTimer);
+      if (!scrolledPastHero) return;
+      idleTimer = setTimeout(show, 30_000);
+    }
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > window.innerHeight * 0.8) {
+        scrolledPastHero = true;
+      }
+      resetIdle();
+    }, { passive: true });
+    // Touch + mouse also count as activity so the modal doesn't fire mid-interaction
+    window.addEventListener('touchstart', resetIdle, { passive: true });
+    window.addEventListener('mousemove', resetIdle, { passive: true });
+  })();
+</script>
+
 </body>
 </html>

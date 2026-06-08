@@ -177,6 +177,59 @@ export async function getPaketConversion({ now = new Date(), days = 30, limit = 
     .sort((a, b) => b.visits - a.visits)
     .slice(0, limit);
 
+  // Stage 64 — split the corpus into "paket with PUBLISHED testimonial"
+  // vs "paket without" so admin sees if social proof actually moves the
+  // conversion needle. Generic (paketId=null) testimonials apply to every
+  // paket, so we treat them as "everyone has at least one testimonial"
+  // when present — admins running a generic-only setup see no split.
+  const hasTestimonialRows = await db.testimonial.findMany({
+    where: { status: 'PUBLISHED' },
+    select: { paketId: true },
+  });
+  const paketWithTestimonial = new Set();
+  let hasGenericTestimonial = false;
+  for (const r of hasTestimonialRows) {
+    if (r.paketId) paketWithTestimonial.add(r.paketId);
+    else hasGenericTestimonial = true;
+  }
+  function paketHasTestimonial(paketId) {
+    return hasGenericTestimonial || paketWithTestimonial.has(paketId);
+  }
+
+  // Pull ALL paket conversion rows (not just top N) to compute the split
+  const fullPaket = await db.paket.findMany({
+    where: { status: 'ACTIVE', deletedAt: null },
+    select: { id: true },
+  });
+  let withT = { visits: 0, bookings: 0, paketCount: 0 };
+  let withoutT = { visits: 0, bookings: 0, paketCount: 0 };
+  for (const p of fullPaket) {
+    const v = viewsByPaket.get(p.id) || 0;
+    const b = bookingsByPaket.get(p.id) || 0;
+    if (v === 0 && b === 0) continue; // skip paket with no activity
+    if (paketHasTestimonial(p.id)) {
+      withT.visits += v; withT.bookings += b; withT.paketCount += 1;
+    } else {
+      withoutT.visits += v; withoutT.bookings += b; withoutT.paketCount += 1;
+    }
+  }
+  function ratePct(bucket) {
+    if (bucket.visits === 0) return null;
+    return Math.round((bucket.bookings / bucket.visits) * 1000) / 10;
+  }
+  const split = {
+    withTestimonial:    { ...withT,    conversionPct: ratePct(withT) },
+    withoutTestimonial: { ...withoutT, conversionPct: ratePct(withoutT) },
+  };
+  // Lift: (with − without) / without × 100, %. Null when either side
+  // is too small (<10 visits) to be statistically meaningful.
+  let liftPct = null;
+  if (withT.visits >= 10 && withoutT.visits >= 10 && split.withTestimonial.conversionPct != null && split.withoutTestimonial.conversionPct != null) {
+    if (split.withoutTestimonial.conversionPct > 0) {
+      liftPct = Math.round(((split.withTestimonial.conversionPct - split.withoutTestimonial.conversionPct) / split.withoutTestimonial.conversionPct) * 100);
+    }
+  }
+
   return {
     rows,
     window: { days, start: localYmd(start), end: localYmd(end) },
@@ -184,6 +237,7 @@ export async function getPaketConversion({ now = new Date(), days = 30, limit = 
       visits: rows.reduce((s, r) => s + r.visits, 0),
       bookings: rows.reduce((s, r) => s + r.bookings, 0),
     },
+    testimonialSplit: { ...split, liftPct },
   };
 }
 

@@ -5,7 +5,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { expireOverdueDocuments } from '../services/expireDocs.js';
-import { processPendingNotifications, notifyDailyDigest, notifyWeeklyDigest, notifyAgentWeeklyDigest, notifyPayoutReminder, notifyStalledLeads, notifyTrafficAnomalies, notifyLandingSlow } from '../services/notifications.js';
+import { processPendingNotifications, notifyDailyDigest, notifyWeeklyDigest, notifyAgentWeeklyDigest, notifyPayoutReminder, notifyStalledLeads, notifyTrafficAnomalies, notifyLandingSlow, notifyCrewWeeklyDigest } from '../services/notifications.js';
 import { expireStaleIntents } from '../services/expireIntents.js';
 import { pruneRetentionWindows } from '../services/retention.js';
 import { buildDigestWithAttention } from '../services/dailyDigest.js';
@@ -15,6 +15,7 @@ import { getOverduePayoutCandidates } from '../services/payoutReminder.js';
 import { getStalledLeadsForAgent, listActiveAgentsForLeadsDigest } from '../services/stalledLeadsDigest.js';
 import { getTrafficAnomalies } from '../services/trafficAnomaly.js';
 import { getLandingSpeed } from '../services/paketView.js';
+import { buildCrewWeeklyDigest, listActiveCrewForDigest } from '../services/crewWeeklyDigest.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -181,6 +182,30 @@ router.post(
         enqueued: fan.enqueued ?? 0,
         skipped: fan.skipped ?? false,
       };
+    });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-crew-weekly-digest',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-crew-weekly-digest', async () => {
+      const crew = await listActiveCrewForDigest();
+      let enqueued = 0, skipped = 0, errors = 0;
+      for (const c of crew) {
+        try {
+          const digest = await buildCrewWeeklyDigest({ userId: c.id });
+          if (!digest) { skipped += 1; continue; }
+          const r = await notifyCrewWeeklyDigest({ digest });
+          if (r.skipped) skipped += 1;
+          enqueued += r.enqueued ?? 0;
+        } catch (err) {
+          console.warn(`[crew-weekly] user ${c.id} failed:`, err?.message || err);
+          errors += 1;
+        }
+      }
+      return { crew: crew.length, enqueued, skipped, errors };
     });
     res.json(result);
   }),

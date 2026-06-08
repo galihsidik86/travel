@@ -133,6 +133,7 @@ enum NotificationType {
   AGENT_STALLED_LEADS // daily nudge → agen with cold lead pipeline (Stage 46)
   TRAFFIC_ANOMALY_OWNER // paket view drop ≥50% vs 7d avg → admins (Stage 53)
   LANDING_SLOW_OWNER // /p/:slug 95p latency > budget → admins (Stage 56)
+  CREW_WEEKLY_DIGEST // weekly attendance + upcoming assignments → MUTHAWWIF (Stage 65)
   GENERIC // catch-all for ad-hoc notifs
 }
 
