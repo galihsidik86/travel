@@ -144,6 +144,7 @@ enum NotificationType {
   WEBHOOK_HEALTH_OWNER // weekly per-webhook delivery health rollup (Stage 129)
   MANIFEST_CLOSE_NUDGE // jemaah-side nudge when manifestClosesAt < 72h AND missing required docs (Stage 141)
   KOMISI_STATEMENT_READY // monthly komisi statement PDF ready → email agent (Stage 152)
+  AGENT_ANNUAL_RECAP // yearly Jan 5 recap of last year's komisi statements → email agent (Stage 158)
   GENERIC // catch-all for ad-hoc notifs
 }
 

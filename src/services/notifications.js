@@ -652,6 +652,66 @@ export async function notifyKomisiStatementReady({ statement, agent } = {}) {
 }
 
 /**
+ * Stage 158 — yearly Jan 5 recap email. One EMAIL per agent with the
+ * full year's statement totals + per-month breakdown. Respects the
+ * same opt-out flag as S152 (notifKomisiStatement) since this is
+ * conceptually the same kind of message.
+ *
+ * **Silent on three cases**: empty recap (zero statements), agent has
+ * no email, agent opted out of statement notifs.
+ */
+export async function notifyAgentAnnualRecap({ recap, agent } = {}) {
+  if (!recap || !agent) return { enqueued: 0, skipped: true };
+  if (!agent.email) return { enqueued: 0, skipped: true, reason: 'no_email' };
+  if (recap.totals.statementCount === 0) {
+    return { enqueued: 0, skipped: true, reason: 'no_statements' };
+  }
+  if (agent.notifKomisiStatement === false) {
+    return { enqueued: 0, skipped: true, reason: 'opted_out' };
+  }
+
+  const totalEarned = recap.totals.earnedIdr;
+  const totalPaid = recap.totals.paidIdr;
+  const shortRp = (n) => {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + ' jt';
+    if (n >= 1_000) return Math.round(n / 1_000) + 'rb';
+    return String(n);
+  };
+  const monthsBlock = recap.statements.map((s) => {
+    const e = Number(s.totalEarnedIdr.toString());
+    const p = Number(s.totalPaidIdr.toString());
+    return `  ${s.periodYM}  ·  ${s.lineCount} baris  ·  EARNED Rp ${e.toLocaleString('id-ID')}  ·  PAID Rp ${p.toLocaleString('id-ID')}`;
+  }).join('\n');
+
+  const vars = {
+    agentName: agent.displayName || agent.slug || 'Agen',
+    year: String(recap.year),
+    nextYear: String(recap.year + 1),
+    totalEarnedIdr: totalEarned.toLocaleString('id-ID'),
+    totalPaidIdr: totalPaid.toLocaleString('id-ID'),
+    totalEarnedShort: shortRp(totalEarned),
+    totalLineCount: String(recap.totals.lineCount),
+    statementCount: String(recap.totals.statementCount),
+    monthsBlock,
+  };
+  try {
+    const { subject, body } = renderTemplate('AGENT_ANNUAL_RECAP', 'EMAIL', vars);
+    await enqueueNotification({
+      type: 'AGENT_ANNUAL_RECAP', channel: 'EMAIL',
+      recipientEmail: agent.email,
+      recipientUserId: agent.userId || null,
+      subject, body,
+      relatedEntity: 'AgentProfile', relatedEntityId: agent.id || agent.agentId,
+      payload: { year: recap.year, totals: recap.totals },
+    });
+    return { enqueued: 1 };
+  } catch (err) {
+    console.warn('[agent-recap] notif failed:', err?.message || err);
+    return { enqueued: 0, error: String(err?.message || err) };
+  }
+}
+
+/**
  * Stage 141 — per-booking nudge to the jemaah when manifest close is
  * within 72h AND required docs are missing. Idempotent: stamps
  * `Booking.manifestCloseNotifiedAt = now` after enqueue so the daily

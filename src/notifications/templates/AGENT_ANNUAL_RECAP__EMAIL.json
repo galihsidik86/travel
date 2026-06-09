@@ -1,0 +1,4 @@
+{
+  "subject": "Rekap komisi {{year}} — {{statementCount}} statement · Rp {{totalEarnedShort}} earned",
+  "body": "Halo {{agentName}},\n\nIni rangkuman komisi Anda untuk tahun {{year}}.\n\nRINGKASAN TAHUNAN\n  EARNED total : Rp {{totalEarnedIdr}}\n  PAID total   : Rp {{totalPaidIdr}}\n  Jumlah baris : {{totalLineCount}}\n  Statement    : {{statementCount}} bulan\n\nRINCIAN PER BULAN\n{{monthsBlock}}\n\nSemua statement bulanan tetap bisa di-download kapan saja di tab Wallet:\n/agen\n\nTerima kasih atas kerja sama Anda sepanjang {{year}}. Semoga {{nextYear}} membawa lebih banyak berkah.\n\nBaarakallahu fiikum,\nTim Religio Pro"
+}
