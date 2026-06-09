@@ -1820,6 +1820,37 @@
               <% }) %>
             </tbody>
           </table>
+
+          <!-- Stage 132 — referrer-host attribution for visits without UTM. Same panel, sub-section so admin sees both lenses together. -->
+          <% if (referrerBreakdown && referrerBreakdown.rows.length > 0) { %>
+            <div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--hairline);">
+              <div class="panel__head" style="margin-bottom:8px;">
+                <h3 style="font-size:13px;">Sumber referrer (tanpa UTM)</h3>
+                <span class="meta"><%= referrerBreakdown.window.days %> HARI · <%= referrerBreakdown.rows.length %> HOST</span>
+              </div>
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Host</th>
+                    <th class="num">Visit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% referrerBreakdown.rows.forEach(function(r) { %>
+                    <tr>
+                      <td<%= r.isDirect ? ' style="color:var(--ink-200);font-style:italic;"' : '' %>>
+                        <%= r.label %>
+                      </td>
+                      <td class="num" style="font-family:var(--font-mono);"><%= r.visits %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+              <div style="margin-top:6px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);letter-spacing:0.04em;">
+                * traffic dari sini bisa overlap dengan UTM panel di atas — visit dengan UTM tags juga punya referrer host.
+              </div>
+            </div>
+          <% } %>
         </div>
       <% } %>
 

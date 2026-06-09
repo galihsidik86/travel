@@ -10,7 +10,7 @@ import { getRefundAnalytics } from './refundAnalytics.js';
 import { getPaketForecasts } from './paketForecast.js';
 import { getKomisiAging } from './komisiAging.js';
 import { getManifestClosing } from './manifestClose.js';
-import { getPaketConversion, getUtmBreakdown, getLandingSpeed } from './paketView.js';
+import { getPaketConversion, getUtmBreakdown, getReferrerBreakdown, getLandingSpeed } from './paketView.js';
 import { getJemaahCohortRetention } from './cohortRetention.js';
 import { getEmailCtrByType } from './emailCtr.js';
 import { pillsForJemaah } from './jemaahDocs.js';
@@ -328,6 +328,15 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getUtmBreakdown failed:', err?.message || err);
   }
 
+  // Stage 132 — referrer-host breakdown for visits without UTM tags.
+  // Renders as a sub-section of the same UTM panel in the view.
+  let referrerBreakdown = null;
+  try {
+    referrerBreakdown = await getReferrerBreakdown();
+  } catch (err) {
+    console.warn('[admin-overview] getReferrerBreakdown failed:', err?.message || err);
+  }
+
   // Stage 54 — jemaah cohort retention (12 months back, 12-month look-ahead).
   let cohortRetention = null;
   try {
@@ -367,6 +376,7 @@ export async function getAdminOverview(opts = {}) {
     manifestClosing,
     paketConversion,
     utmBreakdown,
+    referrerBreakdown,
     cohortRetention,
     landingSpeed,
     emailCtr,

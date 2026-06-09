@@ -4,7 +4,7 @@ import { optionalAuth } from '../middleware/auth.js';
 import { env } from '../env.js';
 import { db } from '../lib/db.js';
 import { getPaketBySlug, getAgentBySlug } from '../services/paket.js';
-import { getOrSetVisitorId, recordPaketView, pickHeroVariant } from '../services/paketView.js';
+import { getOrSetVisitorId, recordPaketView, pickHeroVariant, parseReferrerHost } from '../services/paketView.js';
 import { getPublishedTestimonialsForPaket } from '../services/testimonialAdmin.js';
 
 export const paketHtmlRouter = Router();
@@ -56,6 +56,12 @@ paketHtmlRouter.get(
         medium:   req.query.utm_medium   ? String(req.query.utm_medium).slice(0, 80)   : null,
         campaign: req.query.utm_campaign ? String(req.query.utm_campaign).slice(0, 120) : null,
       };
+      // Stage 132 — parse Referer header into a host bucket so visits
+      // without UTM still carry attribution. Same-origin nav (in-site
+      // refresh) is dropped — caller knows where the user came from
+      // within the site already.
+      const ownHost = req.get('x-forwarded-host') || req.get('host');
+      const referrerHost = parseReferrerHost(req.get('referer'), ownHost);
       // Don't await — the response is already sent; this just persists.
       recordPaketView({
         paketId: paket.id,
@@ -63,6 +69,7 @@ paketHtmlRouter.get(
         agentSlug: req.query.a || null,
         heroVariant: paket.heroTitleHtmlVariantB ? heroVariant : null,
         utm,
+        referrerHost,
         renderMs,
       });
     });

@@ -40,6 +40,34 @@ export function getOrSetVisitorId(req, res, { cookieSecure = false } = {}) {
 }
 
 /**
+ * Stage 132 — extract a comparable "referrer host" from a Referer
+ * header value. Strips `www.` so `www.fb.com` and `fb.com` collapse
+ * into one bucket. Returns null when:
+ *   - the header is missing / malformed
+ *   - the URL is same-origin (we treat in-site nav as "direct")
+ *
+ * Caller passes `ownHost` (req.get('host') / X-Forwarded-Host) so we
+ * can detect same-origin without baking a hardcoded domain in.
+ */
+export function parseReferrerHost(refererHeader, ownHost = null) {
+  if (!refererHeader || typeof refererHeader !== 'string') return null;
+  let host;
+  try {
+    host = new URL(refererHeader).hostname;
+  } catch (_e) {
+    return null;
+  }
+  if (!host) return null;
+  const norm = host.toLowerCase().replace(/^www\./, '');
+  if (ownHost) {
+    const ownNorm = String(ownHost).toLowerCase().split(':')[0].replace(/^www\./, '');
+    if (norm === ownNorm) return null;  // same-origin in-site nav
+  }
+  // VARCHAR(120) cap defensively — most hosts are <50 chars
+  return norm.slice(0, 120);
+}
+
+/**
  * Stage 50 — deterministic A/B variant pick from the visitor cookie.
  * Parity of the first hex digit splits 50/50 across the visitor base.
  * Stable per visitor so refreshes never flicker between variants.
@@ -63,6 +91,7 @@ export async function recordPaketView({
   paketId, visitorId, agentSlug = null,
   heroVariant = null, utm = null,
   renderMs = null,
+  referrerHost = null,
   now = new Date(),
 } = {}) {
   if (!paketId || !visitorId) return null;
@@ -76,11 +105,13 @@ export async function recordPaketView({
         utmSource:   utm?.source   ?? null,
         utmMedium:   utm?.medium   ?? null,
         utmCampaign: utm?.campaign ?? null,
+        // Stage 132 — first-touch referrer host (same semantics as UTM)
+        referrerHost: referrerHost ?? null,
         renderMs:    renderMs ?? null,
       },
       // Stage 56 — overwrite renderMs on repeat visits within same day so
       // the metric reflects the latest landing experience. Other fields
-      // stay first-touch (UTM / variant) — only perf updates.
+      // stay first-touch (UTM / variant / referrer) — only perf updates.
       update: renderMs != null ? { renderMs } : {},
     });
   } catch (err) {
@@ -527,6 +558,63 @@ export async function getUtmBreakdown({ now = new Date(), days = 30, limit = 15 
     };
   })
     .filter((r) => r.visits > 0 || r.bookings > 0)
+    .sort((a, b) => b.visits - a.visits)
+    .slice(0, limit);
+
+  return { rows, window: { days } };
+}
+
+/**
+ * Stage 132 — referrer-host breakdown. Same shape as
+ * `getUtmBreakdown` but groups by `referrerHost` (e.g. fb.com,
+ * google.com, instagram.com). Covers traffic that didn't carry UTM
+ * tags but still has a Referer header — the gap S132 closes.
+ *
+ * **Visits without referrer** (direct hit / browser hid the header)
+ * bucket as `(no referrer / direct)`. Rows with both `referrerHost`
+ * AND UTM tags appear in both panels — admin sees them in UTM
+ * (which is more specific) and they ALSO show up here. We don't
+ * exclude UTM-tagged rows here because the question "where did this
+ * paket's audience come from?" wants the union.
+ */
+export async function getReferrerBreakdown({ now = new Date(), days = 30, limit = 15 } = {}) {
+  const start = new Date(now.getTime() - days * ONE_DAY_MS);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(now);
+  end.setHours(0, 0, 0, 0);
+  end.setTime(end.getTime() + ONE_DAY_MS);
+
+  // Join via bookings.firstViewAt window? — no, simpler: aggregate
+  // visits per host, then count non-cancelled bookings whose visitor
+  // had a view with that host. Tractable here by grouping bookings
+  // through the cookie-derived attribution, but for the dashboard
+  // panel we just need visits ÷ bookings approximation via PaketView
+  // → Booking via (paketId, visitorId, dayKey). Since Booking doesn't
+  // carry referrerHost as a column today (we'd need another column
+  // + a backfill), use a JOIN-style query through PaketView's
+  // visitor history.
+  //
+  // Practical implementation: pull views grouped by referrerHost,
+  // pull bookings whose firstViewAt fell in window and whose visitor
+  // had ≥1 view with that host. To stay cheap, we approximate
+  // bookings count via the view-row count for the same (paketId,
+  // visitorId, dayKey) that produced a booking on the same day.
+  // For the v1 panel we just report VISIT distribution per host —
+  // bookings/conversion can join in S133+ if it's asked for.
+  const views = await db.paketView.groupBy({
+    by: ['referrerHost'],
+    where: { createdAt: { gte: start, lt: end } },
+    _count: { _all: true },
+  });
+
+  const rows = views
+    .map((v) => ({
+      referrerHost: v.referrerHost,
+      isDirect: v.referrerHost == null,
+      label: v.referrerHost == null ? '(no referrer / direct)' : v.referrerHost,
+      visits: v._count._all,
+    }))
+    .filter((r) => r.visits > 0)
     .sort((a, b) => b.visits - a.visits)
     .slice(0, limit);
 

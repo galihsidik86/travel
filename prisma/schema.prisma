@@ -937,6 +937,14 @@ model PaketView {
   // admin can compute 95p latency without a separate metrics table.
   // Null on rows pre-S56 (legacy data).
   renderMs    Int?
+  // Stage 132 — referrer host (e.g. "fb.com", "instagram.com",
+  // "google.com") parsed from req.headers.referer at first touch. Null
+  // when no Referer header / same-origin / unparseable. Same first-touch
+  // semantics as utm* — captured on the first visit row per
+  // (paket, visitor), later visits keep the original value via the
+  // upsert update-no-op pattern. Lets analytics distinguish "organic
+  // search" vs "facebook clicks" even when partner doesn't tag UTM.
+  referrerHost String? @db.VarChar(120)
   createdAt DateTime @default(now())
 
   @@unique([paketId, visitorId, dayKey])
