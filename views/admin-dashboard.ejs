@@ -1466,6 +1466,62 @@
         </style>
       <% } %>
 
+      <!-- Stage 142 — Admin mirror of S141 jemaah-side nudges. Surfaces
+           per-paket "n jemaah di-nudge dalam 24 jam terakhir, follow-up via WA"
+           so admin sees what's been pushed without grep'ing the notif queue. -->
+      <% if (manifestNudgeAdmin && manifestNudgeAdmin.rows.length > 0) { %>
+        <div class="panel" style="margin-bottom:16px;border-left:3px solid var(--gold-300);">
+          <div class="panel__head">
+            <h3>Jemaah di-nudge (manifest tutup)</h3>
+            <span class="meta"><%= manifestNudgeAdmin.totalBookings %> JEMAAH · <%= manifestNudgeAdmin.totalPaket %> PAKET · <%= manifestNudgeAdmin.windowHours %> JAM</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <% manifestNudgeAdmin.rows.forEach(function(r) {
+              const closeAt = r.paket.manifestClosesAt;
+              const closeStr = closeAt ? fmt.dateShort(closeAt) : '—';
+            %>
+              <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:12px 14px;">
+                <div style="display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:baseline;">
+                  <div>
+                    <a href="/admin/paket/<%= r.paket.slug %>/edit" style="color:var(--cream-100);text-decoration:none;font-size:13.5px;font-weight:500;"><%= r.paket.title %></a>
+                    <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:2px;">
+                      <%= r.paket.slug %> · manifest tutup <%= closeStr %>
+                    </div>
+                  </div>
+                  <div style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);">
+                    <strong style="font-size:18px;color:var(--cream-100);"><%= r.totalJemaah %></strong> jemaah · nudge terbaru <%= r.hoursSinceLast %>j lalu
+                  </div>
+                </div>
+                <% if (r.missingSummary && r.missingSummary.length > 0) { %>
+                  <div style="margin-top:8px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-100);">
+                    <% r.missingSummary.forEach(function(m, i) { %><%= i > 0 ? ' · ' : '' %><span style="color:var(--amber);"><%= m.count %>× <%= m.label %></span><% }) %>
+                  </div>
+                <% } %>
+                <details style="margin-top:8px;">
+                  <summary style="cursor:pointer;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;">Lihat <%= r.bookings.length %> jemaah →</summary>
+                  <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+                    <% r.bookings.forEach(function(b) { %>
+                      <div style="display:flex;justify-content:space-between;gap:10px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-100);padding:4px 0;border-top:1px dashed var(--hairline);">
+                        <div>
+                          <a href="/admin/bookings/<%= b.bookingId %>" style="color:var(--gold-300);text-decoration:none;"><%= b.bookingNo %></a>
+                          · <span style="color:var(--cream-100);"><%= b.jemaah?.fullName || '—' %></span>
+                          <% if (b.jemaah?.phone) { %>
+                            · <a href="https://wa.me/<%= String(b.jemaah.phone).replace(/[^0-9]/g, '').replace(/^0/, '62') %>" target="_blank" style="color:var(--emerald);text-decoration:none;" title="WA jemaah">WA</a>
+                          <% } %>
+                        </div>
+                        <div style="color:var(--ink-200);">
+                          <% b.channels.forEach(function(c) { %><span style="font-size:9px;border:1px solid var(--ink-200);padding:1px 4px;border-radius:2px;margin-left:3px;"><%= c %></span><% }) %>
+                        </div>
+                      </div>
+                    <% }) %>
+                  </div>
+                </details>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
       <!-- Stage 40 — Per-paket forecast (14d velocity → days-to-full) -->
       <% if (paketForecasts && paketForecasts.length > 0) { %>
         <div class="panel" style="margin-top:16px;">

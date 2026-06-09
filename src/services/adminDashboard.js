@@ -312,6 +312,17 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getManifestClosing failed:', err?.message || err);
   }
 
+  // Stage 142 — admin mirror of the S141 jemaah-side nudge. Surfaces
+  // which paket got nudges in the last 24h so admin can do manual WA
+  // follow-up without grep'ing the notif queue.
+  let manifestNudgeAdmin = null;
+  try {
+    const { getManifestCloseNudgeAdminSummary } = await import('./manifestCloseNudgeAdmin.js');
+    manifestNudgeAdmin = await getManifestCloseNudgeAdminSummary({ windowHours: 24 });
+  } catch (err) {
+    console.warn('[admin-overview] manifestCloseNudgeAdmin failed:', err?.message || err);
+  }
+
   // Stage 48 — public paket conversion funnel (last 30d).
   let paketConversion = null;
   try {
@@ -374,6 +385,7 @@ export async function getAdminOverview(opts = {}) {
     paketForecasts,
     komisiAging,
     manifestClosing,
+    manifestNudgeAdmin,
     paketConversion,
     utmBreakdown,
     referrerBreakdown,
