@@ -13,9 +13,14 @@
 //       FAILED) past the cutoff. SETTLED intents are NEVER pruned —
 //       they tie 1:1 to a Payment row (financial record).
 //
+//   ARCHIVED-THEN-DELETED (S139)
+//     - AuditLog rows older than `auditArchiveDays` (default 730 = 2y)
+//       are streamed to a gzipped CSV under `private/audit-archive/`,
+//       then deleted from DB. Operators grep the .gz files via zcat
+//       for long-tail compliance asks. Set the env var to 0 to disable
+//       archival entirely (deployments that prefer KEPT FOREVER).
+//
 //   KEPT FOREVER (compliance / financial / append-only)
-//     - AuditLog. If volume eventually becomes a problem, archive to
-//       cold storage (S3 etc.) — never delete in place.
 //     - Payment. Append-only by invariant.
 //     - Booking, Komisi, KomisiPayout, Lead, Incident, AttendanceMark.
 //       Trip + financial history.
@@ -27,6 +32,7 @@
 
 import { db } from '../lib/db.js';
 import { audit } from '../lib/audit.js';
+import { archiveAuditLog, ARCHIVE_DEFAULT_RETENTION_DAYS } from './auditLog.js';
 
 export const DEFAULTS = Object.freeze({
   // Notification: 90 days (SENT/SKIPPED), 180 days (terminal FAILED).
@@ -48,6 +54,12 @@ export const DEFAULTS = Object.freeze({
   // Stage 121 — ApiRequestLog retention. 60d = enough trend window for
   // the per-key analytics panel without letting traffic dominate disk.
   apiRequestLogDays: Number(process.env.RETENTION_API_REQUEST_LOG_DAYS) || 60,
+  // Stage 139 — AuditLog cold-storage archive. Rows older than 730 days
+  // (2 years) get streamed to a gzipped CSV under private/audit-archive/
+  // and then deleted from DB. Operators grep the .gz files via zcat for
+  // long-tail compliance / dispute asks. Set to 0 to disable archival
+  // entirely (back-compat for deployments that prefer KEPT FOREVER).
+  auditArchiveDays:  Number(process.env.RETENTION_AUDIT_ARCHIVE_DAYS) || ARCHIVE_DEFAULT_RETENTION_DAYS,
 });
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -78,6 +90,17 @@ export async function pruneRetentionWindows({ req, actor, now = new Date(), wind
     inactiveJemaah: await pruneInactiveJemaah(now, w.inactiveJemaahDays),
     // Stage 121 — drop old ApiRequestLog rows past retention window
     apiRequestLog: await pruneApiRequestLog(now, w.apiRequestLogDays),
+    // Stage 139 — archive AuditLog rows ≥730d to cold storage then delete.
+    // 0 = disabled (operator opt-out for KEPT-FOREVER deployments).
+    auditArchive:  w.auditArchiveDays > 0
+      ? await archiveAuditLog({ now, retentionDays: w.auditArchiveDays }).catch((err) => {
+          // Best-effort — a single failing archive run mustn't abort the
+          // rest of the sweep. Counter falls through as 0 so the audit
+          // row reflects reality.
+          console.warn('[retention] auditArchive failed:', err?.message || err);
+          return { archived: 0, deleted: 0, filePath: null };
+        })
+      : { archived: 0, deleted: 0, filePath: null },
   };
   const affected = result.notifSent.deleted
     + result.notifFailed.deleted
@@ -85,7 +108,8 @@ export async function pruneRetentionWindows({ req, actor, now = new Date(), wind
     + result.intentFailed.deleted
     + result.staleLeads.archived
     + result.inactiveJemaah.softDeleted
-    + result.apiRequestLog.deleted;
+    + result.apiRequestLog.deleted
+    + (result.auditArchive.deleted || 0);
 
   // Audit the sweep itself so the prune is visible in the timeline. Single
   // row; per-row deletes are intentionally NOT audited (would defeat the

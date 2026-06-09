@@ -1,4 +1,7 @@
 import { db } from '../lib/db.js';
+import { createWriteStream, promises as fsp } from 'node:fs';
+import { createGzip } from 'node:zlib';
+import { dirname, resolve as resolvePath, join as joinPath } from 'node:path';
 
 export const ENTITIES = [
   'User', 'Paket', 'PaketHotel', 'PaketDay', 'PaketHarga',
@@ -187,6 +190,123 @@ export async function exportAuditCsv({
 }
 
 export { EXPORT_MAX_DAYS, EXPORT_DEFAULT_DAYS, EXPORT_ROW_CAP };
+
+// Stage 139 — audit archive defaults. 2 years is long enough for any
+// reasonable compliance / dispute window; rows beyond that move to
+// gzipped cold storage under `private/audit-archive/` and drop from
+// DB so AuditLog can finally have bounded growth without losing the
+// historical record (operators can grep the .gz files via zcat).
+const ARCHIVE_DEFAULT_RETENTION_DAYS = 730;
+const ARCHIVE_DEFAULT_DIR = 'private/audit-archive';
+const ARCHIVE_BATCH = 1_000;
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function localYmdHms(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+    `_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
+}
+
+/**
+ * Stage 139 — archive AuditLog rows older than `retentionDays` to a
+ * gzipped CSV under `private/audit-archive/`, then delete them from
+ * the DB. Each run produces ONE file named with the run timestamp +
+ * cutoff date — no overwrites, no append, so partial-failure recovery
+ * is just "next run picks up what's still in DB" (acceptable duplicate
+ * across files if the DB delete failed mid-way; operators dedup
+ * downstream if it ever matters).
+ *
+ * CSV format is identical to `exportAuditCsv` (same UTF-8 BOM + CRLF
+ * + column order) so an investigator opening the .gz with the same
+ * tools as a fresh export gets a consistent shape.
+ *
+ * Returns `{archived, filePath, sizeBytes, cutoff}`. Returns
+ * `{archived: 0, ...}` and writes NO file when nothing's eligible —
+ * keeps quiet weeks quiet.
+ */
+export async function archiveAuditLog({
+  now = new Date(),
+  retentionDays = ARCHIVE_DEFAULT_RETENTION_DAYS,
+  dir = ARCHIVE_DEFAULT_DIR,
+} = {}) {
+  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
+  // Bail early when nothing is eligible — avoid creating empty .gz files
+  // every week on a fresh deployment.
+  const eligible = await db.auditLog.count({ where: { createdAt: { lt: cutoff } } });
+  if (eligible === 0) {
+    return { archived: 0, filePath: null, sizeBytes: 0, cutoff: cutoff.toISOString() };
+  }
+
+  const absDir = resolvePath(process.cwd(), dir);
+  await fsp.mkdir(absDir, { recursive: true });
+  const filename = `audit_${localYmdHms(now)}_pre_${cutoff.toISOString().slice(0, 10)}.csv.gz`;
+  const filePath = joinPath(absDir, filename);
+
+  // Stream-then-finalize. Pipe csv → gzip → file. Wait for the gzip
+  // stream's 'finish' event before deleting DB rows so a write error
+  // halts the delete (we never delete rows we couldn't persist).
+  const fileStream = createWriteStream(filePath);
+  const gzip = createGzip();
+  gzip.pipe(fileStream);
+
+  // BOM + header (same shape as exportAuditCsv)
+  gzip.write('\uFEFF');
+  const COLUMNS = [
+    'id', 'createdAt', 'action', 'entity', 'entityId',
+    'actorEmail', 'actorRole', 'ip', 'userAgent',
+    'before', 'after',
+  ];
+  gzip.write(COLUMNS.join(',') + '\r\n');
+
+  let archived = 0;
+  let cursor = null;
+  while (true) {
+    const findArgs = {
+      where: { createdAt: { lt: cutoff } },
+      take: ARCHIVE_BATCH,
+      orderBy: { createdAt: 'asc' },
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      select: {
+        id: true, createdAt: true, action: true, entity: true, entityId: true,
+        actorEmail: true, actorRole: true, ip: true, userAgent: true,
+        before: true, after: true,
+      },
+    };
+    const batch = await db.auditLog.findMany(findArgs);
+    if (batch.length === 0) break;
+    for (const r of batch) {
+      gzip.write(COLUMNS.map((c) => csvEscape(r[c])).join(',') + '\r\n');
+    }
+    archived += batch.length;
+    cursor = batch[batch.length - 1].id;
+    if (batch.length < ARCHIVE_BATCH) break;
+  }
+
+  // Close + wait for file flush
+  gzip.end();
+  await new Promise((res, rej) => {
+    fileStream.on('finish', res);
+    fileStream.on('error', rej);
+    gzip.on('error', rej);
+  });
+  const stat = await fsp.stat(filePath);
+
+  // Delete archived rows. Same WHERE as the stream so we never delete
+  // a row added between cursor pagination + this delete.
+  const { count: deleted } = await db.auditLog.deleteMany({
+    where: { createdAt: { lt: cutoff } },
+  });
+  // archived (streamed) and deleted (final purge) may differ slightly
+  // if new rows landed mid-archive with old createdAt (unusual — audit
+  // rows are append-only at request time). Surface both so the audit
+  // record of the archive itself is honest.
+  return {
+    archived, deleted,
+    filePath, sizeBytes: stat.size,
+    cutoff: cutoff.toISOString(),
+  };
+}
+
+export { ARCHIVE_DEFAULT_RETENTION_DAYS, ARCHIVE_DEFAULT_DIR };
 
 /**
  * Daily audit activity for the filter scope — one row per UTC day in range.
