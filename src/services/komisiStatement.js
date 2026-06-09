@@ -51,17 +51,23 @@ export function previousMonthYM(now = new Date()) {
  *
  * CANCELLED rows are excluded (undone work, not income).
  */
-export async function getStatementLines({ agentId, periodYM }) {
+export async function getStatementLines({ agentId, periodYM, paketId = null }) {
   const { start, end } = ymToRange(periodYM);
+  const where = {
+    agentId,
+    status: { in: ['EARNED', 'PAID'] },
+    OR: [
+      { earnedAt: { gte: start, lt: end } },
+      { paidAt: { gte: start, lt: end } },
+    ],
+  };
+  // Stage 159 — optional paket scope. Filter to komisi whose source
+  // booking lives on this paket. Used by the dispute-resolution
+  // statement that needs to answer "what did agent X earn from
+  // paket Y this period?".
+  if (paketId) where.booking = { paketId };
   const rows = await db.komisi.findMany({
-    where: {
-      agentId,
-      status: { in: ['EARNED', 'PAID'] },
-      OR: [
-        { earnedAt: { gte: start, lt: end } },
-        { paidAt: { gte: start, lt: end } },
-      ],
-    },
+    where,
     orderBy: { earnedAt: 'asc' },
     select: {
       id: true, amount: true, status: true,
@@ -395,6 +401,46 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
   }
 
   return { statement, created: true, pdfPath };
+}
+
+/**
+ * Stage 159 — render a transient (non-persisted) per-paket statement
+ * for dispute resolution. Caller pipes the returned buffer to res.
+ * Doesn't create a `KomisiStatement` row, doesn't write a file under
+ * `private/komisi-statements/`, doesn't fire a notif. Pure read-only
+ * snapshot for the admin to send the agent during a dispute.
+ *
+ * The PDF carries the same shape as the regular statement but with
+ * the paket title in the header subtitle so it's obvious this isn't
+ * the canonical monthly artifact.
+ */
+export async function renderPaketScopedStatementBuffer({ agentId, periodYM, paketId }) {
+  if (!agentId) throw new HttpError(400, 'agentId wajib', 'BAD_AGENT');
+  if (!/^\d{4}-\d{2}$/.test(periodYM)) {
+    throw new HttpError(400, 'periodYM harus format YYYY-MM', 'BAD_PERIOD');
+  }
+  if (!paketId) throw new HttpError(400, 'paketId wajib', 'BAD_PAKET');
+  const agent = await db.agentProfile.findUnique({
+    where: { id: agentId },
+    select: { id: true, slug: true, displayName: true },
+  });
+  if (!agent) throw new HttpError(404, 'Agen tidak ditemukan', 'AGENT_NOT_FOUND');
+  const paket = await db.paket.findUnique({
+    where: { id: paketId }, select: { id: true, slug: true, title: true },
+  });
+  if (!paket) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+
+  const { lines, totals } = await getStatementLines({ agentId, periodYM, paketId });
+  // Decorate the agent display so the PDF header makes the scope clear
+  const buffer = await renderStatementPdfBuffer({
+    agent: { ...agent, displayName: `${agent.displayName} · scope: ${paket.title}` },
+    periodYM, lines, totals,
+    // No YTD block — paket-scoped doesn't have an annual notion that
+    // matches the rest of the running tape.
+    ytd: null,
+    adminNote: `Statement khusus paket "${paket.title}" — bukan rekap bulanan kanonik. Dibuat oleh admin untuk klarifikasi.`,
+  });
+  return { buffer, agent, paket, periodYM, totals };
 }
 
 /**
