@@ -1,0 +1,4 @@
+{
+  "subject": "Lengkapi dokumen {{paketTitle}}",
+  "body": "Assalamu'alaikum {{jemaahName}}, manifest paket {{paketTitle}} {{closeVerb}} {{closeRelative}}. Dokumen yang belum lengkap: {{missingShort}}. Lengkapi di /saya/profile. — Religio Pro"
+}

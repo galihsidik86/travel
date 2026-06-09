@@ -87,6 +87,7 @@ export const EXPECTED_INTERVAL_MS = {
   'retry-webhooks': 2 * 60_000, // every 2 min (Stage 109)
   'send-api-scope-down': 7 * 24 * 60 * 60_000, // weekly (Stage 124)
   'send-webhook-health': 7 * 24 * 60 * 60_000, // weekly (Stage 129)
+  'send-manifest-close': 24 * 60 * 60_000, // daily (Stage 141)
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };
 

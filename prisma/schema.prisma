@@ -142,6 +142,7 @@ enum NotificationType {
   TASK_OVERDUE_ESCALATION // Task past dueAt + 48h still OPEN → OWNER tier (Stage 96)
   API_KEY_SCOPE_DOWN_OWNER // weekly digest of API keys with unused scopes (Stage 124)
   WEBHOOK_HEALTH_OWNER // weekly per-webhook delivery health rollup (Stage 129)
+  MANIFEST_CLOSE_NUDGE // jemaah-side nudge when manifestClosesAt < 72h AND missing required docs (Stage 141)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -1177,6 +1178,13 @@ model Booking {
   // column). Resolved from the same first-touch row at booking time.
   // Lets the admin analytics panel compute conversion% per host.
   referrerHost    String? @db.VarChar(120)
+
+  // Stage 141 — idempotency stamp for the manifest-close jemaah nudge.
+  // Set when a MANIFEST_CLOSE_NUDGE notif fires for this booking so the
+  // next cron pass doesn't re-enqueue. Cleared manually via admin if a
+  // partner truly needs a second send; admin can always trigger via
+  // `POST /api/admin/jobs/send-manifest-close` to force a re-check.
+  manifestCloseNotifiedAt DateTime?
 
   // bunking assignment (NULL = belum di-assign ke kamar)
   roomId String?

@@ -602,6 +602,89 @@ export async function notifyIncidentCreated({ incident, crew, paket }) {
  * **Silent when nothing is unhealthy** — quiet weeks generate no email,
  * mirroring the API key scope-down digest posture.
  */
+/**
+ * Stage 141 — per-booking nudge to the jemaah when manifest close is
+ * within 72h AND required docs are missing. Idempotent: stamps
+ * `Booking.manifestCloseNotifiedAt = now` after enqueue so the daily
+ * cron doesn't re-fire on the same booking.
+ *
+ * Fires EMAIL + WA when the jemaah has both; per-channel opt-out
+ * (`JemaahProfile.notifEmail / notifWa`) is respected via the existing
+ * enqueueNotification mechanism. Silent on empty candidate list — no
+ * email goes out when nothing is stuck.
+ */
+export async function notifyManifestCloseNudge({ candidates }) {
+  if (!candidates || candidates.rows.length === 0) {
+    return { enqueued: 0, skipped: true };
+  }
+  let enqueued = 0;
+  for (const c of candidates.rows) {
+    const j = c.jemaah;
+    if (!j) continue;
+    const closeAt = c.paket.manifestClosesAt;
+    const hrs = Math.abs(c.hoursUntilClose);
+    const closeRelative = c.overdue
+      ? `${hrs} jam lalu`
+      : hrs >= 24
+        ? `${Math.round(hrs / 24)} hari`
+        : `${hrs} jam`;
+    const closeVerb = c.overdue ? 'sudah ditutup' : 'akan ditutup';
+    const missingList = c.missing.map((m, i) => `  ${i + 1}. ${m}`).join('\n');
+    const missingShort = c.missing.join(', ');
+    const vars = {
+      jemaahName: j.fullName || '',
+      paketTitle: c.paket.title || '',
+      bookingNo: c.bookingNo,
+      closeLabel: closeAt ? closeAt.toISOString().slice(0, 10) : '',
+      closeRelative, closeVerb,
+      missingList, missingShort,
+    };
+
+    // EMAIL
+    if (j.email) {
+      try {
+        const { subject, body } = renderTemplate('MANIFEST_CLOSE_NUDGE', 'EMAIL', vars);
+        await enqueueNotification({
+          type: 'MANIFEST_CLOSE_NUDGE', channel: 'EMAIL',
+          recipientEmail: j.email,
+          recipientUserId: j.userId || null,
+          subject, body,
+          relatedEntity: 'Booking', relatedEntityId: c.bookingId,
+          payload: { bookingNo: c.bookingNo, paketSlug: c.paket.slug, missing: c.missing, overdue: c.overdue },
+        });
+        enqueued += 1;
+      } catch (err) {
+        console.warn('[manifest-close-nudge] enqueue EMAIL failed:', err?.message || err);
+      }
+    }
+    // WA
+    if (j.phone) {
+      try {
+        const { subject, body } = renderTemplate('MANIFEST_CLOSE_NUDGE', 'WA', vars);
+        await enqueueNotification({
+          type: 'MANIFEST_CLOSE_NUDGE', channel: 'WA',
+          recipientPhone: j.phone,
+          recipientUserId: j.userId || null,
+          subject, body,
+          relatedEntity: 'Booking', relatedEntityId: c.bookingId,
+          payload: { bookingNo: c.bookingNo, paketSlug: c.paket.slug, missing: c.missing, overdue: c.overdue },
+        });
+        enqueued += 1;
+      } catch (err) {
+        console.warn('[manifest-close-nudge] enqueue WA failed:', err?.message || err);
+      }
+    }
+
+    // Idempotency stamp — set even when both channels had no recipient,
+    // so the cron doesn't re-evaluate a contact-less jemaah every run.
+    await db.booking.update({
+      where: { id: c.bookingId },
+      data: { manifestCloseNotifiedAt: new Date() },
+    }).catch((err) => console.warn('[manifest-close-nudge] stamp failed:', err?.message || err));
+  }
+  return { enqueued, candidateCount: candidates.rows.length };
+}
+
 export async function notifyWebhookHealth({ digest }) {
   if (!digest || !digest.hasIssues) {
     return { enqueued: 0, skipped: true };

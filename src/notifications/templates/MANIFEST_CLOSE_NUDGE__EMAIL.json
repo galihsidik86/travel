@@ -1,0 +1,4 @@
+{
+  "subject": "Penting: lengkapi dokumen untuk {{paketTitle}} (manifest tutup {{closeLabel}})",
+  "body": "Assalamu'alaikum {{jemaahName}},\n\nManifest paket {{paketTitle}} akan {{closeVerb}} dalam {{closeRelative}} (booking {{bookingNo}}).\n\nKami mencatat dokumen berikut belum lengkap di akun Anda:\n\n{{missingList}}\n\nMohon segera lengkapi melalui /saya/profile agar Anda tetap masuk ke manifest keberangkatan. Jika ada pertanyaan, hubungi agen Anda atau Kantor Pusat Religio Pro.\n\nBaarakallahu fiikum,\nTim Religio Pro"
+}

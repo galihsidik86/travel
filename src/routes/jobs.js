@@ -25,6 +25,8 @@ import { getApiKeyScopeDownCandidates } from '../services/apiKeyScopeDown.js';
 import { notifyApiKeyScopeDown } from '../services/notifications.js';
 import { getWebhookHealthDigest } from '../services/webhookHealthDigest.js';
 import { notifyWebhookHealth } from '../services/notifications.js';
+import { getManifestCloseNudgeCandidates } from '../services/manifestCloseNudge.js';
+import { notifyManifestCloseNudge } from '../services/notifications.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -295,6 +297,23 @@ router.post(
       return {
         totalWebhooks: digest.rows.length,
         unhealthyCount: digest.unhealthyCount,
+        enqueued: fan.enqueued ?? 0,
+        skipped: fan.skipped ?? false,
+      };
+    });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-manifest-close',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-manifest-close', async () => {
+      const candidates = await getManifestCloseNudgeCandidates({ windowHours: 72 });
+      const fan = await notifyManifestCloseNudge({ candidates });
+      return {
+        candidateCount: candidates.rows.length,
+        overdueCount: candidates.counts.overdue,
         enqueued: fan.enqueued ?? 0,
         skipped: fan.skipped ?? false,
       };
