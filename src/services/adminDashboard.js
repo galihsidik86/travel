@@ -288,6 +288,15 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getRefundAnalytics failed:', err?.message || err);
   }
 
+  // Stage 146 — no-show analytics (last 90d, per-paket + per-agent).
+  let noShowAnalytics = null;
+  try {
+    const { getNoShowAnalytics } = await import('./noShowAnalytics.js');
+    noShowAnalytics = await getNoShowAnalytics();
+  } catch (err) {
+    console.warn('[admin-overview] getNoShowAnalytics failed:', err?.message || err);
+  }
+
   // Stage 40 — per-paket forecast (14d velocity → days-to-full).
   let paketForecasts = null;
   try {
@@ -382,6 +391,7 @@ export async function getAdminOverview(opts = {}) {
     yesterday,
     needsAttention,
     refundAnalytics,
+    noShowAnalytics,
     paketForecasts,
     komisiAging,
     manifestClosing,

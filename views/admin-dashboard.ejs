@@ -2015,6 +2015,72 @@
         </style>
       <% } %>
 
+      <!-- Stage 146 — No-show rate analytics (90d, per paket + per agent) -->
+      <% if (noShowAnalytics && noShowAnalytics.totals.noShowCount > 0) {
+        const ns = noShowAnalytics;
+        const rateTier = (p) => p == null ? 'ink-200' : p >= 10 ? 'ruby' : p >= 5 ? 'amber' : p >= 2 ? 'gold-300' : 'emerald';
+      %>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Analitik no-show</h3>
+            <span class="meta"><%= ns.window.days %> HARI · <%= ns.totals.noShowCount %> NO-SHOW</span>
+          </div>
+          <div class="refund-kpis">
+            <div class="rk">
+              <div class="rk-l">Total no-show</div>
+              <div class="rk-v ruby"><%= ns.totals.noShowCount %></div>
+              <div class="rk-s">dari <%= ns.totals.resolvedActive %> booking yang sudah berangkat</div>
+            </div>
+            <div class="rk">
+              <div class="rk-l">Rate keseluruhan</div>
+              <div class="rk-v" style="color:var(--<%= rateTier(ns.totals.ratePct) %>);">
+                <%= ns.totals.ratePct == null ? '—' : ns.totals.ratePct + '%' %>
+              </div>
+              <div class="rk-s">no-show ÷ booking aktif yang resolved</div>
+            </div>
+          </div>
+          <div class="refund-cols">
+            <div class="refund-col">
+              <div class="rc-h">Per paket (top <%= Math.min(10, ns.byPaket.length) %>)</div>
+              <% if (ns.byPaket.length === 0) { %>
+                <div class="rc-empty">— tidak ada data —</div>
+              <% } else { %>
+                <% ns.byPaket.slice(0, 10).forEach(function(r) { %>
+                  <a class="rc-row" href="/admin/paket/<%= r.slug %>/edit">
+                    <div class="rc-name" title="<%= r.title %>"><%= r.title %></div>
+                    <div class="rc-amt"><%= r.noShowCount %>/<%= r.resolvedActive %></div>
+                    <div class="rc-rate" style="color:var(--<%= rateTier(r.ratePct) %>);">
+                      <%= r.ratePct == null ? '—' : r.ratePct + '%' %>
+                    </div>
+                  </a>
+                <% }) %>
+              <% } %>
+            </div>
+            <div class="refund-col">
+              <div class="rc-h">Per agen (top <%= Math.min(10, ns.byAgent.length) %>)</div>
+              <% if (ns.byAgent.length === 0) { %>
+                <div class="rc-empty">— tidak ada data —</div>
+              <% } else { %>
+                <% ns.byAgent.slice(0, 10).forEach(function(r) {
+                  const href = r.slug ? '/admin/users?role=AGEN&q=' + encodeURIComponent(r.slug) : '/admin/no-shows';
+                %>
+                  <a class="rc-row" href="<%= href %>">
+                    <div class="rc-name" title="<%= r.displayName %>"><%= r.displayName %></div>
+                    <div class="rc-amt"><%= r.noShowCount %>/<%= r.resolvedActive %></div>
+                    <div class="rc-rate" style="color:var(--<%= rateTier(r.ratePct) %>);">
+                      <%= r.ratePct == null ? '—' : r.ratePct + '%' %>
+                    </div>
+                  </a>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+          <div style="margin-top:6px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);">
+            * rate = no-show ÷ booking aktif yang paket-nya sudah berangkat di window ini. Walk-in = Kantor Pusat.
+          </div>
+        </div>
+      <% } %>
+
       <% const km_a = analytics.komisiMonthly;
          const km_maxKom = Math.max(1, ...km_a.map((m) => Math.max(m.earned, m.paid)));
          const km_totalEarned = km_a.reduce((a, m) => a + m.earned, 0);
