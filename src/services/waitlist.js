@@ -164,6 +164,69 @@ export async function promoteWaitlist({ req, actor, id, kelas, paxCount, agentSl
   return { booking: result.booking, waitlist: updated };
 }
 
+/**
+ * Stage 136 — find the oldest WAITING waitlist entry on `paketId` whose
+ * `phone` belongs to a verified JEMAAH (active user account + ≥1
+ * non-cancelled LUNAS booking in their history). The trust signal: this
+ * jemaah has actually paid us through before, so auto-promoting them
+ * into a freed seat is low-risk vs cold-promoting some random number.
+ *
+ * Phone match uses last-8-digits + leading-0/62 normalisation (mirrors
+ * the S59 lead reactivation hint) so country-code variants don't hide
+ * matches.
+ *
+ * Returns `{waitlist, user, priorLunasCount}` or null when no verified
+ * candidate is waiting. Best-effort — caller wraps in try/catch.
+ */
+export async function findVerifiedWaitlistForPaket({ paketId }) {
+  const rows = await db.paketWaitlist.findMany({
+    where: { paketId, status: 'WAITING' },
+    orderBy: { createdAt: 'asc' },
+    take: 50,  // bounded — we only need the oldest verified match
+  });
+  if (rows.length === 0) return null;
+
+  for (const w of rows) {
+    const wDigits = String(w.phone || '').replace(/\D/g, '').replace(/^0/, '62');
+    if (wDigits.length < 8) continue;
+    // Stored JemaahProfile.phone may carry formatting (dashes, spaces,
+    // +62 prefix etc.). The cheap DB filter uses last-4 digits as
+    // endsWith — those are always plain digits in any reasonable
+    // format. Final match runs in JS against the fully-normalised form
+    // so '+62-822-1234-5678' and '082212345678' collapse to one bucket.
+    const last4 = wDigits.slice(-4);
+    const candidates = await db.jemaahProfile.findMany({
+      where: {
+        phone: { endsWith: last4 },
+        userId: { not: null },
+        user: { status: 'ACTIVE', deletedAt: null, role: 'JEMAAH' },
+      },
+      select: { phone: true, userId: true, user: { select: { id: true, email: true } } },
+    });
+    const match = candidates.find((p) => {
+      const pDigits = String(p.phone || '').replace(/\D/g, '').replace(/^0/, '62');
+      return pDigits === wDigits;
+    });
+    if (!match?.userId) continue;
+    // Count prior LUNAS bookings — trust signal. Count via BOTH the
+    // direct jemaahUserId link (modern bookings since S5p.2) AND via
+    // the profile's user (covers older bookings that linked only by
+    // profile FK). Same jemaah, two link paths over time.
+    const priorLunasCount = await db.booking.count({
+      where: {
+        status: 'LUNAS',
+        OR: [
+          { jemaahUserId: match.userId },
+          { jemaah: { userId: match.userId } },
+        ],
+      },
+    });
+    if (priorLunasCount === 0) continue;
+    return { waitlist: w, user: match.user, priorLunasCount };
+  }
+  return null;
+}
+
 export async function cancelWaitlist({ req, actor, id }) {
   const row = await db.paketWaitlist.findUnique({ where: { id } });
   if (!row) throw new HttpError(404, 'Waitlist tidak ditemukan', 'WAITLIST_NOT_FOUND');

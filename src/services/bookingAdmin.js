@@ -315,6 +315,9 @@ export async function cancelBooking({ req, actor, bookingId, reason }) {
     where: { id: bookingId },
     select: {
       id: true, bookingNo: true, status: true, paxCount: true,
+      // S136 — kelas needed for the auto-promote shape (we re-allocate
+      // the freed seat in the same kelas the cancel just vacated).
+      kelas: true,
       paketId: true, roomId: true, agentId: true,
       paidAmount: true, totalAmount: true,
     },
@@ -358,19 +361,66 @@ export async function cancelBooking({ req, actor, bookingId, reason }) {
     after: { status: 'CANCELLED', cancelReason: reason.trim(), kursiFreed: before.paxCount },
   });
 
-  // Stage 42 — cancel just freed `paxCount` seats. If this paket has people
-  // waiting in the waitlist, the admin should know now (not at the next
-  // weekly digest). Fire-and-forget — failure here must NOT abort the
-  // cancel (the seats are already freed, that's the load-bearing change).
+  // Stage 42/136 — cancel just freed `paxCount` seats. If a WAITING
+  // jemaah on the waitlist is "verified" (existing JEMAAH account with
+  // ≥1 prior LUNAS), auto-promote them directly (S136). Otherwise fall
+  // back to the S42 nudge so admin can manually promote.
+  //
+  // Auto-promote uses the freed booking's kelas + paxCount as defaults
+  // — we just made room for exactly that shape. If the jemaah wanted
+  // a different kelas they're free to refuse (manual admin override
+  // via existing cancel+re-promote flow).
+  //
+  // Fire-and-forget — neither path may abort the cancel.
+  let autoPromoted = null;
   try {
-    const { notifyWaitlistSlotFreed } = await import('./notifications.js');
-    await notifyWaitlistSlotFreed({
-      paketId: before.paketId,
-      freedSeats: before.paxCount,
-      sourceBookingNo: before.bookingNo,
-    });
+    const { findVerifiedWaitlistForPaket, promoteWaitlist } = await import('./waitlist.js');
+    const verified = await findVerifiedWaitlistForPaket({ paketId: before.paketId });
+    if (verified) {
+      // System-style auto-promote — actor is the admin who cancelled,
+      // with a flag in the audit row so the action is attributable
+      // but distinguishable from a hand-clicked promote.
+      const promoted = await promoteWaitlist({
+        req, actor,
+        id: verified.waitlist.id,
+        kelas: before.kelas,
+        paxCount: before.paxCount,
+      });
+      autoPromoted = {
+        waitlistId: verified.waitlist.id,
+        bookingNo: promoted.booking.bookingNo,
+        userEmail: verified.user.email,
+        priorLunasCount: verified.priorLunasCount,
+      };
+      // Decorate the promote audit row with the auto-promote signal.
+      await audit({
+        req, actor,
+        action: 'UPDATE', entity: 'PaketWaitlist', entityId: verified.waitlist.id,
+        after: {
+          autoPromoted: true,
+          trigger: 'cancel.auto_promote',
+          sourceBookingNo: before.bookingNo,
+          verifiedSignal: { userEmail: verified.user.email, priorLunasCount: verified.priorLunasCount },
+        },
+      });
+    }
   } catch (err) {
-    console.warn('[bookingAdmin] notifyWaitlistSlotFreed failed:', err?.message || err);
+    console.warn('[bookingAdmin] auto-promote failed:', err?.message || err);
+  }
+
+  // Skip the nudge when auto-promote succeeded — admin doesn't need the
+  // "freed seats, here are candidates" email if we already handled it.
+  if (!autoPromoted) {
+    try {
+      const { notifyWaitlistSlotFreed } = await import('./notifications.js');
+      await notifyWaitlistSlotFreed({
+        paketId: before.paketId,
+        freedSeats: before.paxCount,
+        sourceBookingNo: before.bookingNo,
+      });
+    } catch (err) {
+      console.warn('[bookingAdmin] notifyWaitlistSlotFreed failed:', err?.message || err);
+    }
   }
 
   // Stage 108/127 — outbound webhooks. `booking.cancelled` (legacy event)
