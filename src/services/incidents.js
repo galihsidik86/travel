@@ -44,6 +44,41 @@ const CreateSchema = z.object({
   locationLabel: z.string().trim().max(200).optional().nullable(),
 });
 
+// Stage 137 — per-crew rate-limit for non-SOS incidents. A panicking
+// crew can flood the queue with repeat presses; cap at 5 / 10 min so
+// the admin desk isn't paged 30 times in a minute. SOS bypasses this
+// entirely (handled at the call site) — life-safety always lands.
+const INCIDENT_RL_MAX = 5;
+const INCIDENT_RL_WINDOW_MS = 10 * 60 * 1000;  // 10 min
+
+/**
+ * Stage 137 — throws HttpError 429 SOS_THROTTLED when the crew has
+ * filed > INCIDENT_RL_MAX non-SOS incidents within the window.
+ * Fail-open on store errors — the lifeline must NOT silently drop on
+ * Redis blip; we'd rather take a duplicate page than miss a real one.
+ */
+async function enforceIncidentRateLimit(crewUser) {
+  try {
+    const { getRateLimitStore } = await import('../middleware/rateLimit.js');
+    const store = getRateLimitStore();
+    if (!store) return;  // no store, fail-open (dev / tests w/o setup)
+    const { count, resetAt } = await store.hit(
+      `incident:${crewUser.id}`, INCIDENT_RL_WINDOW_MS,
+    );
+    if (count > INCIDENT_RL_MAX) {
+      const secs = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
+      throw new HttpError(
+        429,
+        `Terlalu banyak laporan dalam 10 menit. Coba lagi dalam ${secs} detik. (SOS tetap bisa dikirim kapan saja.)`,
+        'SOS_THROTTLED',
+      );
+    }
+  } catch (err) {
+    if (err instanceof HttpError) throw err;
+    console.warn('[incidents] rate-limit check fail-open:', err?.message || err);
+  }
+}
+
 /**
  * Resolve the (optional) paket slug to a paketId, but ONLY if the crew is
  * actually assigned to it — silently null otherwise. We don't fail the create
@@ -72,6 +107,14 @@ export async function createIncident({ req, crewUser, input }) {
     throw new HttpError(400, parsed.error.issues[0]?.message || 'Input tidak valid', 'BAD_INPUT');
   }
   const data = parsed.data;
+  // Stage 137 — per-crew rate-limit. A panicking crew tapping the
+  // button repeatedly can flood the admin queue; we cap at 5 incidents
+  // / 10min per crew user. **SOS type bypasses the limit** — life-safety
+  // alerts always land regardless of how recently the crew filed others.
+  // Fail-open on store errors (the SOS lifeline must not silently drop).
+  if (data.type !== 'SOS') {
+    await enforceIncidentRateLimit(crewUser);
+  }
   const paketId = await resolvePaketForCrew(crewUser.id, data.paketSlug);
 
   const incident = await db.incident.create({
