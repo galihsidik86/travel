@@ -28,6 +28,7 @@ import { notifyWebhookHealth } from '../services/notifications.js';
 import { getManifestCloseNudgeCandidates } from '../services/manifestCloseNudge.js';
 import { notifyManifestCloseNudge } from '../services/notifications.js';
 import { detectNoShows } from '../services/noShow.js';
+import { generateAllAgentStatements, previousMonthYM } from '../services/komisiStatement.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -319,6 +320,18 @@ router.post(
         skipped: fan.skipped ?? false,
       };
     });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/generate-komisi-statements',
+  asyncHandler(async (req, res) => {
+    const period = req.body?.periodYM || previousMonthYM();
+    const result = await runJob('generate-komisi-statements', () => generateAllAgentStatements({
+      req, actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+      periodYM: period,
+    }));
     res.json(result);
   }),
 );
