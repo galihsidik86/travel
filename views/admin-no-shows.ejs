@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — No-Shows</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 8px; font-weight: 500; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-bottom: 22px; }
+
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 18px 22px; margin-bottom: 16px; }
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .stat {
+    background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm);
+    padding: 14px 16px;
+  }
+  .stat .lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; color: var(--ink-200); text-transform: uppercase; margin-bottom: 6px; }
+  .stat .val { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); line-height: 1; }
+  .stat .val.ruby { color: var(--ruby); }
+  .stat .sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-300); margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+  th, td { padding: 9px 10px; text-align: left; border-bottom: var(--hairline-soft); color: var(--cream-100); vertical-align: top; }
+  th { color: var(--ink-300); font-weight: 400; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  td.r { text-align: right; }
+  .empty { color: var(--ink-300); font-style: italic; text-align: center; padding: 40px 0; }
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 9.5px; letter-spacing: 0.06em; }
+  .pill.lunas    { background: rgba(74,143,109,0.12); color: var(--emerald); border: 1px solid var(--emerald); }
+  .pill.dp_paid, .pill.partial { background: rgba(212,175,55,0.10); color: var(--gold-300); border: 1px solid var(--gold-300); }
+  .pill.pending, .pill.booked  { background: rgba(74,158,255,0.08); color: var(--sapphire); border: 1px solid var(--sapphire); }
+  .pill.cancelled, .pill.refunded { background: rgba(181,86,74,0.10); color: var(--ruby); border: 1px solid var(--ruby); }
+  a.bk { color: var(--gold-300); text-decoration: none; }
+  a.bk:hover { text-decoration: underline; }
+  .pager { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+  .pager a { color: var(--gold-300); text-decoration: none; padding: 5px 10px; border: 1px solid var(--ink-300); border-radius: 3px; }
+  .pager a.disabled { color: var(--ink-300); pointer-events: none; border-color: var(--ink-300); }
+</style>
+</head>
+<body data-screen-label="02 Admin · No-Shows">
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← KEMBALI</a> · NO-SHOWS</div>
+  <h1><em>No-show</em> — jemaah tidak hadir hari 1</h1>
+  <div class="sub">
+    Booking aktif yang paket-nya sudah berangkat <strong>tanpa mark hadir di Hari 1</strong>.
+    Auto-stamped harian via job <code>detect-no-shows</code>.
+  </div>
+
+  <div class="panel">
+    <%
+      const totalPaid = rows.reduce((sum, r) => sum + (Number(r.paidAmount) || 0), 0);
+      const lunasCount = rows.filter((r) => r.status === 'LUNAS').length;
+    %>
+    <div class="summary">
+      <div class="stat">
+        <div class="lbl">Total no-show</div>
+        <div class="val ruby"><%= total %></div>
+        <div class="sub">jemaah sepanjang waktu</div>
+      </div>
+      <div class="stat">
+        <div class="lbl">LUNAS no-show</div>
+        <div class="val"><%= lunasCount %></div>
+        <div class="sub">sudah bayar penuh tapi gagal berangkat</div>
+      </div>
+      <div class="stat">
+        <div class="lbl">Total terbayar</div>
+        <div class="val"><%= fmt.rpShort(totalPaid) %></div>
+        <div class="sub">halaman ini (cek refund / debt collection)</div>
+      </div>
+    </div>
+
+    <% if (rows.length === 0) { %>
+      <div class="empty">— belum ada no-show terdeteksi —</div>
+    <% } else { %>
+      <table>
+        <thead>
+          <tr>
+            <th>Booking</th>
+            <th>Jemaah</th>
+            <th>Paket</th>
+            <th>Agen</th>
+            <th>Status</th>
+            <th class="r">Bayar</th>
+            <th>Dideteksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(function(r) { %>
+            <tr>
+              <td>
+                <a class="bk" href="/admin/bookings/<%= r.id %>"><%= r.bookingNo %></a>
+                <div style="color:var(--ink-300);font-size:9.5px;margin-top:2px;"><%= r.kelas %> · <%= r.paxCount %> pax</div>
+              </td>
+              <td>
+                <%= r.jemaah?.fullName || '—' %>
+                <% if (r.jemaah?.phone) { %>
+                  <div style="margin-top:2px;">
+                    <a href="https://wa.me/<%= String(r.jemaah.phone).replace(/[^0-9]/g, '').replace(/^0/, '62') %>" target="_blank" style="color:var(--emerald);text-decoration:none;font-size:9.5px;">📱 <%= r.jemaah.phone %></a>
+                  </div>
+                <% } %>
+              </td>
+              <td>
+                <%= r.paket?.title || '—' %>
+                <div style="color:var(--ink-300);font-size:9.5px;margin-top:2px;">
+                  berangkat <%= r.paket?.departureDate ? fmt.dateShort(r.paket.departureDate) : '—' %>
+                </div>
+              </td>
+              <td>
+                <% if (r.agent) { %>
+                  <%= r.agent.displayName || r.agent.slug %>
+                <% } else { %>
+                  <span style="color:var(--ink-300);font-style:italic;">Kantor Pusat</span>
+                <% } %>
+              </td>
+              <td>
+                <span class="pill <%= r.status.toLowerCase() %>"><%= r.status %></span>
+              </td>
+              <td class="r">
+                <%= fmt.rpShort(Number(r.paidAmount)) %>
+                <div style="color:var(--ink-300);font-size:9.5px;margin-top:2px;">dari <%= fmt.rpShort(Number(r.totalAmount)) %></div>
+              </td>
+              <td>
+                <%= fmt.date(r.noShowAt) %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+
+      <% if (totalPages > 1) { %>
+        <div class="pager">
+          <a class="<%= page <= 1 ? 'disabled' : '' %>" href="?page=<%= page - 1 %>">← Sebelumnya</a>
+          <span>Halaman <%= page %> dari <%= totalPages %></span>
+          <a class="<%= page >= totalPages ? 'disabled' : '' %>" href="?page=<%= page + 1 %>">Berikutnya →</a>
+        </div>
+      <% } %>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

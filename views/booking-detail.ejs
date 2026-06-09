@@ -319,6 +319,11 @@
     </div>
     <div>
       <span class="status-tag <%= b.status.toLowerCase() %>"><%= b.status %></span>
+      <% if (b.noShowAt) { %>
+        <span style="display:inline-block;margin-left:8px;padding:4px 10px;border:1px solid var(--ruby);color:var(--ruby);background:rgba(181,86,74,0.08);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;border-radius:3px;" title="Jemaah tidak mark hadir di Hari 1 — auto-flagged S144 detect-no-shows pada <%= fmt.date(b.noShowAt) %>">
+          ⚠ NO-SHOW
+        </span>
+      <% } %>
     </div>
   </div>
 

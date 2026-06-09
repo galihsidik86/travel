@@ -27,6 +27,7 @@ import { getWebhookHealthDigest } from '../services/webhookHealthDigest.js';
 import { notifyWebhookHealth } from '../services/notifications.js';
 import { getManifestCloseNudgeCandidates } from '../services/manifestCloseNudge.js';
 import { notifyManifestCloseNudge } from '../services/notifications.js';
+import { detectNoShows } from '../services/noShow.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -318,6 +319,17 @@ router.post(
         skipped: fan.skipped ?? false,
       };
     });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/detect-no-shows',
+  asyncHandler(async (req, res) => {
+    const result = await runJob('detect-no-shows', () => detectNoShows({
+      req,
+      actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+    }));
     res.json(result);
   }),
 );

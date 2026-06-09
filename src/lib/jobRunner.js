@@ -88,6 +88,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-api-scope-down': 7 * 24 * 60 * 60_000, // weekly (Stage 124)
   'send-webhook-health': 7 * 24 * 60 * 60_000, // weekly (Stage 129)
   'send-manifest-close': 24 * 60 * 60_000, // daily (Stage 141)
+  'detect-no-shows': 24 * 60 * 60_000, // daily (Stage 144)
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };
 

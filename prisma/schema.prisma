@@ -1186,6 +1186,14 @@ model Booking {
   // `POST /api/admin/jobs/send-manifest-close` to force a re-check.
   manifestCloseNotifiedAt DateTime?
 
+  // Stage 144 — no-show stamp. Set by the daily detection job when the
+  // paket's departure has passed AND no AttendanceMark exists for the
+  // booking on day 1. Surfaces in `/admin/no-shows` queue. Once set,
+  // the job skips this booking on future runs (idempotency). Admin can
+  // clear manually (`UPDATE Booking SET noShowAt = NULL`) if a late
+  // attendance correction reverses the verdict.
+  noShowAt        DateTime?
+
   // bunking assignment (NULL = belum di-assign ke kamar)
   roomId String?
   room   Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
@@ -1228,6 +1236,8 @@ model Booking {
   // re-declared here so prisma migrate stops trying to rename it.
   @@index([createdAt])
   @@index([roomId])
+  // Stage 144 — index for the /admin/no-shows queue scan
+  @@index([noShowAt])
 }
 
 model Payment {

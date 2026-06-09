@@ -203,6 +203,18 @@ router.get(
   }),
 );
 
+// Stage 144 — no-show queue (paid-but-didn't-board bookings).
+// Auto-populated daily by `detect-no-shows` cron; admin uses this to
+// follow up on refund / reschedule / debt collection.
+router.get(
+  '/no-shows',
+  asyncHandler(async (req, res) => {
+    const { listNoShows } = await import('../services/noShow.js');
+    const result = await listNoShows({ page: req.query.page || 1, pageSize: 50 });
+    res.render('admin-no-shows', { user: req.user, ...result });
+  }),
+);
+
 // Stage 24 — month-grid view of paket departures.
 router.get(
   '/calendar',

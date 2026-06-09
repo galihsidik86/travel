@@ -34,6 +34,7 @@
     "job:send-api-scope-down": "node --env-file-if-exists=.env src/jobs/send-api-scope-down.js",
     "job:send-webhook-health": "node --env-file-if-exists=.env src/jobs/send-webhook-health.js",
     "job:send-manifest-close": "node --env-file-if-exists=.env src/jobs/send-manifest-close.js",
+    "job:detect-no-shows": "node --env-file-if-exists=.env src/jobs/detect-no-shows.js",
     "job:prune": "node --env-file-if-exists=.env src/jobs/prune.js",
     "check:openapi-sdk": "node scripts/check-openapi.js"
   },
