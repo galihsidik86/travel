@@ -61,6 +61,14 @@ router.get(
     const users = await listUsers({ search, role, status, deleted: validDeleted });
     res.render('users-list', {
       user: req.user, users, search, role, status, META, deleted: validDeleted,
+      // Stage 151 — flash from /admin/agents/:slug/statements/regenerate
+      flash: {
+        ok: req.query.ok || null,
+        agentSlug: req.query.agentSlug || null,
+        periodYM: req.query.periodYM || null,
+        priorEarnedIdr: req.query.priorEarnedIdr || null,
+        priorPaidIdr: req.query.priorPaidIdr || null,
+      },
     });
   }),
 );

@@ -31,6 +31,7 @@ import paymentIntentsRouter from './routes/paymentIntents.js';
 import incidentsRouter from './routes/incidents.js';
 import testimonialsRouter from './routes/testimonials.js';
 import webhooksRouter from './routes/webhooks.js';
+import agentsAdminRouter from './routes/agentsAdmin.js';
 import inboundWebhooksRouter, { inboundWebhooksAdminRouter } from './routes/inboundWebhooks.js';
 import apiKeysRouter from './routes/apiKeys.js';
 import apiV1Router from './routes/apiV1.js';
@@ -160,6 +161,7 @@ export function createApp() {
   app.use('/admin/webhooks', webhooksRouter);
   app.use('/admin/inbound-webhooks', inboundWebhooksAdminRouter);
   app.use('/admin/api-keys', apiKeysRouter);
+  app.use('/admin/agents', agentsAdminRouter);
   app.use('/admin', adminRouter);
 
   // Static — existing design package (index.html, screens/, shared/, uploads/)

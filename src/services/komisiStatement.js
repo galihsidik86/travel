@@ -235,6 +235,59 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
 }
 
 /**
+ * Stage 151 — admin override: delete the existing statement + PDF on
+ * disk for `(agentId, periodYM)` then re-run `generateAgentStatement`.
+ * Used when a late komisi adjustment landed AFTER the original cron
+ * pass — S150's immutability rule was the right default but admins
+ * still need an escape hatch.
+ *
+ * Audit row carries the prior totals so a compliance scan can answer
+ * "did the statement amount change retroactively?".
+ */
+export async function regenerateAgentStatement({ req = null, actor = null, agentId, periodYM, now = new Date() } = {}) {
+  if (!agentId) throw new HttpError(400, 'agentId wajib', 'BAD_AGENT');
+  if (!/^\d{4}-\d{2}$/.test(periodYM)) {
+    throw new HttpError(400, 'periodYM harus format YYYY-MM', 'BAD_PERIOD');
+  }
+  const existing = await db.komisiStatement.findUnique({
+    where: { agentId_periodYM: { agentId, periodYM } },
+  });
+  // Capture prior totals + PDF path for audit + cleanup BEFORE the
+  // delete. Missing existing row is fine — falls through to generate.
+  const prior = existing ? {
+    totalEarnedIdr: Number(existing.totalEarnedIdr.toString()),
+    totalPaidIdr: Number(existing.totalPaidIdr.toString()),
+    lineCount: existing.lineCount,
+    pdfPath: existing.pdfPath,
+  } : null;
+  if (existing) {
+    await db.komisiStatement.delete({ where: { id: existing.id } });
+    // Best-effort PDF cleanup — a missing file isn't fatal.
+    if (existing.pdfPath) {
+      await fsp.unlink(existing.pdfPath).catch(() => { /* swallow */ });
+    }
+  }
+
+  // Now run the canonical create path.
+  const result = await generateAgentStatement({ req, actor, agentId, periodYM, now });
+
+  // Audit annotation: which prior totals were superseded.
+  await audit({
+    req, actor: actor ?? { email: 'system' },
+    action: 'UPDATE', entity: 'KomisiStatement', entityId: result.statement.id,
+    before: prior ?? { existed: false },
+    after: {
+      regenerated: true, periodYM,
+      totalEarnedIdr: Number(result.statement.totalEarnedIdr.toString()),
+      totalPaidIdr: Number(result.statement.totalPaidIdr.toString()),
+      lineCount: result.statement.lineCount,
+    },
+  }).catch((err) => console.warn('[komisi-statement] regen audit failed:', err?.message || err));
+
+  return { ...result, regenerated: true, prior };
+}
+
+/**
  * Stage 150 — iterate every ACTIVE agent + generate the previous-month
  * statement. Per-agent failures are caught + logged so a bad row doesn't
  * abort the batch.

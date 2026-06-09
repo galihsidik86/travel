@@ -285,6 +285,27 @@
         <% if (errors.komisiRateOverridePct) { %><div class="field-err"><%= errors.komisiRateOverridePct %></div><% } %>
         <div class="helper">0-50%. Kalau di-set, override rate di Paket. Berlaku saat LUNAS baru saja.</div>
       </div>
+      <%# Stage 151 — regenerate komisi statement when late adjustments
+          land after the original cron pass. Audit row captures prior
+          totals for compliance traceability. Outside the main <form>
+          (which is the user edit), so it's its own POST. %>
+      <% if (mode !== 'new' && target.slug) { %>
+        <div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--hairline);">
+          <h4 style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;color:var(--gold-300);text-transform:uppercase;margin:0 0 8px;">Regenerate laporan komisi</h4>
+          <p style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);line-height:1.6;margin:0 0 10px;">
+            Hapus statement bulanan yang ada, render ulang dari data komisi terbaru. Audit log mencatat total lama vs baru.
+            Kosongkan field period untuk regenerate statement <strong>terbaru</strong>.
+          </p>
+          <form method="POST" action="/admin/agents/<%= target.slug %>/statements/regenerate" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;" onsubmit="return confirm('Regenerate komisi statement untuk agen ini? Statement lama akan dihapus + audit log dicatat.');">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="field" style="margin:0;min-width:140px;">
+              <label class="label" for="f-period" style="font-size:10.5px;">Period (YYYY-MM)</label>
+              <input class="input" id="f-period" name="periodYM" pattern="\d{4}-\d{2}" maxlength="7" placeholder="2026-05" style="font-family:var(--font-mono);">
+            </div>
+            <button type="submit" class="btn" style="background:var(--ink-1000);border:1px solid var(--amber);color:var(--amber);padding:8px 14px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border-radius:var(--r-sm);">↻ Regenerate</button>
+          </form>
+        </div>
+      <% } %>
     </div>
 
     <!-- ====== Profil STAFF (OWNER/SUPERADMIN/MANAJER_OPS/KASIR/SALES) ====== -->
