@@ -323,9 +323,35 @@ export async function generateAllAgentStatements({ req = null, actor = null, per
     where: { user: { status: 'ACTIVE', deletedAt: null } },
     select: { id: true, slug: true },
   });
-  let created = 0, skipped = 0, errors = 0;
+  // Stage 154 — opt-out: when env flag is set, agents with zero komisi
+  // lines for the period skip the create entirely (no row + no PDF).
+  // Keeps the agent wallet tab tidy for agents who didn't sell anything
+  // that month. Default off (back-compat with the S150 "always create"
+  // behavior). Reads env at call time so runtime toggles / tests work
+  // without a restart. ADMIN regenerate path (S151) NEVER honors this
+  // flag — explicit admin action always produces a statement.
+  const skipZeroLines = process.env.KOMISI_STATEMENT_SKIP_ZERO_LINES === 'true';
+  let created = 0, skipped = 0, zeroSkipped = 0, errors = 0;
   for (const a of agents) {
     try {
+      if (skipZeroLines) {
+        // Cheap pre-check via getStatementLines — avoids rendering the
+        // PDF + creating the row when we'd skip anyway.
+        const { totals } = await getStatementLines({ agentId: a.id, periodYM });
+        if (totals.lineCount === 0) {
+          // Only count as zero-skip when there ISN'T already an existing
+          // row for this period (existing row → skipped via the normal
+          // idempotency path).
+          const existing = await db.komisiStatement.findUnique({
+            where: { agentId_periodYM: { agentId: a.id, periodYM } },
+            select: { id: true },
+          });
+          if (!existing) {
+            zeroSkipped += 1;
+            continue;
+          }
+        }
+      }
       const r = await generateAgentStatement({ req, actor, agentId: a.id, periodYM, now });
       if (r.created) created += 1;
       else skipped += 1;
@@ -334,7 +360,7 @@ export async function generateAllAgentStatements({ req = null, actor = null, per
       errors += 1;
     }
   }
-  return { agentCount: agents.length, created, skipped, errors, periodYM };
+  return { agentCount: agents.length, created, skipped, zeroSkipped, errors, periodYM };
 }
 
 /**
@@ -351,7 +377,7 @@ export async function generateAllAgentStatements({ req = null, actor = null, per
 export async function backfillKomisiStatements({ req = null, actor = null, months = 6, now = new Date() } = {}) {
   const cap = Math.max(1, Math.min(24, Math.trunc(months) || 6));
   const perMonth = [];
-  let grandCreated = 0, grandSkipped = 0, grandErrors = 0;
+  let grandCreated = 0, grandSkipped = 0, grandZeroSkipped = 0, grandErrors = 0;
   for (let i = 0; i < cap; i++) {
     // i=0 → previousMonth, i=1 → two months ago, etc.
     const d = new Date(now.getFullYear(), now.getMonth() - 1 - i, 1);
@@ -361,17 +387,18 @@ export async function backfillKomisiStatements({ req = null, actor = null, month
       perMonth.push({ periodYM, ...r });
       grandCreated += r.created;
       grandSkipped += r.skipped;
+      grandZeroSkipped += (r.zeroSkipped || 0);
       grandErrors += r.errors;
     } catch (err) {
       console.warn(`[backfill-komisi] period ${periodYM} failed:`, err?.message || err);
       grandErrors += 1;
-      perMonth.push({ periodYM, agentCount: 0, created: 0, skipped: 0, errors: 1 });
+      perMonth.push({ periodYM, agentCount: 0, created: 0, skipped: 0, zeroSkipped: 0, errors: 1 });
     }
   }
   return {
     monthsRequested: cap,
     perMonth,
-    totals: { created: grandCreated, skipped: grandSkipped, errors: grandErrors },
+    totals: { created: grandCreated, skipped: grandSkipped, zeroSkipped: grandZeroSkipped, errors: grandErrors },
   };
 }
 
