@@ -230,8 +230,18 @@ router.get(
   requireRole(...VIEW_ROLES),
   asyncHandler(async (req, res) => {
     const data = await getAdminBookingVoucher(req.params.id);
-    const { streamVoucherPdf } = await import('../services/bookingVoucherPdf.js');
-    streamVoucherPdf(data, res, { lang: req.query.lang });
+    // Stage 149 — cache-then-render. Hash invalidates when any
+    // displayed field changes (status/paid/jemaah/room/agent/payments).
+    const { getOrRenderVoucherPdf } = await import('../services/voucherCache.js');
+    const { voucherFilename, pickLang } = await import('../services/bookingVoucherPdf.js');
+    const lang = pickLang(req.query.lang);
+    const { buffer, cached } = await getOrRenderVoucherPdf({
+      bookingId: req.params.id, voucher: data, lang,
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${voucherFilename(data, lang)}"`);
+    res.setHeader('X-Voucher-Cache', cached ? 'HIT' : 'MISS');
+    res.end(buffer);
   }),
 );
 

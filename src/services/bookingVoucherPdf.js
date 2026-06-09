@@ -97,18 +97,68 @@ function fmtDate(d, lang) {
  */
 export function streamVoucherPdf(voucher, res, opts = {}) {
   const lang = pickLang(opts.lang);
-  const L = LANGS[lang];
-  const filename = `voucher_${voucher.bookingNo.replace(/[^A-Za-z0-9_-]/g, '_')}${lang !== 'id' ? '_' + lang : ''}.pdf`;
+  const filename = voucherFilename(voucher, lang);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
-  const doc = new PDFDocument({ size: 'A4', margin: 50, info: {
-    Title: `Voucher ${voucher.bookingNo}`,
-    Author: 'Religio Pro',
-    Subject: 'Booking voucher',
-    Keywords: `lang:${lang}`,
-  } });
+  const doc = newVoucherDoc(voucher, lang);
   doc.pipe(res);
+  renderVoucherIntoDoc(doc, voucher, lang);
+  doc.end();
+}
+
+/**
+ * Stage 149 — produce the voucher PDF as an in-memory Buffer instead of
+ * streaming to res. Used by the voucher cache + the bookingBundle.zip
+ * flow that needs the bytes for archival.
+ */
+export async function renderVoucherPdfBuffer(voucher, opts = {}) {
+  const lang = pickLang(opts.lang);
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    const doc = newVoucherDoc(voucher, lang);
+    doc.on('data', (c) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+    try {
+      renderVoucherIntoDoc(doc, voucher, lang);
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Stage 149 — filename helper exported so the cache can name files
+ * the same way the download attachment is named.
+ */
+export function voucherFilename(voucher, lang = 'id') {
+  const langKey = pickLang(lang);
+  const cleanNo = voucher.bookingNo.replace(/[^A-Za-z0-9_-]/g, '_');
+  return `voucher_${cleanNo}${langKey !== 'id' ? '_' + langKey : ''}.pdf`;
+}
+
+function newVoucherDoc(voucher, lang) {
+  return new PDFDocument({
+    size: 'A4', margin: 50,
+    info: {
+      Title: `Voucher ${voucher.bookingNo}`,
+      Author: 'Religio Pro',
+      Subject: 'Booking voucher',
+      Keywords: `lang:${lang}`,
+    },
+  });
+}
+
+/**
+ * Stage 149 — pure rendering function. Caller owns the PDFDocument
+ * lifecycle (stream piping + doc.end()), so this function can serve
+ * both `streamVoucherPdf` (pipe→res) and `renderVoucherPdfBuffer`
+ * (chunks→Buffer) without duplicating the layout.
+ */
+function renderVoucherIntoDoc(doc, voucher, lang) {
+  const L = LANGS[lang];
 
   // ── Header (Stage 103 ornament) ───────────────────────────
   // Top gold rule
@@ -211,8 +261,6 @@ export function streamVoucherPdf(voucher, res, opts = {}) {
   doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted)
     .text(`${L.footer} ${fmtDate(voucher.generatedAt, lang)} · Religio Pro · ${L.fineprint}`,
       50, footY + 18, { width: 495, align: 'center' });
-
-  doc.end();
 }
 
 function section(doc, title) {

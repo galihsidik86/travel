@@ -25,6 +25,7 @@ import { ZipArchive } from 'archiver';
 import { db } from '../lib/db.js';
 import { renderIcsFromBooking } from './bookingIcs.js';
 import { streamVoucherPdf } from './bookingVoucherPdf.js';
+import { getOrRenderVoucherPdf } from './voucherCache.js';
 
 /**
  * Stream a booking dossier ZIP to `res`. Requires `voucher` (output of
@@ -57,13 +58,21 @@ export async function streamBookingBundle(voucher, res, { format = 'pdf' } = {})
     archive.append(buildPaymentsCsv(voucher), { name: 'payments.csv' });
     // docs.csv listed below alongside the doc files
   } else {
-    // streamVoucherPdf calls `res.setHeader` + `doc.pipe(res)`. Provide a
-    // shim that's a writable stream (so pdfkit.pipe works) AND has
-    // setHeader as a no-op (the real zip headers were already set above).
-    class ResShim extends PassThrough { setHeader() { /* noop */ } }
-    const pdfShim = new ResShim();
-    archive.append(pdfShim, { name: 'voucher.pdf' });
-    streamVoucherPdf(voucher, pdfShim);
+    // Stage 149 — pull from cache (or render + cache on miss). Append
+    // the buffer directly into the archive — no PassThrough shim needed
+    // anymore since we already have the bytes.
+    try {
+      const { buffer } = await getOrRenderVoucherPdf({
+        bookingId: voucher.id || voucher.bookingId, voucher, lang: 'id',
+      });
+      archive.append(buffer, { name: 'voucher.pdf' });
+    } catch (err) {
+      console.warn('[bundle] voucher PDF render failed, falling back to inline stream:', err?.message || err);
+      class ResShim extends PassThrough { setHeader() { /* noop */ } }
+      const pdfShim = new ResShim();
+      archive.append(pdfShim, { name: 'voucher.pdf' });
+      streamVoucherPdf(voucher, pdfShim);
+    }
   }
 
   // 2. calendar.ics (skipped in CSV mode — calendar imports don't pair
@@ -214,10 +223,21 @@ export async function streamBulkBookingBundle({ vouchers, paketTitle = '' }, res
       archive.append(buildBookingCsv(v), { name: `${folder}/booking.csv` });
       archive.append(buildPaymentsCsv(v), { name: `${folder}/payments.csv` });
     } else {
-      class ResShim extends PassThrough { setHeader() { /* noop */ } }
-      const pdfShim = new ResShim();
-      archive.append(pdfShim, { name: `${folder}/voucher.pdf` });
-      streamVoucherPdf(v, pdfShim);
+      // Stage 149 — bulk path also routes through the cache. Big
+      // dossier exports (100+ bookings) re-use any PDFs already
+      // rendered by individual downloads.
+      try {
+        const { buffer } = await getOrRenderVoucherPdf({
+          bookingId: v.id || v.bookingId, voucher: v, lang: 'id',
+        });
+        archive.append(buffer, { name: `${folder}/voucher.pdf` });
+      } catch (err) {
+        console.warn('[bundle:bulk] voucher PDF cache failed for', v.bookingNo, '— falling back to inline:', err?.message || err);
+        class ResShim extends PassThrough { setHeader() { /* noop */ } }
+        const pdfShim = new ResShim();
+        archive.append(pdfShim, { name: `${folder}/voucher.pdf` });
+        streamVoucherPdf(v, pdfShim);
+      }
     }
 
     if (format !== 'csv') {

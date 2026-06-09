@@ -141,8 +141,17 @@ router.get(
   asyncHandler(async (req, res) => {
     const { getJemaahBookingVoucher } = await import('../services/bookingVoucher.js');
     const data = await getJemaahBookingVoucher(req.user.id, req.params.id);
-    const { streamVoucherPdf } = await import('../services/bookingVoucherPdf.js');
-    streamVoucherPdf(data, res, { lang: req.query.lang });
+    // Stage 149 — same cache-then-render path as the admin route.
+    const { getOrRenderVoucherPdf } = await import('../services/voucherCache.js');
+    const { voucherFilename, pickLang } = await import('../services/bookingVoucherPdf.js');
+    const lang = pickLang(req.query.lang);
+    const { buffer, cached } = await getOrRenderVoucherPdf({
+      bookingId: req.params.id, voucher: data, lang,
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${voucherFilename(data, lang)}"`);
+    res.setHeader('X-Voucher-Cache', cached ? 'HIT' : 'MISS');
+    res.end(buffer);
   }),
 );
 
