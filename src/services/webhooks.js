@@ -47,6 +47,20 @@ export function sign(secret, body) {
 }
 
 /**
+ * Stage 143 — timestamped signature for outbound webhooks. Partners
+ * can verify against the same `<ts>.<body>` shape S143 uses on the
+ * inbound side. Caller passes `tsSec` (epoch seconds) — typically
+ * now / 1000 at fire time; on retries, attemptDelivery generates a
+ * FRESH timestamp + signature (the persisted `signature` column is
+ * the original-fire snapshot, but the wire format uses the live ts
+ * so replay protection at the partner's edge still works).
+ */
+export function signWithTimestamp(secret, body, tsSec) {
+  const hex = createHmac('sha256', secret).update(`${tsSec}.${body}`).digest('hex');
+  return 'sha256=' + hex;
+}
+
+/**
  * Stage 109 — exponential backoff schedule. Mirrors notif retry (5nn).
  * After the 5th failure the row is terminal (nextRetryAt=null, status=FAILED).
  */
@@ -185,6 +199,17 @@ async function attemptDelivery(sub, body, signature, eventName, delivery, attemp
       'X-Religio-Signature': signature,
       'X-Religio-Event': eventName,
     };
+    // Stage 143 — alongside the legacy `X-Religio-Signature` (body-only),
+    // also send a timestamped signature so partners can detect replays
+    // by checking `abs(now - ts) <= 5 min`. Header naming mirrors the
+    // inbound side so the same hmacVerifier shape works on both ends.
+    // Per-attempt fresh timestamp — retries get a new ts (and thus a new
+    // timestamped signature) so a partner's narrow skew window doesn't
+    // cause our cron retries to be rejected. Legacy partners ignore the
+    // new headers and keep working off X-Religio-Signature.
+    const tsSec = Math.floor(Date.now() / 1000);
+    headers['X-Webhook-Timestamp'] = String(tsSec);
+    headers['X-Religio-Signature-V2'] = signWithTimestamp(sub.secret, body, tsSec);
     // Stage 119 — Idempotency-Key tied to the persisted delivery row id.
     // Partners can dedupe across our retries (e.g. their endpoint actually
     // succeeded but timed out responding — our retry shouldn't double-bill
@@ -196,6 +221,7 @@ async function attemptDelivery(sub, body, signature, eventName, delivery, attemp
     // accept the request. After expiry, only the current signature ships.
     if (sub.prevSecret && sub.prevSecretExpiresAt && new Date(sub.prevSecretExpiresAt) > new Date()) {
       headers['X-Religio-Signature-Prev'] = sign(sub.prevSecret, body);
+      headers['X-Religio-Signature-V2-Prev'] = signWithTimestamp(sub.prevSecret, body, tsSec);
     }
     const res = await fetch(sub.url, {
       method: 'POST', headers, body, signal: ctrl.signal,

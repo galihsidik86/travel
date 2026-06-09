@@ -17,14 +17,45 @@ import { db } from '../lib/db.js';
 // Convention: env var WEBHOOK_IN_<SOURCE>_SECRET holds the shared secret.
 // Verifier returns null if env is missing (treats source as accept-anything
 // for dev; admin can rotate to a real secret without touching code).
-function hmacVerifier(envKey, headerName, algo = 'sha256') {
-  return (body, headers) => {
+//
+// Stage 143 — `requireTimestamp:true` enables replay protection. The
+// receiver expects an `X-Webhook-Timestamp` header carrying epoch
+// seconds; the signed body is `<timestamp>.<rawBody>` (Stripe-style),
+// and the request is rejected if abs(now - ts) exceeds REPLAY_SKEW_SEC.
+// A stolen signed body can't be replayed against us hours later.
+//
+// Per-source opt-in so existing partners (Fonnte, Zapier) that don't
+// sign timestamps aren't suddenly broken; flag each integration as
+// timestamped only when the partner-side has been updated to send it.
+const REPLAY_SKEW_SEC = 5 * 60;  // 5 min — Stripe's default, generous enough for clock skew
+
+export function hmacVerifier(envKey, headerName, opts = {}) {
+  const algo = opts.algo || 'sha256';
+  const requireTimestamp = !!opts.requireTimestamp;
+  const tsHeaderName = (opts.tsHeader || 'x-webhook-timestamp').toLowerCase();
+  return (body, headers, now = new Date()) => {
     const secret = process.env[envKey];
     if (!secret) return null;  // no rule configured
     const sig = (headers[headerName.toLowerCase()] || '').toString();
     if (!sig) return false;
+
+    let signedBody = body;
+    if (requireTimestamp) {
+      const tsRaw = (headers[tsHeaderName] || '').toString().trim();
+      if (!tsRaw) return false;  // missing required ts header
+      const ts = parseInt(tsRaw, 10);
+      if (!Number.isFinite(ts) || ts <= 0) return false;  // malformed
+      const nowSec = Math.floor(now.getTime() / 1000);
+      // Future-skew also rejected (clock running fast OR replay
+      // attempt with re-stamped header)
+      if (Math.abs(nowSec - ts) > REPLAY_SKEW_SEC) return false;
+      // Sign `<ts>.<body>` so the timestamp is part of the integrity
+      // check — partner can't swap the ts and reuse an old signature.
+      signedBody = `${ts}.${body}`;
+    }
+
     // Accept both "sha256=<hex>" and bare hex
-    const expectedHex = createHmac(algo, secret).update(body).digest('hex');
+    const expectedHex = createHmac(algo, secret).update(signedBody).digest('hex');
     const candidate = sig.replace(/^sha256=/i, '').trim();
     if (candidate.length !== expectedHex.length) return false;
     try {
@@ -41,7 +72,17 @@ export const VERIFIERS = {
   fonnte:   hmacVerifier('WEBHOOK_IN_FONNTE_SECRET', 'x-fonnte-signature'),
   zapier:   hmacVerifier('WEBHOOK_IN_ZAPIER_SECRET', 'x-zapier-signature'),
   generic:  hmacVerifier('WEBHOOK_IN_GENERIC_SECRET', 'x-religio-signature'),
+  // S143 — opt-in source for partners that support timestamped HMAC.
+  // Receives `X-Webhook-Timestamp` + signed body `<ts>.<rawBody>`.
+  // Use this as the model for new integrations going forward.
+  'generic-ts': hmacVerifier('WEBHOOK_IN_GENERIC_TS_SECRET', 'x-religio-signature', {
+    requireTimestamp: true,
+  }),
 };
+
+// Re-export so the outbound dispatcher (S143-cycle) + tests can use the
+// same skew constant.
+export { REPLAY_SKEW_SEC };
 
 // ─── Per-source handlers ─────────────────────────────────────
 // Empty map = pure passive receiver. Add handlers when wiring an
