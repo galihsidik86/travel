@@ -825,6 +825,12 @@
                   EARNED · <span style="color:var(--cream-100);"><%= fmt.rpShort(totalEarned) %></span><br>
                   PAID · <span style="color:var(--emerald);"><%= fmt.rpShort(totalPaid) %></span>
                 </div>
+                <% if (s.adminNote) { %>
+                  <%# S156 — admin note pill so agents know to open the PDF for context. %>
+                  <div title="<%= s.adminNote %>" style="margin-top:4px;display:inline-flex;align-self:flex-start;align-items:center;gap:4px;background:rgba(212,175,55,0.10);border:1px solid var(--gold-300);color:var(--gold-300);padding:2px 8px;border-radius:9px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.05em;">
+                    ✎ ada catatan
+                  </div>
+                <% } %>
               </a>
             <% }) %>
           </div>

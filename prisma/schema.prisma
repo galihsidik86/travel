@@ -1394,6 +1394,11 @@ model KomisiStatement {
   lineCount      Int
 
   pdfPath        String? @db.VarChar(255)
+  // Stage 156 — optional admin note rendered as a bordered "Catatan
+  // dari Religio Pro" block on the PDF. Useful for "bonus Rp 500k
+  // tertahan, akan diterbitkan bulan depan" style explanations the
+  // raw line items don't convey.
+  adminNote      String? @db.Text
   generatedAt    DateTime @default(now())
 
   @@unique([agentId, periodYM])

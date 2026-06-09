@@ -142,7 +142,7 @@ export async function computeYtdTotals({ agentId, periodYM }) {
  * Stage 150 — render the statement PDF into a Buffer. S155 adds the
  * optional YTD block when `ytd` is provided + not suppressed.
  */
-export async function renderStatementPdfBuffer({ agent, periodYM, lines, totals, ytd = null }) {
+export async function renderStatementPdfBuffer({ agent, periodYM, lines, totals, ytd = null, adminNote = null }) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     const doc = new PDFDocument({ size: 'A4', margin: 50, info: {
@@ -252,6 +252,33 @@ export async function renderStatementPdfBuffer({ agent, periodYM, lines, totals,
       }
     }
 
+    // Stage 156 — optional admin note. Renders as a gold-bordered
+    // block at the end of the body, before the footer. Trim whitespace
+    // (no leading blank lines) so a 1-line note doesn't waste space.
+    if (adminNote && adminNote.trim()) {
+      doc.moveDown(0.6);
+      const startY = doc.y;
+      const padX = 12, padY = 10;
+      const innerW = 495 - padX * 2;
+      // Pre-measure the text height to draw the box around it
+      doc.font('Helvetica').fontSize(10).fillColor(C.ink);
+      const noteText = adminNote.trim();
+      const textH = doc.heightOfString(noteText, { width: innerW });
+      const titleH = 14;  // approx for the small caps header
+      const boxH = titleH + textH + padY * 2;
+      // Box border (gold, slight ruby tint via stroke color tweak — keep gold for brand consistency)
+      doc.strokeColor(C.gold).lineWidth(0.6)
+        .rect(50, startY, 495, boxH).stroke();
+      // Title strip
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(C.gold)
+        .text('CATATAN DARI RELIGIO PRO', 50 + padX, startY + padY,
+          { width: innerW, characterSpacing: 1.5 });
+      // Body
+      doc.font('Helvetica').fontSize(10).fillColor(C.ink)
+        .text(noteText, 50 + padX, startY + padY + titleH, { width: innerW });
+      doc.y = startY + boxH + 4;
+    }
+
     // Footer
     const footY = doc.page.height - 60;
     doc.strokeColor(C.gold).lineWidth(0.4).moveTo(120, footY - 8).lineTo(475, footY - 8).stroke();
@@ -270,7 +297,7 @@ export async function renderStatementPdfBuffer({ agent, periodYM, lines, totals,
  *
  * Returns `{statement, created, pdfPath}`.
  */
-export async function generateAgentStatement({ req = null, actor = null, agentId, periodYM, now = new Date() } = {}) {
+export async function generateAgentStatement({ req = null, actor = null, agentId, periodYM, now = new Date(), adminNote = null } = {}) {
   if (!agentId) throw new HttpError(400, 'agentId wajib', 'BAD_AGENT');
   if (!/^\d{4}-\d{2}$/.test(periodYM)) {
     throw new HttpError(400, 'periodYM harus format YYYY-MM', 'BAD_PERIOD');
@@ -304,8 +331,15 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
   } catch (err) {
     console.warn('[komisi-statement] YTD compute failed:', err?.message || err);
   }
+  // S156 — normalise admin note (trim + cap; empty → null) and thread
+  // through to the PDF render so it appears as a "Catatan dari
+  // Religio Pro" block. NULL note → no block.
+  const cleanNote = adminNote == null ? null : (String(adminNote).trim().slice(0, 2000) || null);
+
   // Render + persist PDF
-  const buffer = await renderStatementPdfBuffer({ agent, periodYM, lines, totals, ytd });
+  const buffer = await renderStatementPdfBuffer({
+    agent, periodYM, lines, totals, ytd, adminNote: cleanNote,
+  });
   const dir = resolvePath(process.cwd(), CACHE_DIR);
   await fsp.mkdir(dir, { recursive: true });
   const fileName = `${agentId}__${periodYM}.pdf`;
@@ -319,6 +353,7 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
       totalPaidIdr: totals.paidIdr.toFixed(2),
       lineCount: totals.lineCount,
       pdfPath,
+      adminNote: cleanNote,
       generatedAt: now,
     },
   });
@@ -368,7 +403,7 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
  * Audit row carries the prior totals so a compliance scan can answer
  * "did the statement amount change retroactively?".
  */
-export async function regenerateAgentStatement({ req = null, actor = null, agentId, periodYM, now = new Date() } = {}) {
+export async function regenerateAgentStatement({ req = null, actor = null, agentId, periodYM, now = new Date(), adminNote } = {}) {
   if (!agentId) throw new HttpError(400, 'agentId wajib', 'BAD_AGENT');
   if (!/^\d{4}-\d{2}$/.test(periodYM)) {
     throw new HttpError(400, 'periodYM harus format YYYY-MM', 'BAD_PERIOD');
@@ -383,6 +418,7 @@ export async function regenerateAgentStatement({ req = null, actor = null, agent
     totalPaidIdr: Number(existing.totalPaidIdr.toString()),
     lineCount: existing.lineCount,
     pdfPath: existing.pdfPath,
+    adminNote: existing.adminNote,
   } : null;
   if (existing) {
     await db.komisiStatement.delete({ where: { id: existing.id } });
@@ -392,10 +428,22 @@ export async function regenerateAgentStatement({ req = null, actor = null, agent
     }
   }
 
-  // Now run the canonical create path.
-  const result = await generateAgentStatement({ req, actor, agentId, periodYM, now });
+  // S156 — normalise the note (trim + cap 2000 chars; empty → null).
+  // Caller may pass `adminNote=undefined` to preserve the prior note
+  // on regen; explicit `null` or `''` clears it.
+  let noteForCreate;
+  if (adminNote === undefined) {
+    noteForCreate = prior?.adminNote ?? null;
+  } else {
+    noteForCreate = (adminNote || '').trim().slice(0, 2000) || null;
+  }
 
-  // Audit annotation: which prior totals were superseded.
+  // Now run the canonical create path with the note.
+  const result = await generateAgentStatement({
+    req, actor, agentId, periodYM, now, adminNote: noteForCreate,
+  });
+
+  // Audit annotation: which prior totals + note were superseded.
   await audit({
     req, actor: actor ?? { email: 'system' },
     action: 'UPDATE', entity: 'KomisiStatement', entityId: result.statement.id,
@@ -405,6 +453,7 @@ export async function regenerateAgentStatement({ req = null, actor = null, agent
       totalEarnedIdr: Number(result.statement.totalEarnedIdr.toString()),
       totalPaidIdr: Number(result.statement.totalPaidIdr.toString()),
       lineCount: result.statement.lineCount,
+      adminNote: noteForCreate,
     },
   }).catch((err) => console.warn('[komisi-statement] regen audit failed:', err?.message || err));
 
@@ -512,6 +561,8 @@ export async function listAgentStatements({ agentId, limit = 24 } = {}) {
       id: true, periodYM: true,
       totalEarnedIdr: true, totalPaidIdr: true, lineCount: true,
       pdfPath: true, generatedAt: true,
+      // S156 — admin note for the wallet-tab badge "✎ catatan"
+      adminNote: true,
     },
   });
 }

@@ -296,13 +296,22 @@
             Hapus statement bulanan yang ada, render ulang dari data komisi terbaru. Audit log mencatat total lama vs baru.
             Kosongkan field period untuk regenerate statement <strong>terbaru</strong>.
           </p>
-          <form method="POST" action="/admin/agents/<%= target.slug %>/statements/regenerate" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;" onsubmit="return confirm('Regenerate komisi statement untuk agen ini? Statement lama akan dihapus + audit log dicatat.');">
+          <form method="POST" action="/admin/agents/<%= target.slug %>/statements/regenerate" style="display:flex;flex-direction:column;gap:10px;" onsubmit="return confirm('Regenerate komisi statement untuk agen ini? Statement lama akan dihapus + audit log dicatat.');">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="field" style="margin:0;min-width:140px;">
-              <label class="label" for="f-period" style="font-size:10.5px;">Period (YYYY-MM)</label>
-              <input class="input" id="f-period" name="periodYM" pattern="\d{4}-\d{2}" maxlength="7" placeholder="2026-05" style="font-family:var(--font-mono);">
+            <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+              <div class="field" style="margin:0;min-width:140px;">
+                <label class="label" for="f-period" style="font-size:10.5px;">Period (YYYY-MM)</label>
+                <input class="input" id="f-period" name="periodYM" pattern="\d{4}-\d{2}" maxlength="7" placeholder="2026-05" style="font-family:var(--font-mono);">
+              </div>
+              <button type="submit" class="btn" style="background:var(--ink-1000);border:1px solid var(--amber);color:var(--amber);padding:8px 14px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border-radius:var(--r-sm);">↻ Regenerate</button>
             </div>
-            <button type="submit" class="btn" style="background:var(--ink-1000);border:1px solid var(--amber);color:var(--amber);padding:8px 14px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border-radius:var(--r-sm);">↻ Regenerate</button>
+            <%# Stage 156 — optional admin note rendered as bordered block on the PDF.
+                Leave empty to clear the previous note (or to never set one). %>
+            <div class="field" style="margin:0;">
+              <label class="label" for="f-note" style="font-size:10.5px;">Catatan untuk agen (opsional · max 2000 char)</label>
+              <textarea class="input" id="f-note" name="adminNote" rows="3" maxlength="2000" placeholder="mis. Bonus tertahan Rp 500rb, akan diterbitkan bulan depan setelah audit." style="font-family:var(--font-mono);font-size:11px;"></textarea>
+              <div class="helper">Muncul sebagai blok "Catatan dari Religio Pro" di PDF. Kosongkan untuk hapus catatan sebelumnya.</div>
+            </div>
           </form>
         </div>
       <% } %>

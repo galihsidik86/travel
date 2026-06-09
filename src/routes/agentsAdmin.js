@@ -46,11 +46,18 @@ router.post(
       periodYM = latest.periodYM;
     }
 
+    // S156 — admin note flows through. Empty textarea clears the prior
+    // note; an explicit `undefined` (field omitted from request) would
+    // preserve it via the service-side fallback, but a real form
+    // submission always includes the empty string, so admin clears by
+    // leaving the box empty.
+    const adminNote = req.body?.adminNote ?? null;
     const result = await regenerateAgentStatement({
       req,
       actor: { id: req.user.id, email: req.user.email, role: req.user.role },
       agentId: agent.id,
       periodYM,
+      adminNote,
     });
 
     const flashParams = new URLSearchParams({
