@@ -4,7 +4,8 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import {
-  receiveInbound, listInbound, replayInbound, VERIFIERS, HANDLERS, KNOWN_SOURCES,
+  receiveInbound, listInbound, replayInbound, canReplayInbound,
+  VERIFIERS, HANDLERS, KNOWN_SOURCES,
 } from '../services/inboundWebhooks.js';
 
 const router = Router();
@@ -50,7 +51,14 @@ adminRouter.get(
       source: (req.query.source || '').toString() || null,
       status: (req.query.status || '').toString() || null,
     };
-    const rows = await listInbound({ source: filters.source, status: filters.status });
+    const baseRows = await listInbound({ source: filters.source, status: filters.status });
+    // S130 — annotate each row with whether replay is actually allowed
+    // so the view can hide / disable the button per-row rather than
+    // always showing it and surprising the admin with refusals.
+    const rows = baseRows.map((r) => ({
+      ...r,
+      replayGate: canReplayInbound({ status: r.status, source: r.source }),
+    }));
     res.render('admin-inbound-webhooks', {
       user: req.user, rows, filters,
       knownSources: [...KNOWN_SOURCES],

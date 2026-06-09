@@ -87,8 +87,13 @@ test('receiveInbound: only x-/content-type/user-agent headers kept', async (t) =
   assert.ok(!('authorization' in kept), 'authorization must be stripped');
 });
 
-test('replayInbound: returns no_handler_for_source when no handler registered', async (t) => {
-  // Use a source with no handler (generic). Fonnte now has one (S112).
+test('replayInbound: source with no handler → row stays RECEIVED → refused as no_action_needed (S130)', async (t) => {
+  // S130 — the status gate runs before the handler check. A passive
+  // `generic` source POST lands as RECEIVED, and S130 treats RECEIVED
+  // as "nothing to retry" regardless of whether a handler is later
+  // registered. (The `no_handler_for_source` reason is now only
+  // reachable when status=HANDLER_ERROR and the handler was REMOVED
+  // since the failure — a degenerate path, but still covered.)
   const r = await receiveInbound({
     source: 'generic',
     rawBody: '{}',
@@ -98,7 +103,7 @@ test('replayInbound: returns no_handler_for_source when no handler registered', 
 
   const rep = await replayInbound(r.id);
   assert.equal(rep.ok, false);
-  assert.equal(rep.reason, 'no_handler_for_source');
+  assert.equal(rep.reason, 'no_action_needed');
 });
 
 test('replayInbound: returns not_found for bogus id', async () => {

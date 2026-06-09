@@ -48,8 +48,19 @@
     Configured sources: <%= knownSources.join(', ') || '(none)' %>
   </div>
 
-  <% if (flash.replay === 'ok') { %><div class="flash ok">Replay sukses.</div><% }
-     else if (flash.replay) { %><div class="flash err">Replay gagal: <%= flash.replay %></div><% } %>
+  <%
+    // S130 — friendly Bahasa Indonesia replay flash per reason code.
+    let replayLabel = null, replayCls = 'err';
+    if (flash.replay === 'ok') { replayLabel = 'Replay sukses — row sekarang HANDLED.'; replayCls = 'ok'; }
+    else if (flash.replay === 'already_succeeded') replayLabel = 'Row sudah HANDLED — tidak perlu replay (cegah double-run efek samping).';
+    else if (flash.replay === 'bad_signature') replayLabel = 'Row REJECTED (signature gagal) — replay tidak akan memvalidasi ulang signature.';
+    else if (flash.replay === 'no_action_needed') replayLabel = 'Row RECEIVED tanpa handler — tidak ada yang perlu dijalankan ulang.';
+    else if (flash.replay === 'no_handler_for_source') replayLabel = 'Source ini belum punya handler terdaftar — nothing to run.';
+    else if (flash.replay === 'not_found') replayLabel = 'Row tidak ditemukan.';
+    else if (flash.replay === 'handler_threw') replayLabel = 'Handler error saat replay — cek error di kolom Status.';
+    else if (flash.replay) replayLabel = 'Replay gagal: ' + flash.replay;
+  %>
+  <% if (replayLabel) { %><div class="flash <%= replayCls %>"><%= replayLabel %></div><% } %>
 
   <div class="panel">
     <form method="GET" class="filter-bar">
@@ -109,10 +120,22 @@
               </td>
               <td class="body-preview"><%= (r.payload || '').slice(0, 400) %><%= (r.payload || '').length > 400 ? '…' : '' %></td>
               <td style="text-align:right;">
-                <form method="POST" action="/admin/inbound-webhooks/<%= r.id %>/replay" style="display:inline;">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button type="submit" class="btn-replay" title="Re-run registered handler">REPLAY</button>
-                </form>
+                <% if (r.replayGate && r.replayGate.ok) { %>
+                  <form method="POST" action="/admin/inbound-webhooks/<%= r.id %>/replay" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn-replay" title="Re-run registered handler (handler bug fixed?)">↻ REPLAY</button>
+                  </form>
+                <% } else if (r.replayGate) {
+                     // Render a muted reason hint so admin understands WHY no button — better than silence
+                     const hint =
+                       r.replayGate.reason === 'already_succeeded'    ? '✓ done' :
+                       r.replayGate.reason === 'bad_signature'        ? 'bad sig' :
+                       r.replayGate.reason === 'no_action_needed'     ? 'passive' :
+                       r.replayGate.reason === 'no_handler_for_source'? 'no handler' :
+                       r.replayGate.reason || '—';
+                %>
+                  <span style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);font-style:italic;" title="Replay tidak tersedia: <%= r.replayGate.reason %>"><%= hint %></span>
+                <% } %>
               </td>
             </tr>
           <% }) %>

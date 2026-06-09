@@ -192,18 +192,44 @@ export async function listInbound({ source, status, limit = 100 } = {}) {
 }
 
 /**
+ * Stage 130 — given a row's current status + whether a handler is
+ * registered, decide if replay is allowed. The canonical use case is
+ * HANDLER_ERROR (admin fixed the bug, re-run). Everything else is a
+ * refusal so the button doesn't accidentally double-fire side effects
+ * (HANDLED) or pretend to "verify" a bad-signature row (REJECTED) or
+ * fire on a passive-source row that has nothing to run (RECEIVED).
+ */
+export function canReplayInbound({ status, source }) {
+  if (status !== 'HANDLER_ERROR') {
+    return { ok: false, reason:
+      status === 'HANDLED'  ? 'already_succeeded' :
+      status === 'REJECTED' ? 'bad_signature'     :
+      status === 'RECEIVED' ? 'no_action_needed'  :
+      'not_replayable',
+    };
+  }
+  if (!HANDLERS[source]) return { ok: false, reason: 'no_handler_for_source' };
+  return { ok: true };
+}
+
+/**
  * Admin replay: re-run a stored payload through its registered handler.
  * Useful when a handler had a bug that's since been fixed.
+ *
+ * Stage 130 — guard against the not-actually-actionable cases (already
+ * HANDLED, REJECTED, plain RECEIVED) so manual replays only flip the
+ * row when there's a real fix to verify.
  */
 export async function replayInbound(id) {
   const row = await db.inboundWebhook.findUnique({ where: { id } });
   if (!row) return { ok: false, reason: 'not_found' };
-  const handler = HANDLERS[row.source];
-  if (!handler) return { ok: false, reason: 'no_handler_for_source' };
+  const gate = canReplayInbound({ status: row.status, source: row.source });
+  if (!gate.ok) return gate;
+
   try {
     let parsed = null;
     try { parsed = JSON.parse(row.payload); } catch (_e) {}
-    await handler(parsed, row.headers || {});
+    await HANDLERS[row.source](parsed, row.headers || {});
     await db.inboundWebhook.update({
       where: { id },
       data: { status: 'HANDLED', handlerError: null },
