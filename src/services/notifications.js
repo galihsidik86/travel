@@ -603,6 +603,50 @@ export async function notifyIncidentCreated({ incident, crew, paket }) {
  * mirroring the API key scope-down digest posture.
  */
 /**
+ * Stage 152 — fire one EMAIL to the agent when their monthly komisi
+ * statement is ready. Silent on zero-line statements (no point
+ * notifying about a $0 month). `recipientUserId` set so /agen
+ * notifications inbox + badge pick it up.
+ */
+export async function notifyKomisiStatementReady({ statement, agent } = {}) {
+  if (!statement || !agent) return { enqueued: 0, skipped: true };
+  if (!agent.email) return { enqueued: 0, skipped: true, reason: 'no_email' };
+  if (statement.lineCount <= 0) return { enqueued: 0, skipped: true, reason: 'zero_lines' };
+
+  const totalEarned = Number(statement.totalEarnedIdr?.toString?.() ?? statement.totalEarnedIdr) || 0;
+  const totalPaid = Number(statement.totalPaidIdr?.toString?.() ?? statement.totalPaidIdr) || 0;
+  const shortRp = (n) => {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + ' jt';
+    if (n >= 1_000) return Math.round(n / 1_000) + 'rb';
+    return String(n);
+  };
+  const vars = {
+    agentName: agent.displayName || agent.slug || 'Agen',
+    periodYM: statement.periodYM,
+    totalEarnedIdr: totalEarned.toLocaleString('id-ID'),
+    totalPaidIdr: totalPaid.toLocaleString('id-ID'),
+    totalEarnedShort: shortRp(totalEarned),
+    lineCount: String(statement.lineCount),
+    downloadUrl: `/agen/statements/${statement.id}.pdf`,
+  };
+  try {
+    const { subject, body } = renderTemplate('KOMISI_STATEMENT_READY', 'EMAIL', vars);
+    await enqueueNotification({
+      type: 'KOMISI_STATEMENT_READY', channel: 'EMAIL',
+      recipientEmail: agent.email,
+      recipientUserId: agent.userId || null,
+      subject, body,
+      relatedEntity: 'KomisiStatement', relatedEntityId: statement.id,
+      payload: { periodYM: statement.periodYM, totalEarnedIdr: totalEarned, totalPaidIdr: totalPaid },
+    });
+    return { enqueued: 1 };
+  } catch (err) {
+    console.warn('[komisi-statement] notif failed:', err?.message || err);
+    return { enqueued: 0, error: String(err?.message || err) };
+  }
+}
+
+/**
  * Stage 141 — per-booking nudge to the jemaah when manifest close is
  * within 72h AND required docs are missing. Idempotent: stamps
  * `Booking.manifestCloseNotifiedAt = now` after enqueue so the daily

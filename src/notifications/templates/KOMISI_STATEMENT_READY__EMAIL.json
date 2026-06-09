@@ -1,0 +1,4 @@
+{
+  "subject": "Laporan komisi {{periodYM}} sudah tersedia — Rp {{totalEarnedShort}} earned",
+  "body": "Halo {{agentName}},\n\nLaporan komisi bulan {{periodYM}} sudah siap di akun Anda.\n\nRINGKASAN PERIODE\n  EARNED  : Rp {{totalEarnedIdr}}\n  PAID    : Rp {{totalPaidIdr}}\n  Jumlah  : {{lineCount}} baris transaksi\n\nDownload PDF (login dibutuhkan):\n{{downloadUrl}}\n\nSemua statement bulan-bulan sebelumnya juga tersedia di tab Wallet pada /agen.\n\nJika ada pertanyaan tentang nominal, hubungi tim Religio Pro untuk klarifikasi.\n\nBaarakallahu fiikum,\nTim Religio Pro"
+}

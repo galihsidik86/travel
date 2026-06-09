@@ -188,7 +188,12 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
   }
   const agent = await db.agentProfile.findUnique({
     where: { id: agentId },
-    select: { id: true, slug: true, displayName: true },
+    // S152: select user email/id so notifyKomisiStatementReady can fire
+    // post-create without an extra round-trip.
+    select: {
+      id: true, slug: true, displayName: true, userId: true,
+      user: { select: { email: true, status: true, deletedAt: true } },
+    },
   });
   if (!agent) throw new HttpError(404, 'Agen tidak ditemukan', 'AGENT_NOT_FOUND');
 
@@ -230,6 +235,27 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
       lineCount: totals.lineCount,
     },
   }).catch((err) => console.warn('[komisi-statement] audit failed:', err?.message || err));
+
+  // Stage 152 — fire one EMAIL to the agent (silent on zero-line
+  // statements + when agent has no email or is inactive). Fire-and-
+  // forget so notif failure can't abort the statement creation.
+  if (statement.lineCount > 0
+      && agent.user?.email
+      && agent.user?.status === 'ACTIVE'
+      && !agent.user?.deletedAt) {
+    try {
+      const { notifyKomisiStatementReady } = await import('./notifications.js');
+      await notifyKomisiStatementReady({
+        statement,
+        agent: {
+          displayName: agent.displayName, slug: agent.slug,
+          email: agent.user.email, userId: agent.userId,
+        },
+      });
+    } catch (err) {
+      console.warn('[komisi-statement] notif fire failed:', err?.message || err);
+    }
+  }
 
   return { statement, created: true, pdfPath };
 }

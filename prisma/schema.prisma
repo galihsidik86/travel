@@ -143,6 +143,7 @@ enum NotificationType {
   API_KEY_SCOPE_DOWN_OWNER // weekly digest of API keys with unused scopes (Stage 124)
   WEBHOOK_HEALTH_OWNER // weekly per-webhook delivery health rollup (Stage 129)
   MANIFEST_CLOSE_NUDGE // jemaah-side nudge when manifestClosesAt < 72h AND missing required docs (Stage 141)
+  KOMISI_STATEMENT_READY // monthly komisi statement PDF ready → email agent (Stage 152)
   GENERIC // catch-all for ad-hoc notifs
 }
 
