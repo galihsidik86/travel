@@ -174,6 +174,11 @@ async function attemptDelivery(sub, body, signature, eventName, delivery, attemp
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort('timeout'), DEFAULT_TIMEOUT_MS);
   let status = null, err = null, ok = false;
+  // Stage 134 — capture end-to-end attempt latency. Started before the
+  // headers prep so DNS / TLS / send time is all included; stamped
+  // regardless of success/failure so timeouts (which take exactly
+  // DEFAULT_TIMEOUT_MS) are visible in the p95 column.
+  const startedAt = Date.now();
   try {
     const headers = {
       'Content-Type': 'application/json',
@@ -205,12 +210,15 @@ async function attemptDelivery(sub, body, signature, eventName, delivery, attemp
   }
 
   const now = new Date();
+  // Stage 134 — durationMs spans connect → response (or → abort timeout)
+  const durationMs = Date.now() - startedAt;
   if (delivery) {
     const patch = {
       attemptCount: attempt,
       lastAttemptAt: now,
       lastStatusCode: status,
       lastError: err,
+      durationMs,
     };
     if (ok) {
       patch.status = 'SUCCEEDED';

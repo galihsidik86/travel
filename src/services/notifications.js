@@ -627,10 +627,16 @@ export async function notifyWebhookHealth({ digest }) {
     const inf = r.attemptInflation != null && r.attemptInflation > 1
       ? ` · ${r.attemptInflation}× attempts/delivery`
       : '';
+    // S134 — surface p50/p95 latency. Render only when sample is big
+    // enough for the percentile to be meaningful; emphasise when over
+    // the LATENCY_BUDGET_MS threshold.
+    const lat = r.latency && r.latency.sample > 0 && r.latency.p95 != null
+      ? `\n   latency: p50 ${r.latency.p50}ms · p95 ${r.latency.p95}ms${r.latency.overBudget ? ' ⚠ over 2s budget' : ''} (n=${r.latency.sample})`
+      : '';
     const err = r.topError
       ? `\n   top error (${r.topError.count}×): ${r.topError.message}`
       : '';
-    return `${idx + 1}. ${url}${scope}\n   success: ${rate} (${t.succeeded}/${t.succeeded + t.failed}) · failed ${t.failed}, pending ${t.pending}${stuck}${inf}${err}`;
+    return `${idx + 1}. ${url}${scope}\n   success: ${rate} (${t.succeeded}/${t.succeeded + t.failed}) · failed ${t.failed}, pending ${t.pending}${stuck}${inf}${lat}${err}`;
   });
   const more = Math.max(0, unhealthy.length - 20);
   if (more > 0) lines.push(`  · + ${more} webhook lainnya…`);

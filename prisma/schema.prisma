@@ -672,6 +672,12 @@ model WebhookDelivery {
   lastError      String?  @db.Text
   lastAttemptAt  DateTime?
   nextRetryAt    DateTime?
+  // Stage 134 — end-to-end attempt latency in ms (DNS + connect + TLS
+  // + request body upload + receiver render). Captured by attemptDelivery
+  // on every fire including timeouts. Null pre-S134 + on rate-limited
+  // queue rows (no HTTP attempt happened). Powers the p95 column in
+  // the S129 health digest.
+  durationMs     Int?
 
   createdAt DateTime @default(now())
 
