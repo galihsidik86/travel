@@ -101,6 +101,8 @@ export async function createBooking({ req, paketSlug, agentSlug, fullName, phone
         utmSource:   visitorAttribution?.utmSource   ?? null,
         utmMedium:   visitorAttribution?.utmMedium   ?? null,
         utmCampaign: visitorAttribution?.utmCampaign ?? null,
+        // S133 — referrer host snapshot (same first-touch semantics as UTM)
+        referrerHost: visitorAttribution?.referrerHost ?? null,
       },
     });
 

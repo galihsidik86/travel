@@ -1161,6 +1161,10 @@ model Booking {
   utmSource       String? @db.VarChar(80)
   utmMedium       String? @db.VarChar(80)
   utmCampaign     String? @db.VarChar(120)
+  // Stage 133 — referrer host snapshot (paired with S132's PaketView
+  // column). Resolved from the same first-touch row at booking time.
+  // Lets the admin analytics panel compute conversion% per host.
+  referrerHost    String? @db.VarChar(120)
 
   // bunking assignment (NULL = belum di-assign ke kamar)
   roomId String?

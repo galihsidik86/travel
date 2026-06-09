@@ -137,6 +137,8 @@ export async function getVisitorAttribution({ paketId, visitorId } = {}) {
     select: {
       createdAt: true, heroVariant: true,
       utmSource: true, utmMedium: true, utmCampaign: true,
+      // S133 — referrer host so createBooking can snapshot it
+      referrerHost: true,
     },
   });
   if (rows.length === 0) return null;
@@ -146,6 +148,10 @@ export async function getVisitorAttribution({ paketId, visitorId } = {}) {
   // prefer the most-recent non-null so the booking reflects what the
   // visitor actually saw on the converting visit.
   const lastWithVariant = [...rows].reverse().find((r) => r.heroVariant);
+  // S133 — first-touch referrer (same as UTM). If the visitor's first
+  // view was direct (no referrer) but a later same-paket view came via
+  // fb.com, the first-touch null wins — matches the "where did you
+  // FIRST hear about us" intent.
   return {
     firstViewAt: first.createdAt,
     viewCount: rows.length,
@@ -153,6 +159,7 @@ export async function getVisitorAttribution({ paketId, visitorId } = {}) {
     utmSource: first.utmSource,
     utmMedium: first.utmMedium,
     utmCampaign: first.utmCampaign,
+    referrerHost: first.referrerHost ?? null,
   };
 }
 
@@ -584,37 +591,45 @@ export async function getReferrerBreakdown({ now = new Date(), days = 30, limit 
   end.setHours(0, 0, 0, 0);
   end.setTime(end.getTime() + ONE_DAY_MS);
 
-  // Join via bookings.firstViewAt window? — no, simpler: aggregate
-  // visits per host, then count non-cancelled bookings whose visitor
-  // had a view with that host. Tractable here by grouping bookings
-  // through the cookie-derived attribution, but for the dashboard
-  // panel we just need visits ÷ bookings approximation via PaketView
-  // → Booking via (paketId, visitorId, dayKey). Since Booking doesn't
-  // carry referrerHost as a column today (we'd need another column
-  // + a backfill), use a JOIN-style query through PaketView's
-  // visitor history.
-  //
-  // Practical implementation: pull views grouped by referrerHost,
-  // pull bookings whose firstViewAt fell in window and whose visitor
-  // had ≥1 view with that host. To stay cheap, we approximate
-  // bookings count via the view-row count for the same (paketId,
-  // visitorId, dayKey) that produced a booking on the same day.
-  // For the v1 panel we just report VISIT distribution per host —
-  // bookings/conversion can join in S133+ if it's asked for.
-  const views = await db.paketView.groupBy({
-    by: ['referrerHost'],
-    where: { createdAt: { gte: start, lt: end } },
-    _count: { _all: true },
-  });
+  // S132 → S133: visits AND bookings grouped by referrerHost. Booking
+  // snapshots its own referrerHost at create time (S133), so the join
+  // is a straight groupBy on each table.
+  const [views, bookings] = await Promise.all([
+    db.paketView.groupBy({
+      by: ['referrerHost'],
+      where: { createdAt: { gte: start, lt: end } },
+      _count: { _all: true },
+    }),
+    db.booking.groupBy({
+      by: ['referrerHost'],
+      where: {
+        createdAt: { gte: start, lt: end },
+        status: { notIn: ['CANCELLED', 'REFUNDED'] },
+      },
+      _count: { _all: true },
+    }),
+  ]);
 
-  const rows = views
-    .map((v) => ({
-      referrerHost: v.referrerHost,
-      isDirect: v.referrerHost == null,
-      label: v.referrerHost == null ? '(no referrer / direct)' : v.referrerHost,
-      visits: v._count._all,
-    }))
-    .filter((r) => r.visits > 0)
+  const viewsByHost = new Map(views.map((v) => [v.referrerHost, v._count._all]));
+  const bookingsByHost = new Map(bookings.map((b) => [b.referrerHost, b._count._all]));
+  const hosts = new Set([...viewsByHost.keys(), ...bookingsByHost.keys()]);
+
+  const rows = [...hosts].map((host) => {
+    const visits = viewsByHost.get(host) || 0;
+    const bks = bookingsByHost.get(host) || 0;
+    return {
+      referrerHost: host,
+      isDirect: host == null,
+      label: host == null ? '(no referrer / direct)' : host,
+      visits,
+      bookings: bks,
+      // S133 — null when visits=0 but bookings>0 (avoid divide-by-zero
+      // + the misleading "∞%" reading; admin still sees those rows
+      // because they reveal pre-S132 traffic-blind conversions).
+      conversionPct: visits > 0 ? Math.round((bks / visits) * 1000) / 10 : null,
+    };
+  })
+    .filter((r) => r.visits > 0 || r.bookings > 0)
     .sort((a, b) => b.visits - a.visits)
     .slice(0, limit);
 
