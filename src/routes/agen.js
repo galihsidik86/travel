@@ -57,6 +57,45 @@ router.get(
   }),
 );
 
+// Stage 157 — agen profile + notification preferences. Mirrors the
+// jemaah-side /saya/profile pattern. Currently only one preference
+// (statement email opt-out) but the page is the natural place to add
+// more agent-level toggles.
+router.get(
+  '/profile',
+  asyncHandler(async (req, res) => {
+    const profile = await db.agentProfile.findUnique({
+      where: { userId: req.user.id },
+      select: { id: true, slug: true, displayName: true, notifKomisiStatement: true },
+    });
+    if (!profile) throw new HttpError(404, 'Profil agen tidak ditemukan', 'AGENT_PROFILE_MISSING');
+    res.render('agen-profile', {
+      user: req.user, profile,
+      flash: { ok: req.query.ok || null },
+    });
+  }),
+);
+
+router.post(
+  '/profile/prefs',
+  asyncHandler(async (req, res) => {
+    const profile = await db.agentProfile.findUnique({
+      where: { userId: req.user.id },
+      select: { id: true },
+    });
+    if (!profile) throw new HttpError(404, 'Profil agen tidak ditemukan', 'AGENT_PROFILE_MISSING');
+    // Unchecked HTML checkbox is absent from req.body — normalise to
+    // explicit false (mirrors S5jj). For form POSTs only; JSON
+    // callers can pass the boolean directly.
+    const notifKomisiStatement = !!req.body?.notifKomisiStatement;
+    await db.agentProfile.update({
+      where: { id: profile.id },
+      data: { notifKomisiStatement },
+    });
+    res.redirect('/agen/profile?ok=prefs_saved');
+  }),
+);
+
 // Stage 150 — download a monthly komisi statement PDF. Ownership
 // enforced via the statement's agentId → agentProfile.userId chain;
 // cross-agent access 404s (mirrors S20 voucher access pattern).

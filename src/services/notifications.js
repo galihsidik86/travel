@@ -612,6 +612,11 @@ export async function notifyKomisiStatementReady({ statement, agent } = {}) {
   if (!statement || !agent) return { enqueued: 0, skipped: true };
   if (!agent.email) return { enqueued: 0, skipped: true, reason: 'no_email' };
   if (statement.lineCount <= 0) return { enqueued: 0, skipped: true, reason: 'zero_lines' };
+  // S157 — respect per-agent opt-out. Default `true` on the schema +
+  // legacy callers (pre-S157) that don't pass the flag still fire.
+  if (agent.notifKomisiStatement === false) {
+    return { enqueued: 0, skipped: true, reason: 'opted_out' };
+  }
 
   const totalEarned = Number(statement.totalEarnedIdr?.toString?.() ?? statement.totalEarnedIdr) || 0;
   const totalPaid = Number(statement.totalPaidIdr?.toString?.() ?? statement.totalPaidIdr) || 0;

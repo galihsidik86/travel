@@ -308,6 +308,8 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
     // post-create without an extra round-trip.
     select: {
       id: true, slug: true, displayName: true, userId: true,
+      // S157 — opt-out flag flows into the notif helper
+      notifKomisiStatement: true,
       user: { select: { email: true, status: true, deletedAt: true } },
     },
   });
@@ -383,6 +385,8 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
         agent: {
           displayName: agent.displayName, slug: agent.slug,
           email: agent.user.email, userId: agent.userId,
+          // S157 — pass the opt-out flag through
+          notifKomisiStatement: agent.notifKomisiStatement,
         },
       });
     } catch (err) {

@@ -298,6 +298,11 @@ model AgentProfile {
   paketOverrides AgentPaketKomisi[]
   statements     KomisiStatement[]
 
+  // Stage 157 — per-agent opt-out for the monthly komisi statement
+  // email (S152). Default on; agents flip OFF from /agen/profile when
+  // they don't want the inbox noise.
+  notifKomisiStatement Boolean @default(true)
+
   @@index([slug])
 }
 
