@@ -48,7 +48,7 @@ export async function listApiKeys() {
   });
 }
 
-export async function createApiKey({ req, actor, name, scopes, rateLimitPerMin }) {
+export async function createApiKey({ req, actor, name, scopes, rateLimitPerMin, allowedIps }) {
   const cleanName = (name || '').trim().slice(0, 120);
   if (cleanName.length < 2) throw new HttpError(400, 'Nama minimal 2 karakter', 'BAD_NAME');
   const cleanScopes = Array.isArray(scopes)
@@ -61,6 +61,10 @@ export async function createApiKey({ req, actor, name, scopes, rateLimitPerMin }
   if (!Number.isFinite(rl) || rl <= 0) rl = 60;
   rl = Math.min(6000, Math.max(1, rl));
 
+  // S135 — normalise CIDR allowlist (accept string with comma/newline
+  // separation OR an array). Empty result → null = "any IP".
+  const cleanAllowedIps = normaliseAllowedIps(allowedIps);
+
   const secret = generateSecret();
   const hashedKey = await bcrypt.hash(secret, 10);
   const created = await db.apiKey.create({
@@ -69,17 +73,68 @@ export async function createApiKey({ req, actor, name, scopes, rateLimitPerMin }
       hashedKey,
       scopes: cleanScopes,
       rateLimitPerMin: rl,
+      allowedIps: cleanAllowedIps,
       createdById: actor?.id || null,
     },
   });
   await audit({
     req, actor,
     action: 'CREATE', entity: 'ApiKey', entityId: created.id,
-    after: { name: cleanName, scopes: cleanScopes, rateLimitPerMin: rl },
+    after: { name: cleanName, scopes: cleanScopes, rateLimitPerMin: rl, allowedIps: cleanAllowedIps },
   });
   // Return the token ONCE — caller must surface it; the secret is not
   // retrievable afterwards.
   return { ...created, token: formatToken(created.id, secret) };
+}
+
+/**
+ * Stage 135 — normalise the admin's CIDR input into a clean JSON array
+ * or null. Accepts:
+ *   - string: comma/newline-separated entries → array
+ *   - array: passed through with trim + filter
+ *   - empty/null/undefined → null (= any IP)
+ *
+ * Entries are NOT validated for parseability here — `ipMatchesAllowlist`
+ * silently ignores malformed strings on lookup. A typo'd entry that
+ * never matches will surface as "I keep getting 403s" during onboarding,
+ * which is the right time to discover it; preventing save with a brittle
+ * validator costs more than it saves.
+ */
+export function normaliseAllowedIps(input) {
+  if (input == null || input === '') return null;
+  let list;
+  if (Array.isArray(input)) list = input;
+  else if (typeof input === 'string') list = input.split(/[,\n]/);
+  else return null;
+  const cleaned = list
+    .map((s) => String(s).trim())
+    .filter((s) => s.length > 0)
+    .slice(0, 50);  // hard cap so a paste-bomb can't bloat the row
+  return cleaned.length === 0 ? null : cleaned;
+}
+
+/**
+ * Stage 135 — admin updates a key's IP allowlist. No-op + skip-audit
+ * when the value didn't change (cleaned arrays compared as JSON strings).
+ */
+export async function updateApiKeyAllowedIps({ req, actor, id, allowedIps }) {
+  const before = await db.apiKey.findUnique({ where: { id } });
+  if (!before) throw new HttpError(404, 'API key tidak ditemukan', 'KEY_NOT_FOUND');
+  const cleaned = normaliseAllowedIps(allowedIps);
+  // JSON-string compare handles both null and array shapes
+  if (JSON.stringify(before.allowedIps ?? null) === JSON.stringify(cleaned)) {
+    return before;
+  }
+  const updated = await db.apiKey.update({
+    where: { id }, data: { allowedIps: cleaned },
+  });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'ApiKey', entityId: id,
+    before: { allowedIps: before.allowedIps },
+    after:  { allowedIps: cleaned },
+  });
+  return updated;
 }
 
 export async function updateApiKeyStatus({ req, actor, id, status }) {
@@ -145,12 +200,83 @@ export function requireApiScope(scope) {
     if (!scopes.includes(scope)) {
       return res.status(403).json({ error: { code: 'INSUFFICIENT_SCOPE', message: `Requires scope: ${scope}` } });
     }
+    // Stage 135 — IP allowlist check. Empty / null = any IP (back-compat
+    // with every pre-S135 row). When configured, the request IP must
+    // match at least one entry (exact IP or CIDR). Mismatch → 403
+    // IP_NOT_ALLOWED (NOT 401 — the token IS valid, the source just
+    // isn't authorised).
+    const allowed = Array.isArray(key.allowedIps) ? key.allowedIps : [];
+    if (allowed.length > 0) {
+      const ip = clientIpFrom(req);
+      if (!ip || !ipMatchesAllowlist(ip, allowed)) {
+        return res.status(403).json({
+          error: { code: 'IP_NOT_ALLOWED', message: 'Request IP not in API key allowlist' },
+        });
+      }
+    }
     req.apiKey = key;
     // S122 — stash the scope this route required so the request-log
     // middleware can record it for per-scope rollup.
     req.apiUsedScope = scope;
     next();
   };
+}
+
+/**
+ * Stage 135 — derive client IP from request. Honours X-Forwarded-For
+ * (first entry — closest to client), then falls back to req.ip. Strips
+ * "::ffff:" IPv4-mapped-IPv6 prefix so partners can list a plain IPv4
+ * entry and have it match regardless of node's mapping.
+ */
+export function clientIpFrom(req) {
+  const xff = (req.headers['x-forwarded-for'] || '').toString();
+  const first = xff.split(',')[0].trim();
+  const raw = first || req.ip || '';
+  return String(raw).replace(/^::ffff:/, '').trim() || null;
+}
+
+/**
+ * Stage 135 — true when the given IP matches at least one CIDR entry
+ * or exact IP in the allowlist. Supports IPv4 CIDR ("192.168.1.0/24")
+ * and bare IP ("203.0.113.5"). IPv6 CIDR deferred — partners with
+ * IPv6 egress can list each address explicitly.
+ */
+export function ipMatchesAllowlist(ip, allowlist) {
+  for (const entry of allowlist) {
+    if (typeof entry !== 'string') continue;
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+    if (trimmed.includes('/')) {
+      if (ipv4InCidr(ip, trimmed)) return true;
+    } else if (trimmed === ip) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function ipv4ToInt(ip) {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return null;
+  let out = 0;
+  for (const p of parts) {
+    const n = Number(p);
+    if (!Number.isInteger(n) || n < 0 || n > 255) return null;
+    out = (out << 8) | n;
+  }
+  return out >>> 0;  // unsigned 32-bit
+}
+
+function ipv4InCidr(ip, cidr) {
+  const [base, bitsStr] = cidr.split('/');
+  const bits = Number(bitsStr);
+  if (!Number.isInteger(bits) || bits < 0 || bits > 32) return false;
+  const baseInt = ipv4ToInt(base);
+  const ipInt = ipv4ToInt(ip);
+  if (baseInt == null || ipInt == null) return false;
+  if (bits === 0) return true;  // 0.0.0.0/0 matches anything
+  const mask = (~((1 << (32 - bits)) - 1)) >>> 0;
+  return (baseInt & mask) === (ipInt & mask);
 }
 
 /**

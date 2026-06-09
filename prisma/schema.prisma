@@ -744,6 +744,12 @@ model ApiKey {
   // polls every few seconds. Admin can raise per-key when a partner
   // needs to backfill or do batch sync.
   rateLimitPerMin Int   @default(60)
+  // Stage 135 — optional CIDR allowlist (array of strings). NULL or []
+  // means "any IP" (back-compat with every pre-S135 row). When set,
+  // requireApiScope rejects 403 IP_NOT_ALLOWED on mismatch. Defense-
+  // in-depth alongside the bearer secret — a leaked token is useless
+  // without the partner's static egress IP.
+  allowedIps  Json?
 
   createdAt   DateTime @default(now())
   createdById String?

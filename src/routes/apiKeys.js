@@ -5,7 +5,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import {
-  listApiKeys, createApiKey, updateApiKeyStatus, deleteApiKey, KNOWN_SCOPES,
+  listApiKeys, createApiKey, updateApiKeyStatus, updateApiKeyAllowedIps, deleteApiKey, KNOWN_SCOPES,
 } from '../services/apiKeys.js';
 
 const router = Router();
@@ -48,6 +48,7 @@ router.post(
         name: req.body?.name,
         scopes,
         rateLimitPerMin: req.body?.rateLimitPerMin,
+        allowedIps: req.body?.allowedIps,
       });
       // Surface the token via query — user MUST copy it; we never store
       // the plaintext. Using query keeps the flow stateless; cookies would
@@ -71,6 +72,29 @@ router.post(
         id: req.params.id, status: req.body?.status,
       });
       res.redirect('/admin/api-keys?ok=status');
+    } catch (err) {
+      if (err instanceof HttpError) {
+        return res.redirect('/admin/api-keys?err=' + encodeURIComponent(err.message));
+      }
+      throw err;
+    }
+  }),
+);
+
+// Stage 135 — admin updates the CIDR allowlist on an existing key.
+// Separate route so the create form stays the only place that hands
+// out new tokens (other webhook-fields stay non-editable post-create
+// for the same partner-contract reason).
+router.post(
+  '/:id/allowed-ips',
+  asyncHandler(async (req, res) => {
+    try {
+      await updateApiKeyAllowedIps({
+        req, actor: actorFrom(req),
+        id: req.params.id,
+        allowedIps: req.body?.allowedIps,
+      });
+      res.redirect('/admin/api-keys?ok=ips');
     } catch (err) {
       if (err instanceof HttpError) {
         return res.redirect('/admin/api-keys?err=' + encodeURIComponent(err.message));

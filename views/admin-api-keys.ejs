@@ -148,6 +148,11 @@
         <input id="ak-rl" class="input" name="rateLimitPerMin" type="number" min="1" max="6000" value="60" style="max-width:160px;">
         <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);margin-top:4px;">Default 60. Raise untuk partner yang butuh backfill / batch sync. Cap 6000 (100/sec).</div>
       </div>
+      <div class="field">
+        <label class="label" for="ak-ips">IP allowlist (opsional)</label>
+        <textarea id="ak-ips" class="input" name="allowedIps" rows="2" style="font-family:var(--font-mono);font-size:11px;" placeholder="203.0.113.5, 198.51.100.0/24"></textarea>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);margin-top:4px;">Pisah dengan koma atau newline. Bare IP atau CIDR IPv4 (mis. <code>192.0.2.0/24</code>). Kosong = terima semua IP (back-compat default). Token tetap perlu disimpan rahasia — ini lapisan kedua, bukan pengganti.</div>
+      </div>
       <button type="submit" class="btn-primary">GENERATE TOKEN</button>
     </form>
   </div>
@@ -179,6 +184,15 @@
               <td>
                 <% sc.forEach(function(s) { %><span class="scope-pill"><%= s %></span><% }) %>
                 <div style="margin-top:4px;font-size:9.5px;color:var(--ink-300);"><%= k.rateLimitPerMin %> req/min</div>
+                <%
+                  const ips = Array.isArray(k.allowedIps) ? k.allowedIps : [];
+                  const ipVal = ips.join(', ');
+                %>
+                <form method="POST" action="/admin/api-keys/<%= k.id %>/allowed-ips" style="display:flex;gap:4px;align-items:center;margin-top:6px;" title="CIDR allowlist (S135). Kosong = any IP.">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="text" name="allowedIps" value="<%= ipVal %>" placeholder="any IP" style="flex:1;min-width:140px;background:var(--ink-1000);border:var(--hairline-soft);color:<%= ipVal ? 'var(--gold-300)' : 'var(--ink-300)' %>;padding:1px 5px;font-family:var(--font-mono);font-size:9.5px;border-radius:2px;">
+                  <button type="submit" style="background:transparent;border:1px solid var(--ink-300);color:var(--ink-200);font-family:var(--font-mono);font-size:8.5px;padding:1px 5px;border-radius:2px;cursor:pointer;letter-spacing:0.06em;">IPS ↻</button>
+                </form>
               </td>
               <td><span class="status-tag <%= k.status.toLowerCase() %>"><%= k.status %></span></td>
               <td>
