@@ -366,13 +366,32 @@
   </div>
 
   <!-- Cancel request (5ff) -->
-  <% const canRequestCancel = b.status !== 'CANCELLED' && b.status !== 'REFUNDED' && !b.cancelRequested; %>
+  <%
+    // S147 — deadline lock state. Past manifestClosesAt the jemaah-side
+    // request flow is closed; admin can still cancel via the admin flow.
+    const mClose = b.paket && b.paket.manifestClosesAt ? new Date(b.paket.manifestClosesAt) : null;
+    const deadlinePassed = mClose && mClose < new Date();
+    const canRequestCancel = b.status !== 'CANCELLED' && b.status !== 'REFUNDED'
+      && !b.cancelRequested && !deadlinePassed;
+    let hoursUntilDeadline = null;
+    if (mClose && !deadlinePassed) {
+      hoursUntilDeadline = Math.round((mClose.getTime() - Date.now()) / (60 * 60 * 1000));
+    }
+  %>
   <% if (b.cancelRequested) { %>
     <div class="help-card" style="background:rgba(201,147,59,0.08);border-color:rgba(201,147,59,0.4);color:var(--cream-100);margin-bottom:18px;">
       <strong style="color:var(--amber);">PERMINTAAN PEMBATALAN DIKIRIM</strong><br>
       Dikirim: <%= fmt.dateLong(b.cancelRequestedAt) %><br>
       Alasan: <em><%= b.cancelRequestReason %></em><br>
       Status: menunggu konfirmasi admin Religio Pro.
+    </div>
+  <% } else if (deadlinePassed && b.status !== 'CANCELLED' && b.status !== 'REFUNDED') { %>
+    <div class="panel" style="border-color:rgba(181,86,74,0.3);background:rgba(181,86,74,0.06);">
+      <h3 style="color:var(--ruby);">Deadline pembatalan sudah lewat</h3>
+      <p style="font-family:var(--font-mono);font-size:12px;color:var(--ink-100);line-height:1.7;">
+        Batas waktu pembatalan via portal (<strong><%= fmt.dateLong(mClose) %></strong>) sudah terlewati.
+        Untuk pembatalan dan diskusi refund, silakan hubungi admin Religio Pro atau agen Anda secara langsung.
+      </p>
     </div>
   <% } else if (canRequestCancel) { %>
     <div class="panel" style="border-color:rgba(181,86,74,0.3);">
@@ -381,6 +400,14 @@
         Anda dapat mengajukan pembatalan booking — admin akan mengonfirmasi via WhatsApp dan memproses refund (jika ada).
         Catatan: refund mengikuti kebijakan paket dan tanggal H-XX keberangkatan.
       </p>
+      <% if (mClose) { %>
+        <div style="font-family:var(--font-mono);font-size:11px;color:<%= hoursUntilDeadline != null && hoursUntilDeadline <= 72 ? 'var(--amber)' : 'var(--ink-200)' %>;margin:6px 0 10px;line-height:1.5;">
+          ⏱ Batas pengajuan via portal: <strong><%= fmt.dateLong(mClose) %></strong>
+          <% if (hoursUntilDeadline != null) { %>
+            (<%= hoursUntilDeadline >= 24 ? Math.round(hoursUntilDeadline / 24) + ' hari lagi' : hoursUntilDeadline + ' jam lagi' %>)
+          <% } %>
+        </div>
+      <% } %>
       <button type="button" id="open-req-cancel"
         style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:10px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;cursor:pointer;text-transform:uppercase;margin-top:6px;">
         Minta Pembatalan

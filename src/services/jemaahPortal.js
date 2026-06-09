@@ -462,13 +462,20 @@ export async function listAvailablePaket(userId) {
  *   - booking is already CANCELLED or REFUNDED (409 — nothing to request)
  *   - a request is already pending (409 — admin needs to approve/decline existing)
  */
-export async function requestCancelByJemaah({ req, actor, userId, bookingId, reason }) {
+export async function requestCancelByJemaah({ req, actor, userId, bookingId, reason, now = new Date() }) {
   if (!reason || reason.trim().length < 3) {
     throw new HttpError(400, 'Alasan pembatalan wajib (min. 3 karakter)', 'CANCEL_REASON_REQUIRED');
   }
   const booking = await db.booking.findFirst({
     where: { id: bookingId, jemaahUserId: userId },
-    select: { id: true, bookingNo: true, status: true, cancelRequested: true },
+    select: {
+      id: true, bookingNo: true, status: true, cancelRequested: true,
+      // S147 — paket close date drives the jemaah-side deadline lock.
+      // Once manifestClosesAt passes, only admin can cancel (the seat
+      // can no longer be re-sold; refund mechanics shift to commercial
+      // dispute rather than a request flow).
+      paket: { select: { manifestClosesAt: true } },
+    },
   });
   if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
   if (booking.status === 'CANCELLED' || booking.status === 'REFUNDED') {
@@ -476,6 +483,17 @@ export async function requestCancelByJemaah({ req, actor, userId, bookingId, rea
   }
   if (booking.cancelRequested) {
     throw new HttpError(409, 'Permintaan pembatalan sebelumnya masih diproses admin', 'ALREADY_REQUESTED');
+  }
+  // S147 — deadline lock. Past manifestClosesAt jemaah cannot submit a
+  // cancel-request from /saya; they must contact admin directly. The
+  // admin flow (cancelBooking) bypasses this guard entirely. Paket
+  // without manifestClosesAt (admin chose "never close") never locks.
+  if (booking.paket?.manifestClosesAt && booking.paket.manifestClosesAt < now) {
+    throw new HttpError(
+      409,
+      `Deadline pembatalan sudah lewat (${booking.paket.manifestClosesAt.toISOString().slice(0, 10)}). Silakan hubungi admin atau agen Anda untuk proses pembatalan.`,
+      'CANCEL_DEADLINE_PASSED',
+    );
   }
   const updated = await db.booking.update({
     where: { id: bookingId },
@@ -571,7 +589,7 @@ export async function getMyBooking(userId, bookingId) {
   const booking = await db.booking.findFirst({
     where: { id: bookingId, jemaahUserId: userId },
     include: {
-      paket: { select: { slug: true, title: true, departureDate: true, returnDate: true, durationDays: true, airline: true, routeFrom: true, routeTo: true } },
+      paket: { select: { slug: true, title: true, departureDate: true, returnDate: true, durationDays: true, airline: true, routeFrom: true, routeTo: true, manifestClosesAt: true } },
       jemaah: { include: { documents: { orderBy: { type: 'asc' } } } },
       agent: { select: { slug: true, displayName: true, whatsapp: true } },
       room: { select: { roomNo: true, floor: true, wing: true } },
