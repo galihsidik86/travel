@@ -1,0 +1,71 @@
+<%# Stage 140 — per-day attendance sparkline.
+   Caller passes locals.trend (from buildAttendanceTrend). Renders nothing
+   when trend has zero ticks. Inline SVG, 320×40 px, scaled to fit; bars
+   colour-coded by tier (≥80% emerald / ≥60% gold / <60% ruby; no-data ink).
+%>
+<% if (trend && trend.ticks.length > 0) {
+  const W = 320;
+  const H = 40;
+  const padL = 24;
+  const padR = 8;
+  const padT = 4;
+  const padB = 12;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const n = trend.ticks.length;
+  const barW = Math.max(2, Math.floor(innerW / n) - 2);
+  const stepX = innerW / n;
+%>
+<div class="attendance-sparkline" style="background:var(--ink-1000);border:var(--hairline);border-radius:var(--r-sm);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+  <div style="flex:0 0 auto;">
+    <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;color:var(--ink-200);text-transform:uppercase;margin-bottom:6px;">Tren kehadiran · <%= n %> hari</div>
+    <svg width="<%= W %>" height="<%= H %>" viewBox="0 0 <%= W %> <%= H %>" style="display:block;">
+      <%
+        const yFor = (pct) => padT + innerH - (pct / 100) * innerH;
+        // y-axis gridlines at 0/50/100
+      %>
+      <line x1="<%= padL %>" y1="<%= yFor(0) %>"   x2="<%= W - padR %>" y2="<%= yFor(0) %>"   stroke="var(--ink-200)" stroke-opacity="0.18" stroke-width="0.5"/>
+      <line x1="<%= padL %>" y1="<%= yFor(50) %>"  x2="<%= W - padR %>" y2="<%= yFor(50) %>"  stroke="var(--ink-200)" stroke-opacity="0.12" stroke-width="0.5" stroke-dasharray="2,2"/>
+      <line x1="<%= padL %>" y1="<%= yFor(100) %>" x2="<%= W - padR %>" y2="<%= yFor(100) %>" stroke="var(--ink-200)" stroke-opacity="0.18" stroke-width="0.5"/>
+      <text x="2" y="<%= yFor(0) + 3 %>"   fill="var(--ink-300)" font-size="8" font-family="var(--font-mono)">0</text>
+      <text x="2" y="<%= yFor(100) + 3 %>" fill="var(--ink-300)" font-size="8" font-family="var(--font-mono)">100%</text>
+      <% trend.ticks.forEach(function(t, i) {
+        const x = padL + i * stepX + (stepX - barW) / 2;
+        const h = (t.presentPct / 100) * innerH;
+        const y = padT + innerH - h;
+        const fill = !t.hasData ? 'var(--ink-200)'
+          : t.presentPct >= 80 ? 'var(--emerald)'
+          : t.presentPct >= 60 ? 'var(--gold-300)'
+          : 'var(--ruby)';
+        const opacity = !t.hasData ? '0.25' : '1';
+        const title = t.hasData
+          ? `H${t.dayNumber} · ${t.presentCount}/${t.totalActive} hadir (${t.presentPct}%)`
+          : `H${t.dayNumber} · belum di-mark`;
+      %>
+        <rect x="<%= x %>" y="<%= y %>" width="<%= barW %>" height="<%= Math.max(1, h) %>"
+              fill="<%= fill %>" opacity="<%= opacity %>" rx="1">
+          <title><%= title %></title>
+        </rect>
+        <% if (n <= 14 || i % Math.ceil(n / 10) === 0) { %>
+          <text x="<%= x + barW / 2 %>" y="<%= H - 2 %>" text-anchor="middle"
+                fill="var(--ink-300)" font-size="7" font-family="var(--font-mono)">H<%= t.dayNumber %></text>
+        <% } %>
+      <% }) %>
+    </svg>
+  </div>
+  <div style="flex:1;min-width:120px;">
+    <% if (trend.avgPct != null) { %>
+      <div style="font-family:var(--font-display);font-size:22px;color:<%= trend.avgPct >= 80 ? 'var(--emerald)' : trend.avgPct >= 60 ? 'var(--gold-300)' : 'var(--ruby)' %>;line-height:1;">
+        <%= trend.avgPct %>%
+      </div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:4px;letter-spacing:0.05em;">
+        rata-rata · <%= trend.markedDayCount %>/<%= trend.ticks.length %> hari di-mark
+      </div>
+    <% } else { %>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-300);font-style:italic;">
+        Belum ada hari yang di-mark — sparkline kosong.
+      </div>
+    <% } %>
+  </div>
+</div>
+<% } %>

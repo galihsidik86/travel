@@ -146,7 +146,39 @@ export async function listAttendanceDays({ userId, slug }) {
       presentCount, markedCount, totalActive,
     };
   });
-  return { ...paket, days, totalActive };
+  const trend = buildAttendanceTrend(days, totalActive);
+  return { ...paket, days, totalActive, trend };
+}
+
+/**
+ * Stage 140 — compute the per-day present% trend for the sparkline.
+ * `days` already comes ordered by dayNumber asc. Each tick carries the
+ * raw counts so the view can label hover-titles ("4/12 present, 8 not
+ * yet marked"). avgPct rolls up across days that have been marked at
+ * all — days with zero marks are noise, not signal.
+ */
+export function buildAttendanceTrend(days, totalActive) {
+  if (!days || days.length === 0 || totalActive === 0) {
+    return { ticks: [], avgPct: null, markedDayCount: 0 };
+  }
+  const ticks = days.map((d) => ({
+    dayNumber: d.dayNumber,
+    dateLabel: d.dateLabel,
+    title: d.title,
+    presentCount: d.presentCount,
+    markedCount: d.markedCount,
+    totalActive,
+    // Rate = present ÷ total active jemaah (consistent with admin report).
+    // Unmarked days look like 0% — that's intentional: a day with zero
+    // marks is "we have no data" and the chart honestly shows the dip.
+    presentPct: Math.round((d.presentCount / totalActive) * 100),
+    hasData: d.markedCount > 0,
+  }));
+  const dataTicks = ticks.filter((t) => t.hasData);
+  const avgPct = dataTicks.length === 0
+    ? null
+    : Math.round(dataTicks.reduce((sum, t) => sum + t.presentPct, 0) / dataTicks.length);
+  return { ticks, avgPct, markedDayCount: dataTicks.length };
 }
 
 /**
@@ -320,10 +352,13 @@ export async function getPaketAttendanceReport(paketSlug) {
     };
   });
 
+  // Stage 140 — sparkline trend uses the same shape as the crew side
+  // so the SVG render in admin + crew views share one helper.
+  const trend = buildAttendanceTrend(days, totalActive);
   return {
     paket: { id: paket.id, slug: paket.slug, title: paket.title,
              departureDate: paket.departureDate, durationDays: paket.durationDays },
-    days, bookings, totalDays, totalActive,
+    days, bookings, totalDays, totalActive, trend,
   };
 }
 

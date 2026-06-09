@@ -87,6 +87,7 @@
   <% if (paket.days.length === 0) { %>
     <div class="empty">Belum ada itinerary day untuk paket ini.</div>
   <% } else { %>
+    <%- include('partials/attendance-sparkline', { trend: paket.trend }) %>
     <div class="day-list">
       <% paket.days.forEach(function(d) {
         const pct = paket.totalActive === 0 ? 0 : Math.round((d.presentCount / paket.totalActive) * 100);

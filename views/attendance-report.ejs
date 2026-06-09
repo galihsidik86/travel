@@ -96,6 +96,7 @@
     <% if (days.length === 0) { %>
       <div class="empty">Paket ini belum punya itinerary day.</div>
     <% } else { %>
+      <%- include('partials/attendance-sparkline', { trend: trend }) %>
       <table class="tbl">
         <thead>
           <tr>
