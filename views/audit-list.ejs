@@ -242,6 +242,18 @@
     <div></div>
     <button type="submit" class="btn btn--primary">Filter</button>
     <a href="/admin/audit" class="btn btn--ghost">Reset</a>
+    <%
+      // S138 — CSV export preserves current filter scope. Server caps at
+      // 90d / 50k rows; admin pre-narrows via existing filters.
+      const exportQs = new URLSearchParams();
+      if (filters.entity !== 'ALL') exportQs.set('entity', filters.entity);
+      if (filters.action !== 'ALL') exportQs.set('action', filters.action);
+      if (filters.actorEmail) exportQs.set('actorEmail', filters.actorEmail);
+      if (filters.from) exportQs.set('from', filters.from);
+      if (filters.to) exportQs.set('to', filters.to);
+      const exportHref = '/admin/audit/export.csv' + (exportQs.toString() ? '?' + exportQs.toString() : '');
+    %>
+    <a href="<%= exportHref %>" class="btn btn--ghost" title="Download CSV — 7 hari terakhir secara default, cap 90 hari / 50k baris.">⇩ CSV</a>
   </form>
 
   <table class="tbl">
