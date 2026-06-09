@@ -89,9 +89,60 @@ export async function getStatementLines({ agentId, periodYM }) {
 }
 
 /**
- * Stage 150 — render the statement PDF into a Buffer.
+ * Stage 155 — compute YTD running totals for the agent across the
+ * calendar year of `periodYM`. Returns three slices:
+ *   - before  : Jan 1 → first day of periodYM (exclusive)
+ *   - during  : the period itself
+ *   - after   : Jan 1 → end of periodYM (inclusive)
+ *
+ * The PDF block shows all three so the agent sees the running tape
+ * without flipping between statements.
+ *
+ * `suppressed: true` when periodYM is January AND "before" totals are
+ * 0 — no signal worth rendering (the PDF helper skips the block).
  */
-export async function renderStatementPdfBuffer({ agent, periodYM, lines, totals }) {
+export async function computeYtdTotals({ agentId, periodYM }) {
+  const [year, monthStr] = periodYM.split('-').map(Number);
+  const monthIdx0 = monthStr - 1;
+  const yearStart = new Date(year, 0, 1);
+  const periodStart = new Date(year, monthIdx0, 1);
+  const periodEnd = new Date(year, monthIdx0 + 1, 1);  // exclusive
+  const sumWindow = async (gte, lt) => {
+    const rows = await db.komisi.findMany({
+      where: {
+        agentId,
+        status: { in: ['EARNED', 'PAID'] },
+        OR: [
+          { earnedAt: { gte, lt } },
+          { paidAt: { gte, lt } },
+        ],
+      },
+      select: { amount: true, status: true },
+    });
+    let e = 0, p = 0;
+    for (const r of rows) {
+      const v = Number(r.amount.toString());
+      if (r.status === 'EARNED') e += v;
+      else if (r.status === 'PAID') p += v;
+    }
+    return { earnedIdr: e, paidIdr: p, count: rows.length };
+  };
+
+  const before = await sumWindow(yearStart, periodStart);
+  const during = await sumWindow(periodStart, periodEnd);
+  const after  = await sumWindow(yearStart, periodEnd);
+  return {
+    year,
+    before, during, after,
+    suppressed: monthIdx0 === 0 && before.count === 0,
+  };
+}
+
+/**
+ * Stage 150 — render the statement PDF into a Buffer. S155 adds the
+ * optional YTD block when `ytd` is provided + not suppressed.
+ */
+export async function renderStatementPdfBuffer({ agent, periodYM, lines, totals, ytd = null }) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     const doc = new PDFDocument({ size: 'A4', margin: 50, info: {
@@ -125,6 +176,44 @@ export async function renderStatementPdfBuffer({ agent, periodYM, lines, totals 
     doc.text(`Total PAID   : Rp ${totals.paidIdr.toLocaleString('id-ID')}`);
     doc.text(`Jumlah baris : ${totals.lineCount}`);
     doc.moveDown(0.6);
+
+    // Stage 155 — YTD running totals. Suppressed when there's no
+    // pre-period signal (e.g. January with no rollover from last
+    // year's pre-S155 deployments).
+    if (ytd && !ytd.suppressed) {
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(C.gold)
+        .text(`YTD ${ytd.year} (komulatif)`);
+      doc.font('Helvetica').fontSize(10).fillColor(C.muted);
+      const fmtRp = (n) => 'Rp ' + n.toLocaleString('id-ID');
+      // Three-row mini table: before / during / after period
+      const tableY = doc.y + 4;
+      const rows = [
+        ['Sebelum periode ini', ytd.before.earnedIdr, ytd.before.paidIdr],
+        ['Selama periode ini',  ytd.during.earnedIdr, ytd.during.paidIdr],
+        ['Setelah periode ini', ytd.after.earnedIdr,  ytd.after.paidIdr],
+      ];
+      // Header
+      doc.fontSize(9).fillColor(C.muted)
+        .text('Window', 50, tableY, { width: 220, continued: true })
+        .text('EARNED', { width: 130, align: 'right', continued: true })
+        .text('PAID', { width: 130, align: 'right' });
+      doc.moveDown(0.15);
+      doc.strokeColor(C.muted).lineWidth(0.3).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(0.15);
+      for (const [label, e, p] of rows) {
+        const isAfter = label.startsWith('Setelah');
+        const labelColor = isAfter ? C.ink : C.muted;
+        const valColor = isAfter ? C.green : C.ink;
+        doc.font(isAfter ? 'Helvetica-Bold' : 'Helvetica')
+          .fontSize(isAfter ? 10 : 9).fillColor(labelColor)
+          .text(label, 50, doc.y, { width: 220, continued: true });
+        doc.fillColor(valColor)
+          .text(fmtRp(e), { width: 130, align: 'right', continued: true })
+          .text(fmtRp(p), { width: 130, align: 'right' });
+        doc.moveDown(0.15);
+      }
+      doc.moveDown(0.4);
+    }
 
     // Lines table
     doc.font('Helvetica-Bold').fontSize(11).fillColor(C.gold).text('RINCIAN');
@@ -206,8 +295,17 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
   }
 
   const { lines, totals } = await getStatementLines({ agentId, periodYM });
+  // Stage 155 — YTD running totals. Best-effort: compute failure
+  // (shouldn't happen for cheap groupBy queries, but defensive) just
+  // means the PDF renders without the YTD block.
+  let ytd = null;
+  try {
+    ytd = await computeYtdTotals({ agentId, periodYM });
+  } catch (err) {
+    console.warn('[komisi-statement] YTD compute failed:', err?.message || err);
+  }
   // Render + persist PDF
-  const buffer = await renderStatementPdfBuffer({ agent, periodYM, lines, totals });
+  const buffer = await renderStatementPdfBuffer({ agent, periodYM, lines, totals, ytd });
   const dir = resolvePath(process.cwd(), CACHE_DIR);
   await fsp.mkdir(dir, { recursive: true });
   const fileName = `${agentId}__${periodYM}.pdf`;
