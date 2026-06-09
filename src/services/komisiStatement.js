@@ -338,6 +338,44 @@ export async function generateAllAgentStatements({ req = null, actor = null, per
 }
 
 /**
+ * Stage 153 — backfill helper. Walks backwards from `previousMonthYM()`
+ * for `months` periods and runs `generateAllAgentStatements` per
+ * period. Idempotent: existing (agent, period) statements skip via
+ * `generateAgentStatement`'s upsert-style early-return.
+ *
+ * Used for first-install / new-deployment seeding when the past few
+ * months of statements don't exist yet. CLI front-end accepts
+ * `--months=N` (default 6, cap 24 — beyond two years is a deliberate
+ * one-off).
+ */
+export async function backfillKomisiStatements({ req = null, actor = null, months = 6, now = new Date() } = {}) {
+  const cap = Math.max(1, Math.min(24, Math.trunc(months) || 6));
+  const perMonth = [];
+  let grandCreated = 0, grandSkipped = 0, grandErrors = 0;
+  for (let i = 0; i < cap; i++) {
+    // i=0 → previousMonth, i=1 → two months ago, etc.
+    const d = new Date(now.getFullYear(), now.getMonth() - 1 - i, 1);
+    const periodYM = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+    try {
+      const r = await generateAllAgentStatements({ req, actor, periodYM, now });
+      perMonth.push({ periodYM, ...r });
+      grandCreated += r.created;
+      grandSkipped += r.skipped;
+      grandErrors += r.errors;
+    } catch (err) {
+      console.warn(`[backfill-komisi] period ${periodYM} failed:`, err?.message || err);
+      grandErrors += 1;
+      perMonth.push({ periodYM, agentCount: 0, created: 0, skipped: 0, errors: 1 });
+    }
+  }
+  return {
+    monthsRequested: cap,
+    perMonth,
+    totals: { created: grandCreated, skipped: grandSkipped, errors: grandErrors },
+  };
+}
+
+/**
  * Stage 150 — agent-facing listing for /agen Wallet tab.
  */
 export async function listAgentStatements({ agentId, limit = 24 } = {}) {

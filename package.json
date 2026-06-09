@@ -36,6 +36,7 @@
     "job:send-manifest-close": "node --env-file-if-exists=.env src/jobs/send-manifest-close.js",
     "job:detect-no-shows": "node --env-file-if-exists=.env src/jobs/detect-no-shows.js",
     "job:generate-komisi-statements": "node --env-file-if-exists=.env src/jobs/generate-komisi-statements.js",
+    "job:backfill-komisi-statements": "node --env-file-if-exists=.env src/jobs/backfill-komisi-statements.js",
     "job:prune": "node --env-file-if-exists=.env src/jobs/prune.js",
     "check:openapi-sdk": "node scripts/check-openapi.js"
   },
