@@ -471,6 +471,15 @@
           <div class="label">PENDING</div>
           <div class="val" style="color:var(--amber);">Rp <%= fmt.rpShort(kpis.komisiPending) %></div>
         </div>
+        <%# Stage 148 — unread notif badge linking to /agen/notifications.
+            Same shape as the jemaah-side S5rr badge. %>
+        <div style="height:32px;width:1px;background:var(--ink-500);"></div>
+        <a href="/agen/notifications" style="text-decoration:none;display:flex;align-items:center;gap:6px;color:var(--ink-100);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;">
+          <span>Notifikasi</span>
+          <% if (typeof unreadCount !== 'undefined' && unreadCount > 0) { %>
+            <span style="background:var(--gold-300);color:var(--ink-1000);font-weight:600;padding:1px 7px;border-radius:9px;font-size:9.5px;letter-spacing:0;"><%= unreadCount %></span>
+          <% } %>
+        </a>
       </div>
     </div>
 

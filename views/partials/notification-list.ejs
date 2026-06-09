@@ -1,0 +1,40 @@
+<%# Stage 148 — shared notification list partial used by /saya, /agen, /crew.
+   Caller passes `notifications` array (already mark-read'd). The "Baru"
+   accent works because the read-stamp happens AFTER the rows are fetched
+   for render — so on first visit unread items keep their readAt:null
+   in the snapshot the view receives.
+%>
+<% if (!notifications || notifications.length === 0) { %>
+  <div class="empty">
+    Belum ada notifikasi.<br>
+    Setelah ada aktivitas baru, log lengkapnya muncul di sini.
+  </div>
+<% } else { %>
+  <div class="list">
+    <% notifications.forEach(function(n) { %>
+      <div class="row<%= n.readAt ? '' : ' unread' %>">
+        <% if (!n.readAt) { %><span class="unread-dot" title="Baru"></span><% } %>
+        <div>
+          <div class="meta-line">
+            <span class="channel-tag <%= n.channel.toLowerCase() %>"><%= n.channel %></span>
+            <span class="status-tag <%= n.status.toLowerCase() %>"><%= n.status %></span>
+            <span class="type"><%= n.type.replace(/_/g, ' ') %></span>
+          </div>
+          <% if (n.subject) { %>
+            <div class="subject"><%= n.subject %></div>
+          <% } %>
+          <div class="body"><%= (n.body || '').slice(0, 600) %><% if ((n.body || '').length > 600) { %>…<% } %></div>
+          <% if (n.error && n.status !== 'SENT') { %>
+            <div class="err"><%= n.error %></div>
+          <% } %>
+        </div>
+        <div class="time">
+          <%= fmt.dateShort(n.createdAt) %>
+          <% if (n.sentAt) { %>
+            <div class="sx">terkirim <%= fmt.dateShort(n.sentAt) %></div>
+          <% } %>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+<% } %>

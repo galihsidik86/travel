@@ -9,6 +9,10 @@ import {
   listAttendanceDays, getAttendanceGrid, setAttendanceMark,
 } from '../services/crewPortal.js';
 import { createIncident, listMyIncidents } from '../services/incidents.js';
+// Stage 148 — reuse the role-agnostic helpers from jemaahPortal.
+import {
+  listMyNotifications, countUnreadForUser, markAllReadForUser,
+} from '../services/jemaahPortal.js';
 
 const router = Router();
 
@@ -19,11 +23,24 @@ router.use(requireAuth, requireRole('MUTHAWWIF'));
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const [paketList, myIncidents] = await Promise.all([
+    const [paketList, myIncidents, unreadCount] = await Promise.all([
       listAssignedPaket(req.user.id),
       listMyIncidents(req.user.id, { limit: 10 }),
+      // Stage 148 — unread badge on crew topbar
+      countUnreadForUser(req.user.id).catch(() => 0),
     ]);
-    res.render('crew-portal', { user: req.user, paketList, myIncidents });
+    res.render('crew-portal', { user: req.user, paketList, myIncidents, unreadCount });
+  }),
+);
+
+// Stage 148 — crew inbox. Same shape as /agen and /saya: render then
+// mark-read in one pass.
+router.get(
+  '/notifications',
+  asyncHandler(async (req, res) => {
+    const notifications = await listMyNotifications(req.user.id);
+    await markAllReadForUser(req.user.id);
+    res.render('crew-notifications', { user: req.user, notifications });
   }),
 );
 

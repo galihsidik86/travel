@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Notifikasi Agen</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 18px; margin-bottom: 28px;
+    border-bottom: var(--hairline-soft);
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+  }
+  .topbar .who { color: var(--gold-300); }
+  .topbar .nav { display: flex; gap: 10px; }
+  .topbar a, .topbar button {
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-100); cursor: pointer; text-decoration: none;
+    padding: 6px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .topbar a:hover, .topbar button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+
+  .head { margin-bottom: 24px; }
+  .head h1 {
+    font-family: var(--font-display); font-size: 32px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em; margin-top: 8px;
+  }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .row {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 16px 20px;
+    display: grid; grid-template-columns: 1fr auto; gap: 14px;
+    position: relative;
+  }
+  .row.unread { border-left: 3px solid var(--gold-300); padding-left: 18px; }
+  .row .unread-dot {
+    position: absolute; top: 14px; right: 14px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--gold-300);
+  }
+  .row .meta-line { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .row .subject { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--cream-100); margin-bottom: 4px; }
+  .row .body { font-family: var(--font-mono); font-size: 11px; color: var(--ink-100); line-height: 1.6; white-space: pre-wrap; }
+  .row .err { color: var(--ruby); font-size: 11px; margin-top: 6px; font-style: italic; }
+  .row .time { text-align: right; font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); }
+  .row .time .sx { color: var(--ink-300); margin-top: 3px; }
+  .row .type { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.08em; text-transform: uppercase; }
+  .channel-tag, .status-tag {
+    display: inline-block; padding: 1px 7px; border: 1px solid var(--ink-300);
+    border-radius: 3px; font-family: var(--font-mono); font-size: 9.5px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .channel-tag.email { color: var(--sapphire); border-color: rgba(74,111,143,0.4); }
+  .channel-tag.wa    { color: #8FCBAA; border-color: rgba(74,143,109,0.4); }
+  .status-tag.pending { color: var(--amber); border-color: rgba(212,175,55,0.4); }
+  .status-tag.sent    { color: var(--emerald); border-color: rgba(74,143,109,0.4); }
+  .status-tag.failed  { color: var(--ruby); border-color: rgba(181,86,74,0.4); }
+  .status-tag.skipped { color: var(--ink-200); }
+
+  .empty {
+    border: 1px dashed var(--ink-500); border-radius: var(--r-md);
+    padding: 40px; text-align: center;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); line-height: 1.7;
+  }
+</style>
+</head>
+<body data-screen-label="03 Agen CRM · Notifikasi">
+<div class="wrap">
+
+  <div class="topbar">
+    <div>AGEN · <span class="who"><%= user.email %></span></div>
+    <div class="nav">
+      <a href="/agen">← Dashboard</a>
+      <form method="POST" action="/logout" style="display:inline;margin:0;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit">Keluar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="head">
+    <h1>Notifikasi <em>agen</em></h1>
+    <div class="sub"><%= notifications.length %> notifikasi terakhir.</div>
+  </div>
+
+  <%- include('partials/notification-list') %>
+</div>
+</body>
+</html>
