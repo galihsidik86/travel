@@ -15,6 +15,12 @@ const RefundSchema = z.object({
   amount: z.preprocess((v) => Number(v), z.number().positive().max(50_000_000_000)),
   method: z.enum(['VA', 'QRIS', 'EWALLET', 'CARD', 'TRANSFER', 'CASH']),
   reason: z.string().min(3, 'Alasan refund min. 3 karakter').max(2000),
+  // S145 — explicit acknowledgment of no-show context. Accepts both
+  // string "true"/"1" (form-encoded) and boolean (JSON).
+  acknowledgeNoShow: z.preprocess(
+    (v) => (v === true || v === 'true' || v === '1' || v === 'on'),
+    z.boolean(),
+  ).optional(),
 });
 
 router.post(

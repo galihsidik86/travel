@@ -320,6 +320,9 @@ export async function cancelBooking({ req, actor, bookingId, reason }) {
       kelas: true,
       paketId: true, roomId: true, agentId: true,
       paidAmount: true, totalAmount: true,
+      // S145 — no-show stamp so the cancel audit trail records
+      // "this was a no-show being closed out".
+      noShowAt: true,
     },
   });
   if (!before) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
@@ -358,7 +361,13 @@ export async function cancelBooking({ req, actor, bookingId, reason }) {
     req, actor,
     action: 'STATUS_CHANGE', entity: 'Booking', entityId: bookingId,
     before: { status: before.status, roomId: before.roomId, paidAmount: Number(before.paidAmount) },
-    after: { status: 'CANCELLED', cancelReason: reason.trim(), kursiFreed: before.paxCount },
+    after: {
+      status: 'CANCELLED', cancelReason: reason.trim(), kursiFreed: before.paxCount,
+      // S145 — surface the no-show context in the audit trail so a
+      // later compliance scan can answer "how many no-shows did we
+      // formally close out last quarter?".
+      ...(before.noShowAt ? { wasNoShow: true, noShowFlaggedAt: before.noShowAt.toISOString() } : {}),
+    },
   });
 
   // Stage 42/136 — cancel just freed `paxCount` seats. If a WAITING

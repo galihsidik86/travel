@@ -806,6 +806,15 @@
       • Refund partial tetap CANCELLED — bisa di-refund berulang sampai paid = 0
     </div>
 
+    <% if (b.noShowAt) { %>
+      <div style="background:rgba(181,86,74,0.10);border:1px solid var(--ruby);border-radius:var(--r-sm);padding:11px 14px;margin-bottom:14px;font-family:var(--font-mono);font-size:11px;color:var(--ruby);line-height:1.5;">
+        <strong>⚠ NO-SHOW (S145):</strong><br>
+        Booking ini di-flag no-show pada <%= fmt.date(b.noShowAt) %>. Jemaah tidak hadir di Hari 1.<br>
+        Mungkin saja jemaah terbang dengan operator lain — refund penuh bisa berarti uang hilang dua kali.<br>
+        Untuk refund <strong>penuh</strong>, centang konfirmasi di bawah. Refund partial (goodwill) tidak butuh konfirmasi.
+      </div>
+    <% } %>
+
     <div class="err-m" id="refund-err"></div>
 
     <form id="refund-form">
@@ -835,6 +844,15 @@
         <label class="label" for="rf-reason">Alasan refund *</label>
         <textarea class="input" id="rf-reason" name="reason" required minlength="3" maxlength="2000" rows="3" placeholder="Mis. nasabah minta refund, biaya admin dipotong 10%, dll."></textarea>
       </div>
+
+      <% if (b.noShowAt) { %>
+        <div class="field">
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);">
+            <input type="checkbox" name="acknowledgeNoShow" value="true" style="margin-top:2px;">
+            <span>Saya konfirmasi: jemaah <strong>tidak terbang dengan operator lain</strong> dan refund penuh memang yang dimaksud.</span>
+          </label>
+        </div>
+      <% } %>
 
       <div class="actions">
         <button type="button" class="btn btn--ghost" id="refund-close">Batal</button>

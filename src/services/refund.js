@@ -19,7 +19,7 @@ const METHODS = new Set(['VA', 'QRIS', 'EWALLET', 'CARD', 'TRANSFER', 'CASH']);
  *   - amount > 0 and ≤ current paidAmount.
  *   - method ∈ PaymentMethod enum.
  */
-export async function issueRefund({ req, actor, bookingId, amount, method, reason }) {
+export async function issueRefund({ req, actor, bookingId, amount, method, reason, acknowledgeNoShow = false }) {
   if (!METHODS.has(method)) {
     throw new HttpError(400, 'Metode refund tidak valid', 'INVALID_METHOD');
   }
@@ -33,7 +33,7 @@ export async function issueRefund({ req, actor, bookingId, amount, method, reaso
 
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
-    select: { id: true, bookingNo: true, status: true, paidAmount: true },
+    select: { id: true, bookingNo: true, status: true, paidAmount: true, noShowAt: true },
   });
   if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
 
@@ -51,6 +51,24 @@ export async function issueRefund({ req, actor, bookingId, amount, method, reaso
     throw new HttpError(409,
       `Jumlah refund (${amt.toLocaleString('id-ID')}) melebihi sisa paid (${currentPaid.toLocaleString('id-ID')})`,
       'REFUND_EXCEEDS_PAID');
+  }
+
+  // Stage 145 — no-show guard. A booking that was flagged as no-show
+  // already had the seat lost AND the jemaah didn't fly with us — they
+  // may have flown with a competitor (we wouldn't know). Refusing the
+  // default-100% refund forces admin to acknowledge the context before
+  // money goes back. Partial refunds are still allowed without ack
+  // (sometimes a goodwill 50% is the right call); only the full
+  // current-paid refund triggers the guard.
+  //
+  // Caller passes `acknowledgeNoShow: true` after seeing the warning
+  // in the UI. Audit row carries the ack flag so the decision is
+  // traceable downstream.
+  if (booking.noShowAt && amt >= currentPaid && !acknowledgeNoShow) {
+    throw new HttpError(409,
+      `Booking ini ter-flag no-show (${booking.noShowAt.toISOString().slice(0,10)}). ` +
+      `Konfirmasi dulu apakah jemaah benar-benar layak refund penuh — mungkin terbang dengan operator lain.`,
+      'NOSHOW_REFUND_NEEDS_ACK');
   }
 
   const newPaid = currentPaid - amt;
@@ -92,6 +110,10 @@ export async function issueRefund({ req, actor, bookingId, amount, method, reaso
       method,
       reason: reason.trim(),
       fullRefund: newPaid === 0,
+      // Stage 145 — durable trail of the ack flag when a no-show full
+      // refund went through. Lets compliance review "did we knowingly
+      // refund all the no-shows last quarter?".
+      ...(booking.noShowAt ? { wasNoShow: true, noShowAcknowledged: !!acknowledgeNoShow } : {}),
     },
   });
 
