@@ -78,7 +78,8 @@ export async function dispatchEvent(eventName, payload) {
     // a rotation grace window.
     // S128: paketId carries the per-paket subscription filter; null
     // means "subscribe across every paket" (legacy default).
-    select: { id: true, url: true, secret: true, prevSecret: true, prevSecretExpiresAt: true, events: true, paketId: true },
+    // S131: rateLimitPerMin is the per-sub burst cap.
+    select: { id: true, url: true, secret: true, prevSecret: true, prevSecretExpiresAt: true, events: true, paketId: true, rateLimitPerMin: true },
   });
   // S128 — when a subscription has paketId set, only deliver events
   // whose payload.paketId matches. A subscription with paketId=null
@@ -94,11 +95,11 @@ export async function dispatchEvent(eventName, payload) {
     if (payloadPaketId == null) return false;       // paket sub but event isn't paket-tagged
     return s.paketId === payloadPaketId;
   });
-  if (matched.length === 0) return { matched: 0, delivered: 0, failed: 0, queued: 0 };
+  if (matched.length === 0) return { matched: 0, delivered: 0, failed: 0, queued: 0, rateLimited: 0 };
 
   const body = JSON.stringify({ event: eventName, ts: new Date().toISOString(), payload });
 
-  let delivered = 0, failed = 0, queued = 0;
+  let delivered = 0, failed = 0, queued = 0, rateLimited = 0;
   await Promise.all(matched.map(async (s) => {
     const signature = sign(s.secret, body);
     // Pre-insert a delivery row so even a fetch-throwing crash leaves a trail.
@@ -111,13 +112,56 @@ export async function dispatchEvent(eventName, payload) {
       console.warn('[webhook] delivery row create failed:', err?.message || err);
       return null;
     });
+
+    // Stage 131 — per-sub burst rate-limit. When the bucket is over
+    // quota, DON'T fire the HTTP call — leave the delivery row PENDING
+    // with nextRetryAt = end-of-window so the retry job picks it up
+    // naturally. Avoids hammering a partner endpoint during a backfill
+    // / seed-script storm.
+    const overBudget = await checkRateLimit(s);
+    if (overBudget) {
+      rateLimited += 1;
+      if (delivery) {
+        await db.webhookDelivery.update({
+          where: { id: delivery.id },
+          data: {
+            status: 'PENDING',
+            nextRetryAt: new Date(overBudget.resetAt),
+            lastError: `rate_limited (>${s.rateLimitPerMin}/min)`,
+          },
+        }).catch(() => {});
+      }
+      return;
+    }
+
     const result = await attemptDelivery(s, body, signature, eventName, delivery, 1);
     if (result.ok) delivered += 1;
     else if (result.terminal) failed += 1;
     else queued += 1;
   }));
 
-  return { matched: matched.length, delivered, failed, queued };
+  return { matched: matched.length, delivered, failed, queued, rateLimited };
+}
+
+/**
+ * Stage 131 — token bucket check. Returns `{resetAt}` when over budget,
+ * `null` when under. Fail-open on store errors — webhooks are higher-
+ * priority than rate-limit perfection; a flaky cache shouldn't drop
+ * legitimate traffic.
+ */
+async function checkRateLimit(sub) {
+  const max = Number(sub.rateLimitPerMin);
+  if (!Number.isFinite(max) || max <= 0) return null;
+  try {
+    const { getRateLimitStore } = await import('../middleware/rateLimit.js');
+    const store = getRateLimitStore();
+    if (!store) return null;
+    const { count, resetAt } = await store.hit(`webhook:${sub.id}`, 60_000);
+    return count > max ? { resetAt } : null;
+  } catch (err) {
+    console.warn('[webhook] rate-limit check fail-open:', err?.message || err);
+    return null;
+  }
 }
 
 /**
@@ -378,7 +422,20 @@ export async function listWebhooks() {
   });
 }
 
-export async function createWebhook({ req, actor, url, events, description, paketId }) {
+// Stage 131 — sane bounds for per-sub rate-limit (requests/minute).
+// Floor 1 is "throttle to 1/min" — extreme but explicit. Cap 600
+// (10/sec) is enough headroom for any realistic webhook firehose.
+const RATE_LIMIT_MIN = 1;
+const RATE_LIMIT_MAX = 600;
+const RATE_LIMIT_DEFAULT = 30;
+
+function clampRateLimit(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return RATE_LIMIT_DEFAULT;
+  return Math.max(RATE_LIMIT_MIN, Math.min(RATE_LIMIT_MAX, Math.trunc(n)));
+}
+
+export async function createWebhook({ req, actor, url, events, description, paketId, rateLimitPerMin }) {
   if (!URL_RE.test(url || '')) throw new HttpError(400, 'URL harus http(s)://', 'BAD_URL');
   const cleanEvents = Array.isArray(events)
     ? events.filter((e) => EVENT_NAMES.includes(e))
@@ -395,6 +452,12 @@ export async function createWebhook({ req, actor, url, events, description, pake
     cleanPaketId = paket.id;
   }
 
+  // S131 — clamp rate-limit to a sane range. Omitting it uses the
+  // schema default (30/min); admin can crank later via update form.
+  const cleanRate = rateLimitPerMin == null || rateLimitPerMin === ''
+    ? RATE_LIMIT_DEFAULT
+    : clampRateLimit(rateLimitPerMin);
+
   const secret = randomBytes(32).toString('hex');
   const created = await db.webhook.create({
     data: {
@@ -402,14 +465,36 @@ export async function createWebhook({ req, actor, url, events, description, pake
       description: (description || '').trim() || null,
       createdById: actor?.id || null,
       paketId: cleanPaketId,
+      rateLimitPerMin: cleanRate,
     },
   });
   await audit({
     req, actor,
     action: 'CREATE', entity: 'Webhook', entityId: created.id,
-    after: { url, events: cleanEvents, description: created.description, paketId: cleanPaketId },
+    after: { url, events: cleanEvents, description: created.description, paketId: cleanPaketId, rateLimitPerMin: cleanRate },
   });
   return created;
+}
+
+// Stage 131 — admin-side update of per-sub rate-limit only (no other
+// fields editable yet; description/events/paket changes still require
+// delete + recreate, which is the right friction for partner contracts).
+export async function updateWebhookRateLimit({ req, actor, id, rateLimitPerMin }) {
+  const before = await db.webhook.findUnique({ where: { id } });
+  if (!before) throw new HttpError(404, 'Webhook tidak ditemukan', 'WEBHOOK_NOT_FOUND');
+  const cleanRate = clampRateLimit(rateLimitPerMin);
+  if (cleanRate === before.rateLimitPerMin) return before;  // no-op skip-audit
+  const updated = await db.webhook.update({
+    where: { id },
+    data: { rateLimitPerMin: cleanRate },
+  });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'Webhook', entityId: id,
+    before: { rateLimitPerMin: before.rateLimitPerMin },
+    after: { rateLimitPerMin: cleanRate },
+  });
+  return updated;
 }
 
 export async function updateWebhookStatus({ req, actor, id, status }) {

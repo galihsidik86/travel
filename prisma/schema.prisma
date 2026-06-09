@@ -615,6 +615,14 @@ model Webhook {
   paketId     String?
   paket       Paket?   @relation("WebhookPaket", fields: [paketId], references: [id], onDelete: SetNull)
 
+  // Stage 131 — per-subscription burst rate-limit (requests/minute).
+  // Token-bucket via the shared rate-limit store; over-quota events
+  // get queued as PENDING with nextRetryAt = end-of-window instead of
+  // firing immediately. Default 30/min handles normal traffic; admin
+  // can crank up for high-volume partners or down for fragile ones.
+  // Clamp 1..600 in createWebhook.
+  rateLimitPerMin Int @default(30)
+
   createdAt   DateTime @default(now())
   createdById String?
   createdBy   User?    @relation("WebhookCreator", fields: [createdById], references: [id], onDelete: SetNull)

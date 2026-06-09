@@ -7,7 +7,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import {
   listWebhooks, createWebhook, updateWebhookStatus, deleteWebhook, testFireWebhook,
-  rotateWebhookSecret, replayDelivery, EVENT_NAMES,
+  rotateWebhookSecret, replayDelivery, updateWebhookRateLimit, EVENT_NAMES,
 } from '../services/webhooks.js';
 
 const router = Router();
@@ -60,6 +60,7 @@ router.post(
         events,
         description: req.body?.description,
         paketId: req.body?.paketId || null,
+        rateLimitPerMin: req.body?.rateLimitPerMin,
       });
       res.redirect('/admin/webhooks?ok=created');
     } catch (err) {
@@ -80,6 +81,27 @@ router.post(
         id: req.params.id, status: req.body?.status,
       });
       res.redirect('/admin/webhooks?ok=status');
+    } catch (err) {
+      if (err instanceof HttpError) {
+        return res.redirect('/admin/webhooks?err=' + encodeURIComponent(err.message));
+      }
+      throw err;
+    }
+  }),
+);
+
+// Stage 131 — admin update per-sub rate-limit only. Other webhook
+// fields (URL/events/paket) are not editable post-create on purpose —
+// those are partner contracts.
+router.post(
+  '/:id/rate-limit',
+  asyncHandler(async (req, res) => {
+    try {
+      await updateWebhookRateLimit({
+        req, actor: actorFrom(req),
+        id: req.params.id, rateLimitPerMin: req.body?.rateLimitPerMin,
+      });
+      res.redirect('/admin/webhooks?ok=ratelimit');
     } catch (err) {
       if (err instanceof HttpError) {
         return res.redirect('/admin/webhooks?err=' + encodeURIComponent(err.message));

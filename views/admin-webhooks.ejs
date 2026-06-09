@@ -100,6 +100,11 @@
         </select>
         <div class="helper">Pilih paket spesifik agar partner hanya menerima event untuk paket tsb. Kosong = terima event semua paket.</div>
       </div>
+      <div class="field">
+        <label class="label" for="wh-ratelimit">Rate limit (req/menit)</label>
+        <input id="wh-ratelimit" class="input" name="rateLimitPerMin" type="number" min="1" max="600" value="30">
+        <div class="helper">Per-subscription burst cap. Default 30/min cukup untuk traffic normal. Over-quota event akan di-queue PENDING (retry job pick up otomatis), bukan di-drop.</div>
+      </div>
       <button type="submit" class="btn-primary">SIMPAN</button>
       <div class="helper">Secret ter-generate otomatis (32 bytes hex). Disimpan plaintext — gunakan untuk HMAC verification di partner side.</div>
     </form>
@@ -148,6 +153,11 @@
                     ⚠ ROTATING → grace until <%= fmt.date(w.prevSecretExpiresAt) %>
                   </div>
                 <% } %>
+                <form method="POST" action="/admin/webhooks/<%= w.id %>/rate-limit" style="display:flex;gap:4px;align-items:center;margin-top:6px;" title="Burst rate-limit (req/menit). Over-quota event di-queue PENDING.">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="number" name="rateLimitPerMin" min="1" max="600" value="<%= w.rateLimitPerMin %>" style="width:55px;background:var(--ink-1000);border:var(--hairline-soft);color:var(--cream-100);padding:1px 4px;font-family:var(--font-mono);font-size:9.5px;border-radius:2px;">
+                  <button type="submit" style="background:transparent;border:1px solid var(--ink-300);color:var(--ink-200);font-family:var(--font-mono);font-size:8.5px;padding:1px 5px;border-radius:2px;cursor:pointer;letter-spacing:0.06em;">/MIN ↻</button>
+                </form>
               </td>
               <td class="last <%= lastCls %>">
                 <% if (w.lastFiredAt) { %>
