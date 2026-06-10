@@ -148,7 +148,7 @@ export async function computeYtdTotals({ agentId, periodYM }) {
  * Stage 150 — render the statement PDF into a Buffer. S155 adds the
  * optional YTD block when `ytd` is provided + not suppressed.
  */
-export async function renderStatementPdfBuffer({ agent, periodYM, lines, totals, ytd = null, adminNote = null }) {
+export async function renderStatementPdfBuffer({ agent, periodYM, lines, totals, ytd = null, adminNote = null, watermark = null }) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     const doc = new PDFDocument({ size: 'A4', margin: 50, info: {
@@ -291,6 +291,24 @@ export async function renderStatementPdfBuffer({ agent, periodYM, lines, totals,
     doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.muted)
       .text(`Dicetak ${new Date().toISOString().slice(0, 10)} · Religio Pro · Statement tidak mengikat secara hukum`,
         50, footY, { width: 495, align: 'center' });
+
+    // Stage 160 — preview watermark (S159 dispute-resolution path,
+    // future preview surfaces). Diagonal big text across the page at
+    // low opacity. Applied AFTER all body content so it overlays
+    // every block. Skipped on canonical S150 monthly statement.
+    if (watermark) {
+      const wmText = String(watermark).slice(0, 120);
+      const pageW = doc.page.width;
+      const pageH = doc.page.height;
+      doc.save();
+      doc.fillColor(C.ruby).fillOpacity(0.10);
+      // Rotate -30° around the page center
+      doc.rotate(-30, { origin: [pageW / 2, pageH / 2] });
+      doc.font('Helvetica-Bold').fontSize(72)
+        .text(wmText, 0, pageH / 2 - 40,
+          { width: pageW, align: 'center', characterSpacing: 4 });
+      doc.restore();
+    }
 
     doc.end();
   });
@@ -439,6 +457,9 @@ export async function renderPaketScopedStatementBuffer({ agentId, periodYM, pake
     // matches the rest of the running tape.
     ytd: null,
     adminNote: `Statement khusus paket "${paket.title}" — bukan rekap bulanan kanonik. Dibuat oleh admin untuk klarifikasi.`,
+    // Stage 160 — diagonal "PREVIEW · TIDAK KANONIK" overlay so agent
+    // can't mistake this for the official monthly statement.
+    watermark: 'PREVIEW · TIDAK KANONIK',
   });
   return { buffer, agent, paket, periodYM, totals };
 }
