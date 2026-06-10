@@ -1407,6 +1407,15 @@ model KomisiStatement {
   adminNote      String? @db.Text
   generatedAt    DateTime @default(now())
 
+  // Stage 162 — download counters. Incremented separately per surface
+  // so admin can see "agent never opened the PDF" vs "admin pulled it
+  // for an audit". Best-effort writes (catch + log on failure) so a
+  // counter blip never breaks the actual download.
+  agentDownloadCount       Int       @default(0)
+  agentLastDownloadAt      DateTime?
+  adminDownloadCount       Int       @default(0)
+  adminLastDownloadAt      DateTime?
+
   @@unique([agentId, periodYM])
   @@index([periodYM])
 }

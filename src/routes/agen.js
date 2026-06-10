@@ -109,7 +109,7 @@ router.get(
     if (!profile) throw new HttpError(404, 'Profil agen tidak ditemukan', 'AGENT_PROFILE_MISSING');
     const stmt = await db.komisiStatement.findFirst({
       where: { id: req.params.id, agentId: profile.id },
-      select: { pdfPath: true, periodYM: true },
+      select: { id: true, pdfPath: true, periodYM: true },
     });
     if (!stmt || !stmt.pdfPath) throw new HttpError(404, 'Statement tidak ditemukan', 'STATEMENT_NOT_FOUND');
     // Stream from disk (best-effort — file may have been pruned)
@@ -121,6 +121,12 @@ router.get(
     }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="komisi_${stmt.periodYM}.pdf"`);
+    // Stage 162 — fire-and-forget counter bump. AFTER the response
+    // headers are written so the user-facing latency isn't affected.
+    res.on('finish', async () => {
+      const { recordStatementDownload } = await import('../services/komisiStatement.js');
+      recordStatementDownload({ statementId: stmt.id, surface: 'agent' });
+    });
     createReadStream(stmt.pdfPath).pipe(res);
   }),
 );

@@ -141,4 +141,39 @@ router.get(
   }),
 );
 
+/**
+ * Stage 162 — admin download of a canonical KomisiStatement PDF. Same
+ * file the agent downloads at /agen/statements/:id.pdf — but accessed
+ * via admin, so the `adminDownloadCount` counter bumps instead.
+ * Lets admin pull a copy without needing to log in as the agent.
+ */
+router.get(
+  '/:slug/statements/:id.pdf',
+  asyncHandler(async (req, res) => {
+    const agent = await db.agentProfile.findUnique({
+      where: { slug: req.params.slug },
+      select: { id: true, slug: true },
+    });
+    if (!agent) throw new HttpError(404, 'Agen tidak ditemukan', 'AGENT_NOT_FOUND');
+    const stmt = await db.komisiStatement.findFirst({
+      where: { id: req.params.id, agentId: agent.id },
+      select: { id: true, pdfPath: true, periodYM: true },
+    });
+    if (!stmt || !stmt.pdfPath) throw new HttpError(404, 'Statement tidak ditemukan', 'STATEMENT_NOT_FOUND');
+    const { promises: fsp, createReadStream } = await import('node:fs');
+    try {
+      await fsp.access(stmt.pdfPath);
+    } catch {
+      throw new HttpError(404, 'File PDF tidak ada di disk — regenerate dulu', 'PDF_MISSING');
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="komisi_${agent.slug}_${stmt.periodYM}.pdf"`);
+    res.on('finish', async () => {
+      const { recordStatementDownload } = await import('../services/komisiStatement.js');
+      recordStatementDownload({ statementId: stmt.id, surface: 'admin' });
+    });
+    createReadStream(stmt.pdfPath).pipe(res);
+  }),
+);
+
 export default router;

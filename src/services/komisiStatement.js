@@ -722,4 +722,35 @@ export async function listAgentStatements({ agentId, limit = 24 } = {}) {
   });
 }
 
+/**
+ * Stage 162 — bump the download counter for a specific surface
+ * (`agent` or `admin`). Fire-and-forget — a write failure logs but
+ * never blocks the download itself. Keeps the routes simple: they
+ * call this AFTER res.end so latency on the response isn't affected.
+ */
+export async function recordStatementDownload({ statementId, surface }) {
+  if (!statementId || (surface !== 'agent' && surface !== 'admin')) return;
+  try {
+    if (surface === 'agent') {
+      await db.komisiStatement.update({
+        where: { id: statementId },
+        data: {
+          agentDownloadCount: { increment: 1 },
+          agentLastDownloadAt: new Date(),
+        },
+      });
+    } else {
+      await db.komisiStatement.update({
+        where: { id: statementId },
+        data: {
+          adminDownloadCount: { increment: 1 },
+          adminLastDownloadAt: new Date(),
+        },
+      });
+    }
+  } catch (err) {
+    console.warn('[komisi-statement] download counter failed:', err?.message || err);
+  }
+}
+
 export { CACHE_DIR };

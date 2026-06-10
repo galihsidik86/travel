@@ -12,6 +12,7 @@ import {
 import {
   listShortcodes, createShortcode, deleteShortcode, listStaffForShortcode,
 } from '../services/mentionShortcodes.js';
+import { db } from '../lib/db.js';
 
 const router = Router();
 
@@ -207,9 +208,30 @@ router.get(
       agentPhotoUrl: target.agent?.photoUrl || '',
       igHandle: target.agent?.igHandle || '',
     };
+    // Stage 162 — surface recent statement download counters when this
+    // is an AGEN user. Pulls last 6 statements with counters; admin
+    // sees "agent never opened the PDF" at a glance.
+    let recentStatements = null;
+    if (target.role === 'AGEN' && target.agent?.id) {
+      try {
+        recentStatements = await db.komisiStatement.findMany({
+          where: { agentId: target.agent.id },
+          orderBy: { periodYM: 'desc' },
+          take: 6,
+          select: {
+            id: true, periodYM: true, lineCount: true,
+            agentDownloadCount: true, agentLastDownloadAt: true,
+            adminDownloadCount: true, adminLastDownloadAt: true,
+          },
+        });
+      } catch (err) {
+        console.warn('[users] statement counters failed:', err?.message || err);
+      }
+    }
     res.render('users-form', {
       user: req.user, mode: 'edit', target: flat,
       errors: {}, formError: null, META,
+      recentStatements,
     });
   }),
 );

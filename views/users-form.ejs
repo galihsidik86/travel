@@ -285,6 +285,54 @@
         <% if (errors.komisiRateOverridePct) { %><div class="field-err"><%= errors.komisiRateOverridePct %></div><% } %>
         <div class="helper">0-50%. Kalau di-set, override rate di Paket. Berlaku saat LUNAS baru saja.</div>
       </div>
+
+      <%# Stage 162 — recent statement download counters. Shows admin
+          whether the agent has been opening their monthly PDFs. %>
+      <% if (typeof recentStatements !== 'undefined' && recentStatements && recentStatements.length > 0) { %>
+        <div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--hairline);">
+          <h4 style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;color:var(--gold-300);text-transform:uppercase;margin:0 0 8px;">Aktivitas download statement</h4>
+          <p style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);line-height:1.6;margin:0 0 10px;">
+            6 statement terakhir. Jika agen belum pernah membuka PDF berbulan-bulan, mungkin perlu follow-up manual.
+          </p>
+          <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:10.5px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--ink-500);">
+                <th style="text-align:left;padding:5px 6px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;">Periode</th>
+                <th style="text-align:right;padding:5px 6px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;">Lines</th>
+                <th style="text-align:right;padding:5px 6px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;">Agen DL</th>
+                <th style="text-align:right;padding:5px 6px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;">Admin DL</th>
+                <th style="text-align:right;padding:5px 6px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;">PDF</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentStatements.forEach(function(s) {
+                const agenZero = s.agentDownloadCount === 0;
+              %>
+                <tr style="border-bottom:1px solid var(--ink-700);">
+                  <td style="padding:5px 6px;color:var(--cream-100);"><%= s.periodYM %></td>
+                  <td style="padding:5px 6px;text-align:right;color:var(--ink-100);"><%= s.lineCount %></td>
+                  <td style="padding:5px 6px;text-align:right;color:<%= agenZero ? 'var(--amber)' : 'var(--emerald)' %>;">
+                    <%= s.agentDownloadCount %>
+                    <% if (s.agentLastDownloadAt) { %>
+                      <span style="color:var(--ink-300);font-size:9px;display:block;">last <%= fmt.dateShort(s.agentLastDownloadAt) %></span>
+                    <% } %>
+                  </td>
+                  <td style="padding:5px 6px;text-align:right;color:<%= s.adminDownloadCount > 0 ? 'var(--sapphire)' : 'var(--ink-300)' %>;">
+                    <%= s.adminDownloadCount %>
+                    <% if (s.adminLastDownloadAt) { %>
+                      <span style="color:var(--ink-300);font-size:9px;display:block;">last <%= fmt.dateShort(s.adminLastDownloadAt) %></span>
+                    <% } %>
+                  </td>
+                  <td style="padding:5px 6px;text-align:right;">
+                    <a href="/admin/agents/<%= target.slug %>/statements/<%= s.id %>.pdf" style="color:var(--gold-300);text-decoration:none;font-size:10.5px;">⇩</a>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+
       <%# Stage 151 — regenerate komisi statement when late adjustments
           land after the original cron pass. Audit row captures prior
           totals for compliance traceability. Outside the main <form>
