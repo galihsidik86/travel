@@ -422,6 +422,90 @@ export async function generateAgentStatement({ req = null, actor = null, agentId
 }
 
 /**
+ * Stage 161 — render a transient (non-persisted) cross-paket statement
+ * over a custom date range. Used by admin to answer "show me all komisi
+ * for agent X for Q1 2026 across all paket". Same preview watermark
+ * (S160) as the per-paket scoped variant — both are non-canonical
+ * previews shared during admin↔agent discussions.
+ *
+ * Window is capped at MAX_RANGE_DAYS (90 days). Beyond a quarter, the
+ * agent should be using the canonical monthly statements anyway.
+ */
+const MAX_RANGE_DAYS = 90;
+
+export async function renderRangeStatementBuffer({ agentId, from, to }) {
+  if (!agentId) throw new HttpError(400, 'agentId wajib', 'BAD_AGENT');
+  if (!from || !to) throw new HttpError(400, 'from + to wajib (YYYY-MM-DD)', 'BAD_RANGE');
+  const fromDate = new Date(from + 'T00:00:00');
+  const toDate = new Date(to + 'T23:59:59.999');
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    throw new HttpError(400, 'from / to harus format YYYY-MM-DD', 'BAD_DATE');
+  }
+  if (toDate < fromDate) {
+    throw new HttpError(400, 'to harus ≥ from', 'BAD_RANGE_ORDER');
+  }
+  const days = Math.floor((toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  if (days > MAX_RANGE_DAYS) {
+    throw new HttpError(409,
+      `Range terlalu lebar (${days} hari). Cap ${MAX_RANGE_DAYS} hari — gunakan statement bulanan kanonik untuk window lebih besar.`,
+      'RANGE_TOO_WIDE');
+  }
+  const agent = await db.agentProfile.findUnique({
+    where: { id: agentId },
+    select: { id: true, slug: true, displayName: true },
+  });
+  if (!agent) throw new HttpError(404, 'Agen tidak ditemukan', 'AGENT_NOT_FOUND');
+
+  // Pull lines directly — getStatementLines is YYYY-MM bound, so for an
+  // arbitrary range we query komisi inline (same shape).
+  const rows = await db.komisi.findMany({
+    where: {
+      agentId,
+      status: { in: ['EARNED', 'PAID'] },
+      OR: [
+        { earnedAt: { gte: fromDate, lte: toDate } },
+        { paidAt: { gte: fromDate, lte: toDate } },
+      ],
+    },
+    orderBy: { earnedAt: 'asc' },
+    select: {
+      id: true, amount: true, status: true,
+      earnedAt: true, paidAt: true,
+      booking: {
+        select: {
+          id: true, bookingNo: true,
+          paket: { select: { slug: true, title: true } },
+          jemaah: { select: { fullName: true } },
+        },
+      },
+      payout: { select: { id: true, payoutNo: true, paidAt: true } },
+    },
+  });
+  let totalEarned = 0, totalPaid = 0;
+  for (const r of rows) {
+    const v = Number(r.amount.toString());
+    if (r.status === 'EARNED') totalEarned += v;
+    else if (r.status === 'PAID') totalPaid += v;
+  }
+  const totals = { earnedIdr: totalEarned, paidIdr: totalPaid, lineCount: rows.length };
+
+  // Synthetic periodYM = "<from>→<to>" so the existing PDF render's
+  // "Periode" line shows the actual range, not a misleading single month.
+  const rangeLabel = `${from} → ${to}`;
+  const buffer = await renderStatementPdfBuffer({
+    agent: { ...agent, displayName: `${agent.displayName} · cross-paket` },
+    periodYM: rangeLabel,
+    lines: rows,
+    totals,
+    ytd: null,
+    adminNote: `Statement cross-paket untuk window ${rangeLabel} — bukan rekap bulanan kanonik. Dibuat oleh admin untuk klarifikasi.`,
+    // S160 — same preview watermark as the per-paket variant
+    watermark: 'PREVIEW · TIDAK KANONIK',
+  });
+  return { buffer, agent, totals, from, to, days };
+}
+
+/**
  * Stage 159 — render a transient (non-persisted) per-paket statement
  * for dispute resolution. Caller pipes the returned buffer to res.
  * Doesn't create a `KomisiStatement` row, doesn't write a file under

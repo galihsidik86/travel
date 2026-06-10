@@ -7,7 +7,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import { db } from '../lib/db.js';
-import { regenerateAgentStatement, renderPaketScopedStatementBuffer } from '../services/komisiStatement.js';
+import { regenerateAgentStatement, renderPaketScopedStatementBuffer, renderRangeStatementBuffer } from '../services/komisiStatement.js';
 
 const router = Router();
 router.use(requireAuth, requireRole('OWNER', 'SUPERADMIN'));
@@ -106,6 +106,34 @@ router.get(
       agentId: agent.id, periodYM, paketId: paket.id,
     });
     const filename = `komisi_${agent.slug}_${periodYM}_${paket.slug}.pdf`
+      .replace(/[^A-Za-z0-9_.-]/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.end(buffer);
+  }),
+);
+
+/**
+ * Stage 161 — transient cross-paket statement over a custom date range.
+ * Used by admin to answer "show me all komisi for agent X for Q1 2026".
+ * Same preview watermark + non-persisted posture as S159.
+ */
+router.get(
+  '/:slug/statement-range.pdf',
+  asyncHandler(async (req, res) => {
+    const agent = await db.agentProfile.findUnique({
+      where: { slug: req.params.slug },
+      select: { id: true, slug: true },
+    });
+    if (!agent) throw new HttpError(404, 'Agen tidak ditemukan', 'AGENT_NOT_FOUND');
+    const from = (req.query?.from || '').toString().trim();
+    const to = (req.query?.to || '').toString().trim();
+    if (!from || !to) throw new HttpError(400, 'from + to query params wajib (YYYY-MM-DD)', 'BAD_RANGE');
+
+    const { buffer } = await renderRangeStatementBuffer({
+      agentId: agent.id, from, to,
+    });
+    const filename = `komisi_${agent.slug}_${from}_to_${to}.pdf`
       .replace(/[^A-Za-z0-9_.-]/g, '_');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
