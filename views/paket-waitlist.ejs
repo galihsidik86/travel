@@ -87,7 +87,7 @@
       Tidak ada jemaah <strong>WAITING</strong> di paket ini — mungkin sudah di-promote oleh admin lain.
     </div>
   <% } %>
-  <div class="head">
+  <div class="head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
     <div>
       <h1>Waitlist <em><%= paket.title %></em></h1>
       <div class="sub">
@@ -95,6 +95,13 @@
         <% if (paket.kursiTerisi >= paket.kursiTotal) { %>· <strong style="color:var(--ruby);">PENUH</strong><% } %>
       </div>
     </div>
+    <%# Stage 174 — CSV export for offline outreach campaigns %>
+    <% if (rows.length > 0) { %>
+      <a href="/admin/paket/<%= paket.slug %>/waitlist.csv"
+         style="font-family:var(--font-mono);font-size:10.5px;color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);letter-spacing:0.1em;text-transform:uppercase;align-self:center;white-space:nowrap;">
+        ⇩ CSV Outreach
+      </a>
+    <% } %>
   </div>
 
   <div class="kpi-row">

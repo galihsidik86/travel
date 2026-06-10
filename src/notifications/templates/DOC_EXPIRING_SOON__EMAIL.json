@@ -1,0 +1,4 @@
+{
+  "subject": "{{docCount}} dokumen Anda akan kedaluwarsa",
+  "body": "Assalamu'alaikum {{jemaahName}},\n\nBerikut dokumen Anda yang akan kedaluwarsa dalam waktu dekat:\n\n{{docLines}}\n\nMohon untuk segera memperpanjang atau mengajukan dokumen baru. Untuk paspor yang kedaluwarsa kurang dari 6 bulan dari tanggal keberangkatan, biasanya tidak diizinkan masuk Arab Saudi.\n\nUpload dokumen baru di: /saya/profile\n\nBaarakallahu fiikum,\nReligio Pro"
+}

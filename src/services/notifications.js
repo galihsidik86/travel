@@ -712,6 +712,108 @@ export async function notifyAgentAnnualRecap({ recap, agent } = {}) {
 }
 
 /**
+ * Stage 172 — payment reminder for one jemaah-booking pair. Sends
+ * BOTH EMAIL + WA (each respects the jemaah's per-channel opt-out
+ * via enqueueNotification). Silent when the jemaah has neither.
+ */
+export async function notifyPaymentReminder({
+  booking, outstanding, daysUntil,
+} = {}) {
+  if (!booking) return { enqueued: 0, skipped: true };
+  const j = booking.jemaah;
+  if (!j) return { enqueued: 0, skipped: true, reason: 'no_jemaah' };
+  const recipientUserId = booking.jemaahUserId || j.user?.id || null;
+  const recipientEmail = j.user?.email || null;
+  const recipientPhone = j.phone || null;
+  if (!recipientEmail && !recipientPhone) {
+    return { enqueued: 0, skipped: true, reason: 'no_contact' };
+  }
+  const departure = booking.paket.departureDate;
+  const vars = {
+    jemaahName: j.fullName || '',
+    bookingNo: booking.bookingNo,
+    paketTitle: booking.paket.title || '',
+    outstandingIdr: Math.round(outstanding).toLocaleString('id-ID'),
+    daysUntil: String(daysUntil),
+    departureLabel: departure ? departure.toISOString().slice(0, 10) : '',
+  };
+  let enqueued = 0;
+  if (recipientEmail) {
+    try {
+      const { subject, body } = renderTemplate('PAYMENT_REMINDER', 'EMAIL', vars);
+      const r = await enqueueNotification({
+        type: 'PAYMENT_REMINDER', channel: 'EMAIL',
+        recipientEmail, recipientUserId,
+        subject, body,
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+        payload: { outstanding, daysUntil },
+      });
+      if (r && r.status !== 'SKIPPED') enqueued += 1;
+    } catch (err) {
+      console.warn('[payment-reminder] email failed:', err?.message || err);
+    }
+  }
+  if (recipientPhone) {
+    try {
+      const { body } = renderTemplate('PAYMENT_REMINDER', 'WA', vars);
+      const r = await enqueueNotification({
+        type: 'PAYMENT_REMINDER', channel: 'WA',
+        recipientPhone, recipientUserId,
+        body,
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+        payload: { outstanding, daysUntil },
+      });
+      if (r && r.status !== 'SKIPPED') enqueued += 1;
+    } catch (err) {
+      console.warn('[payment-reminder] WA failed:', err?.message || err);
+    }
+  }
+  return { enqueued };
+}
+
+/**
+ * Stage 173 — document-expiry nudge to one jemaah. Fires ONE EMAIL
+ * per jemaah per cron run with all soon-expiring docs inlined,
+ * rather than N separate emails (cron-friendly grouping).
+ */
+export async function notifyDocExpiringSoon({
+  jemaah, docs,
+} = {}) {
+  if (!jemaah || !docs || docs.length === 0) {
+    return { enqueued: 0, skipped: true };
+  }
+  const recipientUserId = jemaah.userId || null;
+  const recipientEmail = jemaah.user?.email || null;
+  if (!recipientEmail) {
+    return { enqueued: 0, skipped: true, reason: 'no_email' };
+  }
+  const docLines = docs.map((d, i) => {
+    const expDate = d.expiresAt ? d.expiresAt.toISOString().slice(0, 10) : '—';
+    const daysLeft = d.daysLeft != null ? `${d.daysLeft}h lagi` : 'kedaluwarsa';
+    return `  ${i + 1}. ${d.typeLabel} · expire ${expDate} (${daysLeft})`;
+  }).join('\n');
+  const vars = {
+    jemaahName: jemaah.fullName || '',
+    docCount: String(docs.length),
+    docLines,
+  };
+  try {
+    const { subject, body } = renderTemplate('DOC_EXPIRING_SOON', 'EMAIL', vars);
+    await enqueueNotification({
+      type: 'DOC_EXPIRING_SOON', channel: 'EMAIL',
+      recipientEmail, recipientUserId,
+      subject, body,
+      relatedEntity: 'JemaahProfile', relatedEntityId: jemaah.id,
+      payload: { docCount: docs.length },
+    });
+    return { enqueued: 1 };
+  } catch (err) {
+    console.warn('[doc-expiring] notif failed:', err?.message || err);
+    return { enqueued: 0, error: String(err?.message || err) };
+  }
+}
+
+/**
  * Stage 163 — soft WA nudge to one agent who has unread komisi
  * statements. Fire-and-forget: skips silently when the agent has no
  * WhatsApp number or opted out of statement notifs. Caller already

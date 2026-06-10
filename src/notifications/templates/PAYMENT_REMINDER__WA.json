@@ -1,0 +1,3 @@
+{
+  "body": "Assalamu'alaikum {{jemaahName}}, booking {{bookingNo}} ({{paketTitle}}) berangkat {{daysUntil}} hari lagi ({{departureLabel}}). Sisa pembayaran Rp {{outstandingIdr}}. Mohon dilunasi via /saya/bookings/{{bookingNo}}. — Religio Pro"
+}

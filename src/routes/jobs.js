@@ -31,6 +31,8 @@ import { detectNoShows } from '../services/noShow.js';
 import { generateAllAgentStatements, previousMonthYM } from '../services/komisiStatement.js';
 import { sendAgentAnnualRecaps, previousYear } from '../services/agentAnnualRecap.js';
 import { sendStatementUnreadNudges } from '../services/statementUnreadNudge.js';
+import { sendPaymentReminders } from '../services/paymentReminder.js';
+import { sendDocExpiringNudges } from '../services/docExpiringNudge.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -352,6 +354,22 @@ router.post(
   '/send-statement-unread-nudge',
   asyncHandler(async (_req, res) => {
     const result = await runJob('send-statement-unread-nudge', () => sendStatementUnreadNudges({}));
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-payment-reminder',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-payment-reminder', () => sendPaymentReminders({}));
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-doc-expiring',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-doc-expiring', () => sendDocExpiringNudges({}));
     res.json(result);
   }),
 );

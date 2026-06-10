@@ -92,6 +92,8 @@ export const EXPECTED_INTERVAL_MS = {
   'generate-komisi-statements': 31 * 24 * 60 * 60_000, // monthly (Stage 150)
   'send-agent-annual-recap': 366 * 24 * 60 * 60_000, // yearly (Stage 158)
   'send-statement-unread-nudge': 24 * 60 * 60_000, // daily (Stage 163)
+  'send-payment-reminder': 24 * 60 * 60_000, // daily (Stage 172)
+  'send-doc-expiring': 24 * 60 * 60_000, // daily (Stage 173)
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };
 

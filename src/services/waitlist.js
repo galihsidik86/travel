@@ -107,6 +107,50 @@ export async function listWaitlist(paketSlug) {
 }
 
 /**
+ * Stage 174 — CSV export of all PaketWaitlist rows for a paket.
+ * Useful for offline outreach campaigns (admin pulls the list +
+ * works through it in a spreadsheet, marks promote/cancel via the
+ * admin UI as they reach each jemaah).
+ *
+ * Includes ALL statuses (WAITING/PROMOTED/CANCELLED) — historical
+ * context is useful for "we already tried to reach this person".
+ * The view's promoted/cancelled filter is for UI hygiene, not data.
+ */
+export async function buildWaitlistCsv(paketSlug) {
+  const { paket, rows, counts } = await listWaitlist(paketSlug);
+  const header = [
+    'createdAt', 'status', 'fullName', 'phone',
+    'kelas', 'paxCount', 'notes', 'promotedBookingId',
+    'promotedAt', 'cancelledAt',
+  ];
+  const esc = (v) => {
+    if (v == null) return '';
+    const s = String(v);
+    if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  const lines = rows.map((r) => [
+    r.createdAt ? r.createdAt.toISOString() : '',
+    r.status,
+    r.fullName || '',
+    r.phone || '',
+    r.kelas || '',
+    r.paxCount ?? '',
+    r.notes || '',
+    r.promotedBookingId || '',
+    r.promotedAt ? r.promotedAt.toISOString() : '',
+    r.cancelledAt ? r.cancelledAt.toISOString() : '',
+  ].map(esc).join(','));
+  const footer = [
+    '', 'TOTAL', '', '', '', '', '',
+    `waiting=${counts.waiting}; promoted=${counts.promoted}; cancelled=${counts.cancelled}`,
+    '', '',
+  ].map(esc).join(',');
+  const csv = ['\ufeff' + header.join(','), ...lines, footer].join('\r\n');
+  return { csv, paket, rowCount: rows.length, counts };
+}
+
+/**
  * Promote a waitlist row to a real Booking. Uses the existing
  * createBooking flow so money math, komisi, and notifs all converge on
  * the canonical path.

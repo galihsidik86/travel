@@ -63,6 +63,19 @@ router.get(
     });
   }),
 );
+// Stage 174 — CSV export of the per-paket waitlist for offline outreach.
+router.get(
+  '/:slug/waitlist.csv',
+  asyncHandler(async (req, res) => {
+    const { buildWaitlistCsv } = await import('../services/waitlist.js');
+    const { csv, paket } = await buildWaitlistCsv(req.params.slug);
+    const safeSlug = paket.slug.replace(/[^A-Za-z0-9_-]/g, '_');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="waitlist_${safeSlug}.csv"`);
+    res.end(csv);
+  }),
+);
+
 router.post(
   '/:slug/waitlist/:id/promote',
   asyncHandler(async (req, res) => {
