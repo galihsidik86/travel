@@ -212,6 +212,11 @@ router.get(
     // is an AGEN user. Pulls last 6 statements with counters; admin
     // sees "agent never opened the PDF" at a glance.
     let recentStatements = null;
+    // Stage 171 — agent lifetime KPI scorecard. Same agent role gate.
+    // Best-effort: a compute failure dims the panel via `null`, doesn't
+    // 500 the whole edit page (which still needs to load for the
+    // identity + password reset flows).
+    let agentScorecard = null;
     if (target.role === 'AGEN' && target.agent?.id) {
       try {
         recentStatements = await db.komisiStatement.findMany({
@@ -227,11 +232,17 @@ router.get(
       } catch (err) {
         console.warn('[users] statement counters failed:', err?.message || err);
       }
+      try {
+        const { getAgentKpiScorecard } = await import('../services/agentKpiScorecard.js');
+        agentScorecard = await getAgentKpiScorecard({ agentId: target.agent.id });
+      } catch (err) {
+        console.warn('[users] agent scorecard failed:', err?.message || err);
+      }
     }
     res.render('users-form', {
       user: req.user, mode: 'edit', target: flat,
       errors: {}, formError: null, META,
-      recentStatements,
+      recentStatements, agentScorecard,
     });
   }),
 );

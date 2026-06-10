@@ -921,4 +921,56 @@ export async function buildAgentLifetimeKomisiCsv({ agentId }) {
   };
 }
 
+/**
+ * Stage 170 — agent-facing CSV of every KomisiPayout disbursed
+ * to this agent. Each row carries the bundled komisi count + the
+ * snapshot amount + method + reference. Lets the agent reconcile
+ * bank statements against payouts received.
+ *
+ * Distinct from S168 (lifetime komisi ledger — every Komisi row);
+ * this is the per-payout receipt view. Sorted oldest-first so
+ * running-total formulas read naturally.
+ */
+export async function buildAgentPayoutHistoryCsv({ agentId }) {
+  const rows = await db.komisiPayout.findMany({
+    where: { agentId },
+    orderBy: { paidAt: 'asc' },
+    select: {
+      id: true, payoutNo: true, amount: true, currency: true,
+      method: true, reference: true, notes: true,
+      paidAt: true, paidBy: { select: { email: true } },
+      _count: { select: { komisi: true } },
+    },
+  });
+  const header = [
+    'paidAt', 'payoutNo', 'amountIdr', 'currency',
+    'method', 'reference', 'komisiLines', 'paidByEmail', 'notes',
+  ];
+  const esc = (v) => {
+    if (v == null) return '';
+    const s = String(v);
+    if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  let total = 0;
+  const lines = rows.map((p) => {
+    const amt = Number(p.amount?.toString?.() ?? p.amount) || 0;
+    total += amt;
+    return [
+      p.paidAt ? p.paidAt.toISOString() : '',
+      p.payoutNo, amt, p.currency || 'IDR',
+      p.method, p.reference || '',
+      p._count?.komisi ?? 0,
+      p.paidBy?.email || '',
+      p.notes || '',
+    ].map(esc).join(',');
+  });
+  const footer = [
+    '', 'TOTAL', String(total), 'IDR',
+    '', '', String(rows.length), '', '',
+  ].map(esc).join(',');
+  const csv = ['\ufeff' + header.join(','), ...lines, footer].join('\r\n');
+  return { csv, rowCount: rows.length, totalIdr: total };
+}
+
 export { CACHE_DIR };

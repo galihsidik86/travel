@@ -147,6 +147,26 @@ router.get(
   }),
 );
 
+// Stage 170 — payout history CSV. One row per KomisiPayout, with
+// amount + method + reference + komisi count. Lets the agent
+// reconcile bank-statement deposits against payouts received.
+router.get(
+  '/payout-history.csv',
+  asyncHandler(async (req, res) => {
+    const profile = await db.agentProfile.findUnique({
+      where: { userId: req.user.id },
+      select: { id: true, slug: true },
+    });
+    if (!profile) throw new HttpError(404, 'Profil agen tidak ditemukan', 'AGENT_PROFILE_MISSING');
+    const { buildAgentPayoutHistoryCsv } = await import('../services/komisiStatement.js');
+    const { csv } = await buildAgentPayoutHistoryCsv({ agentId: profile.id });
+    const safeSlug = profile.slug.replace(/[^A-Za-z0-9_-]/g, '_');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="payout_history_${safeSlug}.csv"`);
+    res.end(csv);
+  }),
+);
+
 // Stage 168 — lifetime komisi CSV export. Distinct from S165
 // (per-period statement CSV) — this covers EVERY Komisi row across
 // the agent's history for personal accounting / tax prep.

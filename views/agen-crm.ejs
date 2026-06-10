@@ -854,7 +854,12 @@
       <div class="panel-an" style="margin-top:24px;">
         <div class="panel-an__head">
           <h3>Riwayat payout</h3>
-          <span class="meta"><%= payouts.length %> ENTRI · last 20</span>
+          <span class="meta">
+            <%= payouts.length %> ENTRI · last 20
+            <% if (payouts.length > 0) { %>
+              · <a href="/agen/payout-history.csv" style="color:var(--gold-300);text-decoration:none;border-bottom:1px dotted var(--gold-300);">⇩ CSV LENGKAP</a>
+            <% } %>
+          </span>
         </div>
         <% if (payouts.length === 0) { %>
           <div class="empty">
@@ -1328,7 +1333,7 @@
     modal.classList.add('is-open');
     setTimeout(() => form.elements.fullName.focus(), 0);
   }
-  function closeModal() { modal.classList.remove('is-open'); }
+  function closeModal() { modal.classList.remove('is-open'); leadConfirmDuplicate = false; }
 
   document.querySelectorAll('[data-add-lead]').forEach((btn) => {
     btn.addEventListener('click', () => openModal(btn.dataset.addLead));
@@ -1336,6 +1341,10 @@
   document.getElementById('lead-cancel').addEventListener('click', closeModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
+  // Stage 169 — track confirm-state across resubmits. When server
+  // returns 409 DUPLICATE_LEAD, we show the warning + set this flag
+  // so the next click bypasses the check.
+  let leadConfirmDuplicate = false;
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     modalErr.classList.remove('is-visible');
@@ -1344,12 +1353,27 @@
     for (const [k, v] of fd.entries()) {
       if (v !== '') body[k] = v;
     }
+    if (leadConfirmDuplicate) body.confirmDuplicate = true;
     try {
       const r = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      if (r.status === 409) {
+        const j = await r.json().catch(() => ({}));
+        if (j?.error?.code === 'DUPLICATE_LEAD') {
+          const dl = j.duplicates?.leads || [];
+          const db = j.duplicates?.bookings || [];
+          const lines = [];
+          if (dl.length) lines.push(`${dl.length} lead aktif: ${dl.map((l) => l.fullName + ' (' + l.status + ')').join(', ')}`);
+          if (db.length) lines.push(`${db.length} booking aktif: ${db.map((b) => b.bookingNo + ' · ' + b.paketTitle).join(', ')}`);
+          modalErr.innerHTML = '<strong>⚠ Telepon ini sudah punya rekord aktif:</strong><br>' + lines.join('<br>') + '<br><br>Klik <strong>SIMPAN</strong> sekali lagi untuk lanjut tetap.';
+          modalErr.classList.add('is-visible');
+          leadConfirmDuplicate = true;
+          return;
+        }
+      }
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
         modalErr.textContent = j?.error?.message || 'Gagal menyimpan lead';

@@ -286,6 +286,52 @@
         <div class="helper">0-50%. Kalau di-set, override rate di Paket. Berlaku saat LUNAS baru saja.</div>
       </div>
 
+      <%# Stage 171 — agent lifetime KPI scorecard. Compact admin overview
+          of bookings, conversion, komisi, leads, top paket. Hidden when
+          the agent has zero bookings AND zero leads (new agent, nothing
+          to summarize). %>
+      <% if (typeof agentScorecard !== 'undefined' && agentScorecard && (agentScorecard.counts.total > 0 || agentScorecard.leads.total > 0)) { %>
+        <% const s = agentScorecard; %>
+        <div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--hairline);">
+          <h4 style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;color:var(--gold-300);text-transform:uppercase;margin:0 0 8px;">Lifetime KPI scorecard</h4>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
+            <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:8px 10px;">
+              <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.08em;text-transform:uppercase;">Booking total</div>
+              <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);"><%= s.counts.total %></div>
+              <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);">aktif <%= s.counts.active %> · cancel <%= s.counts.cancelled %></div>
+            </div>
+            <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:8px 10px;">
+              <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.08em;text-transform:uppercase;">LUNAS</div>
+              <div style="font-family:var(--font-display);font-size:18px;color:var(--gold-300);"><%= s.counts.lunas %></div>
+              <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);">konv <%= s.conversionPct == null ? '—' : s.conversionPct + '%' %></div>
+            </div>
+            <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:8px 10px;">
+              <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.08em;text-transform:uppercase;">Revenue LUNAS</div>
+              <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);">Rp <%= fmt.rpShort(s.revenue) %></div>
+              <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);">last <%= s.lastBookingAt ? fmt.dateShort(s.lastBookingAt) : '—' %></div>
+            </div>
+            <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:8px 10px;">
+              <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.08em;text-transform:uppercase;">Komisi lifetime</div>
+              <div style="font-family:var(--font-display);font-size:18px;color:var(--emerald);">Rp <%= fmt.rpShort(s.komisi.lifetime) %></div>
+              <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);">earned <%= fmt.rpShort(s.komisi.earned) %> · paid <%= fmt.rpShort(s.komisi.paid) %></div>
+            </div>
+          </div>
+          <% if (s.leads.total > 0) { %>
+            <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-100);line-height:1.6;margin-bottom:8px;">
+              Pipeline lead: COLD <%= s.leads.cold %> · WARM <%= s.leads.warm %> · CONVERTED <%= s.leads.converted %> · LOST <%= s.leads.lost %> (total <%= s.leads.total %>)
+            </div>
+          <% } %>
+          <% if (s.topPaket.length > 0) { %>
+            <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.05em;margin-top:8px;margin-bottom:4px;text-transform:uppercase;">Top paket (revenue LUNAS)</div>
+            <ul style="margin:0;padding-left:18px;font-family:var(--font-mono);font-size:10.5px;color:var(--cream-100);line-height:1.7;">
+              <% s.topPaket.forEach((p) => { %>
+                <li><%= p.title %> · <strong><%= p.lunasCount %>×</strong> · Rp <%= fmt.rpShort(p.revenue) %></li>
+              <% }) %>
+            </ul>
+          <% } %>
+        </div>
+      <% } %>
+
       <%# Stage 162 — recent statement download counters. Shows admin
           whether the agent has been opening their monthly PDFs. %>
       <% if (typeof recentStatements !== 'undefined' && recentStatements && recentStatements.length > 0) { %>

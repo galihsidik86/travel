@@ -28,6 +28,33 @@ const actorFrom = (req) => ({ id: req.user.id, email: req.user.email, role: req.
 router.post(
   '/',
   asyncHandler(async (req, res) => {
+    // Stage 169 — duplicate phone warning. Mirrors S167's pre-flight
+    // check but tailored for JSON: returns 409 `DUPLICATE_LEAD` with
+    // the matching rows; client (agen-crm modal) shows warning + asks
+    // user to confirm with `confirmDuplicate: true` before resubmitting.
+    const confirmed = req.body?.confirmDuplicate === true || req.body?.confirmDuplicate === 'true';
+    if (!confirmed && req.body?.phone) {
+      const { findRecentLeadsByPhone, findRecentBookingsByPhone } = await import('../services/bookingDuplicateCheck.js');
+      const [dupLeads, dupBookings] = await Promise.all([
+        findRecentLeadsByPhone({ phone: req.body.phone, agentId: req.agentProfile.id }),
+        findRecentBookingsByPhone({ phone: req.body.phone }),
+      ]);
+      if (dupLeads.length > 0 || dupBookings.length > 0) {
+        return res.status(409).json({
+          error: { code: 'DUPLICATE_LEAD', message: 'Telepon ini sudah punya lead atau booking aktif' },
+          duplicates: {
+            leads: dupLeads.map((l) => ({
+              id: l.id, fullName: l.fullName, status: l.status,
+              source: l.source, createdAt: l.createdAt,
+            })),
+            bookings: dupBookings.map((b) => ({
+              id: b.id, bookingNo: b.bookingNo, fullName: b.jemaah?.fullName,
+              paketTitle: b.paket?.title, status: b.status, createdAt: b.createdAt,
+            })),
+          },
+        });
+      }
+    }
     const lead = await createLead({
       req, actor: actorFrom(req),
       agentId: req.agentProfile.id,
