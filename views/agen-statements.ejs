@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Riwayat Statement Komisi</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 18px; margin-bottom: 28px;
+    border-bottom: var(--hairline-soft);
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+  }
+  .topbar .who { color: var(--gold-300); }
+  .topbar a, .topbar button {
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-100); cursor: pointer; text-decoration: none;
+    padding: 6px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .topbar a:hover, .topbar button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+
+  .head { margin-bottom: 24px; }
+  .head h1 {
+    font-family: var(--font-display); font-size: 32px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em; margin-top: 8px;
+  }
+
+  .kpi-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 14px 16px;
+  }
+  .kpi .l {
+    font-family: var(--font-mono); font-size: 10px; color: var(--ink-200);
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .kpi .v {
+    font-family: var(--font-display); font-size: 22px;
+    color: var(--cream-100); font-weight: 500;
+  }
+  .kpi .v.gold { color: var(--gold-300); }
+  .kpi .v.emerald { color: var(--emerald); }
+
+  table {
+    width: 100%; border-collapse: collapse;
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); overflow: hidden;
+    font-family: var(--font-mono); font-size: 11.5px;
+  }
+  thead th {
+    text-align: left; padding: 12px 14px;
+    background: var(--ink-1000); color: var(--ink-200);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    font-size: 10px; font-weight: 500;
+    border-bottom: var(--hairline);
+  }
+  tbody td {
+    padding: 12px 14px; color: var(--cream-100);
+    border-bottom: var(--hairline-soft);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: rgba(196,164,99,0.04); }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: var(--r-xs);
+    font-size: 10px; letter-spacing: 0.08em;
+  }
+  .badge.unread { background: rgba(196,164,99,0.15); color: var(--gold-300); }
+  .badge.opened { background: rgba(74,143,109,0.15); color: var(--emerald); }
+  .badge.note { background: rgba(196,164,99,0.12); color: var(--gold-300); margin-left: 6px; }
+
+  .actions { display: flex; gap: 6px; }
+  .actions a {
+    color: var(--ink-100); text-decoration: none;
+    border: var(--hairline-soft); padding: 4px 10px;
+    border-radius: var(--r-xs); font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+  .actions a:hover { color: var(--gold-300); border-color: var(--gold-300); }
+
+  .pager {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 18px; font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200);
+  }
+  .pager a {
+    color: var(--gold-300); text-decoration: none;
+    border: var(--hairline-soft); padding: 6px 14px;
+    border-radius: var(--r-sm);
+  }
+  .pager a:hover { border-color: var(--gold-300); }
+  .pager .disabled { opacity: 0.3; pointer-events: none; }
+
+  .empty {
+    background: var(--ink-900); border: var(--hairline-soft);
+    border-radius: var(--r-md); padding: 40px;
+    text-align: center; color: var(--ink-200);
+    font-family: var(--font-mono); font-size: 12px;
+  }
+
+  .num { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-screen-label="03 Agen · Statements">
+<div class="wrap">
+
+  <div class="topbar">
+    <div>AGEN · <span class="who"><%= user.email %></span></div>
+    <div style="display:flex;gap:8px;">
+      <a href="/agen">← Dashboard</a>
+      <a href="/agen/profile">Profil</a>
+      <a href="/agen/notifications">Notifikasi</a>
+      <form method="POST" action="/logout" style="display:inline;margin:0;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit">Keluar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="head">
+    <h1>Riwayat <em>statement komisi</em></h1>
+    <div class="sub">Semua laporan komisi bulanan Anda — paginated 20 per halaman.</div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi">
+      <div class="l">Total Statement</div>
+      <div class="v num"><%= lifetime.statementCount %></div>
+    </div>
+    <div class="kpi">
+      <div class="l">Lifetime EARNED</div>
+      <div class="v gold num">Rp <%= lifetime.earnedIdr.toLocaleString('id-ID') %></div>
+    </div>
+    <div class="kpi">
+      <div class="l">Lifetime PAID</div>
+      <div class="v emerald num">Rp <%= lifetime.paidIdr.toLocaleString('id-ID') %></div>
+    </div>
+    <div class="kpi">
+      <div class="l">Total Lines</div>
+      <div class="v num"><%= lifetime.lineCount %></div>
+    </div>
+  </div>
+
+  <% if (rows.length === 0) { %>
+    <div class="empty">
+      Belum ada statement bulanan. Statement otomatis tergenerate setiap awal bulan untuk komisi periode sebelumnya.
+    </div>
+  <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Periode</th>
+          <th>EARNED</th>
+          <th>PAID</th>
+          <th>Lines</th>
+          <th>Status</th>
+          <th>Generated</th>
+          <th style="text-align:right;">Unduh</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach((r) => {
+          const earned = Number(r.totalEarnedIdr?.toString?.() ?? r.totalEarnedIdr) || 0;
+          const paid = Number(r.totalPaidIdr?.toString?.() ?? r.totalPaidIdr) || 0;
+          const opened = r.agentDownloadCount > 0;
+        %>
+          <tr>
+            <td><strong><%= r.periodYM %></strong></td>
+            <td class="num">Rp <%= earned.toLocaleString('id-ID') %></td>
+            <td class="num">Rp <%= paid.toLocaleString('id-ID') %></td>
+            <td class="num"><%= r.lineCount %></td>
+            <td>
+              <% if (opened) { %>
+                <span class="badge opened">DIBUKA <%= r.agentDownloadCount %>×</span>
+              <% } else { %>
+                <span class="badge unread">BELUM DIBUKA</span>
+              <% } %>
+              <% if (r.adminNote) { %>
+                <span class="badge note" title="<%= r.adminNote %>">✎ catatan</span>
+              <% } %>
+            </td>
+            <td><%= fmt.dateShort(r.generatedAt) %></td>
+            <td>
+              <div class="actions" style="justify-content:flex-end;">
+                <a href="/agen/statements/<%= r.id %>.pdf">PDF</a>
+                <a href="/agen/statements/<%= r.id %>.csv">CSV</a>
+              </div>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+
+    <div class="pager">
+      <div>Halaman <%= pagination.page %> dari <%= pagination.pageCount %> · <%= total %> statement</div>
+      <div style="display:flex;gap:8px;">
+        <% if (pagination.page > 1) { %>
+          <a href="?page=<%= pagination.page - 1 %>">← Sebelumnya</a>
+        <% } else { %>
+          <a class="disabled">← Sebelumnya</a>
+        <% } %>
+        <% if (pagination.page < pagination.pageCount) { %>
+          <a href="?page=<%= pagination.page + 1 %>">Berikutnya →</a>
+        <% } else { %>
+          <a class="disabled">Berikutnya →</a>
+        <% } %>
+      </div>
+    </div>
+  <% } %>
+
+</div>
+</body>
+</html>

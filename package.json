@@ -38,6 +38,7 @@
     "job:generate-komisi-statements": "node --env-file-if-exists=.env src/jobs/generate-komisi-statements.js",
     "job:backfill-komisi-statements": "node --env-file-if-exists=.env src/jobs/backfill-komisi-statements.js",
     "job:send-agent-annual-recap": "node --env-file-if-exists=.env src/jobs/send-agent-annual-recap.js",
+    "job:send-statement-unread-nudge": "node --env-file-if-exists=.env src/jobs/send-statement-unread-nudge.js",
     "job:prune": "node --env-file-if-exists=.env src/jobs/prune.js",
     "check:openapi-sdk": "node scripts/check-openapi.js"
   },

@@ -712,6 +712,46 @@ export async function notifyAgentAnnualRecap({ recap, agent } = {}) {
 }
 
 /**
+ * Stage 163 — soft WA nudge to one agent who has unread komisi
+ * statements. Fire-and-forget: skips silently when the agent has no
+ * WhatsApp number or opted out of statement notifs. Caller already
+ * applied the per-agent cooldown (see getUnreadStatementCandidates).
+ */
+export async function notifyStatementUnreadNudge({
+  agent, unreadCount, oldestPeriod,
+} = {}) {
+  if (!agent) return { enqueued: 0, skipped: true };
+  if (!agent.whatsapp) return { enqueued: 0, skipped: true, reason: 'no_phone' };
+  // Reuses the S157 opt-out flag — statement WA and statement EMAIL
+  // are the same kind of message (admin doesn't get a separate "WA off
+  // but email on" toggle for nudges).
+  if (agent.notifKomisiStatement === false) {
+    return { enqueued: 0, skipped: true, reason: 'opted_out' };
+  }
+  const vars = {
+    agentName: agent.displayName || agent.slug || 'Agen',
+    unreadCount: String(unreadCount || 1),
+    oldestPeriod: oldestPeriod || '',
+    dashboardLink: '/agen',
+  };
+  try {
+    const { body } = renderTemplate('STATEMENT_UNREAD_NUDGE', 'WA', vars);
+    await enqueueNotification({
+      type: 'STATEMENT_UNREAD_NUDGE', channel: 'WA',
+      recipientPhone: agent.whatsapp,
+      recipientUserId: agent.userId || null,
+      body,
+      relatedEntity: 'AgentProfile', relatedEntityId: agent.id,
+      payload: { unreadCount, oldestPeriod },
+    });
+    return { enqueued: 1 };
+  } catch (err) {
+    console.warn('[statement-nudge] notif failed:', err?.message || err);
+    return { enqueued: 0, error: String(err?.message || err) };
+  }
+}
+
+/**
  * Stage 141 — per-booking nudge to the jemaah when manifest close is
  * within 72h AND required docs are missing. Idempotent: stamps
  * `Booking.manifestCloseNotifiedAt = now` after enqueue so the daily

@@ -7,7 +7,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import { db } from '../lib/db.js';
-import { regenerateAgentStatement, renderPaketScopedStatementBuffer, renderRangeStatementBuffer } from '../services/komisiStatement.js';
+import { regenerateAgentStatement, renderPaketScopedStatementBuffer, renderRangeStatementBuffer, buildStatementCsv } from '../services/komisiStatement.js';
 
 const router = Router();
 router.use(requireAuth, requireRole('OWNER', 'SUPERADMIN'));
@@ -173,6 +173,36 @@ router.get(
       recordStatementDownload({ statementId: stmt.id, surface: 'admin' });
     });
     createReadStream(stmt.pdfPath).pipe(res);
+  }),
+);
+
+/**
+ * Stage 165 — admin CSV mirror of the agent statement download. Same
+ * ownership chain as the PDF route + bumps adminDownloadCount on
+ * finish. Useful when admin wants the spreadsheet shape for ad-hoc
+ * reconciliation work (e.g. cross-checking against bank statements).
+ */
+router.get(
+  '/:slug/statements/:id.csv',
+  asyncHandler(async (req, res) => {
+    const agent = await db.agentProfile.findUnique({
+      where: { slug: req.params.slug },
+      select: { id: true, slug: true },
+    });
+    if (!agent) throw new HttpError(404, 'Agen tidak ditemukan', 'AGENT_NOT_FOUND');
+    const stmt = await db.komisiStatement.findFirst({
+      where: { id: req.params.id, agentId: agent.id },
+      select: { id: true, periodYM: true, agentId: true },
+    });
+    if (!stmt) throw new HttpError(404, 'Statement tidak ditemukan', 'STATEMENT_NOT_FOUND');
+    const { csv } = await buildStatementCsv({ agentId: stmt.agentId, periodYM: stmt.periodYM });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="komisi_${agent.slug}_${stmt.periodYM}.csv"`);
+    res.on('finish', async () => {
+      const { recordStatementDownload } = await import('../services/komisiStatement.js');
+      recordStatementDownload({ statementId: stmt.id, surface: 'admin' });
+    });
+    res.end(csv);
   }),
 );
 

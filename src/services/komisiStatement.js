@@ -70,7 +70,7 @@ export async function getStatementLines({ agentId, periodYM, paketId = null }) {
     where,
     orderBy: { earnedAt: 'asc' },
     select: {
-      id: true, amount: true, status: true,
+      id: true, amount: true, status: true, currency: true,
       earnedAt: true, paidAt: true,
       booking: {
         select: {
@@ -469,7 +469,7 @@ export async function renderRangeStatementBuffer({ agentId, from, to }) {
     },
     orderBy: { earnedAt: 'asc' },
     select: {
-      id: true, amount: true, status: true,
+      id: true, amount: true, status: true, currency: true,
       earnedAt: true, paidAt: true,
       booking: {
         select: {
@@ -720,6 +720,102 @@ export async function listAgentStatements({ agentId, limit = 24 } = {}) {
       adminNote: true,
     },
   });
+}
+
+/**
+ * Stage 164 — paginated full history for the /agen/statements page.
+ * The wallet tab only shows the last 24 months; this is the "all the
+ * way back" surface. Returns rows + lifetime totals so the agent has
+ * a long-tail view of their earnings without exporting every PDF.
+ */
+export async function listAgentStatementsPaginated({
+  agentId, page = 1, pageSize = 20,
+} = {}) {
+  const safePage = Math.max(1, Math.floor(Number(page) || 1));
+  const safeSize = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 20)));
+  const skip = (safePage - 1) * safeSize;
+  const [rows, total, lifetimeRaw] = await Promise.all([
+    db.komisiStatement.findMany({
+      where: { agentId },
+      orderBy: { periodYM: 'desc' },
+      skip, take: safeSize,
+      select: {
+        id: true, periodYM: true,
+        totalEarnedIdr: true, totalPaidIdr: true, lineCount: true,
+        pdfPath: true, generatedAt: true, adminNote: true,
+        agentDownloadCount: true, agentLastDownloadAt: true,
+      },
+    }),
+    db.komisiStatement.count({ where: { agentId } }),
+    db.komisiStatement.aggregate({
+      where: { agentId },
+      _sum: { totalEarnedIdr: true, totalPaidIdr: true, lineCount: true },
+    }),
+  ]);
+  const lifetime = {
+    earnedIdr: Number(lifetimeRaw._sum.totalEarnedIdr?.toString?.() ?? lifetimeRaw._sum.totalEarnedIdr ?? 0),
+    paidIdr: Number(lifetimeRaw._sum.totalPaidIdr?.toString?.() ?? lifetimeRaw._sum.totalPaidIdr ?? 0),
+    lineCount: Number(lifetimeRaw._sum.lineCount ?? 0),
+    statementCount: total,
+  };
+  return {
+    rows, total, lifetime,
+    pagination: {
+      page: safePage, pageSize: safeSize,
+      pageCount: Math.max(1, Math.ceil(total / safeSize)),
+    },
+  };
+}
+
+/**
+ * Stage 165 — CSV export of all komisi lines in a statement period.
+ * Shape mirrors the PDF: per-booking row with jemaah identity, paket,
+ * earnedAt, paidAt, amount, status, currency. UTF-8 BOM + RFC 4180
+ * quoting so Excel auto-detects encoding (same convention as the
+ * S138 audit export).
+ */
+export async function buildStatementCsv({ agentId, periodYM }) {
+  const { lines, totals } = await getStatementLines({ agentId, periodYM });
+  const header = [
+    'bookingNo', 'jemaahName', 'paketTitle', 'paketSlug',
+    'earnedAt', 'paidAt', 'amountIdr', 'status', 'currency',
+  ];
+  const esc = (v) => {
+    if (v == null) return '';
+    const s = String(v);
+    if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  const rows = lines.map((k) => {
+    const b = k.booking;
+    const j = b?.jemaah;
+    const p = b?.paket;
+    return [
+      b?.bookingNo || '',
+      j?.fullName || '',
+      p?.title || '',
+      p?.slug || '',
+      k.earnedAt ? k.earnedAt.toISOString() : '',
+      k.paidAt ? k.paidAt.toISOString() : '',
+      Number(k.amount?.toString?.() ?? k.amount) || 0,
+      k.status, k.currency || 'IDR',
+    ].map(esc).join(',');
+  });
+  // Totals footer — keeps the CSV self-contained as an audit artifact
+  const footer = [
+    '',
+    '',
+    '',
+    'TOTAL',
+    '',
+    '',
+    String(totals.earnedIdr + totals.paidIdr),
+    `EARNED=${totals.earnedIdr}; PAID=${totals.paidIdr}`,
+    'IDR',
+  ].map(esc).join(',');
+  // RFC 4180 uses CRLF; UTF-8 BOM for Excel mojibake-proofing
+  const body = ['\ufeff' + header.join(','), ...rows, footer].join('\r\n');
+  return { csv: body, lineCount: lines.length, totals };
 }
 
 /**

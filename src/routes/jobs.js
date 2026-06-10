@@ -30,6 +30,7 @@ import { notifyManifestCloseNudge } from '../services/notifications.js';
 import { detectNoShows } from '../services/noShow.js';
 import { generateAllAgentStatements, previousMonthYM } from '../services/komisiStatement.js';
 import { sendAgentAnnualRecaps, previousYear } from '../services/agentAnnualRecap.js';
+import { sendStatementUnreadNudges } from '../services/statementUnreadNudge.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -343,6 +344,14 @@ router.post(
     const yearArg = parseInt(req.body?.year, 10);
     const year = Number.isFinite(yearArg) ? yearArg : previousYear();
     const result = await runJob('send-agent-annual-recap', () => sendAgentAnnualRecaps({ year }));
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/send-statement-unread-nudge',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('send-statement-unread-nudge', () => sendStatementUnreadNudges({}));
     res.json(result);
   }),
 );

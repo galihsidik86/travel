@@ -96,6 +96,56 @@ router.post(
   }),
 );
 
+// Stage 164 — full paginated statement history. /agen Wallet tab
+// caps at 24 months for speed; this page lets the agent walk back
+// to the very first statement they ever earned.
+router.get(
+  '/statements',
+  asyncHandler(async (req, res) => {
+    const profile = await db.agentProfile.findUnique({
+      where: { userId: req.user.id },
+      select: { id: true, slug: true, displayName: true },
+    });
+    if (!profile) throw new HttpError(404, 'Profil agen tidak ditemukan', 'AGENT_PROFILE_MISSING');
+    const { listAgentStatementsPaginated } = await import('../services/komisiStatement.js');
+    const page = parseInt(req.query.page, 10) || 1;
+    const data = await listAgentStatementsPaginated({ agentId: profile.id, page });
+    res.render('agen-statements', {
+      user: req.user, profile, ...data,
+    });
+  }),
+);
+
+// Stage 165 — CSV export of a single statement period. Same ownership
+// gate as the PDF route + same fire-and-forget counter bump on finish.
+router.get(
+  '/statements/:id.csv',
+  asyncHandler(async (req, res) => {
+    const profile = await db.agentProfile.findUnique({
+      where: { userId: req.user.id },
+      select: { id: true },
+    });
+    if (!profile) throw new HttpError(404, 'Profil agen tidak ditemukan', 'AGENT_PROFILE_MISSING');
+    const stmt = await db.komisiStatement.findFirst({
+      where: { id: req.params.id, agentId: profile.id },
+      select: { id: true, periodYM: true, agentId: true },
+    });
+    if (!stmt) throw new HttpError(404, 'Statement tidak ditemukan', 'STATEMENT_NOT_FOUND');
+    const { buildStatementCsv } = await import('../services/komisiStatement.js');
+    const { csv } = await buildStatementCsv({ agentId: stmt.agentId, periodYM: stmt.periodYM });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="komisi_${stmt.periodYM}.csv"`);
+    // S165: count CSV downloads against the same agent surface counter
+    // — opening the CSV is just as much "agent saw the content" as the
+    // PDF would be.
+    res.on('finish', async () => {
+      const { recordStatementDownload } = await import('../services/komisiStatement.js');
+      recordStatementDownload({ statementId: stmt.id, surface: 'agent' });
+    });
+    res.end(csv);
+  }),
+);
+
 // Stage 150 — download a monthly komisi statement PDF. Ownership
 // enforced via the statement's agentId → agentProfile.userId chain;
 // cross-agent access 404s (mirrors S20 voucher access pattern).

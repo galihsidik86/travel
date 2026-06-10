@@ -810,7 +810,10 @@
         <div class="panel-an" style="margin-top:24px;">
           <div class="panel-an__head">
             <h3>Laporan komisi bulanan</h3>
-            <span class="meta"><%= statements.length %> PERIODE · PDF</span>
+            <span class="meta">
+              <%= statements.length %> PERIODE ·
+              <a href="/agen/statements" style="color:var(--gold-300);text-decoration:none;border-bottom:1px dotted var(--gold-300);">RIWAYAT LENGKAP →</a>
+            </span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:6px 14px 14px;">
             <% statements.forEach(function(s) {
@@ -820,7 +823,7 @@
               <a href="/agen/statements/<%= s.id %>.pdf" style="text-decoration:none;background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:12px 14px;display:flex;flex-direction:column;gap:6px;transition:border-color 120ms ease;">
                 <div style="display:flex;justify-content:space-between;align-items:baseline;">
                   <strong style="font-family:var(--font-mono);font-size:13px;color:var(--gold-300);letter-spacing:0.08em;"><%= s.periodYM %></strong>
-                  <span style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);">⇩ PDF</span>
+                  <span style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);">⇩ PDF · <a href="/agen/statements/<%= s.id %>.csv" onclick="event.stopPropagation();" style="color:var(--ink-300);text-decoration:none;">CSV</a></span>
                 </div>
                 <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-100);line-height:1.5;">
                   <%= s.lineCount %> baris<br>
