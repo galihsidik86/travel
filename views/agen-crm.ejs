@@ -720,6 +720,15 @@
         </div>
       </div>
 
+      <%# Stage 168 — lifetime komisi CSV download. Distinct from per-period
+          statement CSVs above (S165) — this is the full ledger across all
+          periods, useful for tax prep / personal accounting. %>
+      <% if (komisi.total > 0) { %>
+        <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+          <a href="/agen/komisi-lifetime.csv" style="font-family:var(--font-mono);font-size:10.5px;color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);letter-spacing:0.1em;text-transform:uppercase;">⇩ CSV Lifetime Ledger</a>
+        </div>
+      <% } %>
+
       <% if (komisi.total === 0) { %>
         <div class="empty" style="margin-top:32px;">
           Belum ada baris komisi.<br>

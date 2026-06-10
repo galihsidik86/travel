@@ -82,6 +82,21 @@
     <div class="err-banner"><%= error %></div>
   <% } %>
 
+  <%# Stage 166 — pre-fill banner. When admin lands here from
+      the outstanding list with ?agentId=<id>, show the agent's
+      stored bank details so KASIR sees who they're paying. %>
+  <% if (typeof prefill !== 'undefined' && prefill && (prefill.bankAccountNumber || prefill.preferredPayoutMethod)) { %>
+    <div style="background:rgba(212,175,55,0.08);border:1px solid var(--gold-300);border-radius:8px;padding:12px 16px;margin-bottom:18px;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
+      <strong style="color:var(--gold-300);letter-spacing:0.05em;text-transform:uppercase;">⚠ Detail dari agen</strong>
+      <div style="margin-top:8px;line-height:1.6;">
+        <% if (prefill.preferredPayoutMethod) { %>Metode preferred: <strong><%= prefill.preferredPayoutMethod %></strong><br><% } %>
+        <% if (prefill.bankName) { %>Bank: <strong><%= prefill.bankName %></strong><br><% } %>
+        <% if (prefill.bankAccountNumber) { %>No rekening: <strong><%= prefill.bankAccountNumber %></strong><br><% } %>
+        <% if (prefill.bankAccountName) { %>a/n: <strong><%= prefill.bankAccountName %></strong><% } %>
+      </div>
+    </div>
+  <% } %>
+
   <form method="POST" action="/admin/payouts" autocomplete="off" id="payout-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="panel">

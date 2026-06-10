@@ -119,6 +119,14 @@
   <% if (flash.ok === 'prefs_saved') { %>
     <div class="flash-ok">✓ Preferensi tersimpan.</div>
   <% } %>
+  <% if (flash.ok === 'payout_saved') { %>
+    <div class="flash-ok">✓ Detail rekening payout tersimpan.</div>
+  <% } %>
+  <% if (flash.ok === 'payout_err') { %>
+    <div class="flash-ok" style="background:rgba(196,72,72,0.10);border-color:var(--ruby);color:var(--ruby);">
+      ✗ Gagal menyimpan rekening payout.
+    </div>
+  <% } %>
 
   <div class="panel">
     <h3>Identitas</h3>
@@ -128,6 +136,49 @@
       <div class="l">Slug</div><div class="v"><code>/p/&lt;paket-slug&gt;?a=<%= profile.slug %></code></div>
       <div class="l">Email</div><div class="v"><%= user.email %></div>
     </div>
+  </div>
+
+  <div class="panel">
+    <h3>Detail rekening payout</h3>
+    <div class="sub">
+      Bank + nomor rekening untuk pencairan komisi. KASIR Religio Pro pakai info ini saat memproses payout. Kosongkan kalau Anda lebih suka diatur per-payout.
+    </div>
+    <form method="POST" action="/agen/profile/payout-details">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <label class="label" for="ppm" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">Metode preferred</label>
+          <select id="ppm" name="preferredPayoutMethod" class="input" style="width:100%;margin-top:6px;background:var(--ink-1000);color:var(--cream-100);border:var(--hairline-soft);padding:8px 10px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;">
+            <option value="">— pilih —</option>
+            <% ['TRANSFER','CASH','EWALLET','QRIS'].forEach((m) => { %>
+              <option value="<%= m %>" <%= profile.preferredPayoutMethod === m ? 'selected' : '' %>><%= m %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <label class="label" for="bn" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">Nama bank / dompet</label>
+          <input id="bn" type="text" name="bankName" class="input" maxlength="80"
+            value="<%= profile.bankName || '' %>"
+            placeholder="BCA / Mandiri / GoPay / OVO …"
+            style="width:100%;margin-top:6px;background:var(--ink-1000);color:var(--cream-100);border:var(--hairline-soft);padding:8px 10px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;">
+        </div>
+        <div>
+          <label class="label" for="ban" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">Nomor rekening</label>
+          <input id="ban" type="text" name="bankAccountNumber" class="input" maxlength="40"
+            value="<%= profile.bankAccountNumber || '' %>"
+            style="width:100%;margin-top:6px;background:var(--ink-1000);color:var(--cream-100);border:var(--hairline-soft);padding:8px 10px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;">
+        </div>
+        <div>
+          <label class="label" for="bacn" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">Nama pemilik rekening</label>
+          <input id="bacn" type="text" name="bankAccountName" class="input" maxlength="100"
+            value="<%= profile.bankAccountName || '' %>"
+            style="width:100%;margin-top:6px;background:var(--ink-1000);color:var(--cream-100);border:var(--hairline-soft);padding:8px 10px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;">
+        </div>
+      </div>
+      <div class="save-row">
+        <button type="submit">Simpan rekening</button>
+      </div>
+    </form>
   </div>
 
   <div class="panel">

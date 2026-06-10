@@ -305,6 +305,14 @@ model AgentProfile {
   // they don't want the inbox noise.
   notifKomisiStatement Boolean @default(true)
 
+  // Stage 166 — payout banking details. Self-service at /agen/profile;
+  // pre-fills /admin/payouts/new for KASIR. All nullable so pre-S166
+  // agents stay valid (KASIR can still input ad-hoc on the form).
+  preferredPayoutMethod PaymentMethod? // TRANSFER/CASH/EWALLET/QRIS
+  bankName              String?        @db.VarChar(80)
+  bankAccountNumber     String?        @db.VarChar(40)
+  bankAccountName       String?        @db.VarChar(100)
+
   @@index([slug])
 }
 

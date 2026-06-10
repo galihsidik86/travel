@@ -849,4 +849,76 @@ export async function recordStatementDownload({ statementId, surface }) {
   }
 }
 
+/**
+ * Stage 168 — lifetime komisi CSV for /agen Wallet tab. One CSV
+ * covering EVERY Komisi row for the agent (PENDING/EARNED/PAID/
+ * CANCELLED) across all paket and all periods. Useful for personal
+ * accounting / tax prep.
+ *
+ * Distinct from S165 (per-period statement CSV) — that's scoped to a
+ * single periodYM and matches the statement PDF. This one is the
+ * agent's full lifetime ledger.
+ *
+ * Sorted oldest-first so each row builds on the previous in
+ * spreadsheets that compute running totals.
+ */
+export async function buildAgentLifetimeKomisiCsv({ agentId }) {
+  const rows = await db.komisi.findMany({
+    where: { agentId },
+    orderBy: [{ earnedAt: 'asc' }, { createdAt: 'asc' }],
+    select: {
+      id: true, amount: true, currency: true, status: true,
+      earnedAt: true, paidAt: true, createdAt: true,
+      booking: {
+        select: {
+          bookingNo: true,
+          paket: { select: { slug: true, title: true } },
+          jemaah: { select: { fullName: true } },
+        },
+      },
+      payout: { select: { payoutNo: true, paidAt: true } },
+    },
+  });
+  const header = [
+    'createdAt', 'earnedAt', 'paidAt',
+    'bookingNo', 'jemaahName', 'paketTitle', 'paketSlug',
+    'amountIdr', 'status', 'currency', 'payoutNo',
+  ];
+  const esc = (v) => {
+    if (v == null) return '';
+    const s = String(v);
+    if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+  let earnedTotal = 0, paidTotal = 0;
+  const lines = rows.map((k) => {
+    const amt = Number(k.amount?.toString?.() ?? k.amount) || 0;
+    if (k.status === 'EARNED') earnedTotal += amt;
+    else if (k.status === 'PAID') paidTotal += amt;
+    return [
+      k.createdAt ? k.createdAt.toISOString() : '',
+      k.earnedAt ? k.earnedAt.toISOString() : '',
+      k.paidAt ? k.paidAt.toISOString() : '',
+      k.booking?.bookingNo || '',
+      k.booking?.jemaah?.fullName || '',
+      k.booking?.paket?.title || '',
+      k.booking?.paket?.slug || '',
+      amt, k.status, k.currency || 'IDR',
+      k.payout?.payoutNo || '',
+    ].map(esc).join(',');
+  });
+  const footer = [
+    '', '', '', '', '',
+    'TOTAL', '',
+    String(earnedTotal + paidTotal),
+    `EARNED=${earnedTotal}; PAID=${paidTotal}; rowCount=${rows.length}`,
+    'IDR', '',
+  ].map(esc).join(',');
+  const csv = ['\ufeff' + header.join(','), ...lines, footer].join('\r\n');
+  return {
+    csv, rowCount: rows.length,
+    totals: { earnedIdr: earnedTotal, paidIdr: paidTotal },
+  };
+}
+
 export { CACHE_DIR };

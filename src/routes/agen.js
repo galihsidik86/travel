@@ -66,7 +66,12 @@ router.get(
   asyncHandler(async (req, res) => {
     const profile = await db.agentProfile.findUnique({
       where: { userId: req.user.id },
-      select: { id: true, slug: true, displayName: true, notifKomisiStatement: true },
+      select: {
+        id: true, slug: true, displayName: true, notifKomisiStatement: true,
+        // S166 — payout banking details for self-service edit
+        preferredPayoutMethod: true, bankName: true,
+        bankAccountNumber: true, bankAccountName: true,
+      },
     });
     if (!profile) throw new HttpError(404, 'Profil agen tidak ditemukan', 'AGENT_PROFILE_MISSING');
     res.render('agen-profile', {
@@ -96,6 +101,32 @@ router.post(
   }),
 );
 
+// Stage 166 — agent self-service payout banking details. Separate
+// endpoint from /prefs so a save here doesn't accidentally flip
+// notification preferences (different concerns, different forms).
+router.post(
+  '/profile/payout-details',
+  asyncHandler(async (req, res) => {
+    const profile = await db.agentProfile.findUnique({
+      where: { userId: req.user.id },
+      select: { id: true },
+    });
+    if (!profile) throw new HttpError(404, 'Profil agen tidak ditemukan', 'AGENT_PROFILE_MISSING');
+    const { updateAgentPayoutDetails } = await import('../services/agentPayoutDetails.js');
+    try {
+      await updateAgentPayoutDetails({
+        req, actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        agentId: profile.id, input: req.body || {},
+      });
+      res.redirect('/agen/profile?ok=payout_saved');
+    } catch (err) {
+      // Validation errors land back on the profile page via querystring
+      const msg = err instanceof HttpError ? err.message : (err?.message || 'Gagal menyimpan');
+      res.redirect('/agen/profile?ok=payout_err&msg=' + encodeURIComponent(msg));
+    }
+  }),
+);
+
 // Stage 164 — full paginated statement history. /agen Wallet tab
 // caps at 24 months for speed; this page lets the agent walk back
 // to the very first statement they ever earned.
@@ -113,6 +144,26 @@ router.get(
     res.render('agen-statements', {
       user: req.user, profile, ...data,
     });
+  }),
+);
+
+// Stage 168 — lifetime komisi CSV export. Distinct from S165
+// (per-period statement CSV) — this covers EVERY Komisi row across
+// the agent's history for personal accounting / tax prep.
+router.get(
+  '/komisi-lifetime.csv',
+  asyncHandler(async (req, res) => {
+    const profile = await db.agentProfile.findUnique({
+      where: { userId: req.user.id },
+      select: { id: true, slug: true },
+    });
+    if (!profile) throw new HttpError(404, 'Profil agen tidak ditemukan', 'AGENT_PROFILE_MISSING');
+    const { buildAgentLifetimeKomisiCsv } = await import('../services/komisiStatement.js');
+    const { csv } = await buildAgentLifetimeKomisiCsv({ agentId: profile.id });
+    const safeSlug = profile.slug.replace(/[^A-Za-z0-9_-]/g, '_');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="komisi_lifetime_${safeSlug}.csv"`);
+    res.end(csv);
   }),
 );
 

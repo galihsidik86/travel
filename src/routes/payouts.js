@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
+import { db } from '../lib/db.js';
 import {
   CreatePayoutSchema, createPayout, listPayouts, getPayoutById, getPayoutSlip, META,
 } from '../services/payouts.js';
@@ -28,9 +29,38 @@ router.get(
   '/new',
   asyncHandler(async (req, res) => {
     const { outstanding } = await listPayouts();
+    // Stage 166 — pre-fill from the agent's stored payout details when
+    // ?agentId=<id> is passed (from the outstanding list "Bayar" CTA).
+    // Empty when no agent picked yet — form picks them mid-flow.
+    let prefill = null;
+    const wantAgentId = (req.query.agentId || '').toString();
+    if (wantAgentId) {
+      const a = await db.agentProfile.findUnique({
+        where: { id: wantAgentId },
+        select: {
+          id: true, slug: true, displayName: true,
+          preferredPayoutMethod: true, bankName: true,
+          bankAccountNumber: true, bankAccountName: true,
+        },
+      });
+      if (a) prefill = a;
+    }
+    const method = prefill?.preferredPayoutMethod || 'TRANSFER';
+    // Build a "Bank: BCA · No: 1234567 · Nama: Ahmad" reference snippet
+    // so KASIR has the receipient info inline without leaving the form.
+    let reference = '';
+    if (prefill?.bankAccountNumber) {
+      const bits = [];
+      if (prefill.bankName) bits.push(prefill.bankName);
+      bits.push(`No ${prefill.bankAccountNumber}`);
+      if (prefill.bankAccountName) bits.push(`a/n ${prefill.bankAccountName}`);
+      reference = bits.join(' · ');
+    }
     res.render('payouts-form', {
       user: req.user, outstanding, META,
-      error: null, values: { agentId: '', method: 'TRANSFER', reference: '', notes: '' },
+      error: null,
+      values: { agentId: prefill?.id || '', method, reference, notes: '' },
+      prefill,
     });
   }),
 );

@@ -122,6 +122,7 @@ router.get(
     res.render('booking-new', {
       user: req.user, paketList, agents,
       error: null, values: { paketSlug: '', agentSlug: '', fullName: '', phone: '', kelas: 'QUAD', paxCount: 1, notes: '' },
+      duplicateBookings: null,
     });
   }),
 );
@@ -154,11 +155,42 @@ router.post(
           orderBy: { displayName: 'asc' },
         }),
       ]);
-      return res.status(400).render('booking-new', { user: req.user, paketList, agents, error, values });
+      return res.status(400).render('booking-new', { user: req.user, paketList, agents, error, values, duplicateBookings: null });
     };
 
     try {
       const data = NewBookingSchema.parse(req.body);
+      // Stage 167 — duplicate phone warning before create. Admin
+      // explicitly confirms via the `confirmDuplicate` checkbox to
+      // proceed past the warning. Skip the check entirely on
+      // confirmed flows so the second POST goes straight through.
+      const confirmed = req.body?.confirmDuplicate === 'on' || req.body?.confirmDuplicate === 'true';
+      if (!confirmed) {
+        const { findRecentBookingsByPhone } = await import('../services/bookingDuplicateCheck.js');
+        const dupes = await findRecentBookingsByPhone({ phone: data.phone });
+        if (dupes.length > 0) {
+          // Re-render with warning panel; preserve user input so they
+          // don't have to retype. POST → status 200 (not an error) so
+          // intermediate proxies don't strip the form.
+          const [paketList, agents] = await Promise.all([
+            db.paket.findMany({
+              where: { status: 'ACTIVE', deletedAt: null },
+              select: { slug: true, title: true, departureDate: true,
+                prices: { select: { kelas: true, priceIdr: true, isFeatured: true } } },
+              orderBy: { departureDate: 'asc' },
+            }),
+            db.agentProfile.findMany({
+              select: { slug: true, displayName: true },
+              orderBy: { displayName: 'asc' },
+            }),
+          ]);
+          return res.render('booking-new', {
+            user: req.user, paketList, agents,
+            error: null, values: req.body || {},
+            duplicateBookings: dupes,
+          });
+        }
+      }
       const result = await createBooking({
         req, ...data,
         adminCreator: actorFrom(req),
