@@ -123,9 +123,17 @@ paketHtmlRouter.get(
       console.warn('[paket-landing] faq lookup failed:', err?.message || err);
     }
 
+    // Stage 194 — SEO + Open Graph metadata
+    const { buildPaketSeo } = await import('../services/paketSeo.js');
+    const seo = buildPaketSeo(paket, agent, {
+      baseUrl: process.env.PUBLIC_BASE_URL || '',
+      dateFormatter: (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '',
+    });
+
     res.render('paket', {
       paket, agent, currentUser: req.user || null, prefillJemaah,
       heroVariant, ctaText, testimonials, publicCrew, faqs,
+      seo,
     });
   }),
 );

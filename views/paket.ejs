@@ -4,6 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — <%= paket.title %><% if (paket.subtitle) { %> · <%= paket.subtitle %><% } %></title>
+<%# Stage 194 — SEO + Open Graph + Twitter Card meta tags. `seo`
+    object built server-side in the paket landing route. %>
+<% if (typeof seo !== 'undefined' && seo) { %>
+  <meta name="description" content="<%= seo.description %>">
+  <link rel="canonical" href="<%= seo.url %>">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="<%= seo.url %>">
+  <meta property="og:title" content="<%= seo.title %>">
+  <meta property="og:description" content="<%= seo.description %>">
+  <meta property="og:image" content="<%= seo.image %>">
+  <meta property="og:site_name" content="Religio Pro">
+  <meta property="og:locale" content="<%= seo.locale %>">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<%= seo.title %>">
+  <meta name="twitter:description" content="<%= seo.description %>">
+  <meta name="twitter:image" content="<%= seo.image %>">
+<% } %>
 <link rel="stylesheet" href="/shared/tokens.css">
 <%- include('partials/pwa-head') %>
 <script src="/shared/csrf.js"></script>

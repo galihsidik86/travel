@@ -59,7 +59,7 @@ export async function listActiveAnnouncements({ paketId, now = new Date() } = {}
 export async function createAnnouncement({ req, actor, paketId, input }) {
   const data = AnnouncementSchema.parse(input);
   const paket = await db.paket.findUnique({
-    where: { id: paketId }, select: { id: true, slug: true },
+    where: { id: paketId }, select: { id: true, slug: true, title: true },
   });
   if (!paket) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
   const row = await db.paketAnnouncement.create({
@@ -80,7 +80,59 @@ export async function createAnnouncement({ req, actor, paketId, input }) {
       expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
     },
   });
+
+  // Stage 193 — fan out push notif to every active jemaah on this paket
+  // who has the /saya PWA installed. Fire-and-forget; failures logged
+  // but don't abort the create transaction (the announcement is the
+  // load-bearing artifact, push is additive).
+  if (row.publishedAt <= new Date()) {
+    pushAnnouncementToJemaah({ paket, announcement: row }).catch((err) => {
+      console.warn('[announcement-push] fan-out failed:', err?.message || err);
+    });
+  }
+
   return row;
+}
+
+/**
+ * Stage 193 — fan-out helper. Loads every active jemaah on this paket
+ * (via Booking → User), pushes the announcement payload. Best-effort.
+ * Silent when nobody has the PWA installed.
+ */
+async function pushAnnouncementToJemaah({ paket, announcement }) {
+  // Pull distinct jemaah userIds from active bookings on this paket
+  const bookings = await db.booking.findMany({
+    where: {
+      paketId: paket.id,
+      status: { notIn: ['CANCELLED', 'REFUNDED'] },
+      jemaahUserId: { not: null },
+    },
+    select: { jemaahUserId: true },
+  });
+  const userIds = [...new Set(bookings.map((b) => b.jemaahUserId).filter(Boolean))];
+  if (userIds.length === 0) return { recipients: 0, delivered: 0 };
+  const { pushToUser } = await import('./webPush.js');
+  const bodyPreview = announcement.body.length > 140
+    ? announcement.body.slice(0, 140) + '…'
+    : announcement.body;
+  const payload = {
+    title: `📢 ${announcement.title}`,
+    body: bodyPreview,
+    tag: `paket-announcement-${announcement.id}`,
+    url: `/saya`,
+    data: {
+      kind: 'paket_announcement',
+      paketSlug: paket.slug,
+      announcementId: announcement.id,
+    },
+  };
+  let delivered = 0, recipients = 0;
+  for (const uid of userIds) {
+    const r = await pushToUser(uid, payload);
+    recipients += 1;
+    delivered += r?.delivered || 0;
+  }
+  return { recipients, delivered };
 }
 
 export async function updateAnnouncement({ req, actor, id, input }) {

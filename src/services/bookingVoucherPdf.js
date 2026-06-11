@@ -13,6 +13,7 @@
 //   footer  generated timestamp + blessing line per locale
 
 import PDFDocument from 'pdfkit';
+import { drawQrCode } from '../lib/qrPdfRender.js';
 
 const COLORS = {
   ink: '#0a0908',
@@ -179,6 +180,23 @@ function renderVoucherIntoDoc(doc, voucher, lang) {
     .moveTo(50, 125).lineTo(545, 125).stroke();
 
   doc.y = 140;
+
+  // Stage 195 — QR code in the top-right encoding the booking detail
+  // URL for airport check-in. Crew/admin scans → pulls up admin
+  // booking detail (auth-gated; defensive even if QR leaks). Drawn
+  // before the booking-number text since pdfkit's cursor isn't
+  // affected by save/restore.
+  try {
+    const base = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
+    const qrUrl = `${base}/admin/bookings/${voucher.id}`;
+    drawQrCode(doc, qrUrl, { x: 460, y: 140, size: 80 });
+    // Tiny caption below the QR
+    doc.font('Helvetica').fontSize(7).fillColor(COLORS.muted)
+      .text('SCAN UNTUK CEK-IN', 460, 225, { width: 80, align: 'center', characterSpacing: 1 });
+  } catch (err) {
+    // QR rendering failure shouldn't break the voucher
+    console.warn('[voucher-qr] render failed:', err?.message || err);
+  }
 
   // Booking number + status (big, left-aligned)
   doc.font('Helvetica-Bold').fontSize(18).fillColor(COLORS.gold)
