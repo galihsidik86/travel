@@ -19,6 +19,9 @@ router.get(
       entity: req.query.entity || 'ALL',
       action: req.query.action || 'ALL',
       actorEmail: (req.query.actorEmail || '').trim(),
+      // Stage 201 — substring content search across before/after JSON
+      // (+ entityId). ≥3 chars required; ignored silently below that.
+      q: (req.query.q || '').trim(),
       from: req.query.from || '',
       to: req.query.to || '',
       page: req.query.page || 1,

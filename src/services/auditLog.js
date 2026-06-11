@@ -24,7 +24,7 @@ const PAGE_SIZE = 50;
  * NOTE: AuditLog is append-only — this service never writes.
  */
 export async function listAudits({
-  entity, action, actorEmail, from, to, page = 1,
+  entity, action, actorEmail, from, to, page = 1, q = '',
 } = {}) {
   const where = {};
   if (entity && entity !== 'ALL') where.entity = entity;
@@ -38,6 +38,41 @@ export async function listAudits({
       t.setHours(23, 59, 59, 999);
       where.createdAt.lte = t;
     }
+  }
+
+  // Stage 201 — substring content search across before/after JSON.
+  // Uses MariaDB CAST(JSON → CHAR) + LIKE; not the fastest but
+  // good enough for compliance lookups ("find audits mentioning X")
+  // since other filters (date range, entity, action) narrow the
+  // candidate set first. **Requires ≥3 chars** to avoid scanning
+  // the whole table on a 1-char query. Also matches entityId so
+  // an admin can paste a UUID and find every audit on that row.
+  const trimmedQ = (q || '').trim();
+  let qIds = null;
+  if (trimmedQ.length >= 3) {
+    // Build a narrower scan: pull only IDs from rows that pass the
+    // structured filters first, then apply the substring filter on
+    // the smaller set via JSON cast + LIKE.
+    const pattern = `%${trimmedQ.replace(/[%_\\]/g, '\\$&')}%`;
+    const candidateRows = await db.$queryRaw`
+      SELECT id FROM AuditLog
+      WHERE (
+        entityId LIKE ${pattern}
+        OR CAST(\`before\` AS CHAR(8000)) LIKE ${pattern}
+        OR CAST(\`after\` AS CHAR(8000)) LIKE ${pattern}
+      )
+      ORDER BY createdAt DESC
+      LIMIT 5000
+    `;
+    qIds = candidateRows.map((r) => r.id);
+    if (qIds.length === 0) {
+      return {
+        rows: [], total: 0,
+        page: 1, pageSize: PAGE_SIZE, totalPages: 1,
+        q: trimmedQ,
+      };
+    }
+    where.id = { in: qIds };
   }
 
   const safePage = Math.max(1, parseInt(page, 10) || 1);
@@ -61,6 +96,7 @@ export async function listAudits({
     page: safePage,
     pageSize: PAGE_SIZE,
     totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    q: trimmedQ || undefined,
   };
 }
 

@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { assignBookingToRoom, unassignBooking, swapBookingRooms } from '../services/bunking.js';
+import { assignBookingToRoom, unassignBooking, swapBookingRooms, bulkAssignRoomsByFloor } from '../services/bunking.js';
 
 const router = Router();
 
@@ -41,6 +41,24 @@ router.post(
       bookingId,
     });
     res.json({ booking });
+  }),
+);
+
+// Stage 200 — bulk assign unassigned bookings to rooms on a floor
+const BulkAssignSchema = z.object({
+  paketId: z.string().min(1),
+  floor: z.preprocess((v) => Number(v), z.number().int()),
+});
+router.post(
+  '/bulk-assign-floor',
+  asyncHandler(async (req, res) => {
+    const { paketId, floor } = BulkAssignSchema.parse(req.body);
+    const result = await bulkAssignRoomsByFloor({
+      req,
+      actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+      paketId, floor,
+    });
+    res.json(result);
   }),
 );
 

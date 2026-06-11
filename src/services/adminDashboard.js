@@ -667,8 +667,20 @@ export async function getPrintManifest(paketSlug) {
     },
   });
 
+  // Stage 199 — compute age + bracket per jemaah at paket departureDate.
+  // Reuses S191 computeAge so the print column stays consistent with the
+  // KPI strip on the admin manifest tab.
+  const { computeAge, ANAK_MAX_YEARS, LANSIA_MIN_YEARS } =
+    await import('./manifestAgeBuckets.js');
+
   for (const b of bookings) {
     b.jemaah.docPills = pillsForJemaah(b.jemaah.documents || []);
+    const age = computeAge(b.jemaah.birthDate, paket.departureDate);
+    b.jemaah.age = age;
+    b.jemaah.ageBracket = age == null ? 'UNKNOWN'
+      : age < ANAK_MAX_YEARS ? 'ANAK'
+      : age >= LANSIA_MIN_YEARS ? 'LANSIA'
+      : 'DEWASA';
   }
 
   // Sort: assigned rooms first (grouped together by roomNo), unassigned by
@@ -686,10 +698,13 @@ export async function getPrintManifest(paketSlug) {
   const activeCount = bookings.length;
   const paxCount = bookings.reduce((acc, b) => acc + (b.paxCount || 1), 0);
   const unassignedRoomCount = bookings.filter((b) => !b.room).length;
+  // Aggregate counts so the print header can show "4 lansia"
+  const lansiaCount = bookings.filter((b) => b.jemaah.ageBracket === 'LANSIA').length;
+  const anakCount = bookings.filter((b) => b.jemaah.ageBracket === 'ANAK').length;
 
   return {
     paket, bookings,
-    counts: { activeCount, paxCount, unassignedRoomCount },
+    counts: { activeCount, paxCount, unassignedRoomCount, lansiaCount, anakCount },
     generatedAt: new Date(),
   };
 }

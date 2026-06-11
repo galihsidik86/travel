@@ -131,6 +131,104 @@ export async function assignBookingToRoom({ req, actor, bookingId, roomId }) {
 }
 
 /**
+ * Stage 200 — bulk assign unassigned bookings to available rooms on
+ * a single floor. Greedy first-fit by kelas: for each unassigned
+ * booking (in createdAt order), find the first room on `floor` with
+ * matching kelas + remaining capacity ≥ paxCount, and assign.
+ *
+ * Returns `{ assigned, skipped, errors }` arrays with per-row info
+ * so the UI can show "5 assigned, 2 skipped (capacity), 1 error".
+ *
+ * Whole call non-transactional — each assign is its own DB write +
+ * audit row. Partial success is fine (admin re-runs to pick up
+ * whatever rooms freed up after a manual move).
+ */
+export async function bulkAssignRoomsByFloor({ req, actor, paketId, floor }) {
+  if (!paketId) throw new HttpError(400, 'paketId wajib', 'BAD_INPUT');
+  if (floor == null || floor === '') throw new HttpError(400, 'floor wajib', 'BAD_INPUT');
+  const floorNum = Number(floor);
+  if (!Number.isFinite(floorNum)) {
+    throw new HttpError(400, 'floor harus angka', 'BAD_INPUT');
+  }
+
+  // Load all unassigned active bookings on this paket, ordered by
+  // createdAt asc so the earliest jemaah get first dibs on rooms.
+  const unassigned = await db.booking.findMany({
+    where: {
+      paketId, roomId: null,
+      status: { notIn: ['CANCELLED', 'REFUNDED'] },
+    },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, bookingNo: true, kelas: true, paxCount: true },
+  });
+
+  // Load all rooms on the requested floor with current occupancy.
+  const rooms = await db.room.findMany({
+    where: { paketId, floor: floorNum },
+    orderBy: { roomNo: 'asc' },
+    include: {
+      bookings: {
+        where: { status: { notIn: ['CANCELLED', 'REFUNDED'] } },
+        select: { paxCount: true },
+      },
+    },
+  });
+  // Track remaining capacity per room across the batch
+  const capLeft = new Map(rooms.map((r) => [
+    r.id, { room: r, left: r.capacity - r.bookings.reduce((acc, b) => acc + b.paxCount, 0) },
+  ]));
+
+  const assigned = [];
+  const skipped = [];
+  const errors = [];
+
+  for (const b of unassigned) {
+    // First-fit: find a room with matching kelas + enough left capacity
+    let pick = null;
+    for (const [, info] of capLeft) {
+      if (info.room.kelas !== b.kelas) continue;
+      if (info.left < b.paxCount) continue;
+      pick = info;
+      break;
+    }
+    if (!pick) {
+      skipped.push({
+        bookingNo: b.bookingNo, kelas: b.kelas, paxCount: b.paxCount,
+        reason: 'no_matching_room',
+      });
+      continue;
+    }
+    try {
+      await db.booking.update({
+        where: { id: b.id }, data: { roomId: pick.room.id },
+      });
+      await audit({
+        req, actor,
+        action: 'UPDATE', entity: 'Booking', entityId: b.id,
+        before: { roomId: null },
+        after: {
+          roomId: pick.room.id, roomNo: pick.room.roomNo, kelas: pick.room.kelas,
+          bulkAssignByFloor: true, floor: floorNum,
+        },
+      });
+      pick.left -= b.paxCount;
+      assigned.push({
+        bookingNo: b.bookingNo, roomNo: pick.room.roomNo, kelas: b.kelas,
+      });
+    } catch (err) {
+      errors.push({ bookingNo: b.bookingNo, error: err?.message || String(err) });
+    }
+  }
+
+  return {
+    floor: floorNum,
+    totalUnassigned: unassigned.length,
+    totalRoomsOnFloor: rooms.length,
+    assigned, skipped, errors,
+  };
+}
+
+/**
  * Stage 178 — swap two bookings' room assignments in one transaction.
  * Saves the 4-step manual flow (unassign A, unassign B, reassign each).
  *

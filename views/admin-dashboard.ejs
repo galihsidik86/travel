@@ -3004,9 +3004,17 @@
           <div class="bunking-main">
             <% bunking.floors.forEach(function(f) { %>
               <div class="bunking-floor">
-                <h3>
+                <h3 style="display:flex;align-items:center;gap:10px;">
                   Lantai <%= f.floor ?? '—' %><% if (f.wing) { %> — Wing <%= f.wing %><% } %>
                   <span class="meta"><%= f.rooms.length %> KAMAR</span>
+                  <%# Stage 200 — bulk-assign button. Only meaningful when
+                      there are unassigned bookings AND the floor is numeric. %>
+                  <% if (bunking.unassigned.length > 0 && f.floor != null) { %>
+                    <button type="button" data-bulk-assign-floor data-paket-id="<%= bunking.paket.id %>" data-floor="<%= f.floor %>"
+                            style="margin-left:auto;background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:4px 12px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">
+                      ⇣ Bulk-assign
+                    </button>
+                  <% } %>
                 </h3>
                 <div class="rooms-grid">
                   <% f.rooms.forEach(function(r) { %>
@@ -3487,6 +3495,41 @@
       e.preventDefault();
       clearSwap();
     }
+  });
+
+  // Stage 200 — bulk-assign-by-floor handler. Confirms count + posts,
+  // then shows summary in an alert + reloads on any success.
+  document.querySelectorAll('[data-bulk-assign-floor]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const paketId = btn.dataset.paketId;
+      const floor = btn.dataset.floor;
+      if (!confirm('Auto-assign unassigned jemaah ke kamar di lantai ' + floor + '?')) return;
+      btn.disabled = true;
+      try {
+        const r = await fetch('/api/bunking/bulk-assign-floor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paketId, floor: Number(floor) }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          alert(j?.error?.message || 'Gagal bulk-assign');
+          btn.disabled = false;
+          return;
+        }
+        const result = await r.json();
+        const msg = `Bulk-assign lantai ${floor}:\n`
+          + `  • ${result.assigned.length} ter-assign\n`
+          + `  • ${result.skipped.length} di-skip (kelas / kapasitas)\n`
+          + `  • ${result.errors.length} error`;
+        alert(msg);
+        if (result.assigned.length > 0) location.reload();
+        else btn.disabled = false;
+      } catch (err) {
+        alert('Tidak dapat menghubungi server');
+        btn.disabled = false;
+      }
+    });
   });
   <% } %>
 </script>

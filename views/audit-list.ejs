@@ -231,6 +231,12 @@
       <span class="lbl">Actor email</span>
       <input class="input" name="actorEmail" value="<%= filters.actorEmail %>" placeholder="cari email…">
     </div>
+    <%# Stage 201 — content search across before/after JSON + entityId.
+        Min 3 chars (validated server-side; silently ignored below). %>
+    <div class="field-mini">
+      <span class="lbl">Cari konten (≥3 char)</span>
+      <input class="input" name="q" value="<%= filters.q || '' %>" placeholder="UUID, value, dll.">
+    </div>
     <div class="field-mini">
       <span class="lbl">Dari</span>
       <input class="input" type="date" name="from" value="<%= filters.from %>">
@@ -249,6 +255,7 @@
       if (filters.entity !== 'ALL') exportQs.set('entity', filters.entity);
       if (filters.action !== 'ALL') exportQs.set('action', filters.action);
       if (filters.actorEmail) exportQs.set('actorEmail', filters.actorEmail);
+      if (filters.q) exportQs.set('q', filters.q);
       if (filters.from) exportQs.set('from', filters.from);
       if (filters.to) exportQs.set('to', filters.to);
       const exportHref = '/admin/audit/export.csv' + (exportQs.toString() ? '?' + exportQs.toString() : '');
@@ -307,6 +314,7 @@
     if (filters.entity !== 'ALL') qs.set('entity', filters.entity);
     if (filters.action !== 'ALL') qs.set('action', filters.action);
     if (filters.actorEmail) qs.set('actorEmail', filters.actorEmail);
+    if (filters.q) qs.set('q', filters.q);
     if (filters.from) qs.set('from', filters.from);
     if (filters.to) qs.set('to', filters.to);
     function pageUrl(p) { const q = new URLSearchParams(qs); q.set('page', p); return '/admin/audit?' + q.toString(); }
