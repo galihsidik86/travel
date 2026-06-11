@@ -6,6 +6,9 @@
   data-lead-pax="<%= lead.estPaxCount || '' %>"
   data-lead-notes="<%= lead.notes || '' %>">
   <div class="lead__head">
+    <%# Stage 186 — bulk-select checkbox. Pure UI; click events bubble
+        up to the kanban container's listener which handles selection. %>
+    <input type="checkbox" class="lead__bulk" data-bulk-id="<%= lead.id %>" title="Pilih untuk aksi massal" style="margin-right:6px;accent-color:var(--gold-300);" onclick="event.stopPropagation();">
     <span class="lead__locked"><%= lead.id.slice(-6).toUpperCase() %></span>
     <span class="lead__source src-<%= lead.source.toLowerCase() %>"><%= lead.source %></span>
   </div>

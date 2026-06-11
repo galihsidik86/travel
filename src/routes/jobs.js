@@ -33,6 +33,7 @@ import { sendAgentAnnualRecaps, previousYear } from '../services/agentAnnualReca
 import { sendStatementUnreadNudges } from '../services/statementUnreadNudge.js';
 import { sendPaymentReminders } from '../services/paymentReminder.js';
 import { sendDocExpiringNudges } from '../services/docExpiringNudge.js';
+import { scanAgentDormancy } from '../services/agentDormancy.js';
 import { runJob } from '../lib/jobRunner.js';
 
 const router = Router();
@@ -370,6 +371,14 @@ router.post(
   '/send-doc-expiring',
   asyncHandler(async (_req, res) => {
     const result = await runJob('send-doc-expiring', () => sendDocExpiringNudges({}));
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/scan-agent-dormancy',
+  asyncHandler(async (_req, res) => {
+    const result = await runJob('scan-agent-dormancy', () => scanAgentDormancy({}));
     res.json(result);
   }),
 );

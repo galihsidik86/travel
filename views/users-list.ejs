@@ -181,11 +181,18 @@
               <%
                 const ovr = u.agent.komisiRateOverride;
                 const ovrPct = ovr != null ? (Number(ovr.toString?.() ?? ovr) * 100).toFixed(2).replace(/\.?0+$/, '') : null;
+                // Stage 185 — dormant badge when agent has no activity in 60d
+                const dormantDays = u.agent.dormantSince
+                  ? Math.floor((Date.now() - new Date(u.agent.dormantSince).getTime()) / 86400000)
+                  : null;
               %>
               <div class="sx" style="color:var(--cream-200);">
                 slug <strong style="color:var(--gold-300);"><%= u.agent.slug %></strong><%= u.agent.tier ? ' · ' + u.agent.tier : '' %><%
                   if (ovrPct) { %> · <strong style="color:var(--amber);">override <%= ovrPct %>%</strong><% }
                 %>
+                <% if (u.agent.dormantSince) { %>
+                  · <span style="display:inline-block;background:rgba(196,72,72,0.10);border:1px solid var(--ruby);color:var(--ruby);padding:0 6px;border-radius:9px;font-size:9.5px;letter-spacing:0.08em;text-transform:uppercase;" title="Tidak ada booking/lead aktif sejak <%= fmt.date(u.agent.dormantSince) %>">💤 dormant <%= dormantDays %>h</span>
+                <% } %>
               </div>
             <% } else if (u.staff) { %>
               <div class="sx" style="color:var(--cream-200);"><%= u.staff.department || '—' %> · <%= u.staff.position || '—' %></div>

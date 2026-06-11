@@ -97,7 +97,7 @@
       <h1>Cari <em>booking</em></h1>
       <div class="sub">
         <%= total %> hasil
-        <% if (filters.q || filters.status !== 'ALL' || filters.paketId !== 'ALL' || filters.agentId !== 'ALL' || filters.cancelReasonCode !== 'ALL' || filters.from || filters.to) { %>
+        <% if (filters.q || filters.notes || filters.status !== 'ALL' || filters.paketId !== 'ALL' || filters.agentId !== 'ALL' || filters.cancelReasonCode !== 'ALL' || filters.from || filters.to) { %>
           · filter aktif
         <% } %>
       </div>
@@ -122,6 +122,11 @@
     <div>
       <label class="lbl">Cari (bookingNo / nama / telepon)</label>
       <input class="input" type="text" name="q" value="<%= filters.q %>" placeholder="mis. RP-2026 · 0812 · Siti" autocomplete="off">
+    </div>
+    <%# Stage 184 — notes text search. Min 3 chars (validated server-side). %>
+    <div>
+      <label class="lbl">Cari di catatan (≥3 char)</label>
+      <input class="input" type="text" name="notes" value="<%= filters.notes || '' %>" placeholder="mis. wheelchair · mahram · diet" autocomplete="off">
     </div>
     <div>
       <label class="lbl">Status</label>
@@ -241,6 +246,7 @@
         <%
           const qs = new URLSearchParams();
           if (filters.q)        qs.set('q', filters.q);
+          if (filters.notes)    qs.set('notes', filters.notes);
           if (filters.status !== 'ALL')  qs.set('status', filters.status);
           if (filters.paketId !== 'ALL') qs.set('paketId', filters.paketId);
           if (filters.agentId !== 'ALL') qs.set('agentId', filters.agentId);

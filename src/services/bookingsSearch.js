@@ -53,6 +53,7 @@ const CANCEL_REASON_CODES = [
 
 export async function searchBookings({
   q = '',
+  notes = '',
   status = 'ALL',
   paketId = 'ALL',
   agentId = 'ALL',
@@ -68,6 +69,13 @@ export async function searchBookings({
   const baseWhere = {};
   const queryClauses = buildQueryClauses(q);
   if (queryClauses) Object.assign(baseWhere, queryClauses);
+
+  // Stage 184 — notes text search. Substring match on Booking.notes.
+  // Requires ≥3 chars so the filter doesn't silently match every row.
+  const trimmedNotes = (notes || '').trim();
+  if (trimmedNotes.length >= 3) {
+    baseWhere.notes = { contains: trimmedNotes };
+  }
 
   if (paketId && paketId !== 'ALL') baseWhere.paketId = paketId;
 

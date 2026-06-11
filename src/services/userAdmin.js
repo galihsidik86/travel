@@ -128,7 +128,7 @@ export async function listUsers({ search, role, status, deleted = 'ACTIVE', sort
     take: 200,
     orderBy,
     include: {
-      agent: { select: { slug: true, tier: true, isVerified: true, komisiRateOverride: true, photoUrl: true, igHandle: true } },
+      agent: { select: { slug: true, tier: true, isVerified: true, komisiRateOverride: true, photoUrl: true, igHandle: true, dormantSince: true } },
       staff: { select: { department: true, position: true } },
       crew:  { select: { languages: true, experience: true, slug: true, titlePrefix: true, bio: true, photoUrl: true } },
     },

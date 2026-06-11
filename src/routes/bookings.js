@@ -84,6 +84,8 @@ router.get(
   asyncHandler(async (req, res) => {
     const filters = {
       q: (req.query.q || '').toString(),
+      // Stage 184 — substring search on Booking.notes (≥3 chars required)
+      notes: (req.query.notes || '').toString(),
       status: req.query.status || 'ALL',
       paketId: req.query.paketId || 'ALL',
       agentId: req.query.agentId || 'ALL',

@@ -327,6 +327,11 @@ model AgentProfile {
   bankAccountNumber     String?        @db.VarChar(40)
   bankAccountName       String?        @db.VarChar(100)
 
+  // Stage 185 — dormant-agen flag. Daily cron stamps this when an
+  // ACTIVE agent has no booking + no lead activity in the last 60d.
+  // Auto-clears on the next run when fresh activity is detected.
+  dormantSince DateTime?
+
   @@index([slug])
 }
 

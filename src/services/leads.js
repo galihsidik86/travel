@@ -200,3 +200,56 @@ export async function deleteLead({ req, actor, agentId, leadId }) {
     before: { fullName: before.fullName, status: before.status },
   });
 }
+
+/**
+ * Stage 186 — bulk mark-as-LOST. Agen selects N COLD/WARM leads on the
+ * CRM kanban and applies "Tandai LOST" to clean up stale pipeline in
+ * one shot.
+ *
+ * Per-row ownership enforced (cross-agent IDs silently skipped, NOT a
+ * 403, because the kanban filter already scopes by agent — a cross-
+ * agent id arriving here is a stale browser tab or someone fuzzing).
+ *
+ * Already-LOST and CONVERTED rows are skipped (terminal). Audit row
+ * per actually-changed lead so the timeline reflects the bulk action
+ * as one event per lead, not a batched aggregate.
+ */
+export async function bulkMarkLeadsLost({ req, actor, agentId, leadIds }) {
+  if (!Array.isArray(leadIds) || leadIds.length === 0) {
+    return { changed: 0, skipped: 0, total: 0 };
+  }
+  // Cap defensively — a runaway client could send a huge array
+  const capped = leadIds.slice(0, 500);
+  // Pull all candidate rows in one query, filtered by ownership
+  const rows = await db.lead.findMany({
+    where: {
+      id: { in: capped }, agentId, deletedAt: null,
+      status: { notIn: ['LOST', 'CONVERTED'] },
+    },
+    select: { id: true, fullName: true, status: true },
+  });
+  if (rows.length === 0) {
+    return { changed: 0, skipped: capped.length, total: capped.length };
+  }
+  // Single updateMany — atomic at the row level
+  const now = new Date();
+  await db.lead.updateMany({
+    where: { id: { in: rows.map((r) => r.id) } },
+    data: { status: 'LOST', updatedAt: now },
+  });
+  // One audit row per actually-changed lead — same shape as updateLead
+  // so the timeline reads consistently.
+  for (const r of rows) {
+    await audit({
+      req, actor,
+      action: 'UPDATE', entity: 'Lead', entityId: r.id,
+      before: { status: r.status },
+      after: { status: 'LOST', bulkMarkLost: true },
+    });
+  }
+  return {
+    changed: rows.length,
+    skipped: capped.length - rows.length,
+    total: capped.length,
+  };
+}

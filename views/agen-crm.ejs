@@ -1470,6 +1470,53 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeModal(); closeConvert(); }
   });
+
+  // Stage 186 — bulk mark-as-LOST. Floating action bar appears when ≥1
+  // checkbox checked; "Tandai LOST" POSTs to /api/leads/bulk-lost.
+  (function setupBulk() {
+    const bar = document.createElement('div');
+    bar.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink-1000);border:1px solid var(--gold-300);color:var(--cream-100);padding:12px 18px;border-radius:var(--r-md);font-family:var(--font-mono);font-size:12px;z-index:1000;display:none;gap:12px;align-items:center;';
+    bar.innerHTML = '<span id="bulk-count">0</span> lead dipilih · '
+      + '<button type="button" id="bulk-lost-btn" style="background:var(--ruby);border:0;color:var(--cream-100);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">Tandai LOST</button> '
+      + '<a href="#" id="bulk-clear" style="color:var(--ink-200);text-decoration:none;font-size:11px;">batal</a>';
+    bar.style.display = 'none';
+    document.body.appendChild(bar);
+
+    function refresh() {
+      const checked = Array.from(document.querySelectorAll('.lead__bulk:checked'));
+      const n = checked.length;
+      const cntEl = document.getElementById('bulk-count');
+      if (cntEl) cntEl.textContent = String(n);
+      bar.style.display = n > 0 ? 'flex' : 'none';
+    }
+    function clearAll() {
+      document.querySelectorAll('.lead__bulk').forEach((cb) => { cb.checked = false; });
+      refresh();
+    }
+
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('.lead__bulk')) refresh();
+    });
+    bar.querySelector('#bulk-clear').addEventListener('click', (e) => {
+      e.preventDefault(); clearAll();
+    });
+    bar.querySelector('#bulk-lost-btn').addEventListener('click', async () => {
+      const ids = Array.from(document.querySelectorAll('.lead__bulk:checked'))
+        .map((cb) => cb.dataset.bulkId).filter(Boolean);
+      if (ids.length === 0) return;
+      if (!confirm('Tandai ' + ids.length + ' lead sebagai LOST?')) return;
+      const r = await fetch('/api/leads/bulk-lost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadIds: ids }),
+      });
+      if (r.ok) location.reload();
+      else {
+        const j = await r.json().catch(() => ({}));
+        alert(j?.error?.message || 'Gagal proses bulk');
+      }
+    });
+  })();
 </script>
 </body>
 </html>

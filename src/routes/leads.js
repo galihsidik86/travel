@@ -8,7 +8,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import {
-  createLead, updateLead, convertLeadToBooking, deleteLead,
+  createLead, updateLead, convertLeadToBooking, deleteLead, bulkMarkLeadsLost,
 } from '../services/leads.js';
 
 const router = Router();
@@ -74,6 +74,21 @@ router.patch(
       input: req.body,
     });
     res.json({ lead });
+  }),
+);
+
+// Stage 186 — bulk mark-as-LOST. Agen selects N COLD/WARM leads on
+// the kanban + applies the action in one call.
+router.post(
+  '/bulk-lost',
+  asyncHandler(async (req, res) => {
+    const ids = Array.isArray(req.body?.leadIds) ? req.body.leadIds : [];
+    const result = await bulkMarkLeadsLost({
+      req, actor: actorFrom(req),
+      agentId: req.agentProfile.id,
+      leadIds: ids,
+    });
+    res.json(result);
   }),
 );
 
