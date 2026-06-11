@@ -97,7 +97,7 @@
       <h1>Cari <em>booking</em></h1>
       <div class="sub">
         <%= total %> hasil
-        <% if (filters.q || filters.status !== 'ALL' || filters.paketId !== 'ALL' || filters.agentId !== 'ALL' || filters.from || filters.to) { %>
+        <% if (filters.q || filters.status !== 'ALL' || filters.paketId !== 'ALL' || filters.agentId !== 'ALL' || filters.cancelReasonCode !== 'ALL' || filters.from || filters.to) { %>
           · filter aktif
         <% } %>
       </div>
@@ -149,6 +149,23 @@
         <% agentOpts.forEach(function(a) { %>
           <option value="<%= a.id %>" <%= filters.agentId === a.id ? 'selected' : '' %>><%= a.displayName %></option>
         <% }) %>
+      </select>
+    </div>
+    <%# Stage 182 — cancel reason filter. Only meaningful when filtering
+        to CANCELLED/REFUNDED rows; shown unconditionally so admin can
+        select "GOODWILL" + sub-filter implicitly. %>
+    <div>
+      <label class="lbl">Alasan cancel</label>
+      <select name="cancelReasonCode" class="input">
+        <option value="ALL" <%= filters.cancelReasonCode === 'ALL' ? 'selected' : '' %>>Semua</option>
+        <option value="JEMAAH_REQUEST"      <%= filters.cancelReasonCode === 'JEMAAH_REQUEST' ? 'selected' : '' %>>Permintaan jemaah</option>
+        <option value="PAKET_CANCELLED"     <%= filters.cancelReasonCode === 'PAKET_CANCELLED' ? 'selected' : '' %>>Paket dibatalkan</option>
+        <option value="PAYMENT_NOT_RECEIVED" <%= filters.cancelReasonCode === 'PAYMENT_NOT_RECEIVED' ? 'selected' : '' %>>Pembayaran tdk masuk</option>
+        <option value="DOCUMENT_INCOMPLETE" <%= filters.cancelReasonCode === 'DOCUMENT_INCOMPLETE' ? 'selected' : '' %>>Dok tdk lengkap</option>
+        <option value="NO_SHOW"             <%= filters.cancelReasonCode === 'NO_SHOW' ? 'selected' : '' %>>Tidak hadir</option>
+        <option value="GOODWILL"            <%= filters.cancelReasonCode === 'GOODWILL' ? 'selected' : '' %>>Goodwill</option>
+        <option value="OTHER"               <%= filters.cancelReasonCode === 'OTHER' ? 'selected' : '' %>>Lainnya</option>
+        <option value="__UNSET__"           <%= filters.cancelReasonCode === '__UNSET__' ? 'selected' : '' %>>Belum dikategorikan</option>
       </select>
     </div>
     <div>
@@ -227,6 +244,7 @@
           if (filters.status !== 'ALL')  qs.set('status', filters.status);
           if (filters.paketId !== 'ALL') qs.set('paketId', filters.paketId);
           if (filters.agentId !== 'ALL') qs.set('agentId', filters.agentId);
+          if (filters.cancelReasonCode !== 'ALL') qs.set('cancelReasonCode', filters.cancelReasonCode);
           if (filters.from)     qs.set('from', filters.from);
           if (filters.to)       qs.set('to', filters.to);
           const link = (p) => { const u = new URLSearchParams(qs); u.set('page', p); return '?' + u.toString(); };

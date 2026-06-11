@@ -87,6 +87,8 @@ router.get(
       status: req.query.status || 'ALL',
       paketId: req.query.paketId || 'ALL',
       agentId: req.query.agentId || 'ALL',
+      // Stage 182 — cancel reason filter (enum value, '__UNSET__', or 'ALL')
+      cancelReasonCode: req.query.cancelReasonCode || 'ALL',
       from: req.query.from || '',
       to: req.query.to || '',
       page: req.query.page || 1,

@@ -142,7 +142,11 @@
   <div class="head">
     <h1>Notifikasi <em>saya</em></h1>
     <div class="sub">
-      <%= notifications.length %> notifikasi terakhir.
+      <% if (typeof total !== 'undefined' && total != null) { %>
+        <%= total %> notifikasi total.
+      <% } else { %>
+        <%= notifications.length %> notifikasi terakhir.
+      <% } %>
       Atur preferensi channel di <a href="/saya/profile">Profil &amp; dokumen</a> (panel "Preferensi notifikasi").
     </div>
   </div>
@@ -181,6 +185,25 @@
         </div>
       <% }) %>
     </div>
+
+    <%# Stage 181 — pagination footer. Only shown when paginated rendering. %>
+    <% if (typeof pagination !== 'undefined' && pagination && pagination.pageCount > 1) { %>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding:12px 0;border-top:var(--hairline-soft);font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">
+        <div>Halaman <%= pagination.page %> dari <%= pagination.pageCount %> · <%= total %> notifikasi</div>
+        <div style="display:flex;gap:8px;">
+          <% if (pagination.page > 1) { %>
+            <a href="?page=<%= pagination.page - 1 %>" style="color:var(--gold-300);text-decoration:none;border:var(--hairline-soft);padding:5px 12px;border-radius:var(--r-sm);">← Sebelumnya</a>
+          <% } else { %>
+            <span style="color:var(--ink-300);border:var(--hairline-soft);padding:5px 12px;border-radius:var(--r-sm);opacity:0.3;">← Sebelumnya</span>
+          <% } %>
+          <% if (pagination.page < pagination.pageCount) { %>
+            <a href="?page=<%= pagination.page + 1 %>" style="color:var(--gold-300);text-decoration:none;border:var(--hairline-soft);padding:5px 12px;border-radius:var(--r-sm);">Berikutnya →</a>
+          <% } else { %>
+            <span style="color:var(--ink-300);border:var(--hairline-soft);padding:5px 12px;border-radius:var(--r-sm);opacity:0.3;">Berikutnya →</span>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
   <% } %>
 </div>
 <%- include('partials/mobile-tabs') %>

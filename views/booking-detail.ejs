@@ -853,6 +853,16 @@
       <div class="field">
         <label class="label" for="rf-amount">Jumlah refund (Rp) *</label>
         <input class="input" type="number" name="amount" id="rf-amount" required min="1" max="<%= paid %>" step="1" value="<%= paid %>">
+        <%# Stage 183 — preset percentage buttons. data-pct stores the
+            target percentage; click handler sets the amount input based
+            on `paid`. "BALANCE" is 100% — visual emphasis that this is
+            a full refund. %>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;" data-refund-paid="<%= paid %>">
+          <button type="button" class="refund-preset" data-pct="25" style="background:transparent;border:1px solid var(--hairline-soft);color:var(--ink-100);padding:5px 10px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;cursor:pointer;">25%</button>
+          <button type="button" class="refund-preset" data-pct="50" style="background:transparent;border:1px solid var(--hairline-soft);color:var(--ink-100);padding:5px 10px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;cursor:pointer;">50%</button>
+          <button type="button" class="refund-preset" data-pct="75" style="background:transparent;border:1px solid var(--hairline-soft);color:var(--ink-100);padding:5px 10px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;cursor:pointer;">75%</button>
+          <button type="button" class="refund-preset" data-pct="100" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:5px 10px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;cursor:pointer;">BALANCE (100%)</button>
+        </div>
         <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:6px;">
           Max <%= fmt.rpFull(paid) %>
         </div>
@@ -979,6 +989,24 @@
     refundClose.addEventListener('click', () => refundModal.classList.remove('is-open'));
     refundModal.addEventListener('click', (e) => {
       if (e.target === refundModal) refundModal.classList.remove('is-open');
+    });
+
+    // Stage 183 — preset percentage buttons. Computes pct of paid total
+    // and floors to integer (refund amount must be a whole Rupiah).
+    document.querySelectorAll('.refund-preset').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const wrapper = btn.closest('[data-refund-paid]');
+        const paid = Number(wrapper?.dataset?.refundPaid || 0);
+        if (!paid) return;
+        const pct = Number(btn.dataset.pct || 0);
+        const amount = Math.floor(paid * (pct / 100));
+        const input = document.getElementById('rf-amount');
+        if (input) {
+          input.value = amount;
+          input.focus();
+          input.select();
+        }
+      });
     });
 
     refundForm.addEventListener('submit', async (e) => {

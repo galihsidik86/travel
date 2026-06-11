@@ -11,7 +11,8 @@ import {
 import { createIncident, listMyIncidents } from '../services/incidents.js';
 // Stage 148 — reuse the role-agnostic helpers from jemaahPortal.
 import {
-  listMyNotifications, countUnreadForUser, markAllReadForUser,
+  listMyNotifications, listMyNotificationsPaginated,
+  countUnreadForUser, markAllReadForUser,
 } from '../services/jemaahPortal.js';
 
 const router = Router();
@@ -38,9 +39,14 @@ router.get(
 router.get(
   '/notifications',
   asyncHandler(async (req, res) => {
-    const notifications = await listMyNotifications(req.user.id);
+    // Stage 181 — paginated history.
+    const page = parseInt(req.query.page, 10) || 1;
+    const { rows: notifications, total, pagination } =
+      await listMyNotificationsPaginated(req.user.id, { page });
     await markAllReadForUser(req.user.id);
-    res.render('crew-notifications', { user: req.user, notifications });
+    res.render('crew-notifications', {
+      user: req.user, notifications, total, pagination,
+    });
   }),
 );
 

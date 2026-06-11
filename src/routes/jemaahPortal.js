@@ -15,7 +15,8 @@ import {
   ClaimSchema, getMyDashboard, claimBooking, getMyBooking,
   updateMyProfile, submitMyDoc, deleteMyDoc,
   listAvailablePaket, requestCancelByJemaah,
-  listMyNotifications, countUnreadForUser, markAllReadForUser,
+  listMyNotifications, listMyNotificationsPaginated,
+  countUnreadForUser, markAllReadForUser,
   setMyNotifTypePrefs, getMyNotifTypePrefs, JEMAAH_NOTIF_TYPES,
 } from '../services/jemaahPortal.js';
 import { DOC_TYPES, DOC_STATUSES, DOC_PILL } from '../services/jemaahDocs.js';
@@ -158,12 +159,17 @@ router.get(
 router.get(
   '/saya/notifications',
   asyncHandler(async (req, res) => {
-    // Fetch BEFORE marking-as-read so the rendered list still shows the
-    // pre-read state (i.e. we can highlight rows that *were* unread this
-    // visit). The actual stamp clears the badge for the next page render.
-    const notifications = await listMyNotifications(req.user.id);
+    // Stage 181 — paginated history. Fetch BEFORE marking-as-read so the
+    // rendered list still shows the pre-read state (i.e. we can highlight
+    // rows that *were* unread this visit). The actual stamp clears the
+    // badge for the next page render.
+    const page = parseInt(req.query.page, 10) || 1;
+    const { rows: notifications, total, pagination } =
+      await listMyNotificationsPaginated(req.user.id, { page });
     await markAllReadForUser(req.user.id);
-    res.render('jemaah-notifications', { user: req.user, notifications });
+    res.render('jemaah-notifications', {
+      user: req.user, notifications, total, pagination,
+    });
   }),
 );
 

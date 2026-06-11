@@ -14,13 +14,13 @@ async function reset() {
 }
 
 test('getAdminTeamNote: returns null when no row exists', async (t) => {
-  t.before(reset);
+  await reset();
   const row = await getAdminTeamNote();
   assert.equal(row, null);
 });
 
 test('updateAdminTeamNote: first save creates row + audit', async (t) => {
-  t.before(reset);
+  await reset();
   const r = await updateAdminTeamNote({
     req: fakeReq,
     actor: { email: 'admin@example.test', role: 'OWNER' },
@@ -39,7 +39,7 @@ test('updateAdminTeamNote: first save creates row + audit', async (t) => {
 });
 
 test('updateAdminTeamNote: second save updates same row', async (t) => {
-  t.before(reset);
+  await reset();
   await updateAdminTeamNote({
     req: fakeReq, actor: { email: 'a@example.test' }, body: 'v1',
   });
@@ -55,7 +55,7 @@ test('updateAdminTeamNote: second save updates same row', async (t) => {
 });
 
 test('updateAdminTeamNote: empty body clears note (null)', async (t) => {
-  t.before(reset);
+  await reset();
   await updateAdminTeamNote({ req: fakeReq, actor: { email: 'x' }, body: 'something' });
   const r = await updateAdminTeamNote({ req: fakeReq, actor: { email: 'x' }, body: '' });
   assert.equal(r.updated, true);
@@ -63,7 +63,7 @@ test('updateAdminTeamNote: empty body clears note (null)', async (t) => {
 });
 
 test('updateAdminTeamNote: no-op when value unchanged → no audit', async (t) => {
-  t.before(reset);
+  await reset();
   await updateAdminTeamNote({ req: fakeReq, actor: { email: 'x' }, body: 'same' });
   const auditsBefore = await db.auditLog.count({ where: { entity: 'AdminTeamNote' } });
   const r = await updateAdminTeamNote({ req: fakeReq, actor: { email: 'x' }, body: 'same' });
@@ -73,7 +73,7 @@ test('updateAdminTeamNote: no-op when value unchanged → no audit', async (t) =
 });
 
 test('updateAdminTeamNote: rejects too-long body', async (t) => {
-  t.before(reset);
+  await reset();
   const huge = 'x'.repeat(ADMIN_TEAM_NOTE_MAX_LEN + 1);
   await assert.rejects(
     updateAdminTeamNote({ req: fakeReq, actor: { email: 'x' }, body: huge }),

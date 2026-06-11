@@ -8,7 +8,8 @@ import { HttpError } from '../middleware/error.js';
 // from jemaahPortal for the agen/crew inbox. Function names are slightly
 // jemaah-flavored but the queries are pure recipientUserId filters.
 import {
-  listMyNotifications, countUnreadForUser, markAllReadForUser,
+  listMyNotifications, listMyNotificationsPaginated,
+  countUnreadForUser, markAllReadForUser,
 } from '../services/jemaahPortal.js';
 
 const router = Router();
@@ -51,9 +52,16 @@ router.get(
 router.get(
   '/notifications',
   asyncHandler(async (req, res) => {
-    const notifications = await listMyNotifications(req.user.id);
+    // Stage 181 — paginated full history. Default 50/page; ?page=N walks
+    // older entries. mark-all-read still happens on every visit so the
+    // unread badge clears regardless of which page is being viewed.
+    const page = parseInt(req.query.page, 10) || 1;
+    const { rows: notifications, total, pagination } =
+      await listMyNotificationsPaginated(req.user.id, { page });
     await markAllReadForUser(req.user.id);
-    res.render('agen-notifications', { user: req.user, notifications });
+    res.render('agen-notifications', {
+      user: req.user, notifications, total, pagination,
+    });
   }),
 );
 

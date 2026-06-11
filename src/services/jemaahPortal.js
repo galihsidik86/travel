@@ -560,6 +560,44 @@ export async function listMyNotifications(userId, { limit = 50 } = {}) {
 }
 
 /**
+ * Stage 181 — paginated full notification history. /saya, /agen, /crew
+ * inbox views switch to this once the list overflows the page 1 default.
+ * Page size clamped to [1..100], page floors to 1 on negative values.
+ *
+ * Same query shape as the unpaginated helper (`select` columns identical)
+ * so partials don't need to branch.
+ */
+export async function listMyNotificationsPaginated(userId, {
+  page = 1, pageSize = 50,
+} = {}) {
+  const safePage = Math.max(1, Math.floor(Number(page) || 1));
+  const safeSize = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 50)));
+  const skip = (safePage - 1) * safeSize;
+  const [rows, total] = await Promise.all([
+    db.notification.findMany({
+      where: { recipientUserId: userId },
+      orderBy: { createdAt: 'desc' },
+      skip, take: safeSize,
+      select: {
+        id: true, type: true, channel: true, status: true,
+        subject: true, body: true,
+        relatedEntity: true, relatedEntityId: true,
+        sentAt: true, createdAt: true, error: true,
+        readAt: true,
+      },
+    }),
+    db.notification.count({ where: { recipientUserId: userId } }),
+  ]);
+  return {
+    rows, total,
+    pagination: {
+      page: safePage, pageSize: safeSize,
+      pageCount: Math.max(1, Math.ceil(total / safeSize)),
+    },
+  };
+}
+
+/**
  * 5rr: count of unread notifs for the unread badge in the jemaah sidebar.
  * Cheap query (composite index `[recipientUserId, readAt]`).
  */

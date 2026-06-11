@@ -43,11 +43,20 @@ function buildQueryClauses(q) {
   return { OR: or };
 }
 
+// Stage 182 — cancel reason filter. Matches BookingCancelReason enum
+// values from S175 + '__UNSET__' sentinel for "categorised cancel rows
+// without a reason code yet".
+const CANCEL_REASON_CODES = [
+  'JEMAAH_REQUEST', 'PAKET_CANCELLED', 'PAYMENT_NOT_RECEIVED',
+  'DOCUMENT_INCOMPLETE', 'NO_SHOW', 'GOODWILL', 'OTHER',
+];
+
 export async function searchBookings({
   q = '',
   status = 'ALL',
   paketId = 'ALL',
   agentId = 'ALL',
+  cancelReasonCode = 'ALL',
   from = '',
   to = '',
   page = 1,
@@ -64,6 +73,20 @@ export async function searchBookings({
 
   if (agentId === 'NONE') baseWhere.agentId = null;
   else if (agentId && agentId !== 'ALL') baseWhere.agentId = agentId;
+
+  // Stage 182 — cancel reason filter. '__UNSET__' targets cancelled rows
+  // that haven't been categorised yet (admin's backlog). An enum value
+  // narrows to that specific category. **Filter implicitly scopes to
+  // CANCELLED + REFUNDED** since `cancelReasonCode` is only set on those.
+  if (cancelReasonCode === '__UNSET__') {
+    baseWhere.AND = [
+      ...(baseWhere.AND || []),
+      { status: { in: ['CANCELLED', 'REFUNDED'] } },
+      { cancelReasonCode: null },
+    ];
+  } else if (cancelReasonCode && cancelReasonCode !== 'ALL' && CANCEL_REASON_CODES.includes(cancelReasonCode)) {
+    baseWhere.cancelReasonCode = cancelReasonCode;
+  }
 
   if (from || to) {
     baseWhere.createdAt = {};
@@ -124,3 +147,5 @@ export async function searchBookings({
     counts: { byStatus },
   };
 }
+
+export { CANCEL_REASON_CODES };
