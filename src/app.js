@@ -38,6 +38,7 @@ import apiV1Router from './routes/apiV1.js';
 import crewPublicRouter from './routes/crewPublic.js';
 import agentPublicRouter, { agentLeaderboardRouter } from './routes/agentPublic.js';
 import emailClickRedirectRouter from './routes/emailClickRedirect.js';
+import voucherVerifyRouter from './routes/voucherVerify.js';
 import pushRouter from './routes/push.js';
 import waitlistRouter from './routes/waitlist.js';
 import paymentsRouter from './routes/payments.js';
@@ -134,6 +135,8 @@ export function createApp() {
   app.use('/agen-leaderboard', agentLeaderboardRouter);
   // Stage 77 — email click tracking redirect (/r/<token>)
   app.use('/r', emailClickRedirectRouter);
+  // Stage 197 — public voucher verification page (/v/<bookingId>?sig=<hmac>)
+  app.use('/v', voucherVerifyRouter);
   // Stage 111 — inbound webhook receiver (POST /api/webhook-in/:source)
   app.use('/api/webhook-in', inboundWebhooksRouter);
 

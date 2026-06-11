@@ -127,7 +127,15 @@ router.get(
     } catch (err) {
       console.warn('[jemaah-booking] announcements load failed:', err?.message || err);
     }
-    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, announcements, query: req.query });
+    // Stage 196 — pickup points for the bus run
+    let pickups = [];
+    try {
+      const { listPickups } = await import('../services/paketPickups.js');
+      pickups = await listPickups(booking.paketId);
+    } catch (err) {
+      console.warn('[jemaah-booking] pickups load failed:', err?.message || err);
+    }
+    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, announcements, pickups, query: req.query });
   }),
 );
 
@@ -161,6 +169,11 @@ router.get(
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${voucherFilename(data, lang)}"`);
     res.setHeader('X-Voucher-Cache', cached ? 'HIT' : 'MISS');
+    // Stage 198 — bump print history (fire-and-forget)
+    res.on('finish', async () => {
+      const { recordVoucherPrint } = await import('../services/voucherPrintHistory.js');
+      recordVoucherPrint({ bookingId: req.params.id, actorEmail: req.user?.email || null });
+    });
     res.end(buffer);
   }),
 );

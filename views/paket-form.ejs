@@ -738,6 +738,100 @@
         </script>
       <% } %>
 
+      <%# Stage 196 — Pickup points CRUD panel. Edit-mode only.
+          Renders pickup options on /saya/bookings/:id for jemaah. %>
+      <% if (mode === 'edit' && typeof pickups !== 'undefined') { %>
+        <div class="panel" style="margin-top:18px;">
+          <h3>Pickup points (<%= pickups.length %>)</h3>
+          <p class="sub">Titik penjemputan bus untuk paket ini. Tampil di /saya/bookings/&lt;id&gt; (panel jadwal).</p>
+          <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--hairline);">
+                <th style="text-align:left;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;width:140px;">Label</th>
+                <th style="text-align:left;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;">Alamat</th>
+                <th style="text-align:left;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;width:70px;">Jam</th>
+                <th style="text-align:right;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;width:60px;">Sort</th>
+                <th style="padding:6px 8px;width:80px;"></th>
+              </tr>
+            </thead>
+            <tbody id="pickup-tbody">
+              <% pickups.forEach((p) => { %>
+                <tr data-pickup-id="<%= p.id %>">
+                  <td style="padding:5px 8px;"><input type="text" class="pk-label" maxlength="80" value="<%= p.label %>" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                  <td style="padding:5px 8px;"><input type="text" class="pk-addr" maxlength="500" value="<%= p.address %>" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                  <td style="padding:5px 8px;"><input type="text" class="pk-time" maxlength="5" placeholder="05:00" value="<%= p.departTime || '' %>" style="width:60px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                  <td style="padding:5px 8px;"><input type="number" class="pk-sort" min="0" max="9999" value="<%= p.sortOrder %>" style="width:50px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                  <td style="padding:5px 8px;text-align:right;">
+                    <button type="button" class="pk-save" style="background:var(--gold-300);border:0;color:var(--ink-1000);padding:4px 10px;border-radius:3px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-weight:600;">Save</button>
+                    <button type="button" class="pk-del" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:4px 8px;border-radius:3px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-left:4px;">×</button>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+            <tfoot>
+              <tr style="border-top:1px solid var(--hairline);">
+                <td style="padding:8px;"><input type="text" id="npk-label" maxlength="80" placeholder="Bekasi" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                <td style="padding:8px;"><input type="text" id="npk-addr" maxlength="500" placeholder="Jl. Ahmad Yani No.1, Bekasi" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                <td style="padding:8px;"><input type="text" id="npk-time" maxlength="5" placeholder="05:00" style="width:60px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                <td style="padding:8px;"><input type="number" id="npk-sort" min="0" max="9999" value="0" style="width:50px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                <td style="padding:8px;text-align:right;"><button type="button" id="npk-add" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:4px 14px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.1em;cursor:pointer;">+ TAMBAH</button></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div id="pk-err" style="display:none;margin-top:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--ruby);"></div>
+        </div>
+        <script>
+        (function() {
+          const slug = '<%= paket.slug %>';
+          const errBox = document.getElementById('pk-err');
+          function showErr(m) { errBox.textContent = m; errBox.style.display = 'block'; }
+          function hideErr() { errBox.style.display = 'none'; }
+          document.getElementById('npk-add')?.addEventListener('click', async () => {
+            hideErr();
+            const body = {
+              label: document.getElementById('npk-label').value.trim(),
+              address: document.getElementById('npk-addr').value.trim(),
+              departTime: document.getElementById('npk-time').value.trim(),
+              sortOrder: Number(document.getElementById('npk-sort').value) || 0,
+            };
+            if (!body.label || !body.address) { showErr('Label dan alamat wajib'); return; }
+            const r = await fetch('/api/paket/' + slug + '/pickups', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            if (r.ok) location.reload();
+            else { const j = await r.json().catch(() => ({})); showErr(j?.error?.message || 'Gagal'); }
+          });
+          document.querySelectorAll('#pickup-tbody tr').forEach((tr) => {
+            const id = tr.dataset.pickupId;
+            tr.querySelector('.pk-save')?.addEventListener('click', async () => {
+              hideErr();
+              const body = {
+                label: tr.querySelector('.pk-label').value.trim(),
+                address: tr.querySelector('.pk-addr').value.trim(),
+                departTime: tr.querySelector('.pk-time').value.trim(),
+                sortOrder: Number(tr.querySelector('.pk-sort').value) || 0,
+              };
+              const r = await fetch('/api/paket/' + slug + '/pickups/' + id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              });
+              if (r.ok) location.reload();
+              else { const j = await r.json().catch(() => ({})); showErr(j?.error?.message || 'Gagal'); }
+            });
+            tr.querySelector('.pk-del')?.addEventListener('click', async () => {
+              if (!confirm('Hapus pickup ini?')) return;
+              const r = await fetch('/api/paket/' + slug + '/pickups/' + id, { method: 'DELETE' });
+              if (r.ok) location.reload();
+              else { const j = await r.json().catch(() => ({})); showErr(j?.error?.message || 'Gagal'); }
+            });
+          });
+        })();
+        </script>
+      <% } %>
+
       <!-- Stage 61 — ads spend (ROI input) -->
       <div class="grid-2">
         <div class="field">

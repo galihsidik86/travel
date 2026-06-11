@@ -14,6 +14,7 @@
 
 import PDFDocument from 'pdfkit';
 import { drawQrCode } from '../lib/qrPdfRender.js';
+import { buildVerifyUrl } from '../lib/voucherVerifyToken.js';
 
 const COLORS = {
   ink: '#0a0908',
@@ -181,20 +182,17 @@ function renderVoucherIntoDoc(doc, voucher, lang) {
 
   doc.y = 140;
 
-  // Stage 195 — QR code in the top-right encoding the booking detail
-  // URL for airport check-in. Crew/admin scans → pulls up admin
-  // booking detail (auth-gated; defensive even if QR leaks). Drawn
-  // before the booking-number text since pdfkit's cursor isn't
-  // affected by save/restore.
+  // Stage 195 + 197 — QR code in the top-right encoding the public
+  // verification URL (HMAC-signed). Anyone scanning lands on a small
+  // page confirming the voucher is real, without needing admin auth.
+  // Best-effort — QR failure logs but doesn't break the voucher PDF.
   try {
-    const base = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
-    const qrUrl = `${base}/admin/bookings/${voucher.id}`;
+    const qrUrl = buildVerifyUrl(voucher.id);
     drawQrCode(doc, qrUrl, { x: 460, y: 140, size: 80 });
     // Tiny caption below the QR
     doc.font('Helvetica').fontSize(7).fillColor(COLORS.muted)
-      .text('SCAN UNTUK CEK-IN', 460, 225, { width: 80, align: 'center', characterSpacing: 1 });
+      .text('SCAN UNTUK VERIFIKASI', 460, 225, { width: 80, align: 'center', characterSpacing: 1 });
   } catch (err) {
-    // QR rendering failure shouldn't break the voucher
     console.warn('[voucher-qr] render failed:', err?.message || err);
   }
 

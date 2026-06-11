@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verifikasi voucher — Religio Pro</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+  .card {
+    max-width: 520px; width: 100%;
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 36px 32px;
+    text-align: center;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 18px; border-radius: 9999px;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+  .badge.ok {
+    background: rgba(74,143,109,0.10);
+    border: 1px solid var(--emerald);
+    color: var(--emerald);
+  }
+  .badge.err {
+    background: rgba(196,72,72,0.10);
+    border: 1px solid var(--ruby);
+    color: var(--ruby);
+  }
+  h1 {
+    font-family: var(--font-display); font-size: 28px;
+    color: var(--cream-100); margin: 0 0 4px; letter-spacing: -0.015em;
+  }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.08em; margin-bottom: 24px;
+  }
+  .field {
+    padding: 14px 16px; margin-bottom: 10px;
+    background: var(--ink-1000); border: var(--hairline-soft);
+    border-radius: var(--r-sm); text-align: left;
+  }
+  .field .l {
+    font-family: var(--font-mono); font-size: 9.5px;
+    color: var(--ink-200); letter-spacing: 0.12em;
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .field .v {
+    font-family: var(--font-mono); font-size: 14px;
+    color: var(--cream-100);
+  }
+  .field .v.gold { color: var(--gold-300); }
+  .footer {
+    margin-top: 28px;
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--ink-300); letter-spacing: 0.08em;
+  }
+  .footer a { color: var(--gold-300); text-decoration: none; }
+</style>
+</head>
+<body data-screen-label="08 Verifikasi voucher">
+<div class="card">
+
+  <% if (ok) { %>
+    <div class="badge ok">✓ VOUCHER ASLI</div>
+    <h1>Voucher <em>terverifikasi</em></h1>
+    <div class="sub">Dikeluarkan oleh sistem Religio Pro.</div>
+
+    <div class="field">
+      <div class="l">Booking</div>
+      <div class="v gold"><%= booking.bookingNo %></div>
+    </div>
+    <div class="field">
+      <div class="l">Jemaah</div>
+      <div class="v"><%= firstName %></div>
+    </div>
+    <div class="field">
+      <div class="l">Paket</div>
+      <div class="v"><%= booking.paket.title %></div>
+    </div>
+    <div class="field">
+      <div class="l">Tanggal berangkat</div>
+      <div class="v"><%= fmt.dateLong(booking.paket.departureDate) %></div>
+    </div>
+    <div class="field">
+      <div class="l">Kelas · Pax</div>
+      <div class="v"><%= booking.kelas %> · <%= booking.paxCount %> orang</div>
+    </div>
+    <div class="field">
+      <div class="l">Status</div>
+      <div class="v"><%= booking.status %></div>
+    </div>
+  <% } else { %>
+    <div class="badge err">✗ TIDAK TERVERIFIKASI</div>
+    <h1>Voucher <em>tidak valid</em></h1>
+    <div class="sub">QR code ini tidak cocok dengan rekord di sistem Religio Pro.</div>
+    <div style="background:var(--ink-1000);border:1px solid var(--hairline-soft);border-radius:var(--r-sm);padding:14px 16px;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-100);line-height:1.6;text-align:left;">
+      <strong style="color:var(--ruby);">Kemungkinan:</strong><br>
+      • Voucher palsu / hasil edit foto<br>
+      • URL diketik manual (signature tidak match)<br>
+      • Voucher sudah dihapus dari sistem<br><br>
+      Hubungi Religio Pro untuk konfirmasi.
+    </div>
+  <% } %>
+
+  <div class="footer">
+    Powered by <a href="https://religio.pro">Religio Pro</a>
+  </div>
+</div>
+</body>
+</html>

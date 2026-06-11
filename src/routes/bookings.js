@@ -370,6 +370,11 @@ router.get(
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${voucherFilename(data, lang)}"`);
     res.setHeader('X-Voucher-Cache', cached ? 'HIT' : 'MISS');
+    // Stage 198 — bump print history on finish (fire-and-forget)
+    res.on('finish', async () => {
+      const { recordVoucherPrint } = await import('../services/voucherPrintHistory.js');
+      recordVoucherPrint({ bookingId: req.params.id, actorEmail: req.user?.email || null });
+    });
     res.end(buffer);
   }),
 );

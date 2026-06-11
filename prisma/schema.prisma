@@ -536,6 +536,7 @@ model Paket {
   costLines       PaketCostLine[]
   faqs            PaketFaq[]
   announcements   PaketAnnouncement[]
+  pickups         PaketPickup[]
   webhooks        Webhook[]          @relation("WebhookPaket")
 
   @@index([slug])
@@ -1265,6 +1266,12 @@ model Booking {
   cancelRequestedAt   DateTime?
   cancelRequestReason String?   @db.Text
 
+  // Stage 198 — voucher print history. Counter + lastAt stamp each
+  // time streamVoucherPdf is invoked. Avoids a full history table.
+  voucherPrintCount         Int       @default(0)
+  lastVoucherPrintedAt      DateTime?
+  lastVoucherPrintedByEmail String?   @db.VarChar(190)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1646,6 +1653,24 @@ model PaketFaq {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([paketId])
+}
+
+// Stage 196 — per-paket pickup points. Multiple bus pickup locations
+// per paket; jemaah sees the list on /saya/bookings/:id and admin
+// reads them on the manifest for the bus run.
+model PaketPickup {
+  id         String   @id @default(cuid())
+  paketId    String
+  paket      Paket    @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  label      String   @db.VarChar(80)
+  address    String   @db.VarChar(500)
+  departTime String?  @db.VarChar(5)
+  notes      String?  @db.Text
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([paketId])
 }

@@ -227,7 +227,9 @@ router.get(
     const { listCostLines, COST_CATEGORIES, getCategoryLabel, getCostBenchmarks } = await import('../services/paketCostLines.js');
     // Stage 190 — FAQs for this paket (admin curated)
     const { listFaqs } = await import('../services/paketFaqs.js');
-    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks, faqs] = await Promise.all([
+    // Stage 196 — pickup points
+    const { listPickups } = await import('../services/paketPickups.js');
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks, faqs, pickups] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
       db.agentProfile.findMany({
@@ -243,6 +245,7 @@ router.get(
       listCostLines(paket.id),
       getCostBenchmarks({ paketId: paket.id }),
       listFaqs(paket.id),
+      listPickups(paket.id),
     ]);
     res.render('paket-form', {
       user: req.user, mode: 'edit', paket: paketToForm(paket),
@@ -251,7 +254,7 @@ router.get(
       availableAgents, paketOverrides,
       profitability, breakEven, abBreakdown, viewTrend,
       costLines, costCategories: COST_CATEGORIES, costCategoryLabel: getCategoryLabel,
-      costBenchmarks, faqs,
+      costBenchmarks, faqs, pickups,
     });
   }),
 );

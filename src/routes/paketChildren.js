@@ -295,4 +295,38 @@ router.delete(
   }),
 );
 
+// ── Stage 196: Pickup points CRUD ────────────────────────────
+router.post(
+  '/:slug/pickups',
+  asyncHandler(async (req, res) => {
+    const { createPickup } = await import('../services/paketPickups.js');
+    const paket = await db.paket.findUnique({ where: { slug: req.params.slug }, select: { id: true } });
+    if (!paket) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+    const row = await createPickup({
+      req, actor: actorFrom(req), paketId: paket.id, input: req.body,
+    });
+    res.status(201).json({ pickup: row });
+  }),
+);
+router.patch(
+  '/:slug/pickups/:id',
+  asyncHandler(async (req, res) => {
+    const { updatePickup } = await import('../services/paketPickups.js');
+    const row = await updatePickup({
+      req, actor: actorFrom(req), id: req.params.id, input: req.body,
+    });
+    res.json({ pickup: row });
+  }),
+);
+router.delete(
+  '/:slug/pickups/:id',
+  asyncHandler(async (req, res) => {
+    const { deletePickup } = await import('../services/paketPickups.js');
+    const result = await deletePickup({
+      req, actor: actorFrom(req), id: req.params.id,
+    });
+    res.json(result);
+  }),
+);
+
 export default router;
