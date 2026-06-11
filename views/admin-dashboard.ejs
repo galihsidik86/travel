@@ -2752,9 +2752,16 @@
             </a>
           <% }) %>
           <% if (manifestPickupId) { %>
-            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %>"
+            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %><% if (typeof manifestDietary !== 'undefined' && manifestDietary) { %>&manifestDietary=<%= encodeURIComponent(manifestDietary) %><% } %>"
                style="background:transparent;border:1px solid var(--ink-200);border-radius:var(--r-sm);padding:8px 14px;text-decoration:none;color:var(--ink-100);align-self:center;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">
-              × Reset
+              × Reset pickup
+            </a>
+          <% } %>
+          <%# Stage 215 — show active dietary filter chip + reset %>
+          <% if (typeof manifestDietary !== 'undefined' && manifestDietary) { %>
+            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %><% if (manifestPickupId) { %>&manifestPickup=<%= encodeURIComponent(manifestPickupId) %><% } %>"
+               style="background:transparent;border:1px solid var(--gold-300);border-radius:var(--r-sm);padding:8px 14px;text-decoration:none;color:var(--gold-300);align-self:center;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">
+              × Reset diet (<%= manifestDietary === '__SPECIAL__' ? 'KHUSUS' : manifestDietary %>)
             </a>
           <% } %>
         </div>
@@ -2773,6 +2780,17 @@
               </option>
             <% }) %>
           </select>
+          <%# Stage 215 — dietary filter. __SPECIAL__ shows all non-REGULAR. %>
+          <% if (manifest) { %>
+            <select name="manifestDietary" class="input" onchange="this.form.submit()" title="Filter dietary">
+              <% const curDiet = (typeof manifestDietary !== 'undefined' ? manifestDietary : '') || ''; %>
+              <option value="" <%= !curDiet ? 'selected' : '' %>>Diet: semua</option>
+              <option value="__SPECIAL__" <%= curDiet === '__SPECIAL__' ? 'selected' : '' %>>Diet: khusus (non-REGULAR)</option>
+              <% ['REGULAR','VEGETARIAN','HALAL_STRICT','SOFT_TEXTURE','DIABETIC','OTHER'].forEach(function(d) { %>
+                <option value="<%= d %>" <%= curDiet === d ? 'selected' : '' %>>Diet: <%= d %></option>
+              <% }) %>
+            </select>
+          <% } %>
           <% if (manifest) { %>
             <div class="seg">
               <span class="is-active">Semua (<%= manifest.bookings.length %>)</span>

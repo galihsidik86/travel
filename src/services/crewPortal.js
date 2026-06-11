@@ -88,7 +88,32 @@ export async function getAssignedManifest({ userId, slug }) {
     ...b,
     docPills: pillsForJemaah(b.jemaah.documents),
   }));
-  return { ...paket, bookings: enriched };
+
+  // Stage 214 — dietary roll-up for the in-portal brief. Mirrors S211
+  // CSV shape so crew see the same numbers as the email. REGULAR
+  // counted in `tally` (gives the standard-meal volume) but the
+  // `specials` list excludes REGULAR — kitchen brief only cares about
+  // the exceptions.
+  const tally = new Map();
+  for (const b of enriched) {
+    const d = b.jemaah?.dietary || 'REGULAR';
+    tally.set(d, (tally.get(d) || 0) + (b.paxCount || 1));
+  }
+  const dietarySpecials = enriched
+    .filter((b) => (b.jemaah?.dietary || 'REGULAR') !== 'REGULAR')
+    .sort((a, b) => {
+      const da = a.jemaah.dietary || '';
+      const db_ = b.jemaah.dietary || '';
+      if (da !== db_) return da.localeCompare(db_);
+      return (a.jemaah.fullName || '').localeCompare(b.jemaah.fullName || '');
+    });
+  const dietarySummary = {
+    tally: Object.fromEntries(tally),
+    specials: dietarySpecials,
+    totalPax: enriched.reduce((acc, b) => acc + (b.paxCount || 1), 0),
+    specialPax: dietarySpecials.reduce((acc, b) => acc + (b.paxCount || 1), 0),
+  };
+  return { ...paket, bookings: enriched, dietarySummary };
 }
 
 // ─── 5ww: per-day attendance ────────────────────────────────

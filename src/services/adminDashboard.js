@@ -667,6 +667,24 @@ export function filterManifestByPickup(result, pickupId) {
 }
 
 /**
+ * Stage 215 — narrow a manifest result to one dietary code. `__SPECIAL__`
+ * (everything non-REGULAR) is a useful aggregate filter for the
+ * catering brief workflow. Unknown codes silently fall through to ALL —
+ * a bookmarked URL with a renamed enum shouldn't 500 the page.
+ */
+const DIETARY_CODES = new Set(['REGULAR', 'VEGETARIAN', 'HALAL_STRICT', 'SOFT_TEXTURE', 'DIABETIC', 'OTHER']);
+export function filterManifestByDietary(result, dietary) {
+  if (!result || !dietary || dietary === 'ALL') return result;
+  const isSpecial = dietary === '__SPECIAL__';
+  if (!isSpecial && !DIETARY_CODES.has(dietary)) return result;
+  const filtered = result.bookings.filter((b) => {
+    const d = b.jemaah?.dietary || 'REGULAR';
+    return isSpecial ? d !== 'REGULAR' : d === dietary;
+  });
+  return { ...result, bookings: filtered, filteredByDietary: dietary };
+}
+
+/**
  * Print-friendly manifest (stage 19) — airport check-in worksheet.
  * Filters out CANCELLED + REFUNDED bookings ("who's actually going"),
  * includes room assignment + emergency contact + curated doc pills.
