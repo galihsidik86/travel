@@ -387,6 +387,12 @@ model JemaahProfile {
   notifWaConsentAt    DateTime?
   notifWaWithdrawnAt  DateTime?
 
+  // Stage 210 — dietary preference for catering / hotel meal planning.
+  // REGULAR default; SOFT_TEXTURE for elderly jemaah who can't chew well;
+  // DIABETIC for sugar control. Free-text dietaryNotes carry specifics.
+  dietary      Dietary @default(REGULAR)
+  dietaryNotes String? @db.VarChar(500)
+
   bookings        Booking[]
   documents       JemaahDocument[]
   notifTypePrefs  JemaahNotifPref[]
@@ -394,6 +400,17 @@ model JemaahProfile {
 
   @@index([phone])
   @@index([passportExpiry])
+}
+
+// Stage 210 — dietary categories. Used for special meal planning by
+// catering / hotel coordinators.
+enum Dietary {
+  REGULAR
+  VEGETARIAN
+  HALAL_STRICT
+  SOFT_TEXTURE
+  DIABETIC
+  OTHER
 }
 
 // Per-type notif opt-out. Absence = enabled (default opt-in).

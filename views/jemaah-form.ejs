@@ -283,6 +283,34 @@
         <textarea class="input" id="f-notes" name="notes" rows="3"><%= target.notes || '' %></textarea>
         <div class="helper">Mis. lansia, kursi roda, alergi makanan, mahram</div>
       </div>
+      <!-- Stage 210 — dietary preference for catering / hotel meal planning -->
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-dietary">Preferensi makanan (S210)</label></div>
+        <select class="input" id="f-dietary" name="dietary">
+          <%
+            const DIETARY_LABELS = {
+              REGULAR: 'Reguler',
+              VEGETARIAN: 'Vegetarian',
+              HALAL_STRICT: 'Halal ketat',
+              SOFT_TEXTURE: 'Tekstur lembut (lansia)',
+              DIABETIC: 'Diabetes (rendah gula)',
+              OTHER: 'Lainnya (lihat catatan)',
+            };
+            const curDiet = target.dietary || 'REGULAR';
+          %>
+          <% (META.DIETARIES || ['REGULAR']).forEach(function(d) { %>
+            <option value="<%= d %>" <%= curDiet === d ? 'selected' : '' %>>
+              <%= DIETARY_LABELS[d] || d %>
+            </option>
+          <% }) %>
+        </select>
+        <div class="helper">Untuk perencanaan catering / hotel. SOFT_TEXTURE untuk lansia, DIABETIC untuk kontrol gula.</div>
+      </div>
+      <div class="field">
+        <div class="label-row"><label class="label" for="f-dietary-notes">Catatan diet (alergi / detail)</label></div>
+        <input class="input" id="f-dietary-notes" name="dietaryNotes" maxlength="500" value="<%= target.dietaryNotes || '' %>" placeholder="Mis. alergi kacang, intoleran laktosa, vegan ketat">
+      </div>
+
       <% if (target.notifWaConsentAt || target.notifWaWithdrawnAt) { %>
         <div class="field">
           <div class="label-row"><label class="label">Audit konsen WA (S90)</label></div>

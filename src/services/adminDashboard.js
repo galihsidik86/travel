@@ -580,6 +580,8 @@ export async function getManifestForPaket(paketSlug) {
         select: {
           fullName: true, phone: true, email: true, nik: true,
           passportNo: true, passportExpiry: true, gender: true, birthDate: true,
+          // Stage 210 — dietary pill on manifest table
+          dietary: true, dietaryNotes: true,
           documents: { select: { type: true, status: true } },
         },
       },

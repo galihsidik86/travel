@@ -266,6 +266,33 @@
         <label class="label" for="f-notes">Catatan khusus (lansia, alergi, mahram, dll.)</label>
         <textarea class="input" name="notes" id="f-notes" rows="3"><%= target.notes || '' %></textarea>
       </div>
+      <!-- Stage 210 — dietary preference -->
+      <div class="field">
+        <label class="label" for="f-dietary">Preferensi makanan</label>
+        <%
+          const DIETARY_OPTS = [
+            ['REGULAR', 'Reguler'],
+            ['VEGETARIAN', 'Vegetarian'],
+            ['HALAL_STRICT', 'Halal ketat'],
+            ['SOFT_TEXTURE', 'Tekstur lembut (lansia)'],
+            ['DIABETIC', 'Diabetes (rendah gula)'],
+            ['OTHER', 'Lainnya (lihat catatan)'],
+          ];
+          const curDiet = target.dietary || 'REGULAR';
+        %>
+        <select class="input" name="dietary" id="f-dietary">
+          <% DIETARY_OPTS.forEach(function(o) { %>
+            <option value="<%= o[0] %>" <%= curDiet === o[0] ? 'selected' : '' %>><%= o[1] %></option>
+          <% }) %>
+        </select>
+        <div class="sub" style="margin-top:6px;">Catering &amp; hotel akan menyiapkan makanan sesuai preferensi.</div>
+      </div>
+      <div class="field">
+        <label class="label" for="f-dietary-notes">Catatan diet (alergi / detail)</label>
+        <input class="input" name="dietaryNotes" id="f-dietary-notes" maxlength="500"
+               value="<%= target.dietaryNotes || '' %>"
+               placeholder="Mis. alergi kacang, intoleran laktosa, vegan ketat">
+      </div>
     </div>
 
     <div class="panel">

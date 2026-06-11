@@ -97,15 +97,30 @@
       checks for active bookings matching the phone in the last 90
       days; if any, re-renders here with the list + a "Lanjut tetap"
       checkbox. Second POST bypasses the check. %>
-  <% if (typeof duplicateBookings !== 'undefined' && duplicateBookings && duplicateBookings.length > 0) { %>
-    <div style="background:rgba(204,153,0,0.10);border:1px solid var(--gold-300);border-radius:8px;padding:14px 18px;margin-bottom:20px;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
-      <strong style="color:var(--gold-300);letter-spacing:0.08em;text-transform:uppercase;">⚠ Telepon ini sudah pernah booking</strong>
+  <% if (typeof duplicateBookings !== 'undefined' && duplicateBookings && duplicateBookings.length > 0) {
+       // Stage 209 — show severity color: NIK matches = ruby (same person),
+       // phone-only matches = gold (possibly family share)
+       const hasNikMatch = duplicateBookings.some((b) => b.dupFlags && b.dupFlags.includes('nik'));
+       const bannerColor = hasNikMatch ? 'var(--ruby)' : 'var(--gold-300)';
+  %>
+    <div style="background:rgba(204,153,0,0.10);border:1px solid <%= bannerColor %>;border-radius:8px;padding:14px 18px;margin-bottom:20px;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
+      <strong style="color:<%= bannerColor %>;letter-spacing:0.08em;text-transform:uppercase;">
+        ⚠ <% if (hasNikMatch) { %>NIK SAMA — kemungkinan jemaah yang sama!<% } else { %>Telepon ini sudah pernah booking<% } %>
+      </strong>
       <div style="margin-top:8px;line-height:1.6;color:var(--ink-100);">
-        Ditemukan <%= duplicateBookings.length %> booking aktif dengan nomor telepon yang sama dalam 90 hari terakhir. Pastikan ini bukan duplikat.
+        Ditemukan <%= duplicateBookings.length %> booking aktif dalam 90 hari terakhir dengan
+        <% if (hasNikMatch) { %>NIK / telepon<% } else { %>telepon<% } %>
+        yang sama. Pastikan ini bukan duplikat.
       </div>
       <ul style="margin:12px 0 8px;padding-left:20px;list-style-type:'→ ';">
-        <% duplicateBookings.forEach((b) => { %>
+        <% duplicateBookings.forEach((b) => {
+             const flags = b.dupFlags || ['phone'];
+             const flagBadge = flags.includes('nik')
+               ? '<span style="background:rgba(196,72,72,0.15);color:var(--ruby);padding:1px 6px;border-radius:9px;font-size:9.5px;letter-spacing:0.06em;">NIK</span>'
+               : '<span style="background:rgba(212,175,55,0.10);color:var(--gold-300);padding:1px 6px;border-radius:9px;font-size:9.5px;letter-spacing:0.06em;">TEL</span>';
+        %>
           <li style="margin-bottom:6px;">
+            <%- flagBadge %>
             <a href="/admin/bookings/<%= b.id %>" target="_blank" style="color:var(--gold-300);text-decoration:none;border-bottom:1px dotted var(--gold-300);"><%= b.bookingNo %></a>
             ·
             <%= b.jemaah?.fullName || '—' %>
@@ -169,6 +184,14 @@
       <div class="field">
         <label class="label" for="f-phone">Telepon / WhatsApp *</label>
         <input class="input" id="f-phone" name="phone" required minlength="8" maxlength="30" value="<%= values.phone %>" placeholder="0812-xxxx-xxxx">
+      </div>
+
+      <%# Stage 209 — optional NIK for duplicate check. Walk-in admin
+          often has the KTP card on hand; entering NIK lets the dup
+          guard catch returning jemaah even if they changed phone. %>
+      <div class="field">
+        <label class="label" for="f-nik">NIK (KTP) — opsional, untuk cek duplikasi</label>
+        <input class="input" id="f-nik" name="nik" maxlength="20" value="<%= values.nik || '' %>" placeholder="3201xxxxxxxxxx (16 digit)">
       </div>
     </div>
 

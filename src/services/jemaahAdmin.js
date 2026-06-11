@@ -12,6 +12,9 @@ const optDate = z.preprocess(
 
 const GENDERS = ['L', 'P'];
 
+// Stage 210 — dietary preference enum. Matches Prisma Dietary enum.
+const DIETARIES = ['REGULAR', 'VEGETARIAN', 'HALAL_STRICT', 'SOFT_TEXTURE', 'DIABETIC', 'OTHER'];
+
 // 5jj: 3-state preprocessor for notif prefs. undefined = no change; presence = true; explicit false = false.
 const notifPref = z.preprocess((v) => {
   if (v === undefined) return undefined;
@@ -32,6 +35,22 @@ export const JemaahSchema = z.object({
   notes: optStr,
   notifEmail: notifPref,
   notifWa: notifPref,
+  // Stage 210 — dietary preference + free-text notes. 3-state: undefined
+  // (field absent) → no change; explicit empty → clear (dietary back to
+  // REGULAR, notes to NULL); value → set.
+  dietary: z.preprocess(
+    (v) => {
+      if (v === undefined) return undefined;
+      if (v === '' || v === null) return 'REGULAR';
+      return String(v).toUpperCase();
+    },
+    z.enum(DIETARIES).optional(),
+  ),
+  dietaryNotes: z.preprocess((v) => {
+    if (v === undefined) return undefined;
+    if (v === '' || v === null) return null;
+    return String(v);
+  }, z.union([z.string().max(500), z.null()]).optional()),
 });
 
 /**
@@ -138,6 +157,10 @@ export async function updateJemaah({ req, actor, jemaahId, input }) {
       ...(input.notifEmail !== undefined ? { notifEmail: input.notifEmail } : {}),
       ...(input.notifWa !== undefined ? { notifWa: input.notifWa } : {}),
       ...consentPatch,
+      // Stage 210 — dietary fields. undefined = no change (form omitted); explicit
+      // value sets it. dietaryNotes: empty string → null clears.
+      ...(input.dietary !== undefined ? { dietary: input.dietary } : {}),
+      ...(input.dietaryNotes !== undefined ? { dietaryNotes: input.dietaryNotes ?? null } : {}),
     },
   });
   await audit({
@@ -150,4 +173,4 @@ export async function updateJemaah({ req, actor, jemaahId, input }) {
   return updated;
 }
 
-export const META = { GENDERS };
+export const META = { GENDERS, DIETARIES };

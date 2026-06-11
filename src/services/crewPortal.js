@@ -70,6 +70,9 @@ export async function getAssignedManifest({ userId, slug }) {
               id: true, fullName: true, phone: true,
               passportNo: true, passportExpiry: true,
               emergencyContact: true,
+              // Stage 210 — dietary visible on crew manifest so muthawwif
+              // can flag special meals to hotel / restaurant on arrival.
+              dietary: true, dietaryNotes: true,
               documents: { select: { type: true, status: true } },
             },
           },

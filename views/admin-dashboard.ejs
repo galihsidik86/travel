@@ -2794,6 +2794,16 @@
                style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:8px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;margin-left:8px;">
               ⇩ Export CSV
             </a>
+            <%# Stage 208 — pickup roster CSV. Honors the current pickup
+                filter when active so admin downloads only the selected
+                roster, not the whole paket. %>
+            <% if (manifest.pickupCounts && manifest.pickupCounts.length > 0) { %>
+              <a href="/admin/manifest/<%= manifest.paket.slug %>/pickup-roster.csv<% if (typeof manifestPickupId !== 'undefined' && manifestPickupId) { %>?pickup=<%= encodeURIComponent(manifestPickupId) %><% } %>"
+                 title="Roster bus per pickup point (driver use)"
+                 style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:8px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;margin-left:8px;">
+                🚌 Roster pickup
+              </a>
+            <% } %>
           <% } %>
         </form>
       <% } %>
@@ -2862,6 +2872,24 @@
                       <span class="doc-pill-mini state-<%= p.state %>" title="<%= p.type %>: <%= p.state %>"><%= p.label %></span>
                     <% }) %>
                   </div>
+                  <%# Stage 210 — dietary pill. Only render when non-REGULAR
+                      (REGULAR is the default; catering doesn't need a callout). %>
+                  <% if (b.jemaah.dietary && b.jemaah.dietary !== 'REGULAR') { %>
+                    <%
+                      const DIET_PILL = {
+                        VEGETARIAN:   { label: '🥬 VEG',   color: 'emerald' },
+                        HALAL_STRICT: { label: '☪ HALAL+', color: 'gold' },
+                        SOFT_TEXTURE: { label: '🥣 SOFT',  color: 'amber' },
+                        DIABETIC:     { label: '🩸 DIAB',  color: 'ruby' },
+                        OTHER:        { label: '⚠ DIET',   color: 'sapphire' },
+                      };
+                      const dp = DIET_PILL[b.jemaah.dietary] || { label: b.jemaah.dietary, color: 'sapphire' };
+                      const tip = b.jemaah.dietaryNotes ? `${b.jemaah.dietary}: ${b.jemaah.dietaryNotes}` : b.jemaah.dietary;
+                    %>
+                    <div style="margin-top:4px;">
+                      <span class="badge badge--<%= dp.color %>" style="font-size:9.5px;letter-spacing:0.04em;" title="<%= tip %>"><%= dp.label %></span>
+                    </div>
+                  <% } %>
                 </td>
                 <td>
                   <span style="color:var(--cream-100);"><%= b.kelas %></span>

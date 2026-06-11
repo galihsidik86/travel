@@ -100,4 +100,47 @@ export async function findRecentLeadsByPhone({
   return rows.filter((r) => normalisePhone(r.phone) === norm);
 }
 
+/**
+ * Stage 209 — NIK-based duplicate check. NIK (Nomor Induk
+ * Kependudukan) is the Indonesian national ID; 16 digits, uniquely
+ * identifies a person. Unlike phone (which family members might
+ * share), NIK collision means "literally the same person".
+ *
+ * Returns recent active bookings (last `windowDays`) whose jemaah
+ * NIK exactly matches after digit-only normalisation. Empty/short
+ * NIK (< 10 digits) returns empty — we don't want partial-NIK
+ * scans matching too much.
+ */
+export function normaliseNik(nik) {
+  if (!nik) return '';
+  return String(nik).replace(/\D+/g, '');
+}
+
+export async function findRecentBookingsByNik({
+  nik, windowDays = DEFAULT_WINDOW_DAYS, now = new Date(),
+} = {}) {
+  const norm = normaliseNik(nik);
+  if (!norm || norm.length < 10) return [];
+  const cutoff = new Date(now.getTime() - windowDays * 24 * 60 * 60_000);
+  // NIK is exact match — no fuzzy / endsWith. The DB column is plain
+  // varchar so a simple equality check is enough.
+  const rows = await db.booking.findMany({
+    where: {
+      createdAt: { gte: cutoff },
+      status: { notIn: ['CANCELLED', 'REFUNDED'] },
+      jemaah: { nik: norm },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+    select: {
+      id: true, bookingNo: true, status: true, createdAt: true,
+      kelas: true, paxCount: true,
+      paket: { select: { slug: true, title: true, departureDate: true } },
+      jemaah: { select: { fullName: true, phone: true, nik: true } },
+      agent: { select: { slug: true, displayName: true } },
+    },
+  });
+  return rows;
+}
+
 export { DEFAULT_WINDOW_DAYS };

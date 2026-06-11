@@ -104,6 +104,25 @@ router.get(
   }),
 );
 
+// Stage 208 — pickup roster CSV. ?pickup=<id> narrows to one bus
+// route; ?pickup=__TBD__ to show jemaah without a pickup choice yet.
+router.get(
+  '/manifest/:slug/pickup-roster.csv',
+  asyncHandler(async (req, res) => {
+    const { buildPickupRosterCsv } = await import('../services/pickupRosterCsv.js');
+    const pickupId = (req.query.pickup || '').toString() || null;
+    const out = await buildPickupRosterCsv(req.params.slug, { pickupId });
+    if (!out) return res.status(404).type('text/plain').send('Paket tidak ditemukan');
+    const safeSlug = out.paket.slug.replace(/[^A-Za-z0-9_-]/g, '_');
+    const safeSuffix = pickupId
+      ? '_' + pickupId.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 30)
+      : '';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="pickup_roster_${safeSlug}${safeSuffix}.csv"`);
+    res.send(out.csv);
+  }),
+);
+
 // Stage 107 — bulk dossier zip. Accepts form-encoded `bookingIds[]` (one
 // per checked row in the manifest). Loads each voucher then streams a
 // mega-zip with one subfolder per booking. ?format=csv for the accounting

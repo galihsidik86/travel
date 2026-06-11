@@ -147,6 +147,11 @@ const NewBookingSchema = z.object({
   agentSlug: z.preprocess((v) => (v === '' || v == null ? null : v), z.string().nullable()),
   fullName: z.string().min(2, 'Nama lengkap minimal 2 karakter').max(190),
   phone: z.string().min(8, 'Telepon minimal 8 karakter').max(30),
+  // Stage 209 — optional NIK for the dup check. Skipped when blank.
+  nik: z.preprocess(
+    (v) => (v === '' || v == null ? null : String(v).replace(/\D+/g, '')),
+    z.string().min(10, 'NIK minimal 10 digit').max(20).nullable().optional(),
+  ).optional(),
   kelas: z.enum(['QUAD', 'TRIPLE', 'DOUBLE', 'VVIP']),
   paxCount: z.preprocess((v) => Number(v), z.number().int().min(1).max(20)),
   notes: z.preprocess((v) => (v === '' || v == null ? null : v), z.string().max(2000).nullable()),
@@ -174,14 +179,32 @@ router.post(
 
     try {
       const data = NewBookingSchema.parse(req.body);
-      // Stage 167 — duplicate phone warning before create. Admin
-      // explicitly confirms via the `confirmDuplicate` checkbox to
-      // proceed past the warning. Skip the check entirely on
-      // confirmed flows so the second POST goes straight through.
+      // Stage 167 — duplicate phone warning before create.
+      // Stage 209 — also checks NIK when admin provided one. Phone
+      // dupes might be family members sharing a number; NIK dupes
+      // are LITERALLY the same person — distinct severity signals.
+      // Admin explicitly confirms via the `confirmDuplicate` checkbox.
       const confirmed = req.body?.confirmDuplicate === 'on' || req.body?.confirmDuplicate === 'true';
       if (!confirmed) {
-        const { findRecentBookingsByPhone } = await import('../services/bookingDuplicateCheck.js');
-        const dupes = await findRecentBookingsByPhone({ phone: data.phone });
+        const { findRecentBookingsByPhone, findRecentBookingsByNik } =
+          await import('../services/bookingDuplicateCheck.js');
+        const [phoneDupes, nikDupes] = await Promise.all([
+          findRecentBookingsByPhone({ phone: data.phone }),
+          data.nik ? findRecentBookingsByNik({ nik: data.nik }) : Promise.resolve([]),
+        ]);
+        // Merge by id so a booking matching BOTH phone + NIK doesn't
+        // double-render; track which signal(s) flagged each one for
+        // the UI.
+        const flagsById = new Map();
+        for (const b of phoneDupes) flagsById.set(b.id, { booking: b, flags: ['phone'] });
+        for (const b of nikDupes) {
+          const existing = flagsById.get(b.id);
+          if (existing) existing.flags.push('nik');
+          else flagsById.set(b.id, { booking: b, flags: ['nik'] });
+        }
+        const dupes = [...flagsById.values()].map((entry) => ({
+          ...entry.booking, dupFlags: entry.flags,
+        }));
         if (dupes.length > 0) {
           // Re-render with warning panel; preserve user input so they
           // don't have to retype. POST → status 200 (not an error) so
