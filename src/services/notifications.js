@@ -772,6 +772,69 @@ export async function notifyPaymentReminder({
 }
 
 /**
+ * Stage 203 — passport renewal nudge to one jemaah. Fires BOTH
+ * EMAIL + WA when both are present; each respects per-channel
+ * opt-out via enqueueNotification. Silent when neither channel
+ * has a recipient.
+ */
+export async function notifyPassportRenewal({ jemaah } = {}) {
+  if (!jemaah) return { enqueued: 0, skipped: true };
+  const recipientUserId = jemaah.user?.id || null;
+  const recipientEmail = jemaah.user?.email || null;
+  const recipientPhone = jemaah.phone || null;
+  if (!recipientEmail && !recipientPhone) {
+    return { enqueued: 0, skipped: true, reason: 'no_contact' };
+  }
+  const expiry = jemaah.passportExpiry instanceof Date
+    ? jemaah.passportExpiry
+    : new Date(jemaah.passportExpiry);
+  const expiryLabel = expiry && !Number.isNaN(expiry.getTime())
+    ? expiry.toISOString().slice(0, 10)
+    : '—';
+  const daysLeft = jemaah.daysLeft != null
+    ? Math.max(0, jemaah.daysLeft)
+    : Math.max(0, Math.ceil((expiry.getTime() - Date.now()) / (24 * 60 * 60_000)));
+  const vars = {
+    jemaahName: jemaah.fullName || '',
+    passportNo: jemaah.passportNo || '—',
+    expiryLabel,
+    daysLeft: String(daysLeft),
+  };
+  let enqueued = 0;
+  if (recipientEmail) {
+    try {
+      const { subject, body } = renderTemplate('PASSPORT_RENEWAL_REMINDER', 'EMAIL', vars);
+      const r = await enqueueNotification({
+        type: 'PASSPORT_RENEWAL_REMINDER', channel: 'EMAIL',
+        recipientEmail, recipientUserId,
+        subject, body,
+        relatedEntity: 'JemaahProfile', relatedEntityId: jemaah.id,
+        payload: { passportNo: jemaah.passportNo, expiryLabel, daysLeft },
+      });
+      if (r && r.status !== 'SKIPPED') enqueued += 1;
+    } catch (err) {
+      console.warn('[passport-renewal] email failed:', err?.message || err);
+    }
+  }
+  if (recipientPhone) {
+    try {
+      const { body } = renderTemplate('PASSPORT_RENEWAL_REMINDER', 'WA', vars);
+      const r = await enqueueNotification({
+        type: 'PASSPORT_RENEWAL_REMINDER', channel: 'WA',
+        recipientPhone, recipientUserId,
+        body,
+        relatedEntity: 'JemaahProfile', relatedEntityId: jemaah.id,
+        payload: { passportNo: jemaah.passportNo, expiryLabel, daysLeft },
+      });
+      if (r && r.status !== 'SKIPPED') enqueued += 1;
+    } catch (err) {
+      console.warn('[passport-renewal] WA failed:', err?.message || err);
+    }
+  }
+  return { enqueued };
+}
+
+/**
  * Stage 173 — document-expiry nudge to one jemaah. Fires ONE EMAIL
  * per jemaah per cron run with all soon-expiring docs inlined,
  * rather than N separate emails (cron-friendly grouping).

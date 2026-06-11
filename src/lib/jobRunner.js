@@ -94,6 +94,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-statement-unread-nudge': 24 * 60 * 60_000, // daily (Stage 163)
   'send-payment-reminder': 24 * 60 * 60_000, // daily (Stage 172)
   'send-doc-expiring': 24 * 60 * 60_000, // daily (Stage 173)
+  'send-passport-renewal': 24 * 60 * 60_000, // daily (Stage 203)
   'scan-agent-dormancy': 24 * 60 * 60_000, // daily (Stage 185)
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };

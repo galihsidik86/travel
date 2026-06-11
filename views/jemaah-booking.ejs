@@ -342,16 +342,30 @@
   </div>
 
   <%# Stage 196 — pickup points panel. Multiple bus locations per paket;
-      jemaah picks where they board on day of departure. %>
+      jemaah picks where they board on day of departure.
+      Stage 202 — jemaah can now PICK one via POST /api/saya/bookings/:id/pickup.
+      Current choice gold-highlighted; click another card to switch;
+      "Batalkan pilihan" link clears the choice. %>
   <% if (typeof pickups !== 'undefined' && pickups.length > 0) { %>
-    <div class="panel">
+    <div class="panel" id="pickup-panel" data-booking-id="<%= b.id %>">
       <h3>Titik penjemputan bus</h3>
-      <p class="sub">Pilih lokasi terdekat. Konfirmasi ke agen kalau berubah.</p>
+      <p class="sub">
+        <% if (b.pickup) { %>
+          Pilihan Anda: <strong style="color:var(--gold-300);"><%= b.pickup.label %></strong>.
+          <a href="#" data-pickup-clear style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-left:8px;">batalkan pilihan</a>
+        <% } else { %>
+          Belum memilih. Pilih lokasi terdekat di bawah.
+        <% } %>
+      </p>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">
-        <% pickups.forEach((p) => { %>
-          <div style="padding:12px 14px;background:var(--ink-1000);border:1px solid var(--hairline-soft);border-radius:var(--r-sm);">
+        <% pickups.forEach((p) => {
+             const chosen = b.pickup && b.pickup.id === p.id;
+        %>
+          <div data-pickup-id="<%= p.id %>" style="padding:12px 14px;background:<%= chosen ? 'rgba(212,175,55,0.10)' : 'var(--ink-1000)' %>;border:1px solid <%= chosen ? 'var(--gold-300)' : 'var(--hairline-soft)' %>;border-radius:var(--r-sm);cursor:<%= chosen ? 'default' : 'pointer' %>;transition:border-color 120ms;" <%= chosen ? '' : 'data-pickup-card' %>>
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px;">
-              <strong style="font-family:var(--font-mono);font-size:12px;color:var(--gold-300);letter-spacing:0.06em;text-transform:uppercase;"><%= p.label %></strong>
+              <strong style="font-family:var(--font-mono);font-size:12px;color:var(--gold-300);letter-spacing:0.06em;text-transform:uppercase;">
+                <% if (chosen) { %>✓ <% } %><%= p.label %>
+              </strong>
               <% if (p.departTime) { %>
                 <span style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);">⏰ <%= p.departTime %></span>
               <% } %>
@@ -360,10 +374,48 @@
             <% if (p.notes) { %>
               <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:6px;line-height:1.5;font-style:italic;"><%= p.notes %></div>
             <% } %>
+            <% if (!chosen) { %>
+              <div style="margin-top:8px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;">Klik untuk pilih →</div>
+            <% } %>
           </div>
         <% }) %>
       </div>
     </div>
+    <script>
+    (function() {
+      const panel = document.getElementById('pickup-panel');
+      if (!panel) return;
+      const bookingId = panel.dataset.bookingId;
+      async function pick(pickupId) {
+        try {
+          const r = await fetch('/api/saya/bookings/' + bookingId + '/pickup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pickupId }),
+          });
+          if (r.ok) location.reload();
+          else {
+            const j = await r.json().catch(() => ({}));
+            alert(j?.error?.message || 'Gagal pilih pickup');
+          }
+        } catch {
+          alert('Tidak dapat menghubungi server');
+        }
+      }
+      panel.querySelectorAll('[data-pickup-card]').forEach((card) => {
+        card.addEventListener('click', () => pick(card.dataset.pickupId));
+      });
+      const clearBtn = panel.querySelector('[data-pickup-clear]');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (confirm('Hapus pilihan pickup? Anda perlu pilih ulang sebelum berangkat.')) {
+            pick(null);
+          }
+        });
+      }
+    })();
+    </script>
   <% } %>
 
   <!-- Payment history -->

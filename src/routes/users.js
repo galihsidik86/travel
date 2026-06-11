@@ -245,10 +245,19 @@ router.get(
         console.warn('[users] agent scorecard failed:', err?.message || err);
       }
     }
+    // Stage 204 — recent audit activity where this user was the actor.
+    // Best-effort: a query failure dims the panel via null, doesn't 500.
+    let activityFeed = null;
+    try {
+      const { getUserActivityFeed } = await import('../services/userActivity.js');
+      activityFeed = await getUserActivityFeed({ userId: target.id, limit: 20 });
+    } catch (err) {
+      console.warn('[users] activity feed failed:', err?.message || err);
+    }
     res.render('users-form', {
       user: req.user, mode: 'edit', target: flat,
       errors: {}, formError: null, META,
-      recentStatements, agentScorecard,
+      recentStatements, agentScorecard, activityFeed,
     });
   }),
 );

@@ -631,6 +631,9 @@ export async function getMyBooking(userId, bookingId) {
       jemaah: { include: { documents: { orderBy: { type: 'asc' } } } },
       agent: { select: { slug: true, displayName: true, whatsapp: true } },
       room: { select: { roomNo: true, floor: true, wing: true } },
+      // Stage 202 — current pickup choice (S196). null when jemaah
+      // hasn't picked yet ("TBD").
+      pickup: { select: { id: true, label: true, address: true, departTime: true } },
       payments: { orderBy: { createdAt: 'desc' } },
     },
   });

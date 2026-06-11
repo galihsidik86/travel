@@ -1,0 +1,4 @@
+{
+  "subject": "Paspor Anda akan kedaluwarsa dalam {{daysLeft}} hari",
+  "body": "Assalamu'alaikum {{jemaahName}},\n\nPaspor Anda ({{passportNo}}) akan kedaluwarsa pada {{expiryLabel}} — sekitar {{daysLeft}} hari lagi.\n\nArab Saudi mensyaratkan paspor harus berlaku minimal 6 bulan SETELAH tanggal keberangkatan. Mohon segera urus perpanjangan agar tidak menggagalkan perjalanan umroh/haji Anda.\n\nPanduan perpanjangan paspor:\n  1. Daftar online di antrian.imigrasi.go.id\n  2. Datang ke kantor imigrasi terdekat\n  3. Bawa paspor lama + KTP + KK + akta kelahiran\n  4. Pembayaran Rp 350.000 (50 halaman)\n\nUpload paspor baru di /saya/profile setelah jadi.\n\nBaarakallahu fiikum,\nReligio Pro"
+}

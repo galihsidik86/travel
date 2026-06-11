@@ -529,6 +529,57 @@
         </div>
       </form>
     </div>
+
+    <%# Stage 204 — per-user audit activity timeline. Last 20 entries
+        where target user was the actor. Empty state shows when no
+        recent activity (typical for fresh accounts). %>
+    <% if (typeof activityFeed !== 'undefined' && activityFeed) { %>
+      <div class="panel" style="margin-top:24px;">
+        <h3>Aktivitas terbaru user ini</h3>
+        <p class="sub">
+          20 audit terakhir di mana user ini bertindak sebagai aktor.
+          Riwayat lengkap di <a href="/admin/audit?actorEmail=<%= encodeURIComponent(target.email) %>" style="color:var(--gold-300);">/admin/audit</a>.
+        </p>
+        <% if (activityFeed.length === 0) { %>
+          <div class="empty" style="font-family:var(--font-mono);font-size:11px;color:var(--ink-300);padding:12px 0;font-style:italic;">
+            Belum ada aktivitas tercatat.
+          </div>
+        <% } else { %>
+          <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:10.5px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--ink-500);">
+                <th style="text-align:left;padding:6px 8px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;font-size:9.5px;">Waktu</th>
+                <th style="text-align:left;padding:6px 8px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;font-size:9.5px;">Action</th>
+                <th style="text-align:left;padding:6px 8px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;font-size:9.5px;">Entity</th>
+                <th style="text-align:left;padding:6px 8px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;font-size:9.5px;">Target ID</th>
+                <th style="text-align:left;padding:6px 8px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;font-size:9.5px;">IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% activityFeed.forEach(function(a) { %>
+                <tr style="border-bottom:1px solid var(--ink-700);">
+                  <td style="padding:5px 8px;color:var(--ink-100);"><%= fmt.dateLong(a.createdAt) %></td>
+                  <td style="padding:5px 8px;">
+                    <span style="font-weight:600;color:<%= a.action === 'DELETE' ? 'var(--ruby)' : a.action === 'CREATE' ? 'var(--emerald)' : 'var(--gold-300)' %>;"><%= a.action %></span>
+                  </td>
+                  <td style="padding:5px 8px;color:var(--cream-100);"><%= a.entity %></td>
+                  <td style="padding:5px 8px;">
+                    <% if (a.entity === 'Booking' && a.entityId) { %>
+                      <a href="/admin/bookings/<%= a.entityId %>" style="color:var(--gold-300);text-decoration:none;font-family:var(--font-mono);font-size:10px;"><%= a.entityId.slice(-8) %></a>
+                    <% } else if (a.entityId) { %>
+                      <span style="color:var(--ink-100);font-size:10px;"><%= a.entityId.slice(-8) %></span>
+                    <% } else { %>
+                      <span style="color:var(--ink-300);">—</span>
+                    <% } %>
+                  </td>
+                  <td style="padding:5px 8px;color:var(--ink-200);font-size:9.5px;"><%= a.ip || '—' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+    <% } %>
   <% } %>
 </div>
 

@@ -251,6 +251,30 @@ router.post(
   }),
 );
 
+// Stage 202 — jemaah picks a pickup point from the S196 list
+router.post(
+  '/api/saya/bookings/:id/pickup',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    const { setMyBookingPickup } = await import('../services/bookingPickupChoice.js');
+    try {
+      const r = await setMyBookingPickup({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        userId: req.user.id,
+        bookingId: req.params.id,
+        pickupId: req.body?.pickupId,
+      });
+      res.json(r);
+    } catch (err) {
+      const status = typeof err?.status === 'number' ? err.status : 400;
+      res.status(status).json({
+        error: { message: err?.message || 'Gagal', code: err?.code || 'ERROR' },
+      });
+    }
+  }),
+);
+
 router.post(
   '/api/saya/documents',
   ...requireJemaah,

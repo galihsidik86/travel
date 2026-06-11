@@ -376,6 +376,15 @@ router.post(
 );
 
 router.post(
+  '/send-passport-renewal',
+  asyncHandler(async (_req, res) => {
+    const { sendPassportRenewalReminders } = await import('../services/passportRenewalReminder.js');
+    const result = await runJob('send-passport-renewal', () => sendPassportRenewalReminders({}));
+    res.json(result);
+  }),
+);
+
+router.post(
   '/scan-agent-dormancy',
   asyncHandler(async (_req, res) => {
     const result = await runJob('scan-agent-dormancy', () => scanAgentDormancy({}));

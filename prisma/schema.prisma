@@ -160,6 +160,7 @@ enum NotificationType {
   STATEMENT_UNREAD_NUDGE // soft nudge when agent has unopened statements in last 3 months → WA (Stage 163)
   PAYMENT_REMINDER // due-soon reminder for jemaah with unpaid balance < 14d to departure → WA + email (Stage 172)
   DOC_EXPIRING_SOON // tracked doc expiresAt < 30d → email jemaah (Stage 173)
+  PASSPORT_RENEWAL_REMINDER // JemaahProfile.passportExpiry < 90d → email + WA jemaah (Stage 203)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -1241,6 +1242,13 @@ model Booking {
   roomId String?
   room   Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
 
+  // Stage 202 — pickup point choice (S196). Jemaah picks one from the
+  // paket's pickup list after LUNAS; admin sees aggregate on manifest.
+  // SetNull on PaketPickup delete so removing an obsolete pickup falls
+  // back to "TBD" rather than cascading the booking away.
+  pickupId String?
+  pickup   PaketPickup? @relation(fields: [pickupId], references: [id], onDelete: SetNull)
+
   kelas    KamarClass
   paxCount Int        @default(1)
   notes    String?    @db.Text
@@ -1671,6 +1679,8 @@ model PaketPickup {
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  bookings   Booking[]
 
   @@index([paketId])
 }
