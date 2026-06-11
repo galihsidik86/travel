@@ -1603,6 +1603,27 @@ model JobRun {
   @@index([startedAt])
 }
 
+// Stage 179 — single-row shared note for admin team. Use id='singleton'
+// so we can always upsert by a known PK rather than tracking a row id.
+model AdminTeamNote {
+  id             String   @id @default("singleton")
+  body           String?  @db.Text
+  updatedById    String?
+  updatedByEmail String?  @db.VarChar(190)
+  updatedAt      DateTime @default(now()) @updatedAt
+}
+
+// Stage 180 — reusable note templates for the booking notes textarea.
+// Admin maintains a small list of common phrases (lansia, mahram, etc).
+model BookingNoteTemplate {
+  id        String   @id @default(cuid())
+  name      String   @unique @db.VarChar(80)
+  body      String   @db.Text
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // ─── Audit (permanent, no deletes) ───────────────────────────
 
 model AuditLog {

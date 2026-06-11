@@ -131,6 +131,144 @@ export async function assignBookingToRoom({ req, actor, bookingId, roomId }) {
 }
 
 /**
+ * Stage 178 — swap two bookings' room assignments in one transaction.
+ * Saves the 4-step manual flow (unassign A, unassign B, reassign each).
+ *
+ * Both bookings stay on the same paket — cross-paket swap doesn't
+ * make operational sense and would muddy the audit trail. Capacity
+ * is validated symmetrically: after the swap, neither destination
+ * room should overflow.
+ *
+ * Edge cases:
+ *   - One booking has no room → "swap" promotes the other to its
+ *     emptied slot (handled by the symmetric assignment).
+ *   - Same kelas required (mirrors single-assign rule).
+ *   - Booking with status CANCELLED/REFUNDED rejected (closed
+ *     bookings shouldn't be touched).
+ *   - No-op (same room) returns without writing.
+ */
+export async function swapBookingRooms({ req, actor, bookingIdA, bookingIdB }) {
+  if (!bookingIdA || !bookingIdB || bookingIdA === bookingIdB) {
+    throw new HttpError(400, 'Pilih dua booking yang berbeda', 'BAD_SWAP_PAIR');
+  }
+  const [a, b] = await Promise.all([
+    db.booking.findUnique({
+      where: { id: bookingIdA },
+      select: { id: true, bookingNo: true, status: true, paxCount: true,
+        kelas: true, paketId: true, roomId: true },
+    }),
+    db.booking.findUnique({
+      where: { id: bookingIdB },
+      select: { id: true, bookingNo: true, status: true, paxCount: true,
+        kelas: true, paketId: true, roomId: true },
+    }),
+  ]);
+  if (!a || !b) throw new HttpError(404, 'Salah satu booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+  if (a.paketId !== b.paketId) {
+    throw new HttpError(400, 'Booking ada di paket berbeda — swap hanya antar booking pada paket yang sama', 'PAKET_MISMATCH');
+  }
+  for (const x of [a, b]) {
+    if (x.status === 'CANCELLED' || x.status === 'REFUNDED') {
+      throw new HttpError(409, `Booking ${x.bookingNo} sudah cancelled/refunded`, 'BOOKING_CLOSED');
+    }
+  }
+  if (a.roomId === b.roomId) {
+    // Both in the same room (or both unassigned) → swap is a no-op
+    return { swapped: false, reason: 'same_room' };
+  }
+
+  // Load destination rooms + their current occupants. After swap, A
+  // goes to roomB and vice versa.
+  const [roomA, roomB] = await Promise.all([
+    a.roomId
+      ? db.room.findUnique({
+          where: { id: a.roomId },
+          include: {
+            bookings: {
+              where: { status: { notIn: ['CANCELLED', 'REFUNDED'] } },
+              select: { id: true, paxCount: true },
+            },
+          },
+        })
+      : null,
+    b.roomId
+      ? db.room.findUnique({
+          where: { id: b.roomId },
+          include: {
+            bookings: {
+              where: { status: { notIn: ['CANCELLED', 'REFUNDED'] } },
+              select: { id: true, paxCount: true },
+            },
+          },
+        })
+      : null,
+  ]);
+
+  // Validate kelas on the destination of each booking.
+  if (roomB && a.kelas !== roomB.kelas) {
+    throw new HttpError(409,
+      `Booking ${a.bookingNo} kelas ${a.kelas} tidak cocok dengan kamar ${roomB.roomNo} (${roomB.kelas})`,
+      'KELAS_MISMATCH');
+  }
+  if (roomA && b.kelas !== roomA.kelas) {
+    throw new HttpError(409,
+      `Booking ${b.bookingNo} kelas ${b.kelas} tidak cocok dengan kamar ${roomA.roomNo} (${roomA.kelas})`,
+      'KELAS_MISMATCH');
+  }
+
+  // Capacity check — count occupants of each destination room
+  // EXCLUDING the two bookings being swapped (they cancel each other).
+  const occupancyAfter = (room, incoming) => {
+    if (!room) return 0;
+    const others = room.bookings.filter(
+      (x) => x.id !== a.id && x.id !== b.id,
+    ).reduce((acc, x) => acc + x.paxCount, 0);
+    return others + incoming;
+  };
+  if (roomB && occupancyAfter(roomB, a.paxCount) > roomB.capacity) {
+    throw new HttpError(409,
+      `Setelah swap, kamar ${roomB.roomNo} akan over-kapasitas`,
+      'CAPACITY_EXCEEDED');
+  }
+  if (roomA && occupancyAfter(roomA, b.paxCount) > roomA.capacity) {
+    throw new HttpError(409,
+      `Setelah swap, kamar ${roomA.roomNo} akan over-kapasitas`,
+      'CAPACITY_EXCEEDED');
+  }
+
+  await db.$transaction(async (tx) => {
+    // Two-phase swap to avoid hitting any per-row constraint mid-swap:
+    // 1) detach A
+    await tx.booking.update({ where: { id: a.id }, data: { roomId: null } });
+    // 2) attach B to A's old room
+    await tx.booking.update({ where: { id: b.id }, data: { roomId: a.roomId } });
+    // 3) attach A to B's old room
+    await tx.booking.update({ where: { id: a.id }, data: { roomId: b.roomId } });
+  });
+
+  // One audit row per booking — the timeline filter on
+  // /admin/bookings/:id picks both up under the booking's own thread.
+  await Promise.all([
+    audit({
+      req, actor, action: 'UPDATE', entity: 'Booking', entityId: a.id,
+      before: { roomId: a.roomId },
+      after: { roomId: b.roomId, swap: true, swappedWith: b.bookingNo },
+    }),
+    audit({
+      req, actor, action: 'UPDATE', entity: 'Booking', entityId: b.id,
+      before: { roomId: b.roomId },
+      after: { roomId: a.roomId, swap: true, swappedWith: a.bookingNo },
+    }),
+  ]);
+
+  return {
+    swapped: true,
+    a: { id: a.id, bookingNo: a.bookingNo, newRoomId: b.roomId },
+    b: { id: b.id, bookingNo: b.bookingNo, newRoomId: a.roomId },
+  };
+}
+
+/**
  * Remove a booking from its room (slot back to pool).
  */
 export async function unassignBooking({ req, actor, bookingId }) {

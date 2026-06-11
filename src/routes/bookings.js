@@ -214,6 +214,81 @@ router.post(
 );
 
 // ── GET /admin/bookings/:id ──────────────────────────────────
+// ── Stage 180 — booking note templates CRUD ──────────────────
+// Listing readable by any VIEW role so the dropdown populates for
+// MANAJER_OPS + KASIR too. Mutations gated to OWNER+SUPERADMIN.
+const NOTE_TPL_EDIT_ROLES = ['OWNER', 'SUPERADMIN'];
+
+router.get(
+  '/note-templates',
+  requireRole(...VIEW_ROLES),
+  asyncHandler(async (req, res) => {
+    const { listNoteTemplates } = await import('../services/bookingNoteTemplates.js');
+    const templates = await listNoteTemplates();
+    const editable = NOTE_TPL_EDIT_ROLES.includes(req.user.role);
+    res.render('booking-note-templates', {
+      user: req.user, templates, editable,
+      flash: {
+        ok: req.query.ok || null,
+        err: req.query.err ? decodeURIComponent(req.query.err) : null,
+      },
+    });
+  }),
+);
+
+router.post(
+  '/note-templates',
+  requireRole(...NOTE_TPL_EDIT_ROLES),
+  asyncHandler(async (req, res) => {
+    const { createNoteTemplate } = await import('../services/bookingNoteTemplates.js');
+    try {
+      await createNoteTemplate({
+        req, actor: actorFrom(req),
+        input: req.body || {},
+      });
+      res.redirect('/admin/bookings/note-templates?ok=created');
+    } catch (err) {
+      const msg = err?.issues?.[0]?.message || err?.message || 'Gagal simpan';
+      res.redirect('/admin/bookings/note-templates?err=' + encodeURIComponent(msg));
+    }
+  }),
+);
+
+router.post(
+  '/note-templates/:id',
+  requireRole(...NOTE_TPL_EDIT_ROLES),
+  asyncHandler(async (req, res) => {
+    const { updateNoteTemplate } = await import('../services/bookingNoteTemplates.js');
+    try {
+      await updateNoteTemplate({
+        req, actor: actorFrom(req),
+        id: req.params.id, input: req.body || {},
+      });
+      res.redirect('/admin/bookings/note-templates?ok=updated');
+    } catch (err) {
+      const msg = err?.issues?.[0]?.message || err?.message || 'Gagal simpan';
+      res.redirect('/admin/bookings/note-templates?err=' + encodeURIComponent(msg));
+    }
+  }),
+);
+
+router.post(
+  '/note-templates/:id/delete',
+  requireRole(...NOTE_TPL_EDIT_ROLES),
+  asyncHandler(async (req, res) => {
+    const { deleteNoteTemplate } = await import('../services/bookingNoteTemplates.js');
+    try {
+      await deleteNoteTemplate({
+        req, actor: actorFrom(req), id: req.params.id,
+      });
+      res.redirect('/admin/bookings/note-templates?ok=deleted');
+    } catch (err) {
+      const msg = err?.message || 'Gagal hapus';
+      res.redirect('/admin/bookings/note-templates?err=' + encodeURIComponent(msg));
+    }
+  }),
+);
+
 router.get(
   '/:id',
   requireRole(...VIEW_ROLES),
@@ -242,11 +317,19 @@ router.get(
     const { getBookingActivityFeed } = await import('../services/bookingActivity.js');
     const activityFeed = await getBookingActivityFeed(booking.id)
       .catch((err) => { console.warn('[booking-detail] activity feed failed:', err?.message || err); return null; });
+    // Stage 180 — note templates for the quick-insert dropdown above the
+    // notes textarea. Only loaded when the viewer can edit notes.
+    let noteTemplates = [];
+    if (canEditNotes) {
+      const { listNoteTemplates } = await import('../services/bookingNoteTemplates.js');
+      noteTemplates = await listNoteTemplates()
+        .catch((err) => { console.warn('[booking-detail] note templates failed:', err?.message || err); return []; });
+    }
     res.render('booking-detail', {
       user: req.user, b: booking,
       canCancel, canRefund, canEditNotes, canTransfer, agents,
       paymentIntents, canCancelIntent,
-      activityFeed,
+      activityFeed, noteTemplates,
     });
   }),
 );

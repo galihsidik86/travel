@@ -307,6 +307,15 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getCancelReasonBreakdown failed:', err?.message || err);
   }
 
+  // Stage 179 — admin team shared note (single-row).
+  let adminTeamNote = null;
+  try {
+    const { getAdminTeamNote } = await import('./adminTeamNote.js');
+    adminTeamNote = await getAdminTeamNote();
+  } catch (err) {
+    console.warn('[admin-overview] getAdminTeamNote failed:', err?.message || err);
+  }
+
   // Stage 40 — per-paket forecast (14d velocity → days-to-full).
   let paketForecasts = null;
   try {
@@ -403,6 +412,7 @@ export async function getAdminOverview(opts = {}) {
     refundAnalytics,
     noShowAnalytics,
     cancelReasonBreakdown,
+    adminTeamNote,
     paketForecasts,
     komisiAging,
     manifestClosing,

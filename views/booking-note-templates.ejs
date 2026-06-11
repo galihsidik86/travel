@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Template Catatan Booking</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 18px; margin-bottom: 28px;
+    border-bottom: var(--hairline-soft);
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+  }
+  .topbar .who { color: var(--gold-300); }
+  .topbar a, .topbar button {
+    background: transparent; border: var(--hairline-soft);
+    color: var(--ink-100); cursor: pointer; text-decoration: none;
+    padding: 6px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .topbar a:hover, .topbar button:hover { color: var(--gold-300); border-color: var(--gold-300); }
+
+  .head h1 {
+    font-family: var(--font-display); font-size: 32px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 em { font-style: italic; color: var(--gold-300); }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-200);
+    letter-spacing: 0.08em; margin-top: 8px;
+  }
+  .head { margin-bottom: 28px; }
+
+  .flash-ok, .flash-err {
+    border-radius: var(--r-sm); padding: 11px 14px; margin-bottom: 18px;
+    font-family: var(--font-mono); font-size: 11.5px;
+  }
+  .flash-ok { background: rgba(74,143,109,0.10); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash-err { background: rgba(196,72,72,0.10); border: 1px solid var(--ruby); color: var(--ruby); }
+
+  .panel {
+    background: var(--ink-900); border: var(--hairline);
+    border-radius: var(--r-md); padding: 22px 24px; margin-bottom: 18px;
+  }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 18px;
+    color: var(--cream-100); margin: 0 0 4px; font-weight: 500;
+  }
+  .panel .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); margin-bottom: 18px; line-height: 1.6;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; }
+  thead th {
+    text-align: left; padding: 10px 12px;
+    background: var(--ink-1000); color: var(--ink-200);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    font-size: 10px; font-weight: 500;
+    border-bottom: var(--hairline);
+  }
+  tbody td {
+    padding: 10px 12px; color: var(--cream-100);
+    border-bottom: var(--hairline-soft); vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+
+  input[type="text"], input[type="number"], textarea {
+    width: 100%; background: var(--ink-1000); color: var(--cream-100);
+    border: var(--hairline-soft); padding: 7px 9px;
+    border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11.5px;
+  }
+  input[type="number"] { max-width: 80px; }
+  textarea { resize: vertical; min-height: 50px; }
+
+  .btn-save {
+    background: var(--gold-300); border: 0; color: var(--ink-1000);
+    padding: 6px 14px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; font-weight: 600;
+  }
+  .btn-del {
+    background: transparent; border: 1px solid var(--ruby);
+    color: var(--ruby); padding: 6px 12px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.12em; cursor: pointer;
+  }
+
+  .empty {
+    color: var(--ink-300); font-style: italic; padding: 16px 0; text-align: center;
+  }
+</style>
+</head>
+<body data-screen-label="07 Booking Note Templates">
+<div class="wrap">
+
+  <div class="topbar">
+    <div>ADMIN · <span class="who"><%= user.email %></span></div>
+    <div style="display:flex;gap:8px;">
+      <a href="/admin/bookings">← Cari booking</a>
+      <a href="/admin">Dashboard</a>
+    </div>
+  </div>
+
+  <div class="head">
+    <h1>Template <em>catatan booking</em></h1>
+    <div class="sub">Frase umum yang sering ditulis di catatan booking (mis. preferensi, mahram, dll). Pilih dari dropdown saat edit catatan.</div>
+  </div>
+
+  <% if (flash.ok) { %>
+    <div class="flash-ok">✓
+      <% if (flash.ok === 'created')  { %>Template berhasil ditambahkan.<% } %>
+      <% if (flash.ok === 'updated')  { %>Template tersimpan.<% } %>
+      <% if (flash.ok === 'deleted')  { %>Template dihapus.<% } %>
+    </div>
+  <% } %>
+  <% if (flash.err) { %>
+    <div class="flash-err">✗ <%= flash.err %></div>
+  <% } %>
+
+  <% if (editable) { %>
+    <div class="panel">
+      <h3>Tambah template baru</h3>
+      <div class="sub">Nama unik, body bisa multi-baris (akan disisipkan apa adanya).</div>
+      <form method="POST" action="/admin/bookings/note-templates">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:200px;">Nama</th>
+              <th>Body</th>
+              <th style="width:90px;">Urutan</th>
+              <th style="width:110px;text-align:right;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="text" name="name" required minlength="2" maxlength="80" placeholder="mis. lansia, mahram, diet"></td>
+              <td><textarea name="body" required maxlength="2000" rows="2" placeholder="Body yang akan disisipkan ke textarea catatan…"></textarea></td>
+              <td><input type="number" name="sortOrder" min="0" max="9999" value="0"></td>
+              <td style="text-align:right;"><button type="submit" class="btn-save">+ Tambah</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </form>
+    </div>
+  <% } %>
+
+  <div class="panel">
+    <h3>Template (<%= templates.length %>)</h3>
+    <% if (templates.length === 0) { %>
+      <div class="empty">Belum ada template. Tambahkan yang pertama di atas.</div>
+    <% } else { %>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:200px;">Nama</th>
+            <th>Body</th>
+            <th style="width:90px;">Urutan</th>
+            <% if (editable) { %><th style="width:160px;text-align:right;">Aksi</th><% } %>
+          </tr>
+        </thead>
+        <tbody>
+          <% templates.forEach((t) => { %>
+            <% if (editable) { %>
+              <tr>
+                <form method="POST" action="/admin/bookings/note-templates/<%= t.id %>" style="display:contents;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <td><input type="text" name="name" required minlength="2" maxlength="80" value="<%= t.name %>"></td>
+                  <td><textarea name="body" required maxlength="2000" rows="2"><%= t.body %></textarea></td>
+                  <td><input type="number" name="sortOrder" min="0" max="9999" value="<%= t.sortOrder %>"></td>
+                  <td style="text-align:right;">
+                    <button type="submit" class="btn-save">Simpan</button>
+                  </td>
+                </form>
+              </tr>
+              <tr>
+                <td colspan="3" style="border-top:0;color:var(--ink-300);font-size:10px;">
+                  Created <%= fmt.dateLong(t.createdAt) %> · Updated <%= fmt.dateLong(t.updatedAt) %>
+                </td>
+                <td style="text-align:right;border-top:0;">
+                  <form method="POST" action="/admin/bookings/note-templates/<%= t.id %>/delete" style="display:inline;"
+                        onsubmit="return confirm('Hapus template &quot;<%= t.name %>&quot;?');">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn-del">Hapus</button>
+                  </form>
+                </td>
+              </tr>
+            <% } else { %>
+              <tr>
+                <td><strong><%= t.name %></strong></td>
+                <td><pre style="margin:0;font-family:var(--font-mono);font-size:11px;white-space:pre-wrap;"><%= t.body %></pre></td>
+                <td><%= t.sortOrder %></td>
+              </tr>
+            <% } %>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+</div>
+</body>
+</html>

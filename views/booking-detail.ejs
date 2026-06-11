@@ -403,6 +403,36 @@
             <% if (canEditNotes) { %>
               <form method="POST" action="/admin/bookings/<%= b.id %>/notes" class="notes-form">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <%# Stage 180 — quick-insert dropdown for common note phrases.
+                    Hidden when admin hasn't created any templates yet. %>
+                <% if (typeof noteTemplates !== 'undefined' && noteTemplates.length > 0) { %>
+                  <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                    <select id="note-template-picker" style="background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:4px 8px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;">
+                      <option value="">📌 Sisipkan template…</option>
+                      <% noteTemplates.forEach((t) => { %>
+                        <option value="<%- JSON.stringify(t.body) %>"><%= t.name %></option>
+                      <% }) %>
+                    </select>
+                    <a href="/admin/bookings/note-templates" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);text-decoration:none;letter-spacing:0.08em;">kelola →</a>
+                  </div>
+                  <script>
+                    (function(){
+                      const sel = document.getElementById('note-template-picker');
+                      const ta = document.getElementById('notesTextarea');
+                      if (!sel || !ta) return;
+                      sel.addEventListener('change', (e) => {
+                        if (!e.target.value) return;
+                        let body;
+                        try { body = JSON.parse(e.target.value); } catch { return; }
+                        const sep = ta.value && !ta.value.endsWith('\n') ? '\n' : '';
+                        ta.value = ta.value + sep + body;
+                        ta.focus();
+                        ta.setSelectionRange(ta.value.length, ta.value.length);
+                        sel.value = '';
+                      });
+                    })();
+                  </script>
+                <% } %>
                 <div class="notes-form__wrap" style="position:relative;">
                   <textarea name="notes" id="notesTextarea" class="input" maxlength="2000" rows="2"
                             placeholder="Catatan internal — mis. preferensi makanan, kontak alternatif, dst. Tag @email@religio.pro untuk notif."><%= b.notes || '' %></textarea>

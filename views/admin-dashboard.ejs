@@ -658,6 +658,55 @@
         </div>
       </header>
 
+      <%# Stage 179 — admin team shared note. Always visible (even when
+          empty) so admin sees the textbox; collapse to single-line read
+          when populated to keep dashboard clean. Edit toggle expands. %>
+      <div id="team-note-panel" style="background:var(--ink-1000);border:1px solid var(--gold-300);border-radius:var(--r-md);padding:14px 16px;margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.14em;color:var(--gold-300);text-transform:uppercase;margin-bottom:6px;">📌 Catatan tim admin</div>
+            <% if (adminTeamNote && adminTeamNote.body) { %>
+              <div id="team-note-read" style="font-family:var(--font-mono);font-size:12px;color:var(--cream-100);line-height:1.6;white-space:pre-wrap;"><%= adminTeamNote.body %></div>
+              <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);margin-top:6px;">
+                Terakhir di-update oleh <%= adminTeamNote.updatedByEmail || '—' %>
+                · <%= fmt.dateLong(adminTeamNote.updatedAt) %>
+              </div>
+            <% } else { %>
+              <div id="team-note-read" style="font-family:var(--font-mono);font-size:12px;color:var(--ink-300);font-style:italic;">Belum ada catatan. Klik EDIT untuk menulis pengumuman / koordinasi tim.</div>
+            <% } %>
+          </div>
+          <button type="button" id="team-note-edit-btn" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;">Edit</button>
+        </div>
+        <form id="team-note-form" method="POST" action="/admin/team-note" style="display:none;margin-top:12px;">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <textarea name="body" maxlength="4000" rows="4" placeholder="Tulis pengumuman / koordinasi tim di sini…" style="width:100%;background:var(--ink-900);border:1px solid var(--hairline-soft);color:var(--cream-100);padding:10px 12px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;resize:vertical;"><%= adminTeamNote?.body || '' %></textarea>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+            <button type="button" id="team-note-cancel" style="background:transparent;border:1px solid var(--hairline-soft);color:var(--ink-100);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;">Batal</button>
+            <button type="submit" style="background:var(--gold-300);border:0;color:var(--ink-1000);padding:6px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;font-weight:600;">Simpan</button>
+          </div>
+        </form>
+      </div>
+      <script>
+        (function() {
+          const ebtn = document.getElementById('team-note-edit-btn');
+          const cbtn = document.getElementById('team-note-cancel');
+          const form = document.getElementById('team-note-form');
+          const read = document.getElementById('team-note-read');
+          if (!ebtn || !form) return;
+          ebtn.addEventListener('click', () => {
+            form.style.display = 'block';
+            read.style.display = 'none';
+            ebtn.style.display = 'none';
+            form.querySelector('textarea')?.focus();
+          });
+          cbtn.addEventListener('click', () => {
+            form.style.display = 'none';
+            read.style.display = '';
+            ebtn.style.display = '';
+          });
+        })();
+      </script>
+
       <div class="kpi-grid">
         <article class="kpi kpi--highlight">
           <div class="kpi__head">
@@ -2935,6 +2984,7 @@
                                 <div class="sub"><%= b.bookingNo %></div>
                               </div>
                               <% if (i === 0) { %>
+                                <button type="button" data-swap-toggle data-booking-id="<%= b.id %>" data-booking-no="<%= b.bookingNo %>" data-name="<%= b.jemaah.fullName %>" data-room-no="<%= r.roomNo %>" title="Pilih untuk swap" style="background:transparent;border:0;color:var(--gold-300);cursor:pointer;font-size:13px;padding:0 4px;">⇄</button>
                                 <button type="button" data-unassign data-booking-id="<%= b.id %>" title="Lepas dari kamar">✕</button>
                               <% } %>
                             </div>
@@ -3331,6 +3381,70 @@
         alert('Tidak dapat menghubungi server');
       }
     });
+  });
+
+  // Stage 178 — two-click swap. First click selects source (highlight),
+  // second click on a different booking swaps the rooms via /api/bunking/swap.
+  let swapSource = null;
+  const swapBanner = document.createElement('div');
+  swapBanner.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink-1000);border:1px solid var(--gold-300);color:var(--cream-100);padding:10px 16px;border-radius:var(--r-md);font-family:var(--font-mono);font-size:12px;z-index:1000;display:none;';
+  document.body.appendChild(swapBanner);
+  function clearSwap() {
+    swapSource = null;
+    swapBanner.style.display = 'none';
+    document.querySelectorAll('[data-swap-toggle]').forEach((b) => {
+      b.style.background = 'transparent';
+      b.style.color = 'var(--gold-300)';
+    });
+  }
+  document.querySelectorAll('[data-swap-toggle]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.bookingId;
+      if (!swapSource) {
+        swapSource = {
+          id, bookingNo: btn.dataset.bookingNo,
+          name: btn.dataset.name, roomNo: btn.dataset.roomNo,
+        };
+        btn.style.background = 'var(--gold-300)';
+        btn.style.color = 'var(--ink-1000)';
+        swapBanner.innerHTML = '⇄ Swap mode: <strong>' + swapSource.bookingNo + '</strong> (' + swapSource.name + ' · kamar ' + swapSource.roomNo + ') → klik booking lain untuk swap, atau <a href="#" data-swap-cancel style="color:var(--ruby);">batal</a>';
+        swapBanner.style.display = 'block';
+        return;
+      }
+      if (id === swapSource.id) {
+        // Click on same booking → cancel
+        clearSwap();
+        return;
+      }
+      // Second pick — swap
+      if (!confirm('Swap kamar antara ' + swapSource.bookingNo + ' dan ' + btn.dataset.bookingNo + '?')) {
+        return;
+      }
+      try {
+        const r = await fetch('/api/bunking/swap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingIdA: swapSource.id, bookingIdB: id }),
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          alert(j?.error?.message || 'Gagal swap');
+          clearSwap();
+          return;
+        }
+        location.reload();
+      } catch {
+        alert('Tidak dapat menghubungi server');
+        clearSwap();
+      }
+    });
+  });
+  swapBanner.addEventListener('click', (e) => {
+    if (e.target.matches('[data-swap-cancel]')) {
+      e.preventDefault();
+      clearSwap();
+    }
   });
   <% } %>
 </script>

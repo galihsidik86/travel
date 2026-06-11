@@ -190,6 +190,25 @@ router.post(
   }),
 );
 
+// Stage 179 — admin team shared note (single-row config).
+router.post(
+  '/team-note',
+  asyncHandler(async (req, res) => {
+    const { updateAdminTeamNote } = await import('../services/adminTeamNote.js');
+    try {
+      await updateAdminTeamNote({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        body: req.body?.body,
+      });
+      res.redirect('/admin?ok=team_note');
+    } catch (err) {
+      const msg = err?.message || 'Gagal simpan';
+      res.redirect('/admin?err=' + encodeURIComponent(msg));
+    }
+  }),
+);
+
 // Stage 84/85 — per-URL click heatmap drill-down for one notif type.
 // ?channel=EMAIL|WA narrows the lens; omit for combined view.
 router.get(

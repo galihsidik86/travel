@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { assignBookingToRoom, unassignBooking } from '../services/bunking.js';
+import { assignBookingToRoom, unassignBooking, swapBookingRooms } from '../services/bunking.js';
 
 const router = Router();
 
@@ -41,6 +41,24 @@ router.post(
       bookingId,
     });
     res.json({ booking });
+  }),
+);
+
+// Stage 178 — swap two bookings' room assignments in one transaction.
+const SwapSchema = z.object({
+  bookingIdA: z.string().min(1),
+  bookingIdB: z.string().min(1),
+});
+router.post(
+  '/swap',
+  asyncHandler(async (req, res) => {
+    const { bookingIdA, bookingIdB } = SwapSchema.parse(req.body);
+    const result = await swapBookingRooms({
+      req,
+      actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+      bookingIdA, bookingIdB,
+    });
+    res.json(result);
   }),
 );
 
