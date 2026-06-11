@@ -2776,6 +2776,17 @@
                     <%= b.jemaah.fullName %>
                   </a>
                   <div class="sx"><%= b.jemaah.phone %></div>
+                  <%# Stage 187 — crew per-jemaah notes (read-only on admin). %>
+                  <% const crewNotes = manifest.crewNotesByJemaah?.[b.jemaahId]; %>
+                  <% if (crewNotes && crewNotes.length > 0) { %>
+                    <div style="margin-top:6px;padding:6px 8px;background:rgba(212,175,55,0.06);border-left:2px solid var(--gold-300);border-radius:0 var(--r-sm) var(--r-sm) 0;font-family:var(--font-mono);font-size:10px;color:var(--cream-100);">
+                      <% crewNotes.forEach((n) => { %>
+                        <div style="margin-bottom:3px;">
+                          📝 <em style="color:var(--gold-300);"><%= n.authorName %>:</em> <%= n.body.length > 120 ? n.body.slice(0, 120) + '…' : n.body %>
+                        </div>
+                      <% }) %>
+                    </div>
+                  <% } %>
                 </td>
                 <td>
                   <div class="doc-pills">

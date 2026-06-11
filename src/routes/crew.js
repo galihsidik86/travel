@@ -75,7 +75,34 @@ router.get(
   asyncHandler(async (req, res) => {
     const manifest = await getAssignedManifest({ userId: req.user.id, slug: req.params.slug });
     if (!manifest) throw new HttpError(404, 'Paket tidak ditemukan atau Anda tidak di-assign', 'NOT_ASSIGNED');
-    res.render('crew-manifest', { user: req.user, paket: manifest });
+    // Stage 187 — load this crew's own notes per jemaah so the manifest
+    // shows the existing body in the inline edit textarea.
+    const { db } = await import('../lib/db.js');
+    const myNotes = await db.crewJemaahNote.findMany({
+      where: { paketId: manifest.id, crewUserId: req.user.id },
+      select: { jemaahId: true, body: true, updatedAt: true },
+    });
+    const myNotesByJemaah = Object.fromEntries(myNotes.map((n) => [n.jemaahId, n]));
+    res.render('crew-manifest', { user: req.user, paket: manifest, myNotesByJemaah });
+  }),
+);
+
+// Stage 187 — POST per-jemaah note. Empty body deletes the existing
+// row; non-empty upserts the (paket, jemaah, crew) triple.
+router.post(
+  '/paket/:slug/note',
+  asyncHandler(async (req, res) => {
+    const { saveCrewJemaahNote } = await import('../services/crewJemaahNotes.js');
+    try {
+      await saveCrewJemaahNote({
+        userId: req.user.id, paketSlug: req.params.slug,
+        jemaahId: req.body?.jemaahId, body: req.body?.body,
+      });
+      res.redirect(`/crew/paket/${encodeURIComponent(req.params.slug)}?ok=note_saved`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal simpan';
+      res.redirect(`/crew/paket/${encodeURIComponent(req.params.slug)}?err=${encodeURIComponent(msg)}`);
+    }
   }),
 );
 

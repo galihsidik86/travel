@@ -63,9 +63,11 @@ router.get(
     // accounts" bubble to the top, NEVER-logged-in lands last).
     const rawSort = (req.query.sortBy || 'default').toLowerCase();
     const sortBy = rawSort === 'lastlogin' ? 'lastLogin' : 'default';
-    const users = await listUsers({ search, role, status, deleted: validDeleted, sortBy });
+    // Stage 188 — AGEN tier filter (BRONZE/SILVER/GOLD/PLATINUM).
+    const tier = (req.query.tier || 'ALL').toString().toUpperCase();
+    const users = await listUsers({ search, role, status, deleted: validDeleted, sortBy, tier });
     res.render('users-list', {
-      user: req.user, users, search, role, status, META, deleted: validDeleted, sortBy,
+      user: req.user, users, search, role, status, META, deleted: validDeleted, sortBy, tier,
       // Stage 151 — flash from /admin/agents/:slug/statements/regenerate
       flash: {
         ok: req.query.ok || null,

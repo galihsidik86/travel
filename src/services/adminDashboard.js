@@ -598,7 +598,19 @@ export async function getManifestForPaket(paketSlug) {
     b.jemaah.docPills = pillsForJemaah(b.jemaah.documents || []);
   }
 
-  return { paket, bookings, statusCounts };
+  // Stage 187 — crew per-jemaah notes roll-up (read-only on admin
+  // manifest). Each note carries the crew author's name so admin
+  // sees who left it. Best-effort — failure to load notes shouldn't
+  // 500 the whole manifest page.
+  let crewNotesByJemaah = {};
+  try {
+    const { getAllCrewNotesForPaket } = await import('./crewJemaahNotes.js');
+    crewNotesByJemaah = await getAllCrewNotesForPaket({ paketId: paket.id });
+  } catch (err) {
+    console.warn('[manifest] crew notes load failed:', err?.message || err);
+  }
+
+  return { paket, bookings, statusCounts, crewNotesByJemaah };
 }
 
 /**

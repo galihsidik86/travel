@@ -100,7 +100,13 @@ function guardEscalation(actor, targetRole) {
  *   DELETED           → `deletedAt: { not: null }`
  *   ALL               → no deletedAt filter
  */
-export async function listUsers({ search, role, status, deleted = 'ACTIVE', sortBy = 'default' } = {}) {
+// Stage 188 — known AGEN tier strings. Kept loose (admin can freeform
+// the tier in /admin/users/:id/edit so future tiers stay supported);
+// the filter validates against any non-empty value but the dropdown
+// surfaces the canonical four.
+const AGENT_TIERS = ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM'];
+
+export async function listUsers({ search, role, status, deleted = 'ACTIVE', sortBy = 'default', tier = 'ALL' } = {}) {
   const where = {};
   if (deleted === 'ACTIVE') where.deletedAt = null;
   else if (deleted === 'DELETED') where.deletedAt = { not: null };
@@ -112,6 +118,19 @@ export async function listUsers({ search, role, status, deleted = 'ACTIVE', sort
       { email: { contains: search } },
       { fullName: { contains: search } },
     ];
+  }
+  // Stage 188 — AGEN tier filter. Only meaningful when role is AGEN
+  // (others don't have an agent profile). Tier value is loose-match
+  // case-insensitive uppercase so a stored "gold" matches dropdown "GOLD".
+  if (tier && tier !== 'ALL') {
+    const t = String(tier).trim().toUpperCase();
+    if (t) {
+      where.agent = { tier: t };
+      // Implicit AGEN role narrow — without it the query would only match
+      // non-AGEN users who somehow have an AgentProfile, which doesn't
+      // happen, so it's safe to force the role too for clarity.
+      where.role = 'AGEN';
+    }
   }
   // Stage 177 — sortBy=lastLogin orders by lastLoginAt asc (NULL last
   // = "never logged in" lands at the very bottom — Prisma puts NULL
@@ -134,6 +153,8 @@ export async function listUsers({ search, role, status, deleted = 'ACTIVE', sort
     },
   });
 }
+
+export { AGENT_TIERS };
 
 /**
  * Stage 104 — undo a soft-delete. Sets `deletedAt = null`. Records an

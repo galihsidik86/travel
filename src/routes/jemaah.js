@@ -84,6 +84,26 @@ router.get(
   }),
 );
 
+// Stage 189 — reactivate an archived lead from the S59 hint panel.
+// Form POST + redirect-after-success so the panel re-renders without
+// the archived row.
+router.post(
+  '/:id/leads/:leadId/reactivate',
+  asyncHandler(async (req, res) => {
+    const { reactivateLead } = await import('../services/leads.js');
+    try {
+      await reactivateLead({
+        req, actor: actorFrom(req),
+        leadId: req.params.leadId,
+      });
+      res.redirect(`/admin/jemaah/${req.params.id}/edit?ok=lead_reactivated`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal reactivate';
+      res.redirect(`/admin/jemaah/${req.params.id}/edit?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
 // ── POST /admin/jemaah/:id (update) ──────────────────────────
 router.post(
   '/:id',

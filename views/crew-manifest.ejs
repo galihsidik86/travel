@@ -127,7 +127,10 @@
         </tr>
       </thead>
       <tbody>
-        <% paket.bookings.forEach(function(b) { %>
+        <% const okFlash = (typeof query !== 'undefined' && query?.ok === 'note_saved'); %>
+        <% paket.bookings.forEach(function(b) {
+             const myNote = (typeof myNotesByJemaah !== 'undefined') ? myNotesByJemaah[b.jemaah.id] : null;
+        %>
           <tr>
             <td>
               <div class="id"><%= b.bookingNo %></div>
@@ -159,6 +162,26 @@
                   <span class="doc-pill state-<%= p.state %>" title="<%= p.type %> · <%= p.state %>"><%= p.label %></span>
                 <% }) %>
               </div>
+            </td>
+          </tr>
+          <%# Stage 187 — per-jemaah note row. Always visible (even when
+              empty) so crew sees the textarea to start writing. %>
+          <tr>
+            <td colspan="6" style="padding-top:0;padding-bottom:14px;border-top:0;">
+              <details<%= myNote ? ' open' : '' %> style="margin-left:14px;">
+                <summary style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.06em;cursor:pointer;text-transform:uppercase;">
+                  📝 Catatan crew
+                  <% if (myNote) { %><span style="color:var(--gold-300);">· tersimpan <%= fmt.dateShort(myNote.updatedAt) %></span><% } %>
+                </summary>
+                <form method="POST" action="/crew/paket/<%= paket.slug %>/note" style="margin-top:8px;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="jemaahId" value="<%= b.jemaah.id %>">
+                  <textarea name="body" maxlength="2000" rows="2" placeholder="Tulis catatan tentang jemaah ini (kosongkan untuk hapus)…" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:8px 10px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11.5px;resize:vertical;"><%= myNote?.body || '' %></textarea>
+                  <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+                    <button type="submit" style="background:var(--gold-300);border:0;color:var(--ink-1000);padding:5px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-weight:600;">Simpan catatan</button>
+                  </div>
+                </form>
+              </details>
             </td>
           </tr>
         <% }) %>

@@ -245,6 +245,7 @@ model User {
   payoutsPaid       KomisiPayout[]     @relation("PayoutPaidBy")
   crewAssignments   PaketCrew[]        @relation("CrewAssignedToPaket")
   attendanceMarks   AttendanceMark[]   @relation("AttendanceMarkedBy")
+  crewJemaahNotes   CrewJemaahNote[]   @relation("CrewJemaahNoteAuthor")
   incidentsCreated  Incident[]         @relation("IncidentCreator")
   incidentsAcked    Incident[]         @relation("IncidentAcker")
   incidentsResolved Incident[]         @relation("IncidentResolver")
@@ -384,9 +385,10 @@ model JemaahProfile {
   notifWaConsentAt    DateTime?
   notifWaWithdrawnAt  DateTime?
 
-  bookings       Booking[]
-  documents      JemaahDocument[]
-  notifTypePrefs JemaahNotifPref[]
+  bookings        Booking[]
+  documents       JemaahDocument[]
+  notifTypePrefs  JemaahNotifPref[]
+  crewJemaahNotes CrewJemaahNote[]
 
   @@index([phone])
   @@index([passportExpiry])
@@ -524,6 +526,7 @@ model Paket {
   bookings        Booking[]
   rooms           Room[]
   crewAssignments PaketCrew[]
+  crewJemaahNotes CrewJemaahNote[]
   incidents       Incident[]
   agentOverrides  AgentPaketKomisi[]
   waitlist        PaketWaitlist[]
@@ -1627,6 +1630,26 @@ model BookingNoteTemplate {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Stage 187 — crew per-jemaah notes. Crew adds private notes per
+// (paket, jemaah) on the manifest. Composite unique on
+// (paketId, jemaahId, crewUserId) means each crew has at most one
+// note per jemaah per paket (re-saves upsert in place).
+model CrewJemaahNote {
+  id         String   @id @default(cuid())
+  paketId    String
+  paket      Paket    @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  jemaahId   String
+  jemaah     JemaahProfile @relation(fields: [jemaahId], references: [id], onDelete: Cascade)
+  crewUserId String
+  crewUser   User     @relation("CrewJemaahNoteAuthor", fields: [crewUserId], references: [id], onDelete: Cascade)
+  body       String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([paketId, jemaahId, crewUserId])
+  @@index([paketId, jemaahId])
 }
 
 // ─── Audit (permanent, no deletes) ───────────────────────────

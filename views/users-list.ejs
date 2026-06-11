@@ -139,8 +139,17 @@
       <option value="DELETED" <%= deleted === 'DELETED' ? 'selected' : '' %>>Soft-deleted</option>
       <option value="ALL"     <%= deleted === 'ALL'     ? 'selected' : '' %>>Semua (termasuk deleted)</option>
     </select>
+    <%# Stage 188 — AGEN tier filter. Implicitly narrows to role=AGEN
+        when set; shown next to deleted-filter for compactness. %>
+    <select class="input" name="tier" onchange="this.form.submit()" title="Filter agen tier">
+      <option value="ALL" <%= !tier || tier === 'ALL' ? 'selected' : '' %>>Semua tier</option>
+      <option value="BRONZE"  <%= tier === 'BRONZE'   ? 'selected' : '' %>>BRONZE</option>
+      <option value="SILVER"  <%= tier === 'SILVER'   ? 'selected' : '' %>>SILVER</option>
+      <option value="GOLD"    <%= tier === 'GOLD'     ? 'selected' : '' %>>GOLD</option>
+      <option value="PLATINUM"<%= tier === 'PLATINUM' ? 'selected' : '' %>>PLATINUM</option>
+    </select>
     <button type="submit" class="btn btn--ghost btn--sm">Filter</button>
-    <% if (search || role !== 'ALL' || status !== 'ALL' || deleted !== 'ACTIVE') { %>
+    <% if (search || role !== 'ALL' || status !== 'ALL' || deleted !== 'ACTIVE' || (tier && tier !== 'ALL')) { %>
       <a href="/admin/users" style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);text-decoration:none;letter-spacing:0.08em;">RESET</a>
     <% } %>
   </form>

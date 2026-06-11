@@ -428,6 +428,8 @@
             <th>Status terakhir</th>
             <th>Source</th>
             <th>Catatan</th>
+            <%# Stage 189 — Aktifkan kembali action %>
+            <th style="text-align:right;">Aksi</th>
           </tr>
         </thead>
         <tbody>
@@ -451,6 +453,17 @@
               </td>
               <td style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-100);">
                 <%= l.notes ? (l.notes.length > 100 ? l.notes.slice(0, 100) + '…' : l.notes) : '—' %>
+              </td>
+              <td style="text-align:right;">
+                <% if (l.status === 'CONVERTED') { %>
+                  <span style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);">terkunci</span>
+                <% } else { %>
+                  <form method="POST" action="/admin/jemaah/<%= target.id %>/leads/<%= l.id %>/reactivate" style="display:inline;"
+                        onsubmit="return confirm('Aktifkan kembali lead ini? Status akan kembali ke COLD.');">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:4px 10px;border-radius:var(--r-xs);font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">↻ Aktifkan</button>
+                  </form>
+                <% } %>
               </td>
             </tr>
           <% }) %>

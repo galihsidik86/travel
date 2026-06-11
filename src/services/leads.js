@@ -202,6 +202,50 @@ export async function deleteLead({ req, actor, agentId, leadId }) {
 }
 
 /**
+ * Stage 189 — reactivate an archived (soft-deleted) lead. Admin-side
+ * tool surfaced on /admin/jemaah/:id/edit's S59 archived-leads panel
+ * for the case "jemaah re-engaged after months, want to work them
+ * again with the prior context intact".
+ *
+ * Clears `deletedAt` + flips status back to COLD (a re-engagement
+ * is fresh contact, not a continuation of the prior WARM heat).
+ * Only LOST + non-terminal archived rows can be reactivated; CONVERTED
+ * rows are blocked (already became a booking) even if soft-deleted by
+ * the S57 prune sweep.
+ *
+ * No agent ownership check here — admin acts on behalf of the agent
+ * who originally owned the lead, and the row stays under the same
+ * `agentId`. RBAC enforced at the route layer.
+ */
+export async function reactivateLead({ req, actor, leadId }) {
+  const before = await db.lead.findUnique({
+    where: { id: leadId },
+    select: { id: true, fullName: true, status: true, deletedAt: true, agentId: true },
+  });
+  if (!before) {
+    throw new HttpError(404, 'Lead tidak ditemukan', 'LEAD_NOT_FOUND');
+  }
+  if (before.deletedAt == null) {
+    // Already active — idempotent return (no audit pollution)
+    return { reactivated: false, reason: 'already_active', lead: before };
+  }
+  if (before.status === 'CONVERTED') {
+    throw new HttpError(409, 'Lead sudah CONVERTED — tidak bisa di-reactivate', 'LEAD_TERMINAL');
+  }
+  const updated = await db.lead.update({
+    where: { id: leadId },
+    data: { deletedAt: null, status: 'COLD' },
+  });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'Lead', entityId: leadId,
+    before: { deletedAt: before.deletedAt.toISOString(), status: before.status },
+    after: { deletedAt: null, status: 'COLD', reactivated: true },
+  });
+  return { reactivated: true, lead: updated };
+}
+
+/**
  * Stage 186 — bulk mark-as-LOST. Agen selects N COLD/WARM leads on the
  * CRM kanban and applies "Tandai LOST" to clean up stale pipeline in
  * one shot.
