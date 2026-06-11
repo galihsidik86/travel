@@ -25,8 +25,18 @@ function actorFrom(req) {
   return { id: req.user.id, email: req.user.email, role: req.user.role };
 }
 
+const CANCEL_REASON_CODES = [
+  'JEMAAH_REQUEST', 'PAKET_CANCELLED', 'PAYMENT_NOT_RECEIVED',
+  'DOCUMENT_INCOMPLETE', 'NO_SHOW', 'GOODWILL', 'OTHER',
+];
 const CancelSchema = z.object({
   reason: z.string().min(3, 'Alasan minimal 3 karakter').max(2000),
+  // Stage 175 — optional structured category. Empty string normalises
+  // to null so the form's "— pilih kategori —" default doesn't fail.
+  reasonCode: z.preprocess(
+    (v) => (v === '' || v == null ? null : String(v).trim().toUpperCase()),
+    z.enum(CANCEL_REASON_CODES).nullable().optional(),
+  ),
 });
 
 // ── GET /admin/bookings/mention-search (S82 autocomplete) ────
@@ -350,10 +360,10 @@ router.post(
   requireRole(...CANCEL_ROLES),
   asyncHandler(async (req, res) => {
     try {
-      const { reason } = CancelSchema.parse(req.body);
+      const { reason, reasonCode } = CancelSchema.parse(req.body);
       await cancelBooking({
         req, actor: actorFrom(req),
-        bookingId: req.params.id, reason,
+        bookingId: req.params.id, reason, reasonCode: reasonCode ?? null,
       });
       res.redirect(`/admin/bookings/${req.params.id}?ok=cancelled`);
     } catch (err) {

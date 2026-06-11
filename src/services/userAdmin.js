@@ -100,7 +100,7 @@ function guardEscalation(actor, targetRole) {
  *   DELETED           → `deletedAt: { not: null }`
  *   ALL               → no deletedAt filter
  */
-export async function listUsers({ search, role, status, deleted = 'ACTIVE' } = {}) {
+export async function listUsers({ search, role, status, deleted = 'ACTIVE', sortBy = 'default' } = {}) {
   const where = {};
   if (deleted === 'ACTIVE') where.deletedAt = null;
   else if (deleted === 'DELETED') where.deletedAt = { not: null };
@@ -113,10 +113,20 @@ export async function listUsers({ search, role, status, deleted = 'ACTIVE' } = {
       { fullName: { contains: search } },
     ];
   }
+  // Stage 177 — sortBy=lastLogin orders by lastLoginAt asc (NULL last
+  // = "never logged in" lands at the very bottom — Prisma puts NULL
+  // first by default on asc, but operators usually want "never" to be
+  // the most-alarming entry, so we apply `nulls: 'last'`).
+  let orderBy;
+  if (sortBy === 'lastLogin') {
+    orderBy = [{ lastLoginAt: { sort: 'asc', nulls: 'last' } }, { fullName: 'asc' }];
+  } else {
+    orderBy = [{ role: 'asc' }, { fullName: 'asc' }];
+  }
   return db.user.findMany({
     where,
     take: 200,
-    orderBy: [{ role: 'asc' }, { fullName: 'asc' }],
+    orderBy,
     include: {
       agent: { select: { slug: true, tier: true, isVerified: true, komisiRateOverride: true, photoUrl: true, igHandle: true } },
       staff: { select: { department: true, position: true } },

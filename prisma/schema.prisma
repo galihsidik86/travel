@@ -72,6 +72,18 @@ enum BookingStatus {
   REFUNDED
 }
 
+// Stage 175 — structured cancel reason category. Picked from a
+// dropdown when admin cancels; powers analytics breakdown.
+enum BookingCancelReason {
+  JEMAAH_REQUEST       // jemaah pulled out (most common)
+  PAKET_CANCELLED      // whole trip cancelled by operator
+  PAYMENT_NOT_RECEIVED // jemaah never paid; admin closed
+  DOCUMENT_INCOMPLETE  // jemaah couldn't complete docs
+  NO_SHOW              // jemaah didn't show on departure day
+  GOODWILL             // operator-side goodwill cancellation
+  OTHER                // fallback when none fit
+}
+
 enum PaymentMethod {
   VA
   QRIS
@@ -1231,6 +1243,11 @@ model Booking {
   lunasDueAt   DateTime?
   cancelledAt  DateTime?
   cancelReason String?       @db.Text
+  // Stage 175 — structured cancel reason category alongside the free-text
+  // reason. Picked from a dropdown when admin cancels; powers analytics
+  // breakdown on /admin overview. Nullable so historical cancels (pre-S175)
+  // stay valid.
+  cancelReasonCode BookingCancelReason?
 
   // Jemaah-initiated cancel request (5ff) — admin still has to approve via cancelBooking.
   cancelRequested     Boolean   @default(false)
@@ -1257,6 +1274,8 @@ model Booking {
   @@index([roomId])
   // Stage 144 — index for the /admin/no-shows queue scan
   @@index([noShowAt])
+  // Stage 175 — power the cancel-reason analytics panel
+  @@index([cancelReasonCode])
 }
 
 model Payment {

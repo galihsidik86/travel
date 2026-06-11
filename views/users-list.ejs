@@ -152,7 +152,15 @@
         <th>Peran</th>
         <th>Status</th>
         <th>Profil</th>
-        <th>Last login</th>
+        <%# Stage 177 — sortable Last login. Toggle via ?sortBy=lastLogin
+            preserves the existing q/role/status/deleted filter state. %>
+        <th>
+          <% if (sortBy === 'lastLogin') { %>
+            <a href="?<% const qp = new URLSearchParams(); if (search) qp.set('q', search); if (role !== 'ALL') qp.set('role', role); if (status !== 'ALL') qp.set('status', status); if (deleted !== 'ACTIVE') qp.set('deleted', deleted); %><%= qp.toString() %>" style="color:var(--gold-300);text-decoration:none;">Last login ↓</a>
+          <% } else { %>
+            <a href="?<% const qp = new URLSearchParams(); if (search) qp.set('q', search); if (role !== 'ALL') qp.set('role', role); if (status !== 'ALL') qp.set('status', status); if (deleted !== 'ACTIVE') qp.set('deleted', deleted); qp.set('sortBy', 'lastLogin'); %><%= qp.toString() %>" style="color:var(--ink-200);text-decoration:none;">Last login ↕</a>
+          <% } %>
+        </th>
         <th style="text-align:right;width:120px;">Aksi</th>
       </tr>
     </thead>
@@ -188,10 +196,23 @@
             <% } %>
           </td>
           <td>
-            <% if (u.lastLoginAt) { %>
-              <div class="sx" style="color:var(--cream-200);"><%= fmt.date(u.lastLoginAt) %></div>
+            <% if (u.lastLoginAt) {
+              const daysAgo = Math.floor((Date.now() - new Date(u.lastLoginAt).getTime()) / 86400000);
+              // Color-flag the age — admins get more attention than agen/jemaah
+              const isAdmin = ['OWNER','SUPERADMIN','MANAJER_OPS','KASIR','SALES'].includes(u.role);
+              const tier = daysAgo > 90 ? 'ruby' : daysAgo > 30 ? 'amber' : 'cream-200';
+              const showWarn = isAdmin && daysAgo > 60;
+            %>
+              <div class="sx" style="color:var(--<%= tier %>);"><%= fmt.date(u.lastLoginAt) %></div>
+              <div class="sx" style="color:var(--ink-300);font-size:9.5px;">
+                <%= daysAgo === 0 ? 'hari ini' : daysAgo + 'h lalu' %>
+                <% if (showWarn) { %><span style="color:var(--ruby);">⚠</span><% } %>
+              </div>
             <% } else { %>
-              <span class="sx">never</span>
+              <span class="sx" style="color:var(--ruby);">never</span>
+              <% if (['OWNER','SUPERADMIN','MANAJER_OPS','KASIR','SALES'].includes(u.role)) { %>
+                <div class="sx" style="color:var(--ruby);font-size:9.5px;">⚠ admin tdk pernah login</div>
+              <% } %>
             <% } %>
           </td>
           <td style="text-align:right;">

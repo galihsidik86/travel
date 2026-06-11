@@ -59,9 +59,13 @@ router.get(
     // Stage 104 — deleted filter: ACTIVE (default) / DELETED / ALL.
     const deleted = (req.query.deleted || 'ACTIVE').toUpperCase();
     const validDeleted = ['ACTIVE', 'DELETED', 'ALL'].includes(deleted) ? deleted : 'ACTIVE';
-    const users = await listUsers({ search, role, status, deleted: validDeleted });
+    // Stage 177 — optional sort by lastLogin (oldest first → "dormant
+    // accounts" bubble to the top, NEVER-logged-in lands last).
+    const rawSort = (req.query.sortBy || 'default').toLowerCase();
+    const sortBy = rawSort === 'lastlogin' ? 'lastLogin' : 'default';
+    const users = await listUsers({ search, role, status, deleted: validDeleted, sortBy });
     res.render('users-list', {
-      user: req.user, users, search, role, status, META, deleted: validDeleted,
+      user: req.user, users, search, role, status, META, deleted: validDeleted, sortBy,
       // Stage 151 — flash from /admin/agents/:slug/statements/regenerate
       flash: {
         ok: req.query.ok || null,

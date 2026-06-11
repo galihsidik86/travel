@@ -881,6 +881,21 @@
 
     <form id="cancel-form" method="POST" action="/admin/bookings/<%= b.id %>/cancel">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <%# Stage 175 — structured category alongside the free-text reason.
+          Drives the analytics breakdown on /admin overview. %>
+      <div class="field">
+        <label class="label" for="cf-code">Kategori</label>
+        <select class="input" id="cf-code" name="reasonCode">
+          <option value="">— pilih kategori —</option>
+          <option value="JEMAAH_REQUEST">Permintaan jemaah</option>
+          <option value="PAKET_CANCELLED">Paket dibatalkan operator</option>
+          <option value="PAYMENT_NOT_RECEIVED">Pembayaran tidak masuk</option>
+          <option value="DOCUMENT_INCOMPLETE">Dokumen tidak lengkap</option>
+          <option value="NO_SHOW">Tidak hadir keberangkatan</option>
+          <option value="GOODWILL">Goodwill (kebijakan operator)</option>
+          <option value="OTHER">Lainnya</option>
+        </select>
+      </div>
       <div class="field">
         <label class="label" for="cf-reason">Alasan pembatalan *</label>
         <textarea class="input" id="cf-reason" name="reason" required minlength="3" maxlength="2000" rows="3" placeholder="Mis. permintaan jemaah, masalah dokumen, dll."></textarea>

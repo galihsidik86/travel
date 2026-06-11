@@ -2081,6 +2081,34 @@
         </div>
       <% } %>
 
+      <!-- Stage 175 — cancel reason breakdown (90d). Hidden on zero. -->
+      <% if (cancelReasonBreakdown && cancelReasonBreakdown.total > 0) {
+        const crb = cancelReasonBreakdown;
+      %>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Alasan cancel</h3>
+            <span class="meta"><%= crb.days %> HARI · <%= crb.total %> CANCEL · <%= fmt.rpShort(crb.totalPaidIdr) %> PAID</span>
+          </div>
+          <div style="padding:8px 0;">
+            <% crb.rows.forEach((r) => {
+              const isUnset = r.code === '__UNSET__';
+              const barW = crb.total > 0 ? Math.round((r.count / crb.total) * 100) : 0;
+            %>
+              <div style="margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:<%= isUnset ? 'var(--ink-300)' : 'var(--cream-100)' %>;margin-bottom:3px;">
+                  <span style="<%= isUnset ? 'font-style:italic;' : '' %>"><%= r.label %></span>
+                  <span style="color:var(--ink-200);"><%= r.count %> (<%= r.sharePct %>%) · Rp <%= fmt.rpShort(r.paidIdr) %></span>
+                </div>
+                <div style="width:100%;height:6px;background:var(--ink-1000);border-radius:3px;overflow:hidden;">
+                  <div style="width:<%= barW %>%;height:100%;background:<%= isUnset ? 'var(--ink-500)' : 'var(--gold-300)' %>;"></div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
       <% const km_a = analytics.komisiMonthly;
          const km_maxKom = Math.max(1, ...km_a.map((m) => Math.max(m.earned, m.paid)));
          const km_totalEarned = km_a.reduce((a, m) => a + m.earned, 0);

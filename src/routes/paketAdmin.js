@@ -217,13 +217,15 @@ router.get(
     const { listPaketOverrides } = await import('../services/agentPaketKomisi.js');
     // Stage 39 — profitability snapshot, used inline next to the cost input.
     const { getPaketProfitabilitySnapshot } = await import('../services/paketProfitability.js');
+    // Stage 176 — break-even projector: "N LUNAS until cost is covered".
+    const { getPaketBreakEven } = await import('../services/paketBreakEven.js');
     // Stage 50 — A/B breakdown only fetched when variantB is configured;
     // skips an unnecessary query for the common single-variant case.
     // Stage 60 — also load the daily-view sparkline for the trend chart
     // above the hero-title field.
     const { getPaketABBreakdown, getPaketDailyViews } = await import('../services/paketView.js');
     const { listCostLines, COST_CATEGORIES, getCategoryLabel, getCostBenchmarks } = await import('../services/paketCostLines.js');
-    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, abBreakdown, viewTrend, costLines, costBenchmarks] = await Promise.all([
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
       db.agentProfile.findMany({
@@ -233,6 +235,7 @@ router.get(
       }),
       listPaketOverrides(req.params.slug),
       getPaketProfitabilitySnapshot(paket.id),
+      getPaketBreakEven({ paketId: paket.id }),
       paket.heroTitleHtmlVariantB ? getPaketABBreakdown({ paketId: paket.id }) : Promise.resolve(null),
       getPaketDailyViews({ paketId: paket.id, days: 30 }),
       listCostLines(paket.id),
@@ -243,7 +246,7 @@ router.get(
       errors: {}, formError: null,
       availableCrew, assignedCrew,
       availableAgents, paketOverrides,
-      profitability, abBreakdown, viewTrend,
+      profitability, breakEven, abBreakdown, viewTrend,
       costLines, costCategories: COST_CATEGORIES, costCategoryLabel: getCategoryLabel,
       costBenchmarks,
     });

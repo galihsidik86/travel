@@ -307,9 +307,26 @@ export async function transferBookingAgent({ req, actor, bookingId, toAgentId, r
  *
  * Note: Payment rows are NOT touched. Refund is a separate flow (5k.x).
  */
-export async function cancelBooking({ req, actor, bookingId, reason }) {
+const CANCEL_REASON_CODES = new Set([
+  'JEMAAH_REQUEST', 'PAKET_CANCELLED', 'PAYMENT_NOT_RECEIVED',
+  'DOCUMENT_INCOMPLETE', 'NO_SHOW', 'GOODWILL', 'OTHER',
+]);
+export { CANCEL_REASON_CODES };
+
+export async function cancelBooking({ req, actor, bookingId, reason, reasonCode = null }) {
   if (!reason || reason.trim().length < 3) {
     throw new HttpError(400, 'Alasan pembatalan wajib diisi (min. 3 karakter)', 'CANCEL_REASON_REQUIRED');
+  }
+  // Stage 175 — structured category. Optional input (null when admin
+  // declined to pick); validated against the enum so a typo doesn't
+  // hit the DB as a 500.
+  let cancelReasonCode = null;
+  if (reasonCode != null && reasonCode !== '') {
+    const code = String(reasonCode).trim().toUpperCase();
+    if (!CANCEL_REASON_CODES.has(code)) {
+      throw new HttpError(400, `Reason code tidak valid: ${reasonCode}`, 'BAD_CANCEL_REASON_CODE');
+    }
+    cancelReasonCode = code;
   }
   const before = await db.booking.findUnique({
     where: { id: bookingId },
@@ -337,6 +354,7 @@ export async function cancelBooking({ req, actor, bookingId, reason }) {
         status: 'CANCELLED',
         cancelledAt: new Date(),
         cancelReason: reason.trim(),
+        cancelReasonCode,
         roomId: null,
         // Clear any pending jemaah request now that admin acted (5ff)
         cancelRequested: false,
@@ -363,6 +381,7 @@ export async function cancelBooking({ req, actor, bookingId, reason }) {
     before: { status: before.status, roomId: before.roomId, paidAmount: Number(before.paidAmount) },
     after: {
       status: 'CANCELLED', cancelReason: reason.trim(), kursiFreed: before.paxCount,
+      ...(cancelReasonCode ? { cancelReasonCode } : {}),
       // S145 — surface the no-show context in the audit trail so a
       // later compliance scan can answer "how many no-shows did we
       // formally close out last quarter?".

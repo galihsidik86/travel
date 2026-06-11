@@ -719,18 +719,88 @@
             </div>
           </div>
         </div>
+      <% } %>
+
+      <%# Stage 176 — break-even projector. Compact panel below the
+          profitability gauge: "N LUNAS bookings until cost covered".
+          Same cost/komisi math; uses lunas averages, or featured-price
+          fallback when zero LUNAS yet. %>
+      <% if (typeof breakEven !== 'undefined' && breakEven && breakEven.hasCost) { %>
+        <% const be = breakEven; %>
+        <div class="be-panel">
+          <div class="be-head">Break-even tracker
+            <% if (be.usingFallback) { %>
+              <span style="font-size:9px;color:var(--ink-300);text-transform:none;letter-spacing:0;">(estimasi dari featured price — belum ada LUNAS)</span>
+            <% } %>
+          </div>
+          <div class="be-grid">
+            <div class="be-cell">
+              <div class="l">Status saat ini</div>
+              <% if (be.alreadyBreakEven) { %>
+                <div class="v" style="color:var(--emerald);">✓ Sudah BEP</div>
+                <div class="s">Net +<%= fmt.rpShort(be.netSoFarIdr) %></div>
+              <% } else { %>
+                <div class="v" style="color:var(--ruby);">Net −<%= fmt.rpShort(Math.abs(be.netSoFarIdr)) %></div>
+                <div class="s">belum tutup biaya</div>
+              <% } %>
+            </div>
+            <div class="be-cell">
+              <div class="l">Margin per pax</div>
+              <% if (be.marginPerPax != null) { %>
+                <div class="v" style="color:var(--<%= be.marginPerPax >= 0 ? 'emerald' : 'ruby' %>);">
+                  <%= be.marginPerPax < 0 ? '−' : '' %><%= fmt.rpShort(Math.abs(be.marginPerPax)) %>
+                </div>
+                <div class="s">revenue − cost − komisi</div>
+              <% } else { %>
+                <div class="v muted">—</div>
+                <div class="s">butuh harga + cost</div>
+              <% } %>
+            </div>
+            <div class="be-cell">
+              <div class="l">Booking tersisa untuk BEP</div>
+              <% if (be.alreadyBreakEven) { %>
+                <div class="v" style="color:var(--emerald);">0</div>
+                <div class="s">target tercapai</div>
+              <% } else if (be.booksNeeded == null) { %>
+                <div class="v" style="color:var(--ruby);">⚠ tidak mungkin</div>
+                <div class="s">margin per pax ≤ 0 — naikkan harga / turunkan biaya</div>
+              <% } else { %>
+                <div class="v" style="color:var(--<%= be.feasible ? 'gold-300' : 'ruby' %>);"><%= be.booksNeeded %></div>
+                <div class="s">
+                  <% if (be.feasible) { %>
+                    sisa <%= be.seatsLeft %> kursi
+                  <% } else { %>
+                    butuh <%= be.booksNeeded %>, hanya tersisa <%= be.seatsLeft %> kursi
+                  <% } %>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
         <style>
-          .prof-panel { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 14px; }
-          .prof-head { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px; }
-          .prof-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-          .prof-cell { background: var(--ink-900); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 10px 12px; }
-          .prof-cell .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
-          .prof-cell .v { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin-top: 4px; font-weight: 500; line-height: 1.1; }
-          .prof-cell .v.muted { color: var(--ink-300); }
-          .prof-cell .s { font-family: var(--font-mono); font-size: 10px; color: var(--ink-100); margin-top: 4px; }
-          @media (max-width: 900px) { .prof-grid { grid-template-columns: repeat(2, 1fr); } }
+          .be-panel { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 14px; }
+          .be-head { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px; }
+          .be-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+          .be-cell { background: var(--ink-900); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 10px 12px; }
+          .be-cell .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+          .be-cell .v { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin-top: 4px; font-weight: 500; line-height: 1.1; }
+          .be-cell .v.muted { color: var(--ink-300); }
+          .be-cell .s { font-family: var(--font-mono); font-size: 10px; color: var(--ink-100); margin-top: 4px; }
+          @media (max-width: 900px) { .be-grid { grid-template-columns: 1fr; } }
         </style>
       <% } %>
+
+      <style>
+        .prof-panel { background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 14px; }
+        .prof-head { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px; }
+        .prof-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .prof-cell { background: var(--ink-900); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 10px 12px; }
+        .prof-cell .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; }
+        .prof-cell .v { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin-top: 4px; font-weight: 500; line-height: 1.1; }
+        .prof-cell .v.muted { color: var(--ink-300); }
+        .prof-cell .s { font-family: var(--font-mono); font-size: 10px; color: var(--ink-100); margin-top: 4px; }
+        @media (max-width: 900px) { .prof-grid { grid-template-columns: repeat(2, 1fr); } }
+      </style>
 
       <div class="grid-4">
         <div class="field">

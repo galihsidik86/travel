@@ -297,6 +297,16 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getNoShowAnalytics failed:', err?.message || err);
   }
 
+  // Stage 175 — cancel reason breakdown (last 90d). Best-effort —
+  // an aggregation failure leaves the panel hidden.
+  let cancelReasonBreakdown = null;
+  try {
+    const { getCancelReasonBreakdown } = await import('./cancelReasonAnalytics.js');
+    cancelReasonBreakdown = await getCancelReasonBreakdown();
+  } catch (err) {
+    console.warn('[admin-overview] getCancelReasonBreakdown failed:', err?.message || err);
+  }
+
   // Stage 40 — per-paket forecast (14d velocity → days-to-full).
   let paketForecasts = null;
   try {
@@ -392,6 +402,7 @@ export async function getAdminOverview(opts = {}) {
     needsAttention,
     refundAnalytics,
     noShowAnalytics,
+    cancelReasonBreakdown,
     paketForecasts,
     komisiAging,
     manifestClosing,
