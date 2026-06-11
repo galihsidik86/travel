@@ -155,6 +155,58 @@
     </div>
   <% } %>
 
+  <%# Stage 207 — crew's own open tasks (S91). Read-only on this surface;
+      admin still owns the create/complete/cancel flow. %>
+  <% if (typeof myTasks !== 'undefined' && myTasks && myTasks.totals.open > 0) { %>
+    <h3 style="font-family: var(--font-display); font-size: 20px; font-weight: 500; color: var(--cream-100); margin: 32px 0 10px; letter-spacing: -0.015em;">
+      Tugas Anda
+    </h3>
+    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; margin-bottom: 14px;">
+      <%= myTasks.totals.open %> tugas terbuka
+      <% if (myTasks.totals.overdue > 0) { %>
+        · <span style="color:var(--ruby);"><%= myTasks.totals.overdue %> overdue</span>
+      <% } %>
+      <% if (myTasks.totals.shown < myTasks.totals.open) { %>
+        · menampilkan <%= myTasks.totals.shown %>
+      <% } %>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:24px;">
+      <% myTasks.rows.forEach(function(t) {
+           const overdue = t.dueAt && new Date(t.dueAt).getTime() < Date.now();
+      %>
+        <div style="background:var(--ink-900); border:1px solid <%= overdue ? 'var(--ruby)' : 'var(--hairline-soft)' %>; border-radius:var(--r-sm); padding:12px 14px;">
+          <div style="display:flex; justify-content:space-between; gap:10px; align-items:baseline;">
+            <div style="font-family:var(--font-mono); font-size:11px; color:var(--gold-300); letter-spacing:0.06em; text-transform:uppercase;">
+              <% if (t.booking) { %>
+                <%= t.booking.bookingNo %><% if (t.booking.jemaah?.fullName) { %> · <%= t.booking.jemaah.fullName %><% } %>
+              <% } else { %>
+                Tugas
+              <% } %>
+            </div>
+            <% if (t.dueAt) { %>
+              <div style="font-family:var(--font-mono); font-size:10px; color:<%= overdue ? 'var(--ruby)' : 'var(--ink-200)' %>; letter-spacing:0.06em;">
+                <% if (overdue) { %>⚠ OVERDUE <% } %>due <%= fmt.dateShort(t.dueAt) %>
+              </div>
+            <% } %>
+          </div>
+          <div style="color:var(--cream-100); font-size:13px; margin-top:6px; line-height:1.5;">
+            <%= t.body %>
+          </div>
+          <% if (t.booking?.paket?.title) { %>
+            <div style="font-family:var(--font-mono); font-size:10px; color:var(--ink-200); margin-top:6px;">
+              📍 <%= t.booking.paket.title %>
+            </div>
+          <% } %>
+          <% if (t.createdByEmail) { %>
+            <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--ink-300); margin-top:4px;">
+              dari <%= t.createdByEmail %>
+            </div>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+
   <% if (typeof myIncidents !== 'undefined' && myIncidents.length > 0) { %>
     <h3 style="font-family: var(--font-display); font-size: 20px; font-weight: 500; color: var(--cream-100); margin: 32px 0 10px; letter-spacing: -0.015em;">
       Riwayat alert Anda

@@ -2726,9 +2726,46 @@
         </div>
       <% } %>
 
+      <%# Stage 205 — per-pickup count rollup. Shown when paket has
+          pickup points configured AND at least one jemaah has chosen.
+          TBD bucket always rendered so admin sees who hasn't picked. %>
+      <% if (manifest && manifest.pickupCounts && manifest.pickupCounts.length > 0) {
+           const totalActive = manifest.pickupCounts.reduce((a, p) => a + p.paxCount, 0);
+      %>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-family:var(--font-mono);">
+          <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:8px 14px;">
+            <div style="font-size:9.5px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;">Total pickup</div>
+            <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);"><%= totalActive %> pax</div>
+          </div>
+          <% manifest.pickupCounts.forEach(function(p) {
+               const isTbd = p.id === null;
+               const isActive = (typeof manifestPickupId !== 'undefined') && (manifestPickupId === (p.id || '__TBD__'));
+          %>
+            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %>&manifestPickup=<%= encodeURIComponent(p.id || '__TBD__') %>"
+               style="background:<%= isActive ? 'var(--gold-300)' : 'var(--ink-1000)' %>;border:1px solid <%= isTbd ? 'var(--amber)' : 'var(--hairline-soft)' %>;border-radius:var(--r-sm);padding:8px 14px;text-decoration:none;color:inherit;">
+              <div style="font-size:9.5px;color:<%= isActive ? 'var(--ink-1000)' : (isTbd ? 'var(--amber)' : 'var(--ink-200)') %>;letter-spacing:0.12em;text-transform:uppercase;">
+                <% if (isTbd) { %>⏱ <% } %><%= p.label %>
+              </div>
+              <div style="font-family:var(--font-display);font-size:18px;color:<%= isActive ? 'var(--ink-1000)' : 'var(--cream-100)' %>;">
+                <%= p.paxCount %>
+              </div>
+            </a>
+          <% }) %>
+          <% if (manifestPickupId) { %>
+            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %>"
+               style="background:transparent;border:1px solid var(--ink-200);border-radius:var(--r-sm);padding:8px 14px;text-decoration:none;color:var(--ink-100);align-self:center;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">
+              × Reset
+            </a>
+          <% } %>
+        </div>
+      <% } %>
+
       <% if (paketList.length > 0) { %>
         <form method="GET" action="/admin" class="manifest-controls">
           <input type="hidden" name="tab" value="manifest">
+          <% if (typeof manifestPickupId !== 'undefined' && manifestPickupId) { %>
+            <input type="hidden" name="manifestPickup" value="<%= manifestPickupId %>">
+          <% } %>
           <select name="manifestPaket" class="input" onchange="this.form.submit()">
             <% paketList.forEach(function(p) { %>
               <option value="<%= p.slug %>" <%= manifest && manifest.paket.slug === p.slug ? 'selected' : '' %>>

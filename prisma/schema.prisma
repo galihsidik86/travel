@@ -1252,6 +1252,10 @@ model Booking {
   kelas    KamarClass
   paxCount Int        @default(1)
   notes    String?    @db.Text
+  // Stage 206 — pin/unpin the notes. When pinned, the banner shows
+  // at the top of /admin/bookings/:id so urgent context (VIP flag,
+  // prior dispute warning) isn't buried below cards.
+  notesPinned Boolean  @default(false)
 
   totalAmount Decimal  @db.Decimal(15, 2)
   paidAmount  Decimal  @default(0) @db.Decimal(15, 2)

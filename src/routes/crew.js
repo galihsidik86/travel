@@ -24,13 +24,19 @@ router.use(requireAuth, requireRole('MUTHAWWIF'));
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const [paketList, myIncidents, unreadCount] = await Promise.all([
+    // Stage 207 — crew sees their own open Tasks (S91) where
+    // assigneeEmail = their email. Best-effort: failure to load
+    // tasks shouldn't 500 the dashboard.
+    const { getMyOpenTasks } = await import('../services/tasks.js');
+    const [paketList, myIncidents, unreadCount, myTasks] = await Promise.all([
       listAssignedPaket(req.user.id),
       listMyIncidents(req.user.id, { limit: 10 }),
       // Stage 148 — unread badge on crew topbar
       countUnreadForUser(req.user.id).catch(() => 0),
+      getMyOpenTasks({ assigneeEmail: req.user.email })
+        .catch((err) => { console.warn('[crew] tasks failed:', err?.message || err); return null; }),
     ]);
-    res.render('crew-portal', { user: req.user, paketList, myIncidents, unreadCount });
+    res.render('crew-portal', { user: req.user, paketList, myIncidents, unreadCount, myTasks });
   }),
 );
 

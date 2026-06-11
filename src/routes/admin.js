@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import {
-  getAdminOverview, getManifestForPaket, getFinanceSummary,
+  getAdminOverview, getManifestForPaket, getFinanceSummary, filterManifestByPickup,
   exportManifestCsv, getPrintManifest,
 } from '../services/adminDashboard.js';
 import { getBunkingForPaket } from '../services/bunking.js';
@@ -35,7 +35,9 @@ router.get(
     const { getMyMentions } = await import('../services/bookingMentions.js');
     const { getMyOpenTasks } = await import('../services/tasks.js');
     const { getAllAgentsCommissionForecast } = await import('../services/agentForecast.js');
-    const [manifest, finance, bunking, paketRecap, myMentions, myTasks, networkForecast] = await Promise.all([
+    // Stage 205 — pickup filter on manifest tab
+    const manifestPickupId = (req.query.manifestPickup || '').toString();
+    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
@@ -48,10 +50,16 @@ router.get(
       getAllAgentsCommissionForecast({ windowDays: 90 })
         .catch((err) => { console.warn('[admin] network forecast failed:', err?.message || err); return null; }),
     ]);
+    // Stage 205 — apply pickup filter to a shallow copy so the raw
+    // bookings array stays available for the summary panel.
+    const manifest = manifestRaw && manifestPickupId
+      ? filterManifestByPickup(manifestRaw, manifestPickupId)
+      : manifestRaw;
     res.render('admin-dashboard', {
       user: req.user,
       ...overview,
       manifest,
+      manifestPickupId,
       finance,
       bunking,
       paketRecap,

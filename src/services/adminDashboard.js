@@ -584,6 +584,8 @@ export async function getManifestForPaket(paketSlug) {
         },
       },
       agent: { select: { slug: true, displayName: true } },
+      // Stage 205 — pickup choice (S202) for summary + filter
+      pickup: { select: { id: true, label: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -592,6 +594,28 @@ export async function getManifestForPaket(paketSlug) {
     acc[b.status] = (acc[b.status] || 0) + 1;
     return acc;
   }, {});
+
+  // Stage 205 — per-pickup count rollup. Counts ACTIVE bookings only
+  // (cancelled/refunded already-uninterested in pickup). __TBD__ bucket
+  // groups those without a pickup choice yet.
+  const pickupCounts = (() => {
+    const map = new Map();
+    for (const b of bookings) {
+      if (b.status === 'CANCELLED' || b.status === 'REFUNDED') continue;
+      const key = b.pickupId || '__TBD__';
+      const label = b.pickup?.label || 'TBD';
+      const row = map.get(key) || { id: b.pickupId || null, label, count: 0, paxCount: 0 };
+      row.count += 1;
+      row.paxCount += b.paxCount || 1;
+      map.set(key, row);
+    }
+    // TBD bucket always last; otherwise sort by paxCount desc
+    return [...map.values()].sort((a, b) => {
+      if (a.id === null && b.id !== null) return 1;
+      if (a.id !== null && b.id === null) return -1;
+      return b.paxCount - a.paxCount;
+    });
+  })();
 
   // Attach doc pills to each jemaah for the manifest table
   for (const b of bookings) {
@@ -623,7 +647,21 @@ export async function getManifestForPaket(paketSlug) {
     console.warn('[manifest] age buckets failed:', err?.message || err);
   }
 
-  return { paket, bookings, statusCounts, crewNotesByJemaah, ageBuckets };
+  return { paket, bookings, statusCounts, crewNotesByJemaah, ageBuckets, pickupCounts };
+}
+
+/**
+ * Stage 205 — narrow a manifest result to one pickup point. Pass
+ * `pickupId='__TBD__'` to filter to bookings without a pickup choice.
+ * Returns a shallow copy of the original `result.bookings` array.
+ */
+export function filterManifestByPickup(result, pickupId) {
+  if (!result || !pickupId || pickupId === 'ALL') return result;
+  const tbd = pickupId === '__TBD__';
+  const filtered = result.bookings.filter((b) => {
+    return tbd ? !b.pickupId : b.pickupId === pickupId;
+  });
+  return { ...result, bookings: filtered, filteredByPickup: pickupId };
 }
 
 /**

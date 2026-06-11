@@ -102,6 +102,42 @@ async function expandShortcodes(text) {
  *     by-token-position) so adding context around an existing mention
  *     doesn't re-fire the notif.
  */
+/**
+ * Stage 206 — toggle the pinned flag on a booking's notes. When
+ * pinned, the note renders as a gold banner at the top of
+ * /admin/bookings/:id so urgent context isn't buried.
+ *
+ * Idempotent: passing the current value returns no-op without
+ * audit pollution. Refuses on bookings without notes (no point
+ * pinning empty content).
+ */
+export async function toggleBookingNotesPinned({ req, actor, bookingId, pinned }) {
+  const next = !!pinned;
+  const before = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: { id: true, notes: true, notesPinned: true },
+  });
+  if (!before) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+  if (next && (!before.notes || before.notes.trim() === '')) {
+    throw new HttpError(409, 'Tidak ada catatan untuk di-pin', 'EMPTY_NOTES');
+  }
+  if (before.notesPinned === next) {
+    return { updated: false, booking: before };
+  }
+  const updated = await db.booking.update({
+    where: { id: bookingId },
+    data: { notesPinned: next },
+    select: { id: true, notesPinned: true },
+  });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'Booking', entityId: bookingId,
+    before: { notesPinned: before.notesPinned },
+    after: { notesPinned: next, field: 'notesPinned' },
+  });
+  return { updated: true, booking: updated };
+}
+
 export async function updateBookingNotes({ req, actor, bookingId, notes }) {
   // Stage 88 — expand :code shortcuts → @user.email BEFORE trim/cap
   // so length checks see the final stored text, not the abbreviated form.

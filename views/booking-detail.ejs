@@ -337,6 +337,26 @@
 
   <div class="grid-2">
     <div>
+      <%# Stage 206 — pinned notes banner. Shows at the top so urgent
+          context (VIP, prior dispute, special instructions) isn't
+          buried below cards. Toggle button to unpin available when
+          admin can edit notes. %>
+      <% if (b.notesPinned && b.notes) { %>
+        <div style="background:rgba(212,175,55,0.10);border:2px solid var(--gold-300);color:var(--cream-100);padding:14px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;line-height:1.7;margin-bottom:18px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;">
+            <strong style="color:var(--gold-300);letter-spacing:0.06em;text-transform:uppercase;">📌 CATATAN PENTING (PINNED)</strong>
+            <% if (canEditNotes) { %>
+              <form method="POST" action="/admin/bookings/<%= b.id %>/notes/pin" style="display:inline;margin:0;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="pinned" value="false">
+                <button type="submit" style="background:transparent;border:1px solid var(--ink-200);color:var(--ink-100);padding:3px 10px;border-radius:var(--r-xs);font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">× Unpin</button>
+              </form>
+            <% } %>
+          </div>
+          <div style="white-space:pre-wrap;color:var(--cream-100);"><%= b.notes %></div>
+        </div>
+      <% } %>
+
       <% if (b.cancelRequested) { %>
         <div style="background:rgba(201,147,59,0.08);border:1px solid var(--amber);color:var(--cream-100);padding:14px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;line-height:1.7;margin-bottom:18px;">
           <strong style="color:var(--amber);">PERMINTAAN PEMBATALAN DARI JEMAAH</strong> · <%= fmt.dateLong(b.cancelRequestedAt) %><br>
@@ -444,6 +464,15 @@
                   <button type="submit" class="notes-form__save">SIMPAN</button>
                 </div>
               </form>
+              <%# Stage 206 — pin/unpin toggle. Only shown when notes are
+                  non-empty (no point pinning empty content). %>
+              <% if (b.notes && !b.notesPinned && canEditNotes) { %>
+                <form method="POST" action="/admin/bookings/<%= b.id %>/notes/pin" style="display:inline-flex;margin-top:8px;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="pinned" value="true">
+                  <button type="submit" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:5px 12px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">📌 Pin catatan ini</button>
+                </form>
+              <% } %>
             <% } else { %>
               <div class="v"><%= b.notes || '— tidak ada —' %></div>
             <% } %>

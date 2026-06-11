@@ -5,7 +5,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import { db } from '../lib/db.js';
-import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent } from '../services/bookingAdmin.js';
+import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent, toggleBookingNotesPinned } from '../services/bookingAdmin.js';
 import { searchStaffForMention } from '../services/userAdmin.js';
 import { listIntentsForBooking, cancelStuckIntent } from '../services/paymentGateway.js';
 import { createBooking } from '../services/booking.js';
@@ -410,6 +410,27 @@ router.post(
       res.redirect(`/admin/bookings/${req.params.id}?ok=notes`);
     } catch (err) {
       const msg = err.issues?.[0]?.message || err.message || 'Gagal simpan catatan';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 206 — toggle the pinned-banner flag for booking notes.
+router.post(
+  '/:id/notes/pin',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      // form sends `pinned=true|false`; JSON callers pass boolean
+      const raw = req.body?.pinned;
+      const pinned = raw === true || raw === 'true' || raw === 'on';
+      await toggleBookingNotesPinned({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id, pinned,
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=notes_pin`);
+    } catch (err) {
+      const msg = err.message || 'Gagal pin catatan';
       res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
     }
   }),
