@@ -225,7 +225,9 @@ router.get(
     // above the hero-title field.
     const { getPaketABBreakdown, getPaketDailyViews } = await import('../services/paketView.js');
     const { listCostLines, COST_CATEGORIES, getCategoryLabel, getCostBenchmarks } = await import('../services/paketCostLines.js');
-    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks] = await Promise.all([
+    // Stage 190 — FAQs for this paket (admin curated)
+    const { listFaqs } = await import('../services/paketFaqs.js');
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks, faqs] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
       db.agentProfile.findMany({
@@ -240,6 +242,7 @@ router.get(
       getPaketDailyViews({ paketId: paket.id, days: 30 }),
       listCostLines(paket.id),
       getCostBenchmarks({ paketId: paket.id }),
+      listFaqs(paket.id),
     ]);
     res.render('paket-form', {
       user: req.user, mode: 'edit', paket: paketToForm(paket),
@@ -248,7 +251,7 @@ router.get(
       availableAgents, paketOverrides,
       profitability, breakEven, abBreakdown, viewTrend,
       costLines, costCategories: COST_CATEGORIES, costCategoryLabel: getCategoryLabel,
-      costBenchmarks,
+      costBenchmarks, faqs,
     });
   }),
 );

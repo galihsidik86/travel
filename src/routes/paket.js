@@ -113,9 +113,19 @@ paketHtmlRouter.get(
       console.warn('[paket-landing] public crew lookup failed:', err?.message || err);
     }
 
+    // Stage 190 — load FAQs for the accordion below the hero. Best-effort
+    // so a query failure doesn't break the landing.
+    let faqs = [];
+    try {
+      const { listFaqs } = await import('../services/paketFaqs.js');
+      faqs = await listFaqs(paket.id);
+    } catch (err) {
+      console.warn('[paket-landing] faq lookup failed:', err?.message || err);
+    }
+
     res.render('paket', {
       paket, agent, currentUser: req.user || null, prefillJemaah,
-      heroVariant, ctaText, testimonials, publicCrew,
+      heroVariant, ctaText, testimonials, publicCrew, faqs,
     });
   }),
 );

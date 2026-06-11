@@ -2695,6 +2695,37 @@
         </div>
       </header>
 
+      <%# Stage 191 — age bucket KPI strip. Lansia count highlighted
+          since it's the operationally significant one (wheelchair,
+          slower walks, ihram help). Hidden when no manifest selected. %>
+      <% if (manifest && manifest.ageBuckets && manifest.ageBuckets.total > 0) { %>
+        <% const ab = manifest.ageBuckets; %>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-family:var(--font-mono);">
+          <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:8px 14px;">
+            <div style="font-size:9.5px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;">Total pax</div>
+            <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);"><%= ab.total %></div>
+          </div>
+          <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:8px 14px;">
+            <div style="font-size:9.5px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;">Anak (&lt;12y)</div>
+            <div style="font-family:var(--font-display);font-size:18px;color:var(--sapphire);"><%= ab.anak %></div>
+          </div>
+          <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:8px 14px;">
+            <div style="font-size:9.5px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;">Dewasa (12-59y)</div>
+            <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);"><%= ab.dewasa %></div>
+          </div>
+          <div style="background:rgba(212,175,55,0.08);border:1px solid var(--gold-300);border-radius:var(--r-sm);padding:8px 14px;">
+            <div style="font-size:9.5px;color:var(--gold-300);letter-spacing:0.12em;text-transform:uppercase;">⚠ Lansia (≥60y)</div>
+            <div style="font-family:var(--font-display);font-size:18px;color:var(--gold-300);font-weight:600;"><%= ab.lansia %></div>
+          </div>
+          <% if (ab.unknown > 0) { %>
+            <div style="background:var(--ink-1000);border:var(--hairline-soft);border-radius:var(--r-sm);padding:8px 14px;">
+              <div style="font-size:9.5px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;">Belum ada birthDate</div>
+              <div style="font-family:var(--font-display);font-size:18px;color:var(--ink-300);"><%= ab.unknown %></div>
+            </div>
+          <% } %>
+        </div>
+      <% } %>
+
       <% if (paketList.length > 0) { %>
         <form method="GET" action="/admin" class="manifest-controls">
           <input type="hidden" name="tab" value="manifest">

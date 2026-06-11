@@ -610,7 +610,20 @@ export async function getManifestForPaket(paketSlug) {
     console.warn('[manifest] crew notes load failed:', err?.message || err);
   }
 
-  return { paket, bookings, statusCounts, crewNotesByJemaah };
+  // Stage 191 — age-bracket counts. Uses jemaah.birthDate + paket
+  // departureDate; jemaah.birthDate is already in the bookings select
+  // so this is a pure JS pass (no extra query).
+  let ageBuckets = null;
+  try {
+    const { computeAgeBuckets } = await import('./manifestAgeBuckets.js');
+    ageBuckets = computeAgeBuckets({
+      bookings, departureDate: paket.departureDate,
+    });
+  } catch (err) {
+    console.warn('[manifest] age buckets failed:', err?.message || err);
+  }
+
+  return { paket, bookings, statusCounts, crewNotesByJemaah, ageBuckets };
 }
 
 /**

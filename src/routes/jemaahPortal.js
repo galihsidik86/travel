@@ -118,7 +118,16 @@ router.get(
     // render a polling card while waiting for VA/QRIS to settle.
     const { getActiveIntentForJemaahBooking } = await import('../services/paymentGateway.js');
     const activeIntent = await getActiveIntentForJemaahBooking({ userId: req.user.id, bookingId: req.params.id });
-    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, query: req.query });
+    // Stage 192 — admin-posted announcements for this paket. Best-effort
+    // so a query failure doesn't break the booking detail page.
+    let announcements = [];
+    try {
+      const { listActiveAnnouncements } = await import('../services/paketAnnouncements.js');
+      announcements = await listActiveAnnouncements({ paketId: booking.paketId });
+    } catch (err) {
+      console.warn('[jemaah-booking] announcements load failed:', err?.message || err);
+    }
+    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, announcements, query: req.query });
   }),
 );
 

@@ -226,4 +226,73 @@ router.delete(
   }),
 );
 
+// ── Stage 190: FAQ CRUD ──────────────────────────────────────
+router.post(
+  '/:slug/faqs',
+  asyncHandler(async (req, res) => {
+    const { createFaq } = await import('../services/paketFaqs.js');
+    // Resolve paketId from slug
+    const paket = await db.paket.findUnique({ where: { slug: req.params.slug }, select: { id: true } });
+    if (!paket) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+    const faq = await createFaq({
+      req, actor: actorFrom(req), paketId: paket.id, input: req.body,
+    });
+    res.status(201).json({ faq });
+  }),
+);
+router.patch(
+  '/:slug/faqs/:id',
+  asyncHandler(async (req, res) => {
+    const { updateFaq } = await import('../services/paketFaqs.js');
+    const faq = await updateFaq({
+      req, actor: actorFrom(req), id: req.params.id, input: req.body,
+    });
+    res.json({ faq });
+  }),
+);
+router.delete(
+  '/:slug/faqs/:id',
+  asyncHandler(async (req, res) => {
+    const { deleteFaq } = await import('../services/paketFaqs.js');
+    const result = await deleteFaq({
+      req, actor: actorFrom(req), id: req.params.id,
+    });
+    res.json(result);
+  }),
+);
+
+// ── Stage 192: Announcements CRUD ────────────────────────────
+router.post(
+  '/:slug/announcements',
+  asyncHandler(async (req, res) => {
+    const { createAnnouncement } = await import('../services/paketAnnouncements.js');
+    const paket = await db.paket.findUnique({ where: { slug: req.params.slug }, select: { id: true } });
+    if (!paket) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+    const row = await createAnnouncement({
+      req, actor: actorFrom(req), paketId: paket.id, input: req.body,
+    });
+    res.status(201).json({ announcement: row });
+  }),
+);
+router.patch(
+  '/:slug/announcements/:id',
+  asyncHandler(async (req, res) => {
+    const { updateAnnouncement } = await import('../services/paketAnnouncements.js');
+    const row = await updateAnnouncement({
+      req, actor: actorFrom(req), id: req.params.id, input: req.body,
+    });
+    res.json({ announcement: row });
+  }),
+);
+router.delete(
+  '/:slug/announcements/:id',
+  asyncHandler(async (req, res) => {
+    const { deleteAnnouncement } = await import('../services/paketAnnouncements.js');
+    const result = await deleteAnnouncement({
+      req, actor: actorFrom(req), id: req.params.id,
+    });
+    res.json(result);
+  }),
+);
+
 export default router;

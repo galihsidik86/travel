@@ -878,11 +878,19 @@
     <p>Pertanyaan paling sering dari calon jemaah. Tidak ketemu jawabannya? Hubungi <% if (agent) { %><%= agent.displayName.split(' ')[0] %><% } else { %>kami<% } %> — beliau standby.</p>
   </div>
 
-  <details open><summary>Apakah paspor saya harus aktif berapa bulan?</summary><p>Minimal 7 bulan dari tanggal keberangkatan. Tim kami bisa membantu surat rekomendasi ke imigrasi via fitur Surat Otomatis di sistem.</p></details>
-  <details><summary>Bagaimana jika harus batal mendadak karena sakit?</summary><p>Booking fee Rp 5 Jt refund 100% sampai H-60. Setelah itu refund prorata sesuai biaya yang sudah dikeluarkan (visa, tiket). Asuransi AXA mengcover pembatalan karena alasan medis.</p></details>
-  <details><summary>Apakah ada manasik untuk jemaah yang tinggal di luar Jakarta?</summary><p>Ya. Manasik diadakan 4× di Jakarta tatap muka, dan disiarkan live online untuk jemaah luar kota. Rekaman tersimpan di aplikasi Jemaah.</p></details>
-  <details><summary>Bagaimana dengan jemaah lansia atau kursi roda?</summary><p>Tersedia layanan kursi roda di bandara, masjid, dan tempat ziarah — gratis untuk Quad/Triple/Double, dan termasuk pendamping pribadi pada paket VVIP.</p></details>
-  <details><summary>Apakah harga ini sudah termasuk perlengkapan?</summary><p>Ya. Koper Religio Pro 24" + tas tangan + tas paspor + seragam atasan + ihram/mukena + sajadah + buku doa + tasbih digital — semua diantar ke alamat H-21.</p></details>
+  <%# Stage 190 — admin-curated FAQs first (highest sortOrder wins).
+      Falls back to a defensible default set when admin hasn't curated any. %>
+  <% if (typeof faqs !== 'undefined' && faqs.length > 0) { %>
+    <% faqs.forEach((f, i) => { %>
+      <details<%= i === 0 ? ' open' : '' %>><summary><%= f.question %></summary><p><%= f.answer %></p></details>
+    <% }) %>
+  <% } else { %>
+    <details open><summary>Apakah paspor saya harus aktif berapa bulan?</summary><p>Minimal 7 bulan dari tanggal keberangkatan. Tim kami bisa membantu surat rekomendasi ke imigrasi via fitur Surat Otomatis di sistem.</p></details>
+    <details><summary>Bagaimana jika harus batal mendadak karena sakit?</summary><p>Booking fee Rp 5 Jt refund 100% sampai H-60. Setelah itu refund prorata sesuai biaya yang sudah dikeluarkan (visa, tiket). Asuransi AXA mengcover pembatalan karena alasan medis.</p></details>
+    <details><summary>Apakah ada manasik untuk jemaah yang tinggal di luar Jakarta?</summary><p>Ya. Manasik diadakan 4× di Jakarta tatap muka, dan disiarkan live online untuk jemaah luar kota. Rekaman tersimpan di aplikasi Jemaah.</p></details>
+    <details><summary>Bagaimana dengan jemaah lansia atau kursi roda?</summary><p>Tersedia layanan kursi roda di bandara, masjid, dan tempat ziarah — gratis untuk Quad/Triple/Double, dan termasuk pendamping pribadi pada paket VVIP.</p></details>
+    <details><summary>Apakah harga ini sudah termasuk perlengkapan?</summary><p>Ya. Koper Religio Pro 24" + tas tangan + tas paspor + seragam atasan + ihram/mukena + sajadah + buku doa + tasbih digital — semua diantar ke alamat H-21.</p></details>
+  <% } %>
 </section>
 
 <!-- FINAL CTA -->

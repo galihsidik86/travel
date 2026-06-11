@@ -202,6 +202,20 @@
     </div>
   </div>
 
+  <%# Stage 192 — paket announcement banner(s). Active = publishedAt
+      ≤ now AND expiresAt > now (or null). Most recent first. %>
+  <% if (typeof announcements !== 'undefined' && announcements.length > 0) { %>
+    <% announcements.forEach((a) => { %>
+      <div style="margin-bottom:14px;padding:14px 16px;background:rgba(212,175,55,0.08);border:1px solid var(--gold-300);border-radius:var(--r-md);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:6px;">
+          <strong style="font-family:var(--font-display);font-size:14px;color:var(--gold-300);">📢 <%= a.title %></strong>
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);"><%= fmt.dateLong(a.publishedAt) %></span>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--cream-100);line-height:1.6;white-space:pre-wrap;"><%= a.body %></div>
+      </div>
+    <% }) %>
+  <% } %>
+
   <!-- Booking info -->
   <div class="panel">
     <h3>Info booking</h3>

@@ -649,6 +649,95 @@
         </script>
       <% } %>
 
+      <%# Stage 190 — FAQ CRUD panel. Edit-mode only; renders accordion
+          on /p/:slug below the hero. JSON CRUD via /api/paket/:slug/faqs. %>
+      <% if (mode === 'edit' && typeof faqs !== 'undefined') { %>
+        <div class="panel" style="margin-top:18px;">
+          <h3>FAQ (<%= faqs.length %>)</h3>
+          <p class="sub">Frequently asked questions yang muncul di /p/<%= paket.slug %> sebagai accordion. Urutan kecil-ke-besar.</p>
+          <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--hairline);">
+                <th style="text-align:left;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;width:200px;">Pertanyaan</th>
+                <th style="text-align:left;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;">Jawaban</th>
+                <th style="text-align:right;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;width:60px;">Sort</th>
+                <th style="padding:6px 8px;width:80px;"></th>
+              </tr>
+            </thead>
+            <tbody id="faq-tbody">
+              <% faqs.forEach((f) => { %>
+                <tr data-faq-id="<%= f.id %>">
+                  <td style="padding:5px 8px;"><input type="text" class="faq-q" maxlength="200" value="<%= f.question %>" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                  <td style="padding:5px 8px;"><textarea class="faq-a" maxlength="5000" rows="2" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;resize:vertical;"><%= f.answer %></textarea></td>
+                  <td style="padding:5px 8px;"><input type="number" class="faq-sort" min="0" max="9999" value="<%= f.sortOrder %>" style="width:50px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                  <td style="padding:5px 8px;text-align:right;">
+                    <button type="button" class="faq-save" style="background:var(--gold-300);border:0;color:var(--ink-1000);padding:4px 10px;border-radius:3px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-weight:600;">Save</button>
+                    <button type="button" class="faq-del" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:4px 8px;border-radius:3px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-left:4px;">×</button>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+            <tfoot>
+              <tr style="border-top:1px solid var(--hairline);">
+                <td style="padding:8px;"><input type="text" id="nfaq-q" maxlength="200" placeholder="Pertanyaan baru…" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                <td style="padding:8px;"><textarea id="nfaq-a" maxlength="5000" rows="2" placeholder="Jawaban…" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;resize:vertical;"></textarea></td>
+                <td style="padding:8px;"><input type="number" id="nfaq-sort" min="0" max="9999" value="0" style="width:50px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                <td style="padding:8px;text-align:right;"><button type="button" id="nfaq-add" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:4px 14px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.1em;cursor:pointer;">+ TAMBAH</button></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div id="faq-err" style="display:none;margin-top:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--ruby);"></div>
+        </div>
+        <script>
+        (function() {
+          const slug = '<%= paket.slug %>';
+          const errBox = document.getElementById('faq-err');
+          function showErr(m) { errBox.textContent = m; errBox.style.display = 'block'; }
+          function hideErr() { errBox.style.display = 'none'; }
+          document.getElementById('nfaq-add')?.addEventListener('click', async () => {
+            hideErr();
+            const body = {
+              question: document.getElementById('nfaq-q').value.trim(),
+              answer: document.getElementById('nfaq-a').value.trim(),
+              sortOrder: Number(document.getElementById('nfaq-sort').value) || 0,
+            };
+            if (!body.question || !body.answer) { showErr('Q dan A wajib diisi'); return; }
+            const r = await fetch('/api/paket/' + slug + '/faqs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            if (r.ok) location.reload();
+            else { const j = await r.json().catch(() => ({})); showErr(j?.error?.message || 'Gagal'); }
+          });
+          document.querySelectorAll('#faq-tbody tr').forEach((tr) => {
+            const id = tr.dataset.faqId;
+            tr.querySelector('.faq-save')?.addEventListener('click', async () => {
+              hideErr();
+              const body = {
+                question: tr.querySelector('.faq-q').value.trim(),
+                answer: tr.querySelector('.faq-a').value.trim(),
+                sortOrder: Number(tr.querySelector('.faq-sort').value) || 0,
+              };
+              const r = await fetch('/api/paket/' + slug + '/faqs/' + id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              });
+              if (r.ok) location.reload();
+              else { const j = await r.json().catch(() => ({})); showErr(j?.error?.message || 'Gagal'); }
+            });
+            tr.querySelector('.faq-del')?.addEventListener('click', async () => {
+              if (!confirm('Hapus FAQ ini?')) return;
+              const r = await fetch('/api/paket/' + slug + '/faqs/' + id, { method: 'DELETE' });
+              if (r.ok) location.reload();
+              else { const j = await r.json().catch(() => ({})); showErr(j?.error?.message || 'Gagal'); }
+            });
+          });
+        })();
+        </script>
+      <% } %>
+
       <!-- Stage 61 — ads spend (ROI input) -->
       <div class="grid-2">
         <div class="field">
