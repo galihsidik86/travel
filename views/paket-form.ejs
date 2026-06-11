@@ -751,6 +751,7 @@
                 <th style="text-align:left;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;">Alamat</th>
                 <th style="text-align:left;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;width:70px;">Jam</th>
                 <th style="text-align:right;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;width:60px;">Sort</th>
+                <th style="text-align:right;padding:6px 8px;color:var(--ink-200);font-weight:500;text-transform:uppercase;font-size:9.5px;letter-spacing:0.1em;width:70px;" title="Max pax/bus (kosong = no cap)">Cap</th>
                 <th style="padding:6px 8px;width:80px;"></th>
               </tr>
             </thead>
@@ -761,6 +762,7 @@
                   <td style="padding:5px 8px;"><input type="text" class="pk-addr" maxlength="500" value="<%= p.address %>" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
                   <td style="padding:5px 8px;"><input type="text" class="pk-time" maxlength="5" placeholder="05:00" value="<%= p.departTime || '' %>" style="width:60px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
                   <td style="padding:5px 8px;"><input type="number" class="pk-sort" min="0" max="9999" value="<%= p.sortOrder %>" style="width:50px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                  <td style="padding:5px 8px;"><input type="number" class="pk-cap" min="1" max="200" placeholder="—" value="<%= p.maxCapacity ?? '' %>" style="width:55px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
                   <td style="padding:5px 8px;text-align:right;">
                     <button type="button" class="pk-save" style="background:var(--gold-300);border:0;color:var(--ink-1000);padding:4px 10px;border-radius:3px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-weight:600;">Save</button>
                     <button type="button" class="pk-del" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:4px 8px;border-radius:3px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-left:4px;">×</button>
@@ -774,6 +776,7 @@
                 <td style="padding:8px;"><input type="text" id="npk-addr" maxlength="500" placeholder="Jl. Ahmad Yani No.1, Bekasi" style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
                 <td style="padding:8px;"><input type="text" id="npk-time" maxlength="5" placeholder="05:00" style="width:60px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
                 <td style="padding:8px;"><input type="number" id="npk-sort" min="0" max="9999" value="0" style="width:50px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
+                <td style="padding:8px;"><input type="number" id="npk-cap" min="1" max="200" placeholder="—" style="width:55px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"></td>
                 <td style="padding:8px;text-align:right;"><button type="button" id="npk-add" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:4px 14px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.1em;cursor:pointer;">+ TAMBAH</button></td>
               </tr>
             </tfoot>
@@ -788,11 +791,13 @@
           function hideErr() { errBox.style.display = 'none'; }
           document.getElementById('npk-add')?.addEventListener('click', async () => {
             hideErr();
+            const capRaw = document.getElementById('npk-cap').value.trim();
             const body = {
               label: document.getElementById('npk-label').value.trim(),
               address: document.getElementById('npk-addr').value.trim(),
               departTime: document.getElementById('npk-time').value.trim(),
               sortOrder: Number(document.getElementById('npk-sort').value) || 0,
+              maxCapacity: capRaw === '' ? null : Number(capRaw),
             };
             if (!body.label || !body.address) { showErr('Label dan alamat wajib'); return; }
             const r = await fetch('/api/paket/' + slug + '/pickups', {
@@ -807,11 +812,13 @@
             const id = tr.dataset.pickupId;
             tr.querySelector('.pk-save')?.addEventListener('click', async () => {
               hideErr();
+              const capRaw = tr.querySelector('.pk-cap').value.trim();
               const body = {
                 label: tr.querySelector('.pk-label').value.trim(),
                 address: tr.querySelector('.pk-addr').value.trim(),
                 departTime: tr.querySelector('.pk-time').value.trim(),
                 sortOrder: Number(tr.querySelector('.pk-sort').value) || 0,
+                maxCapacity: capRaw === '' ? null : Number(capRaw),
               };
               const r = await fetch('/api/paket/' + slug + '/pickups/' + id, {
                 method: 'PATCH',

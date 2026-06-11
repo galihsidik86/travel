@@ -360,11 +360,16 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">
         <% pickups.forEach((p) => {
              const chosen = b.pickup && b.pickup.id === p.id;
+             // Stage 212 — full pickups dimmed + non-clickable, except when this is the
+             // jemaah's current selection (they're already on it; "full" doesn't apply).
+             const isFull = p.isFull && !chosen;
+             const clickable = !chosen && !isFull;
         %>
-          <div data-pickup-id="<%= p.id %>" style="padding:12px 14px;background:<%= chosen ? 'rgba(212,175,55,0.10)' : 'var(--ink-1000)' %>;border:1px solid <%= chosen ? 'var(--gold-300)' : 'var(--hairline-soft)' %>;border-radius:var(--r-sm);cursor:<%= chosen ? 'default' : 'pointer' %>;transition:border-color 120ms;" <%= chosen ? '' : 'data-pickup-card' %>>
+          <div data-pickup-id="<%= p.id %>" style="padding:12px 14px;background:<%= chosen ? 'rgba(212,175,55,0.10)' : isFull ? 'rgba(176,42,42,0.04)' : 'var(--ink-1000)' %>;border:1px solid <%= chosen ? 'var(--gold-300)' : isFull ? 'var(--ruby)' : 'var(--hairline-soft)' %>;border-radius:var(--r-sm);cursor:<%= clickable ? 'pointer' : 'default' %>;opacity:<%= isFull ? '0.6' : '1' %>;transition:border-color 120ms;" <%= clickable ? 'data-pickup-card' : '' %>>
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px;">
-              <strong style="font-family:var(--font-mono);font-size:12px;color:var(--gold-300);letter-spacing:0.06em;text-transform:uppercase;">
+              <strong style="font-family:var(--font-mono);font-size:12px;color:<%= isFull ? 'var(--ruby)' : 'var(--gold-300)' %>;letter-spacing:0.06em;text-transform:uppercase;">
                 <% if (chosen) { %>✓ <% } %><%= p.label %>
+                <% if (isFull) { %><span style="margin-left:6px;font-size:9.5px;background:var(--ruby);color:var(--cream-100);padding:1px 6px;border-radius:3px;">PENUH</span><% } %>
               </strong>
               <% if (p.departTime) { %>
                 <span style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);">⏰ <%= p.departTime %></span>
@@ -374,8 +379,15 @@
             <% if (p.notes) { %>
               <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:6px;line-height:1.5;font-style:italic;"><%= p.notes %></div>
             <% } %>
-            <% if (!chosen) { %>
+            <% if (p.maxCapacity != null) { %>
+              <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:<%= isFull ? 'var(--ruby)' : 'var(--ink-200)' %>;">
+                Kapasitas: <%= p.occupiedPax %> / <%= p.maxCapacity %> pax
+              </div>
+            <% } %>
+            <% if (clickable) { %>
               <div style="margin-top:8px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;">Klik untuk pilih →</div>
+            <% } else if (isFull) { %>
+              <div style="margin-top:8px;font-family:var(--font-mono);font-size:9.5px;color:var(--ruby);letter-spacing:0.06em;text-transform:uppercase;">Pickup penuh</div>
             <% } %>
           </div>
         <% }) %>

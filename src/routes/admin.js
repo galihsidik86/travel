@@ -104,6 +104,21 @@ router.get(
   }),
 );
 
+// Stage 211 — dietary roll-up CSV for the catering / hotel kitchen brief.
+// Per-jemaah list of non-REGULAR diets + per-category pax tally footer.
+router.get(
+  '/manifest/:slug/dietary.csv',
+  asyncHandler(async (req, res) => {
+    const { buildDietaryRollupCsv } = await import('../services/dietaryRollupCsv.js');
+    const out = await buildDietaryRollupCsv(req.params.slug);
+    if (!out) return res.status(404).type('text/plain').send('Paket tidak ditemukan');
+    const safeSlug = out.paket.slug.replace(/[^A-Za-z0-9_-]/g, '_');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="dietary_${safeSlug}.csv"`);
+    res.send(out.csv);
+  }),
+);
+
 // Stage 208 — pickup roster CSV. ?pickup=<id> narrows to one bus
 // route; ?pickup=__TBD__ to show jemaah without a pickup choice yet.
 router.get(

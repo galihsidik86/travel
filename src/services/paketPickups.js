@@ -27,12 +27,47 @@ export const PickupSchema = z.object({
     (v) => (v === '' || v == null ? 0 : Number(v)),
     z.number().int().min(0).max(9999).default(0),
   ),
+  // Stage 212 — max pax-count cap. NULL = no cap. Clamp 1..200 so
+  // a typo can't accidentally lock everyone out.
+  maxCapacity: z.preprocess(
+    (v) => (v === '' || v == null ? null : Number(v)),
+    z.number().int().min(1).max(200).nullable().optional(),
+  ),
 });
 
 export async function listPickups(paketId) {
   return db.paketPickup.findMany({
     where: { paketId },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  });
+}
+
+/**
+ * Stage 212 — same list as `listPickups` but with `occupiedPax` + `isFull`
+ * decorated per row. Used by `/saya/bookings/:id` so jemaah see a "PENUH"
+ * badge on bus pickups that have hit `maxCapacity`. One groupBy roundtrip
+ * instead of N — fine even with 10+ pickups.
+ */
+export async function listPickupsWithOccupancy(paketId) {
+  const pickups = await db.paketPickup.findMany({
+    where: { paketId },
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  });
+  if (pickups.length === 0) return pickups;
+  const tally = await db.booking.groupBy({
+    by: ['pickupId'],
+    where: {
+      paketId,
+      pickupId: { in: pickups.map((p) => p.id) },
+      status: { notIn: ['CANCELLED', 'REFUNDED'] },
+    },
+    _sum: { paxCount: true },
+  });
+  const occ = new Map(tally.map((t) => [t.pickupId, t._sum.paxCount || 0]));
+  return pickups.map((p) => {
+    const occupiedPax = occ.get(p.id) || 0;
+    const isFull = p.maxCapacity != null && occupiedPax >= p.maxCapacity;
+    return { ...p, occupiedPax, isFull };
   });
 }
 
@@ -49,6 +84,7 @@ export async function createPickup({ req, actor, paketId, input }) {
       departTime: data.departTime ?? null,
       notes: data.notes ?? null,
       sortOrder: data.sortOrder ?? 0,
+      maxCapacity: data.maxCapacity ?? null,
     },
   });
   await audit({
@@ -73,6 +109,7 @@ export async function updatePickup({ req, actor, id, input }) {
       departTime: data.departTime ?? null,
       notes: data.notes ?? null,
       sortOrder: data.sortOrder ?? 0,
+      maxCapacity: data.maxCapacity ?? null,
     },
   });
   await audit({

@@ -16,6 +16,8 @@ export async function setMyBookingPickup({ req, actor, userId, bookingId, pickup
     select: {
       id: true, bookingNo: true, status: true, paketId: true,
       pickupId: true,
+      // Stage 212 — paxCount needed for the capacity guard below
+      paxCount: true,
     },
   });
   if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
@@ -35,11 +37,33 @@ export async function setMyBookingPickup({ req, actor, userId, bookingId, pickup
   if (nextId !== null) {
     const pickup = await db.paketPickup.findUnique({
       where: { id: nextId },
-      select: { id: true, paketId: true, label: true },
+      select: { id: true, paketId: true, label: true, maxCapacity: true },
     });
     if (!pickup) throw new HttpError(404, 'Pickup tidak ditemukan', 'PICKUP_NOT_FOUND');
     if (pickup.paketId !== booking.paketId) {
       throw new HttpError(400, 'Pickup bukan milik paket ini', 'PICKUP_MISMATCH');
+    }
+    // Stage 212 — capacity guard. NULL = no cap. Sums paxCount across
+    // active bookings already on this pickup (excludes the current
+    // booking when re-picking — it's about to move OUT of its old slot).
+    // CANCELLED/REFUNDED don't occupy a seat.
+    if (pickup.maxCapacity != null) {
+      const agg = await db.booking.aggregate({
+        _sum: { paxCount: true },
+        where: {
+          pickupId: nextId,
+          status: { notIn: ['CANCELLED', 'REFUNDED'] },
+          id: { not: bookingId },
+        },
+      });
+      const occupied = agg._sum.paxCount || 0;
+      if (occupied + booking.paxCount > pickup.maxCapacity) {
+        throw new HttpError(
+          409,
+          `Pickup "${pickup.label}" sudah penuh (${occupied}/${pickup.maxCapacity}). Pilih pickup lain.`,
+          'PICKUP_FULL',
+        );
+      }
     }
   }
 

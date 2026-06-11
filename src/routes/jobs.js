@@ -384,6 +384,16 @@ router.post(
   }),
 );
 
+// Stage 213 — Monday-morning crew dietary brief for near-departure paket
+router.post(
+  '/send-crew-dietary-brief',
+  asyncHandler(async (_req, res) => {
+    const { sendCrewDietaryBriefs } = await import('../services/crewDietaryBrief.js');
+    const result = await runJob('send-crew-dietary-brief', () => sendCrewDietaryBriefs({}));
+    res.json(result);
+  }),
+);
+
 router.post(
   '/scan-agent-dormancy',
   asyncHandler(async (_req, res) => {

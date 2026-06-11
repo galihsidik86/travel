@@ -127,11 +127,12 @@ router.get(
     } catch (err) {
       console.warn('[jemaah-booking] announcements load failed:', err?.message || err);
     }
-    // Stage 196 — pickup points for the bus run
+    // Stage 196 — pickup points for the bus run. Stage 212 enriches with
+    // occupancy so a "PENUH" badge can render on full buses.
     let pickups = [];
     try {
-      const { listPickups } = await import('../services/paketPickups.js');
-      pickups = await listPickups(booking.paketId);
+      const { listPickupsWithOccupancy } = await import('../services/paketPickups.js');
+      pickups = await listPickupsWithOccupancy(booking.paketId);
     } catch (err) {
       console.warn('[jemaah-booking] pickups load failed:', err?.message || err);
     }

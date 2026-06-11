@@ -42,6 +42,7 @@
     "job:send-payment-reminder": "node --env-file-if-exists=.env src/jobs/send-payment-reminder.js",
     "job:send-doc-expiring": "node --env-file-if-exists=.env src/jobs/send-doc-expiring.js",
     "job:send-passport-renewal": "node --env-file-if-exists=.env src/jobs/send-passport-renewal.js",
+    "job:send-crew-dietary-brief": "node --env-file-if-exists=.env src/jobs/send-crew-dietary-brief.js",
     "job:scan-agent-dormancy": "node --env-file-if-exists=.env src/jobs/scan-agent-dormancy.js",
     "job:prune": "node --env-file-if-exists=.env src/jobs/prune.js",
     "check:openapi-sdk": "node scripts/check-openapi.js"
