@@ -79,6 +79,13 @@ export async function getAssignedManifest({ userId, slug }) {
             },
           },
           room: { select: { roomNo: true, floor: true, wing: true } },
+          // Stage 228 — pickup choice visible on crew manifest so
+          // muthawwif knows who's meeting where at the pre-departure
+          // bus run. Same money-stripped + non-leaking pattern as the
+          // rest of the crew view. **pickupId scalar required** so the
+          // summary Map can key per-pickup (the relation alone isn't enough).
+          pickupId: true,
+          pickup: { select: { id: true, label: true, departTime: true } },
         },
       },
     },
@@ -115,7 +122,27 @@ export async function getAssignedManifest({ userId, slug }) {
     totalPax: enriched.reduce((acc, b) => acc + (b.paxCount || 1), 0),
     specialPax: dietarySpecials.reduce((acc, b) => acc + (b.paxCount || 1), 0),
   };
-  return { ...paket, bookings: enriched, dietarySummary };
+
+  // Stage 228 — per-pickup pax rollup for the crew brief panel. Mirrors
+  // S205's adminDashboard summary; TBD always renders last regardless
+  // of size so crew sees the unfinished work clearly.
+  const pickupMap = new Map();
+  for (const b of enriched) {
+    const key = b.pickupId || '__TBD__';
+    const label = b.pickup?.label || 'TBD (belum pilih)';
+    const departTime = b.pickup?.departTime || null;
+    const row = pickupMap.get(key) || { id: b.pickupId || null, label, departTime, paxCount: 0, count: 0 };
+    row.paxCount += b.paxCount || 1;
+    row.count += 1;
+    pickupMap.set(key, row);
+  }
+  const pickupSummary = [...pickupMap.values()].sort((a, b) => {
+    if (a.id === null && b.id !== null) return 1;
+    if (a.id !== null && b.id === null) return -1;
+    return b.paxCount - a.paxCount;
+  });
+
+  return { ...paket, bookings: enriched, dietarySummary, pickupSummary };
 }
 
 // ─── 5ww: per-day attendance ────────────────────────────────

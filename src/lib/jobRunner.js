@@ -97,6 +97,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-passport-renewal': 24 * 60 * 60_000, // daily (Stage 203)
   'send-crew-dietary-brief': 7 * 24 * 60 * 60_000, // weekly Monday (Stage 213)
   'send-pickup-reminder': 24 * 60 * 60_000, // daily (Stage 219)
+  'auto-publish-paket': 24 * 60 * 60_000, // daily (Stage 227)
   'scan-agent-dormancy': 24 * 60 * 60_000, // daily (Stage 185)
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };

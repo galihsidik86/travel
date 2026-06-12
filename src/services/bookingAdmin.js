@@ -509,6 +509,71 @@ export async function cancelBooking({ req, actor, bookingId, reason, reasonCode 
 }
 
 /**
+ * Stage 226 — recommended built-in tags. Admin can add free-form ones
+ * too; this list just drives the dropdown chips on /admin/bookings/:id.
+ */
+export const BOOKING_TAG_PRESETS = [
+  'VIP', 'LANSIA', 'HONEYMOON', 'KELUARGA', 'KESEHATAN',
+  'PERTAMA', 'DIFABEL', 'PRIORITAS',
+];
+
+/**
+ * Normalise + dedupe a tag input. Drops empty strings, trims, uppercases,
+ * caps each at 24 chars, caps the array at 8 entries (defensive against
+ * tag bloat). Anything non-string filtered out.
+ */
+export function normaliseBookingTags(raw) {
+  if (raw == null) return [];
+  let arr = raw;
+  if (typeof raw === 'string') arr = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  if (!Array.isArray(arr)) return [];
+  const cleaned = arr
+    .filter((t) => typeof t === 'string')
+    .map((t) => t.trim().toUpperCase().slice(0, 24))
+    .filter((t) => /^[A-Z0-9_-]+$/.test(t) && t.length > 0);
+  return [...new Set(cleaned)].slice(0, 8);
+}
+
+/**
+ * Stage 226 — set the tag list on a booking. Empty array → clears to
+ * NULL in DB (back-compat read path stays simple). Idempotent re-save
+ * with identical list is a no-op (no audit pollution).
+ *
+ * Refuses on CANCELLED/REFUNDED (tags are an active-booking concern;
+ * once cancelled they're frozen history).
+ */
+export async function setBookingTags({ req, actor, bookingId, tags }) {
+  const before = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: { id: true, bookingNo: true, status: true, tags: true },
+  });
+  if (!before) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+  if (before.status === 'CANCELLED' || before.status === 'REFUNDED') {
+    throw new HttpError(409, 'Booking sudah cancelled/refunded', 'BOOKING_CLOSED');
+  }
+  const normalised = normaliseBookingTags(tags);
+  const dbValue = normalised.length === 0 ? null : normalised;
+
+  const beforeArr = Array.isArray(before.tags) ? before.tags : [];
+  const same = beforeArr.length === normalised.length
+    && beforeArr.every((t, i) => t === normalised[i]);
+  if (same) return { updated: false, tags: normalised };
+
+  const updated = await db.booking.update({
+    where: { id: bookingId },
+    data: { tags: dbValue },
+    select: { id: true, tags: true },
+  });
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'Booking', entityId: bookingId,
+    before: { tags: beforeArr },
+    after: { tags: normalised, tagsChanged: true },
+  });
+  return { updated: true, tags: updated.tags || [] };
+}
+
+/**
  * Stage 224 — admin explicitly declines a jemaah's cancel request without
  * cancelling the booking. Clears the three S5ff `cancelRequest*` fields
  * so the booking returns to its prior state + leaves an audit trail

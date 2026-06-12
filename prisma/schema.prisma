@@ -1288,6 +1288,11 @@ model Booking {
   // prior dispute warning) isn't buried below cards.
   notesPinned Boolean  @default(false)
 
+  // Stage 226 — booking tags. JSON array of short uppercase labels
+  // (VIP / LANSIA / HONEYMOON / etc.) for fast manifest filtering +
+  // visual pills on the booking row. NULL = no tags (default).
+  tags     Json?
+
   totalAmount Decimal  @db.Decimal(15, 2)
   paidAmount  Decimal  @default(0) @db.Decimal(15, 2)
   currency    Currency @default(IDR)

@@ -404,6 +404,16 @@ router.post(
   }),
 );
 
+// Stage 227 — auto-publish DRAFT paket whose publishedAt has elapsed
+router.post(
+  '/auto-publish-paket',
+  asyncHandler(async (_req, res) => {
+    const { runAutoPublishPaket } = await import('../services/autoPublishPaket.js');
+    const result = await runJob('auto-publish-paket', () => runAutoPublishPaket({}));
+    res.json(result);
+  }),
+);
+
 router.post(
   '/scan-agent-dormancy',
   asyncHandler(async (_req, res) => {

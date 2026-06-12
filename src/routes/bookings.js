@@ -5,7 +5,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import { db } from '../lib/db.js';
-import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent, toggleBookingNotesPinned, declineCancelRequest } from '../services/bookingAdmin.js';
+import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent, toggleBookingNotesPinned, declineCancelRequest, setBookingTags, BOOKING_TAG_PRESETS } from '../services/bookingAdmin.js';
 import { searchStaffForMention } from '../services/userAdmin.js';
 import { listIntentsForBooking, cancelStuckIntent } from '../services/paymentGateway.js';
 import { createBooking } from '../services/booking.js';
@@ -372,6 +372,8 @@ router.get(
       paymentIntents, canCancelIntent,
       activityFeed, noteTemplates,
       canSetPickup, paketPickups,
+      // Stage 226 — tag presets for the booking-detail tag chip picker
+      bookingTagPresets: BOOKING_TAG_PRESETS,
     });
   }),
 );
@@ -542,6 +544,26 @@ router.post(
       res.redirect(`/admin/bookings/${req.params.id}?ok=cancelled`);
     } catch (err) {
       const msg = err.issues?.[0]?.message || err.message || 'Gagal cancel';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 226 — set booking tags. Accepts JSON `tags: []` OR form-encoded
+// `tags=VIP,LANSIA` (CSV string parsed by normaliseBookingTags).
+router.post(
+  '/:id/tags',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const raw = req.body?.tags;
+      await setBookingTags({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id, tags: raw,
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=tags`);
+    } catch (err) {
+      const msg = err.message || 'Gagal simpan tag';
       res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
     }
   }),

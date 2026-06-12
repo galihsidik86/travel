@@ -468,6 +468,57 @@
               </div>
             </div>
           <% } %>
+          <%# Stage 226 — booking tags. Admin curates labels (VIP/LANSIA/etc.)
+              for fast manifest filtering + visual identification. %>
+          <div class="info-item" style="grid-column: 1/-1;">
+            <div class="l">Tags</div>
+            <%
+              const curTags = Array.isArray(b.tags) ? b.tags : [];
+              const presets = typeof bookingTagPresets !== 'undefined' ? bookingTagPresets : [];
+              const canSetTags = canEditNotes && b.status !== 'CANCELLED' && b.status !== 'REFUNDED';
+            %>
+            <% if (curTags.length > 0) { %>
+              <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">
+                <% curTags.forEach(function(t) { %>
+                  <span class="badge badge--gold" style="font-size:10px;letter-spacing:0.06em;"><%= t %></span>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="sx" style="margin-top:4px;">— belum ada tag —</div>
+            <% } %>
+            <% if (canSetTags) { %>
+              <form method="POST" action="/admin/bookings/<%= b.id %>/tags" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="text" name="tags" maxlength="200"
+                       value="<%= curTags.join(', ') %>"
+                       placeholder="VIP, LANSIA, ..."
+                       style="flex:1 1 220px;min-width:200px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;">
+                <button type="submit" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:5px 12px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">Simpan tags</button>
+              </form>
+              <% if (presets.length > 0) { %>
+                <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">
+                  Saran:
+                  <% presets.forEach(function(p) { %>
+                    <button type="button" data-tag-preset="<%= p %>" style="background:transparent;border:1px dashed var(--ink-200);color:var(--ink-100);padding:2px 8px;border-radius:3px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:0.06em;cursor:pointer;margin-left:2px;">+ <%= p %></button>
+                  <% }) %>
+                </div>
+                <script>
+                  // Click preset → append to the input (deduped, comma-separated)
+                  document.querySelectorAll('[data-tag-preset]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                      const inp = btn.closest('form').querySelector('input[name="tags"]');
+                      const cur = inp.value.split(',').map(function(s) { return s.trim().toUpperCase(); }).filter(Boolean);
+                      const tag = btn.dataset.tagPreset;
+                      if (!cur.includes(tag)) cur.push(tag);
+                      inp.value = cur.join(', ');
+                      inp.focus();
+                    });
+                  });
+                </script>
+              <% } %>
+            <% } %>
+          </div>
+
           <div class="info-item" style="grid-column: 1/-1;">
             <div class="l">Catatan</div>
             <% if (canEditNotes) { %>
