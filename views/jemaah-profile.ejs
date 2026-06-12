@@ -351,6 +351,64 @@
     </div>
   </form>
 
+  <%# Stage 239 — UU PDP data export. Outside the form so the click
+      doesn't trigger profile submit. %>
+  <div class="panel" style="margin-top:24px;background:rgba(212,175,55,0.03);border:1px solid var(--gold-300);">
+    <h3>Hak portabilitas data (UU PDP)</h3>
+    <p class="sub" style="margin-top:0;">Anda berhak menyalin semua data Anda yang kami simpan. Tombol ini mengunduh ZIP berisi profil, booking, pembayaran, dokumen (file + metadata), dan riwayat notifikasi.</p>
+    <a href="/saya/data-export.zip"
+       style="display:inline-block;background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:8px 16px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;">
+      ⇩ Unduh data saya (ZIP)
+    </a>
+  </div>
+
+  <%# Stage 240 — Right to be forgotten (UU PDP article 8). %>
+  <div class="panel" style="margin-top:24px;background:rgba(181,86,74,0.03);border:1px solid var(--ruby);">
+    <h3 style="color:var(--ruby);">Hak penghapusan data (UU PDP)</h3>
+    <% if (typeof query !== 'undefined' && query?.ok === 'deletion_requested') { %>
+      <div style="padding:10px 14px;background:rgba(74,143,109,0.08);border:1px solid var(--emerald);color:var(--emerald);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;margin-bottom:12px;">
+        ✓ Permintaan terkirim. Admin akan meninjau dalam waktu dekat.
+      </div>
+    <% } %>
+    <% if (typeof query !== 'undefined' && query?.err) { %>
+      <div style="padding:10px 14px;background:rgba(181,86,74,0.08);border:1px solid var(--ruby);color:var(--ruby);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;margin-bottom:12px;">
+        ✗ <%= query.err %>
+      </div>
+    <% } %>
+    <p class="sub" style="margin-top:0;">Anda dapat meminta penghapusan akun + data Anda. Admin akan meninjau permintaan; keputusan + alasannya akan dikirim via email.</p>
+    <% if (typeof deletionRequest !== 'undefined' && deletionRequest) { %>
+      <%
+        const dr = deletionRequest;
+        const statusColor = dr.status === 'PENDING' ? 'amber' : (dr.status === 'APPROVED' ? 'emerald' : 'ruby');
+        const statusLabel = dr.status === 'PENDING' ? 'menunggu admin' : (dr.status === 'APPROVED' ? 'disetujui' : 'tidak disetujui');
+      %>
+      <div style="padding:12px 14px;background:var(--ink-1000);border:1px solid var(--hairline-soft);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;color:var(--cream-100);margin-bottom:14px;">
+        Permintaan terakhir: <strong style="color:var(--<%= statusColor %>);"><%= statusLabel %></strong>
+        · diajukan <%= fmt.dateLong(dr.requestedAt) %>
+        <% if (dr.decidedAt) { %>· diputuskan <%= fmt.dateLong(dr.decidedAt) %><% } %>
+        <% if (dr.decisionReason) { %>
+          <div style="margin-top:6px;color:var(--ink-100);">Alasan admin: <em><%= dr.decisionReason %></em></div>
+        <% } %>
+      </div>
+    <% } %>
+    <% const hasPending = (typeof deletionRequest !== 'undefined' && deletionRequest && deletionRequest.status === 'PENDING'); %>
+    <% if (!hasPending) { %>
+      <form method="POST" action="/saya/data-deletion-request">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="field">
+          <label class="label" for="dr-reason">Alasan permintaan (min. 10 karakter)</label>
+          <textarea class="input" id="dr-reason" name="requestReason" required minlength="10" maxlength="2000" rows="3" placeholder="Mis. tidak akan berangkat dengan Religio Pro lagi"></textarea>
+        </div>
+        <button type="submit" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:8px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;"
+                onclick="return confirm('Yakin ingin mengajukan penghapusan data?');">
+          Ajukan penghapusan data
+        </button>
+      </form>
+    <% } else { %>
+      <p class="sub" style="color:var(--amber);">Permintaan Anda sedang ditinjau. Tunggu hingga admin memberi keputusan.</p>
+    <% } %>
+  </div>
+
   <!-- Documents -->
   <div class="panel" style="margin-top:24px;">
     <h3>Dokumen saya</h3>

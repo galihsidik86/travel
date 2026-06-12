@@ -455,6 +455,49 @@
     </script>
   <% } %>
 
+  <%# Stage 238 — sanitized activity timeline. Only renders when there's
+      something to show; we still show a small empty state below. %>
+  <% if (typeof activity !== 'undefined' && activity) { %>
+    <div class="panel">
+      <h3>Aktivitas booking</h3>
+      <% if (activity.rows.length === 0) { %>
+        <div class="empty">Belum ada aktivitas tercatat.</div>
+      <% } else { %>
+        <%
+          const BADGE_COLOR = {
+            PAID: 'emerald', LUNAS: 'emerald', VERIFIED: 'emerald',
+            BOOKED: 'gold', DP_PAID: 'gold', PARTIAL: 'gold',
+            PENDING: 'amber', REJECTED: 'amber', INFO: 'gold',
+            CANCELLED: 'ruby', REFUNDED: 'ruby', REFUND: 'ruby',
+          };
+          const KIND_ICON = {
+            create: '✓', status: '✓', payment: '💳', refund: '↩',
+            doc: '📄', announcement: '📢', pickup: '🚌',
+          };
+        %>
+        <ul style="list-style:none;margin:0;padding:0;border-left:2px solid var(--hairline-soft);margin-left:8px;">
+          <% activity.rows.forEach((r) => {
+               const badgeColor = r.badge ? (BADGE_COLOR[r.badge] || 'gold') : 'gold';
+          %>
+            <li style="position:relative;padding:10px 0 10px 22px;font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);line-height:1.6;">
+              <span style="position:absolute;left:-9px;top:14px;width:16px;height:16px;border-radius:50%;background:var(--ink-1000);border:2px solid var(--gold-300);display:flex;align-items:center;justify-content:center;font-size:9px;"><%= KIND_ICON[r.kind] || '·' %></span>
+              <div>
+                <%= r.label %>
+                <% if (r.badge) { %>
+                  <span class="badge badge--<%= badgeColor %>" style="font-size:9px;margin-left:6px;letter-spacing:0.06em;"><%= r.badge %></span>
+                <% } %>
+              </div>
+              <div style="color:var(--ink-200);font-size:10px;margin-top:2px;"><%= fmt.dateLong(r.when) %></div>
+            </li>
+          <% }) %>
+        </ul>
+        <% if (activity.total > activity.rows.length) { %>
+          <div class="sub" style="margin-top:6px;">+ <%= activity.total - activity.rows.length %> aktivitas lainnya (tersembunyi)</div>
+        <% } %>
+      <% } %>
+    </div>
+  <% } %>
+
   <!-- Payment history -->
   <div class="panel">
     <h3>Riwayat pembayaran (<%= b.payments.length %>)</h3>

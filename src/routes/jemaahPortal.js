@@ -136,7 +136,16 @@ router.get(
     } catch (err) {
       console.warn('[jemaah-booking] pickups load failed:', err?.message || err);
     }
-    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, announcements, pickups, query: req.query });
+    // Stage 238 — sanitized booking activity timeline (jemaah-friendly).
+    // Best-effort — load failure just hides the panel.
+    let activity = null;
+    try {
+      const { getJemaahBookingActivity } = await import('../services/jemaahBookingActivity.js');
+      activity = await getJemaahBookingActivity(booking.id);
+    } catch (err) {
+      console.warn('[jemaah-booking] activity load failed:', err?.message || err);
+    }
+    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, announcements, pickups, activity, query: req.query });
   }),
 );
 
@@ -211,12 +220,61 @@ router.get(
       birthDate: profile.birthDate?.toISOString().slice(0, 10) || '',
     };
     const notifTypePrefs = await getMyNotifTypePrefs(req.user.id);
+    // Stage 240 — surface latest deletion request (if any) so jemaah
+    // sees the state of their request on the profile page.
+    let deletionRequest = null;
+    try {
+      const { listMyDataDeletionRequests } = await import('../services/dataDeletionRequest.js');
+      const rows = await listMyDataDeletionRequests({ userId: req.user.id });
+      deletionRequest = rows[0] || null;
+    } catch (err) {
+      console.warn('[profile] deletionRequest load failed:', err?.message || err);
+    }
     res.render('jemaah-profile', {
       user: req.user, target, error: null,
       DOC_TYPES, DOC_STATUSES, DOC_PILL,
       META: JEMAAH_META,
       notifTypePrefs, JEMAAH_NOTIF_TYPES,
+      deletionRequest,
+      query: req.query,
     });
+  }),
+);
+
+// Stage 239 — jemaah self-service data export (UU PDP article 5).
+// Streams a ZIP containing CSVs + uploaded doc files. Ownership
+// enforced by the requireRole gate already applied to /saya/*.
+router.get(
+  '/saya/data-export.zip',
+  asyncHandler(async (req, res) => {
+    const { buildJemaahDataExportPayload, streamJemaahDataExport } = await import('../services/jemaahDataExport.js');
+    const payload = await buildJemaahDataExportPayload({ userId: req.user.id });
+    if (!payload) throw new HttpError(404, 'Profil tidak ditemukan', 'PROFILE_NOT_FOUND');
+    const today = new Date().toISOString().slice(0, 10);
+    const safeEmail = (req.user.email || 'jemaah').replace(/[^A-Za-z0-9._-]/g, '_');
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="religio_data_${safeEmail}_${today}.zip"`);
+    await streamJemaahDataExport(payload, res);
+  }),
+);
+
+// Stage 240 — jemaah submits a right-to-be-forgotten request (UU PDP).
+router.post(
+  '/saya/data-deletion-request',
+  asyncHandler(async (req, res) => {
+    try {
+      const { submitDataDeletionRequest } = await import('../services/dataDeletionRequest.js');
+      await submitDataDeletionRequest({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        userId: req.user.id,
+        requestReason: (req.body?.requestReason || '').toString(),
+      });
+      res.redirect('/saya/profile?ok=deletion_requested');
+    } catch (err) {
+      const msg = err?.message || 'Gagal kirim permintaan';
+      res.redirect('/saya/profile?err=' + encodeURIComponent(msg));
+    }
   }),
 );
 

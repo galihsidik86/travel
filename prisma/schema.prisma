@@ -203,6 +203,34 @@ enum LeadSource {
   OTHER
 }
 
+// Stage 240 — jemaah-submitted right-to-be-forgotten request. Admin
+// reviews and decides; actual deletion is admin's manual action via the
+// existing /admin/users delete flow. This table is the request trail.
+model DataDeletionRequest {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation("DDRUser", fields: [userId], references: [id], onDelete: Cascade)
+  requestedAt     DateTime @default(now())
+  requestReason   String   @db.Text
+  status          DataDeletionRequestStatus @default(PENDING)
+  decidedAt       DateTime?
+  decidedById     String?
+  decidedBy       User?    @relation("DDRDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedByEmail  String?  @db.VarChar(190)
+  decisionReason  String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum DataDeletionRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -243,6 +271,9 @@ model User {
 
   auditLogs         AuditLog[]         @relation("AuditActor")
   bookings          Booking[]          @relation("BookingJemaahUser")
+  // Stage 240 — right-to-be-forgotten request relations
+  dataDeletionRequests DataDeletionRequest[] @relation("DDRUser")
+  dataDeletionDecisions DataDeletionRequest[] @relation("DDRDecidedBy")
   paketCreated      Paket[]            @relation("PaketCreator")
   docsVerified      JemaahDocument[]   @relation("DocumentVerifier")
   payoutsPaid       KomisiPayout[]     @relation("PayoutPaidBy")

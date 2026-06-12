@@ -1,0 +1,89 @@
+<%- include('partials/head', { title: 'Permintaan Hapus Data — UU PDP' }) %>
+<%- include('partials/topbar', { user, active: 'admin' }) %>
+
+<div class="wrap">
+  <div class="crumb">
+    <a href="/admin">← Dashboard</a> · <strong>Permintaan hapus data (UU PDP)</strong>
+  </div>
+
+  <h1>Permintaan hapus data <em>(UU PDP)</em></h1>
+  <p class="sub">Tinjau permintaan jemaah untuk menghapus akun + data mereka. Keputusan APPROVED tidak otomatis menghapus — admin masih perlu menghapus user via <a href="/admin/users" style="color:var(--gold-300);">/admin/users</a>.</p>
+
+  <% if (query?.ok) { %>
+    <div class="success-flash">✓ Keputusan disimpan (<%= query.ok %>).</div>
+  <% } %>
+  <% if (query?.err) { %>
+    <div class="err-banner"><%= query.err %></div>
+  <% } %>
+
+  <div class="panel">
+    <h3>Antrian PENDING (<%= pending.length %>)</h3>
+    <% if (pending.length === 0) { %>
+      <div class="empty">Tidak ada permintaan menunggu.</div>
+    <% } else { %>
+      <% pending.forEach(function(r) { %>
+        <div style="padding:14px;border:1px solid var(--gold-300);background:rgba(212,175,55,0.04);border-radius:var(--r-sm);margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline;">
+            <div>
+              <strong style="color:var(--cream-100);"><%= r.user?.fullName || r.user?.email || r.userId %></strong>
+              <span class="sx"><%= r.user?.email %> · <%= r.user?.role %></span>
+            </div>
+            <span class="sx">diajukan <%= fmt.dateLong(r.requestedAt) %></span>
+          </div>
+          <div style="margin-top:8px;padding:8px 10px;background:var(--ink-1000);border-radius:3px;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);line-height:1.6;">
+            <strong style="color:var(--ink-200);text-transform:uppercase;letter-spacing:0.08em;font-size:9.5px;">Alasan jemaah:</strong><br>
+            <%= r.requestReason %>
+          </div>
+          <form method="POST" action="/admin/data-deletion-requests/<%= r.id %>/decide" style="margin-top:12px;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="field">
+              <label class="label" for="dec-reason-<%= r.id %>">Alasan keputusan (min. 3 karakter)</label>
+              <textarea class="input" id="dec-reason-<%= r.id %>" name="decisionReason" required minlength="3" maxlength="2000" rows="2" placeholder="Mis. sesuai permintaan; akan dihapus pekan ini."></textarea>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button type="submit" name="decision" value="APPROVED" class="btn" style="background:transparent;border:1px solid var(--emerald);color:var(--emerald);">✓ Setujui</button>
+              <button type="submit" name="decision" value="DECLINED" class="btn" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);">✕ Tolak</button>
+              <a href="/admin/users/<%= r.userId %>/edit" class="btn btn--ghost" style="margin-left:auto;">Lihat user →</a>
+            </div>
+          </form>
+        </div>
+      <% }) %>
+    <% } %>
+  </div>
+
+  <% if (recentDecisions.length > 0) { %>
+    <div class="panel" style="margin-top:24px;">
+      <h3>Keputusan terbaru (<%= recentDecisions.length %>)</h3>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th style="width:120px;">Status</th>
+            <th>Alasan keputusan</th>
+            <th style="width:160px;">Diputuskan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% recentDecisions.forEach(function(r) { %>
+            <tr>
+              <td>
+                <div><%= r.user?.fullName || '—' %></div>
+                <div class="sx"><%= r.user?.email %><% if (r.user?.deletedAt) { %> <span style="color:var(--ruby);">[DELETED]</span><% } %></div>
+              </td>
+              <td>
+                <span class="badge badge--<%= r.status === 'APPROVED' ? 'emerald' : 'ruby' %>"><%= r.status %></span>
+              </td>
+              <td><%= r.decisionReason || '—' %></td>
+              <td class="sx">
+                <%= fmt.dateLong(r.decidedAt) %><br>
+                <%= r.decidedByEmail || '—' %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('partials/foot') %>
