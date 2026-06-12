@@ -507,3 +507,88 @@ export async function cancelBooking({ req, actor, bookingId, reason, reasonCode 
 
   return updated;
 }
+
+/**
+ * Stage 224 — admin explicitly declines a jemaah's cancel request without
+ * cancelling the booking. Clears the three S5ff `cancelRequest*` fields
+ * so the booking returns to its prior state + leaves an audit trail
+ * citing the admin's reason.
+ *
+ * Why this exists: before S224 the only outcomes for a cancel-request
+ * banner were "approve via cancelBooking" or "leave hanging". Hanging
+ * requests confused the jemaah (their /saya kept showing "pending") and
+ * polluted the needs-attention surface. Decline closes the loop.
+ *
+ * Refuses on:
+ *   - booking already CANCELLED/REFUNDED (request flag is moot)
+ *   - no pending request (nothing to decline)
+ *   - reason missing (3-char minimum — admin must justify)
+ *
+ * Best-effort notif to jemaah via `notifyCancelRequestDeclined` so they
+ * see the decline in `/saya/notifications`. Notif failure is logged but
+ * doesn't abort the decline (the audit row is the load-bearing record).
+ */
+export async function declineCancelRequest({ req, actor, bookingId, reason }) {
+  if (!reason || reason.trim().length < 3) {
+    throw new HttpError(400, 'Alasan tolak request wajib (min. 3 karakter)', 'DECLINE_REASON_REQUIRED');
+  }
+  const before = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true, bookingNo: true, status: true,
+      cancelRequested: true, cancelRequestedAt: true, cancelRequestReason: true,
+      jemaahUserId: true, jemaahId: true,
+      jemaah: { select: { fullName: true, email: true, phone: true, notifEmail: true, notifWa: true } },
+    },
+  });
+  if (!before) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+  if (before.status === 'CANCELLED' || before.status === 'REFUNDED') {
+    throw new HttpError(409, 'Booking sudah cancelled/refunded', 'ALREADY_CLOSED');
+  }
+  if (!before.cancelRequested) {
+    throw new HttpError(409, 'Tidak ada permintaan pembatalan yang menunggu', 'NO_PENDING_REQUEST');
+  }
+
+  const updated = await db.booking.update({
+    where: { id: bookingId },
+    data: {
+      cancelRequested: false,
+      cancelRequestedAt: null,
+      cancelRequestReason: null,
+    },
+    select: { id: true, bookingNo: true, status: true },
+  });
+
+  await audit({
+    req, actor,
+    action: 'STATUS_CHANGE', entity: 'Booking', entityId: bookingId,
+    before: {
+      cancelRequested: true,
+      cancelRequestReason: before.cancelRequestReason,
+    },
+    after: {
+      cancelRequested: false,
+      cancelRequestDeclined: true,
+      declineReason: reason.trim(),
+      declinedBy: actor.email,
+    },
+  });
+
+  // Notify jemaah — best-effort, never abort the decline
+  try {
+    const { notifyCancelRequestDeclined } = await import('./notifications.js');
+    await notifyCancelRequestDeclined({
+      booking: {
+        id: before.id, bookingNo: before.bookingNo,
+        jemaahUserId: before.jemaahUserId,
+        jemaah: before.jemaah,
+      },
+      declineReason: reason.trim(),
+      adminEmail: actor.email,
+    });
+  } catch (err) {
+    console.warn('[declineCancelRequest] notif failed:', err?.message || err);
+  }
+
+  return updated;
+}

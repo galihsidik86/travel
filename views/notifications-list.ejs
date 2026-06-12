@@ -128,9 +128,19 @@
     <a href="/admin/notifications" style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);text-decoration:none;letter-spacing:0.08em;">RESET</a>
   </form>
 
+  <%# Stage 225 — bulk-retry form. Checkboxes in the table reference it
+      via the form="" attribute so the per-row send forms inside <td>
+      still work (HTML disallows nested forms). %>
+  <form id="notif-bulk-form" method="POST" action="/admin/notifications/bulk-retry" style="margin:0;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  </form>
+
   <table class="tbl">
     <thead>
       <tr>
+        <th style="width:36px;text-align:center;">
+          <input type="checkbox" id="notif-select-all" title="Pilih semua FAILED yang bisa retry" style="cursor:pointer;">
+        </th>
         <th style="width:130px;">Waktu</th>
         <th>Type / Channel</th>
         <th>Penerima</th>
@@ -141,10 +151,15 @@
     </thead>
     <tbody>
       <% if (rows.length === 0) { %>
-        <tr><td colspan="6" class="empty">Tidak ada notifikasi yang cocok.</td></tr>
+        <tr><td colspan="7" class="empty">Tidak ada notifikasi yang cocok.</td></tr>
       <% } %>
       <% rows.forEach(function(n) { %>
         <tr>
+          <td style="text-align:center;vertical-align:top;padding-top:10px;">
+            <% if (n.status === 'FAILED') { %>
+              <input type="checkbox" name="notifIds" value="<%= n.id %>" form="notif-bulk-form" class="notif-row-check" style="cursor:pointer;">
+            <% } %>
+          </td>
           <td>
             <div style="color:var(--cream-100);font-size:12.5px;"><%= fmt.date(n.createdAt) %></div>
             <div class="sx"><%= new Date(n.createdAt).toISOString().slice(11,19) %></div>
@@ -195,6 +210,43 @@
     </tbody>
   </table>
 </div>
+
+<%# Stage 225 — floating bulk-action bar. Shows when ≥1 FAILED checkbox
+    is checked. Pure CSS visibility toggle driven by a hidden state input. %>
+<div id="notif-bulk-bar" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink-1000);border:1px solid var(--gold-300);box-shadow:0 8px 24px rgba(0,0,0,0.4);padding:12px 20px;border-radius:var(--r-sm);display:none;align-items:center;gap:14px;z-index:50;">
+  <span style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);"><span id="notif-bulk-count">0</span> dipilih</span>
+  <button type="submit" form="notif-bulk-form" style="background:var(--gold-300);color:var(--ink-1000);border:0;padding:8px 18px;border-radius:var(--r-xs);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-weight:600;">↻ Retry yang dipilih</button>
+  <a href="#" id="notif-bulk-clear" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);text-decoration:none;">× clear</a>
+</div>
+
+<script>
+  // Stage 225 — bulk-select wiring
+  (function() {
+    const selectAll = document.getElementById('notif-select-all');
+    const checks = document.querySelectorAll('.notif-row-check');
+    const bar = document.getElementById('notif-bulk-bar');
+    const count = document.getElementById('notif-bulk-count');
+    function refresh() {
+      const sel = [...checks].filter((c) => c.checked).length;
+      count.textContent = String(sel);
+      bar.style.display = sel > 0 ? 'flex' : 'none';
+      // indeterminate state on header checkbox
+      if (sel === 0) { selectAll.checked = false; selectAll.indeterminate = false; }
+      else if (sel === checks.length) { selectAll.checked = true; selectAll.indeterminate = false; }
+      else { selectAll.checked = false; selectAll.indeterminate = true; }
+    }
+    selectAll?.addEventListener('change', () => {
+      checks.forEach((c) => { c.checked = selectAll.checked; });
+      refresh();
+    });
+    checks.forEach((c) => c.addEventListener('change', refresh));
+    document.getElementById('notif-bulk-clear')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      checks.forEach((c) => { c.checked = false; });
+      refresh();
+    });
+  })();
+</script>
 
 <script>
   // "Proses Queue Sekarang" — POST JSON, reload

@@ -297,6 +297,47 @@ export async function processPendingNotifications({ limit = 100 } = {}) {
   return { processed: pending.length, sent, failed, skipped };
 }
 
+/**
+ * Stage 225 — bulk retry a set of FAILED notif rows. Used by the admin
+ * /admin/notifications page (bulk-action bar). Per-row failure caught
+ * so a bad row doesn't abort the batch.
+ *
+ * `ids` is the requested set; non-FAILED rows are silently skipped in
+ * the returned counters (no exception, just `skipped` increment) so
+ * admin who selected a row that another admin just retried doesn't see
+ * an error. Capped at `limit` per call (default 200).
+ *
+ * Returns `{requested, eligible, retried, failed, skipped}`.
+ */
+export async function bulkRetryFailedNotifications({ ids = [], limit = 200 } = {}) {
+  const requested = ids.filter(Boolean).slice(0, limit);
+  if (requested.length === 0) {
+    return { requested: 0, eligible: 0, retried: 0, failed: 0, skipped: 0 };
+  }
+  const eligibleRows = await db.notification.findMany({
+    where: { id: { in: requested }, status: 'FAILED' },
+    select: { id: true },
+  });
+  const eligible = eligibleRows.length;
+  let retried = 0;
+  let failed = 0;
+  for (const r of eligibleRows) {
+    try {
+      const reset = await db.notification.update({
+        where: { id: r.id },
+        data: { status: 'PENDING', attemptCount: 0, nextRetryAt: null, error: null },
+      });
+      await dispatchNotification(reset);
+      retried += 1;
+    } catch (err) {
+      console.warn('[bulkRetry]', r.id, err?.message || err);
+      failed += 1;
+    }
+  }
+  const skipped = requested.length - eligible;
+  return { requested: requested.length, eligible, retried, failed, skipped };
+}
+
 // ─── Event helpers (call from services after the main write) ────
 
 export async function notifyBookingCreated(booking) {
@@ -499,6 +540,56 @@ export async function notifyCancelRequested({ booking, reason, requestedByEmail 
       relatedEntity: 'Booking', relatedEntityId: booking.id,
     }),
   ));
+}
+
+/**
+ * Stage 224 — admin declined the jemaah's cancel request. Sends an EMAIL
+ * (+ WA if phone present) to the jemaah explaining the decline. Uses
+ * the GENERIC notif type — body is admin-written content, no template
+ * placeholders worth rendering. `recipientUserId` set when booking is
+ * linked so `/saya/notifications` inbox + unread badge surface it.
+ * Silent when jemaah has neither email nor phone (best-effort posture).
+ */
+export async function notifyCancelRequestDeclined({ booking, declineReason, adminEmail }) {
+  const j = booking?.jemaah;
+  if (!j || (!j.email && !j.phone)) return { skipped: true, reason: 'no_contact' };
+  const subject = `Permintaan pembatalan ${booking.bookingNo} ditolak`;
+  const body = [
+    `Halo ${j.fullName || 'Jemaah'},`,
+    '',
+    `Permintaan pembatalan untuk booking ${booking.bookingNo} TIDAK disetujui.`,
+    '',
+    `Alasan dari admin: ${declineReason}`,
+    '',
+    'Booking Anda tetap aktif. Jika ingin mendiskusikan lebih lanjut,',
+    `silakan hubungi tim Religio Pro langsung (${adminEmail || 'admin@religio.pro'}).`,
+    '',
+    '— Religio Pro',
+  ].join('\n');
+  let enqueued = 0;
+  if (j.email) {
+    await enqueueNotification({
+      type: 'GENERIC', channel: 'EMAIL',
+      recipientEmail: j.email,
+      recipientUserId: booking.jemaahUserId || null,
+      subject, body,
+      payload: { kind: 'cancel_request_declined', bookingNo: booking.bookingNo },
+      relatedEntity: 'Booking', relatedEntityId: booking.id,
+    });
+    enqueued += 1;
+  }
+  if (j.phone) {
+    await enqueueNotification({
+      type: 'GENERIC', channel: 'WA',
+      recipientPhone: j.phone,
+      recipientUserId: booking.jemaahUserId || null,
+      subject, body,
+      payload: { kind: 'cancel_request_declined', bookingNo: booking.bookingNo },
+      relatedEntity: 'Booking', relatedEntityId: booking.id,
+    });
+    enqueued += 1;
+  }
+  return { enqueued };
 }
 
 /**

@@ -890,6 +890,43 @@
         <div class="helper">Jemaah LUNAS + crew assigned dapat tombol "Gabung grup WA" di portal mereka. Kosongkan jika belum ada / tidak pakai grup.</div>
       </div>
 
+      <!-- Stage 223 — per-paket required documents for readiness checklist -->
+      <div class="field">
+        <div class="label-row"><label class="label">Dokumen wajib untuk paket ini</label></div>
+        <%
+          const REQ_DOC_OPTS = [
+            ['VISA_UMROH', 'Visa Umroh', 'Saudi paket — wajib hampir selalu.'],
+            ['VACCINE_MENINGITIS', 'Vaksin Meningitis', 'Saudi wajib; Turki/Aqsa tidak.'],
+            ['HEALTH_CERT', 'Surat sehat (medical)', 'Wajib untuk lansia & paket panjang.'],
+            ['MANASIK_CERT', 'Sertifikat manasik', 'Pre-departure rite for umroh paket.'],
+            ['MARRIAGE_CERT', 'Buku nikah', 'Untuk mahram/pasangan jemaah.'],
+            ['FAMILY_CARD', 'Kartu Keluarga', 'Untuk klaim keluarga.'],
+            ['OTHER', 'Lainnya', 'Untuk persyaratan khusus paket.'],
+          ];
+          // null in DB → fallback default; treat that as "default selected" for display
+          const curReq = Array.isArray(paket.requiredDocs) ? paket.requiredDocs : null;
+          const isDefault = curReq === null;
+          const DEFAULT_SELECTED = ['VISA_UMROH', 'VACCINE_MENINGITIS', 'HEALTH_CERT', 'MANASIK_CERT'];
+          function isChecked(code) {
+            if (isDefault) return DEFAULT_SELECTED.includes(code);
+            return curReq.includes(code);
+          }
+        %>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 14px;font-family:var(--font-mono);font-size:11.5px;">
+          <% REQ_DOC_OPTS.forEach(function(o) { %>
+            <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;padding:6px 8px;background:rgba(255,255,255,0.02);border-radius:3px;">
+              <input type="checkbox" name="requiredDocs" value="<%= o[0] %>" <%= isChecked(o[0]) ? 'checked' : '' %> style="accent-color:var(--gold-300);margin-top:2px;">
+              <div>
+                <div style="color:var(--cream-100);"><%= o[1] %></div>
+                <div style="font-size:10px;color:var(--ink-200);"><%= o[2] %></div>
+              </div>
+            </label>
+          <% }) %>
+        </div>
+        <% if (errors.requiredDocs) { %><div class="field-err"><%= errors.requiredDocs %></div><% } %>
+        <div class="helper">Centang yang relevan. Mempengaruhi <strong>checklist kesiapan</strong> (S23) — dropping satu = skor jemaah tidak otomatis dipenalti. Kosong = pakai default (Visa Umroh + Vaksin + Sertifikat sehat + Manasik).</div>
+      </div>
+
       <!-- Stage 39 — lifetime profitability gauge. Edit-mode only; same math as
            the leaderboard so adjusting "Biaya per pax" above changes the pill
            below on next save. -->

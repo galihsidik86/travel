@@ -5,7 +5,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import { db } from '../lib/db.js';
-import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent, toggleBookingNotesPinned } from '../services/bookingAdmin.js';
+import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent, toggleBookingNotesPinned, declineCancelRequest } from '../services/bookingAdmin.js';
 import { searchStaffForMention } from '../services/userAdmin.js';
 import { listIntentsForBooking, cancelStuckIntent } from '../services/paymentGateway.js';
 import { createBooking } from '../services/booking.js';
@@ -542,6 +542,27 @@ router.post(
       res.redirect(`/admin/bookings/${req.params.id}?ok=cancelled`);
     } catch (err) {
       const msg = err.issues?.[0]?.message || err.message || 'Gagal cancel';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 224 — admin declines a jemaah's cancel request. Distinct from
+// the /cancel route (which actually cancels). Clears the request flag,
+// notifies jemaah back with admin's reason.
+router.post(
+  '/:id/cancel-request/decline',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      await declineCancelRequest({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id,
+        reason: (req.body?.reason || '').toString(),
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=request_declined`);
+    } catch (err) {
+      const msg = err.message || 'Gagal tolak request';
       res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
     }
   }),

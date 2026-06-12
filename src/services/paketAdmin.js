@@ -88,6 +88,18 @@ export const PaketSchema = z.object({
       z.null(),
     ]).optional(),
   ),
+  // Stage 223 — per-paket required document list. Form sends checkboxes
+  // (array of strings) OR a comma-separated string OR omits entirely.
+  // Three states: undefined → no change, empty array → clear to NULL
+  // (back-compat fallback to default list), non-empty array → stored.
+  requiredDocs: z.preprocess((v) => {
+    if (v === undefined) return undefined;
+    if (v == null) return null;
+    let arr = v;
+    if (typeof v === 'string') arr = v.split(',').map((s) => s.trim()).filter(Boolean);
+    if (!Array.isArray(arr)) return undefined;
+    return arr.length === 0 ? null : arr;
+  }, z.union([z.array(z.string().max(40)).max(20), z.null()]).optional()),
 }).refine((d) => d.returnDate >= d.departureDate, {
   message: 'Tanggal pulang tidak boleh sebelum tanggal berangkat',
   path: ['returnDate'],
@@ -157,6 +169,9 @@ function toPaketData(parsed, userId) {
     ...(parsed.costNotes !== undefined ? { costNotes: parsed.costNotes ?? null } : {}),
     // Stage 222 — same 3-state pattern for the WhatsApp group URL.
     ...(parsed.waGroupUrl !== undefined ? { waGroupUrl: parsed.waGroupUrl ?? null } : {}),
+    // Stage 223 — required docs list. Same 3-state pattern; service-side
+    // resolveRequiredDocs further filters/normalises at read time.
+    ...(parsed.requiredDocs !== undefined ? { requiredDocs: parsed.requiredDocs ?? null } : {}),
     ...(userId ? { createdById: userId } : {}),
   };
 }

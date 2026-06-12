@@ -529,6 +529,13 @@ model Paket {
   // Nullable; admin curates manually after the group is created.
   waGroupUrl    String?  @db.VarChar(500)
 
+  // Stage 223 — per-paket required document list. JSON array of
+  // DocumentType enum strings (e.g. ["PASSPORT","VISA_UMROH","VACCINE_MENINGITIS"]).
+  // Different paket types need different visas — Saudi umroh needs VISA_UMROH,
+  // Turkey/Aqsa doesn't. NULL = fall back to the hardcoded default list
+  // in the S23 readiness checklist (back-compat for existing paket).
+  requiredDocs  Json?
+
   // Stage 34 — paket clone lineage (S18 created the clone flow; this is the
   // back-reference column). Null when the paket is an original. Populated by
   // the clone service so the YoY leaderboard can compare this season to the

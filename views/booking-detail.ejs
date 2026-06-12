@@ -362,6 +362,22 @@
           <strong style="color:var(--amber);">PERMINTAAN PEMBATALAN DARI JEMAAH</strong> · <%= fmt.dateLong(b.cancelRequestedAt) %><br>
           Alasan: <em style="color:var(--cream-200);"><%= b.cancelRequestReason %></em><br>
           <span style="color:var(--ink-200);">Konfirmasi dengan jemaah via WhatsApp, lalu klik "× CANCEL BOOKING" di kanan untuk memproses.</span>
+          <%# Stage 224 — admin decline. Inline form with required reason. %>
+          <% if (canCancel) { %>
+            <details style="margin-top:10px;">
+              <summary style="cursor:pointer;color:var(--gold-300);font-family:var(--font-mono);font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">↳ Atau: Tolak permintaan ini</summary>
+              <form method="POST" action="/admin/bookings/<%= b.id %>/cancel-request/decline" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="text" name="reason" required minlength="3" maxlength="500"
+                       placeholder="Alasan tolak (min 3 karakter)"
+                       style="flex:1 1 300px;min-width:200px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:6px 10px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                <button type="submit" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:6px 16px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">
+                  ✕ Tolak request
+                </button>
+              </form>
+              <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">Jemaah akan dapat email/WA dengan alasan ini. Booking tetap aktif.</div>
+            </details>
+          <% } %>
         </div>
       <% } %>
 
