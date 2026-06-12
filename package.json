@@ -45,6 +45,7 @@
     "job:send-crew-dietary-brief": "node --env-file-if-exists=.env src/jobs/send-crew-dietary-brief.js",
     "job:send-pickup-reminder": "node --env-file-if-exists=.env src/jobs/send-pickup-reminder.js",
     "job:auto-publish-paket": "node --env-file-if-exists=.env src/jobs/auto-publish-paket.js",
+    "job:backfill-auto-tags": "node --env-file-if-exists=.env src/jobs/backfill-auto-tags.js",
     "job:scan-agent-dormancy": "node --env-file-if-exists=.env src/jobs/scan-agent-dormancy.js",
     "job:prune": "node --env-file-if-exists=.env src/jobs/prune.js",
     "check:openapi-sdk": "node scripts/check-openapi.js"

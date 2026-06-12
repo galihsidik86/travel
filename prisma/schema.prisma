@@ -1293,6 +1293,13 @@ model Booking {
   // visual pills on the booking row. NULL = no tags (default).
   tags     Json?
 
+  // Stage 232-234 — auto-tag idempotency tracker. JSON array of
+  // auto-tag codes that have ALREADY been computed-and-applied for
+  // this booking. Used by `bookingAutoTag` to honour admin's manual
+  // removal: if admin removes an auto-tag, the next pass sees it in
+  // `autoTaggedSeen` but missing from `tags` and won't re-add.
+  autoTaggedSeen Json?
+
   totalAmount Decimal  @db.Decimal(15, 2)
   paidAmount  Decimal  @default(0) @db.Decimal(15, 2)
   currency    Currency @default(IDR)

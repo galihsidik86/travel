@@ -151,6 +151,24 @@ export async function createBooking({ req, paketSlug, agentSlug, fullName, phone
     console.error('[booking] notif failed:', err.message);
   }
 
+  // Stage 232-234 — auto-tag pass. Fire-and-forget (booking row is the
+  // load-bearing artifact; auto-tag failure logged but never blocks
+  // the create). Runs in the same request actor context if available;
+  // falls back to system actor for public booking flow.
+  try {
+    const { autoTagBooking } = await import('./bookingAutoTag.js');
+    const tagActor = adminCreator || (loggedInUser
+      ? { id: loggedInUser.id, email: loggedInUser.email, role: loggedInUser.role }
+      : { id: null, email: 'system', role: null });
+    await autoTagBooking({
+      req: req || { ip: null, headers: {}, get: () => null },
+      actor: tagActor,
+      bookingId: result.booking.id,
+    });
+  } catch (err) {
+    console.warn('[booking] auto-tag failed:', err?.message || err);
+  }
+
   // Stage 108 — outbound webhook fan-out. Best-effort like the notif.
   try {
     const { dispatchEvent } = await import('./webhooks.js');

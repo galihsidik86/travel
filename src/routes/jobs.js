@@ -414,6 +414,16 @@ router.post(
   }),
 );
 
+// Stage 232-234 — auto-tag backfill (LANSIA/PERTAMA/KELUARGA)
+router.post(
+  '/backfill-auto-tags',
+  asyncHandler(async (_req, res) => {
+    const { runAutoTagBackfill } = await import('../services/bookingAutoTag.js');
+    const result = await runJob('backfill-auto-tags', () => runAutoTagBackfill({}));
+    res.json(result);
+  }),
+);
+
 router.post(
   '/scan-agent-dormancy',
   asyncHandler(async (_req, res) => {
