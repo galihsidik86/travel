@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Cari</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 8px; font-weight: 500; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-bottom: 22px; }
+  .panel { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 14px 18px; margin-bottom: 16px; }
+  .panel__head { padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--hairline-soft); }
+  .panel__head h3 { margin: 0; font-family: var(--font-display); color: var(--gold-300); font-size: 16px; font-weight: 500; }
+  .btn { display: inline-block; padding: 10px 18px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; text-decoration: none; }
+  .btn--primary { background: var(--gold-300); color: var(--ink-1000); border: 0; font-weight: 600; }
+  .badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-family: var(--font-mono); font-weight: 600; }
+  .badge--emerald { background: var(--emerald); color: var(--ink-1000); }
+  .badge--ruby { background: var(--ruby); color: var(--cream-100); }
+  .badge--gold { background: var(--gold-300); color: var(--ink-1000); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← Dashboard</a> · Cari</div>
+
+  <h1>Cari <em>semua data</em></h1>
+  <p class="sub">Pencarian terpadu lintas booking, jemaah, paket, dan agen.</p>
+
+  <form method="GET" action="/admin/search" style="margin-bottom:24px;">
+    <div style="display:flex;gap:10px;">
+      <input type="text" name="q" value="<%= result.query || '' %>" autofocus
+             placeholder="Cari bookingNo, nama jemaah, NIK, paspor, slug paket, atau agen…"
+             style="flex:1;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:10px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:13px;">
+      <button type="submit" class="btn btn--primary">Cari</button>
+    </div>
+  </form>
+
+  <% if (!result.query) { %>
+    <div style="padding:40px 20px;text-align:center;font-family:var(--font-mono);color:var(--ink-200);">
+      Ketik minimal 2 karakter untuk mulai pencarian.
+    </div>
+  <% } else { %>
+    <div style="font-family:var(--font-mono);font-size:12px;color:var(--cream-100);margin-bottom:18px;letter-spacing:0.04em;">
+      Hasil "<strong style="color:var(--gold-300);"><%= result.query %></strong>":
+      <strong><%= result.bookings.length %></strong> booking,
+      <strong><%= result.jemaah.length %></strong> jemaah,
+      <strong><%= result.paket.length %></strong> paket,
+      <strong><%= result.agen.length %></strong> agen
+      <% if (result.total === 0) { %>
+        — <span style="color:var(--ink-200);">tidak ada hasil yang cocok.</span>
+      <% } %>
+    </div>
+
+    <% if (result.bookings.length > 0) { %>
+      <div class="panel">
+        <div class="panel__head"><h3>Booking</h3></div>
+        <% result.bookings.forEach(function(b) { %>
+          <a href="/admin/bookings/<%= b.id %>" style="display:block;padding:8px 10px;border-bottom:1px dashed var(--hairline-soft);text-decoration:none;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">
+              <strong style="color:var(--gold-300);"><%= b.bookingNo %></strong>
+              <span class="badge badge--<%= b.status === 'LUNAS' ? 'emerald' : b.status === 'CANCELLED' ? 'ruby' : 'gold' %>" style="font-size:9px;letter-spacing:0.06em;"><%= b.status %></span>
+            </div>
+            <div style="margin-top:3px;font-size:11px;color:var(--ink-100);">
+              <%= b.jemaah?.fullName || '—' %>
+              <% if (b.jemaah?.phone) { %> · <span style="color:var(--ink-200);">📱 <%= b.jemaah.phone %></span><% } %>
+            </div>
+            <div style="margin-top:3px;font-size:10.5px;color:var(--ink-200);">
+              <%= b.paket?.title || '—' %><% if (b.paket?.departureDate) { %> · DEP <%= fmt.dateShort(b.paket.departureDate) %><% } %>
+              · <%= b.kelas %> · <%= b.paxCount %> pax
+            </div>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <% if (result.jemaah.length > 0) { %>
+      <div class="panel">
+        <div class="panel__head"><h3>Jemaah</h3></div>
+        <% result.jemaah.forEach(function(j) { %>
+          <a href="/admin/jemaah/<%= j.id %>/edit" style="display:block;padding:8px 10px;border-bottom:1px dashed var(--hairline-soft);text-decoration:none;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
+            <strong style="color:var(--gold-300);"><%= j.fullName %></strong>
+            <% if (j.phone) { %> · 📱 <%= j.phone %><% } %>
+            <% if (j.nik) { %> · NIK <%= j.nik %><% } %>
+            <% if (j.passportNo) { %> · 🛂 <%= j.passportNo %><% } %>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <% if (result.paket.length > 0) { %>
+      <div class="panel">
+        <div class="panel__head"><h3>Paket</h3></div>
+        <% result.paket.forEach(function(p) { %>
+          <a href="/admin/paket/<%= p.slug %>/edit" style="display:block;padding:8px 10px;border-bottom:1px dashed var(--hairline-soft);text-decoration:none;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">
+              <strong style="color:var(--gold-300);"><%= p.title %></strong>
+              <span class="badge badge--<%= p.status === 'ACTIVE' ? 'emerald' : 'gold' %>" style="font-size:9px;letter-spacing:0.06em;"><%= p.status %></span>
+            </div>
+            <div style="margin-top:3px;font-size:10.5px;color:var(--ink-200);">
+              <%= p.slug %> · DEP <%= fmt.dateShort(p.departureDate) %> · <%= p.kursiTerisi %>/<%= p.kursiTotal %> kursi
+            </div>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <% if (result.agen.length > 0) { %>
+      <div class="panel">
+        <div class="panel__head"><h3>Agen</h3></div>
+        <% result.agen.forEach(function(a) { %>
+          <a href="/admin/users" style="display:block;padding:8px 10px;border-bottom:1px dashed var(--hairline-soft);text-decoration:none;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);">
+            <strong style="color:var(--gold-300);"><%= a.displayName %></strong>
+            <% if (a.isVerified) { %> · <span style="color:var(--emerald);">✓ verified</span><% } %>
+            <% if (a.whatsapp) { %> · WA <%= a.whatsapp %><% } %>
+            <div style="margin-top:3px;font-size:10.5px;color:var(--ink-200);"><%= a.slug %></div>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+  <% } %>
+</div>
+</body>
+</html>

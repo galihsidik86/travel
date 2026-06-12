@@ -639,10 +639,112 @@
         <span class="sep">/</span>
         <span class="leaf" id="crumb-leaf">Overview</span>
       </div>
+      <%# Stage 254 — global search bar with autocomplete dropdown. %>
+      <div style="position:relative;flex:1;max-width:400px;margin:0 18px;">
+        <form method="GET" action="/admin/search" id="admin-search-form" style="margin:0;">
+          <input type="text" name="q" id="admin-search-input" autocomplete="off"
+                 placeholder="Cari booking, jemaah, paket, agen…"
+                 style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:7px 12px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11.5px;">
+        </form>
+        <div id="admin-search-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--ink-900);border:1px solid var(--gold-300);border-radius:var(--r-sm);box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;max-height:480px;overflow-y:auto;"></div>
+      </div>
       <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);letter-spacing:0.1em;">
         <%= fmt.dateLong(new Date()) %>
       </div>
     </div>
+
+    <%# Stage 254 — search bar autocomplete wiring. Debounced 250ms;
+        Esc closes; click-outside closes. %>
+    <script>
+      (function() {
+        const input = document.getElementById('admin-search-input');
+        const dropdown = document.getElementById('admin-search-dropdown');
+        const form = document.getElementById('admin-search-form');
+        if (!input || !dropdown) return;
+        let timer = null;
+        function esc(s) {
+          return String(s || '').replace(/[&<>"']/g, function(c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+          });
+        }
+        function render(data) {
+          const sections = [];
+          if (data.bookings.length > 0) {
+            sections.push('<div style="padding:4px 10px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;border-bottom:1px solid var(--hairline-soft);">Booking</div>');
+            data.bookings.forEach(function(b) {
+              sections.push('<a href="/admin/bookings/' + b.id + '" style="display:block;padding:6px 12px;text-decoration:none;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);border-bottom:1px solid var(--hairline-soft);">'
+                + '<strong style="color:var(--gold-300);">' + esc(b.bookingNo) + '</strong>'
+                + (b.jemaah && b.jemaah.fullName ? ' · ' + esc(b.jemaah.fullName) : '')
+                + ' <span style="color:var(--ink-200);font-size:9.5px;">' + esc(b.status) + '</span>'
+                + '</a>');
+            });
+          }
+          if (data.jemaah.length > 0) {
+            sections.push('<div style="padding:4px 10px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;border-bottom:1px solid var(--hairline-soft);">Jemaah</div>');
+            data.jemaah.forEach(function(j) {
+              sections.push('<a href="/admin/jemaah/' + j.id + '/edit" style="display:block;padding:6px 12px;text-decoration:none;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);border-bottom:1px solid var(--hairline-soft);">'
+                + '<strong style="color:var(--gold-300);">' + esc(j.fullName) + '</strong>'
+                + (j.phone ? ' · ' + esc(j.phone) : '')
+                + '</a>');
+            });
+          }
+          if (data.paket.length > 0) {
+            sections.push('<div style="padding:4px 10px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;border-bottom:1px solid var(--hairline-soft);">Paket</div>');
+            data.paket.forEach(function(p) {
+              sections.push('<a href="/admin/paket/' + p.slug + '/edit" style="display:block;padding:6px 12px;text-decoration:none;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);border-bottom:1px solid var(--hairline-soft);">'
+                + '<strong style="color:var(--gold-300);">' + esc(p.title) + '</strong>'
+                + ' <span style="color:var(--ink-200);font-size:9.5px;">' + esc(p.slug) + '</span>'
+                + '</a>');
+            });
+          }
+          if (data.agen.length > 0) {
+            sections.push('<div style="padding:4px 10px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;border-bottom:1px solid var(--hairline-soft);">Agen</div>');
+            data.agen.forEach(function(a) {
+              sections.push('<div style="display:block;padding:6px 12px;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);border-bottom:1px solid var(--hairline-soft);">'
+                + '<strong style="color:var(--gold-300);">' + esc(a.displayName) + '</strong>'
+                + ' <span style="color:var(--ink-200);font-size:9.5px;">' + esc(a.slug) + '</span>'
+                + '</div>');
+            });
+          }
+          if (data.total === 0) {
+            sections.push('<div style="padding:14px 12px;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);text-align:center;">Tidak ada hasil yang cocok.</div>');
+          } else {
+            sections.push('<a href="/admin/search?q=' + encodeURIComponent(data.query) + '" style="display:block;padding:8px 12px;font-family:var(--font-mono);font-size:10.5px;color:var(--gold-300);text-decoration:none;text-align:center;letter-spacing:0.06em;">Lihat semua hasil →</a>');
+          }
+          dropdown.innerHTML = sections.join('');
+        }
+        async function fetchResults(q) {
+          try {
+            const r = await fetch('/admin/search/autocomplete?q=' + encodeURIComponent(q));
+            const data = await r.json();
+            render(data);
+            dropdown.style.display = 'block';
+          } catch (e) {
+            // network blip — silent
+          }
+        }
+        input.addEventListener('input', function() {
+          const q = input.value.trim();
+          clearTimeout(timer);
+          if (q.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+          }
+          timer = setTimeout(function() { fetchResults(q); }, 250);
+        });
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
+            input.blur();
+          }
+        });
+        document.addEventListener('click', function(e) {
+          if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+          }
+        });
+      })();
+    </script>
 
     <!-- ===== OVERVIEW ===== -->
     <section class="page <%= activeTab === 'overview' ? 'is-active' : '' %>" id="page-overview">
@@ -921,6 +1023,34 @@
           .na-what strong { color: var(--cream-100); font-weight: 500; }
           .na-sub { display: block; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-100); margin-top: 2px; letter-spacing: 0.02em; }
         </style>
+      <% } %>
+
+      <%# Stage 255 — admin recently-viewed trail. Quick-jump cards to
+          the last entities admin opened. Hidden when empty. %>
+      <% if (typeof recentEntities !== 'undefined' && recentEntities && recentEntities.length > 0) {
+           const KIND_LABEL = { booking: 'Booking', jemaah: 'Jemaah', paket: 'Paket', agen: 'Agen' };
+           const KIND_HREF = (e) => {
+             if (e.kind === 'booking') return '/admin/bookings/' + e.id;
+             if (e.kind === 'jemaah') return '/admin/jemaah/' + e.id + '/edit';
+             if (e.kind === 'paket') return '/admin/paket/' + e.id + '/edit';
+             if (e.kind === 'agen') return '/admin/users';
+             return '#';
+           };
+      %>
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel__head">
+            <h3>Baru dibuka</h3>
+            <span class="meta">QUICK JUMP</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <% recentEntities.slice(0, 10).forEach(function(e) { %>
+              <a href="<%= KIND_HREF(e) %>" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(212,175,55,0.04);border:1px solid var(--hairline-soft);border-radius:var(--r-sm);text-decoration:none;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);">
+                <span style="color:var(--ink-200);font-size:9px;letter-spacing:0.06em;text-transform:uppercase;"><%= KIND_LABEL[e.kind] || e.kind %></span>
+                <strong style="color:var(--gold-300);"><%= e.label %></strong>
+              </a>
+            <% }) %>
+          </div>
+        </div>
       <% } %>
 
       <!-- Stage 28 — Kemarin (yesterday-at-a-glance), same source as 07:00 OWNER digest -->

@@ -211,6 +211,14 @@ router.get(
       },
     });
     if (!paket || paket.deletedAt) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+    // Stage 255 — track recently-viewed
+    try {
+      const { trackRecentEntity } = await import('../services/adminRecentEntities.js');
+      trackRecentEntity({
+        userId: req.user.id, kind: 'paket', id: paket.slug,
+        label: paket.title,
+      }).catch(() => {});
+    } catch { /* silent */ }
     // 5oo: crew panel data
     const { listAvailableCrew, listAssignedCrewForPaket } = await import('../services/crewPortal.js');
     // Stage 14: per-agent komisi overrides for this paket

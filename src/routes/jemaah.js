@@ -45,6 +45,14 @@ router.get(
   asyncHandler(async (req, res) => {
     const jemaah = await getJemaahById(req.params.id);
     if (!jemaah) throw new HttpError(404, 'Jemaah tidak ditemukan', 'JEMAAH_NOT_FOUND');
+    // Stage 255 — track recently-viewed
+    try {
+      const { trackRecentEntity } = await import('../services/adminRecentEntities.js');
+      trackRecentEntity({
+        userId: req.user.id, kind: 'jemaah', id: jemaah.id,
+        label: jemaah.fullName,
+      }).catch(() => {});
+    } catch { /* silent */ }
     const flat = {
       ...jemaah,
       passportExpiry: jemaah.passportExpiry?.toISOString().slice(0, 10) || '',

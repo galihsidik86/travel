@@ -322,6 +322,14 @@ router.get(
   asyncHandler(async (req, res) => {
     const booking = await getBookingById(req.params.id);
     if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+    // Stage 255 — track recently-viewed (best-effort, non-blocking)
+    try {
+      const { trackRecentEntity } = await import('../services/adminRecentEntities.js');
+      trackRecentEntity({
+        userId: req.user.id, kind: 'booking', id: booking.id,
+        label: `${booking.bookingNo} · ${booking.jemaah?.fullName || ''}`.trim(),
+      }).catch(() => {});
+    } catch { /* silent */ }
     const canCancel = CANCEL_ROLES.includes(req.user.role)
       && booking.status !== 'CANCELLED' && booking.status !== 'REFUNDED';
     const paid = Number(booking.paidAmount?.toString?.() ?? booking.paidAmount) || 0;

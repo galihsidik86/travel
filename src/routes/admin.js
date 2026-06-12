@@ -21,6 +21,14 @@ router.get(
   asyncHandler(async (req, res) => {
     const range = { from: req.query.from || '', to: req.query.to || '' };
     const overview = await getAdminOverview(range);
+    // Stage 255 — admin recently-viewed trail
+    let recentEntities = [];
+    try {
+      const { getRecentEntities } = await import('../services/adminRecentEntities.js');
+      recentEntities = await getRecentEntities({ userId: req.user.id });
+    } catch (err) {
+      console.warn('[admin] recentEntities load failed:', err?.message || err);
+    }
     const manifestSlug = req.query.manifestPaket
       || overview.paketList[0]?.slug
       || null;
@@ -93,6 +101,7 @@ router.get(
       manifestTag,
       manifestTagOptions,
       docOverview,
+      recentEntities,
       finance,
       bunking,
       paketRecap,
@@ -103,6 +112,32 @@ router.get(
       activeTab: req.query.tab || 'overview',
       range,
     });
+  }),
+);
+
+// Stage 253 — global admin search page. `?q=...` returns categorized
+// results across bookings + jemaah + paket + agen.
+router.get(
+  '/search',
+  asyncHandler(async (req, res) => {
+    const { searchAdminGlobal } = await import('../services/adminGlobalSearch.js');
+    const result = await searchAdminGlobal({
+      q: req.query.q || '', limit: 20,
+    });
+    res.render('admin-search', { user: req.user, result });
+  }),
+);
+
+// Stage 254 — autocomplete JSON endpoint for the topbar search bar.
+// Returns top-3-per-category as quick-jump suggestions.
+router.get(
+  '/search/autocomplete',
+  asyncHandler(async (req, res) => {
+    const { searchAdminGlobal } = await import('../services/adminGlobalSearch.js');
+    const result = await searchAdminGlobal({
+      q: req.query.q || '', limit: 3,
+    });
+    res.json(result);
   }),
 );
 

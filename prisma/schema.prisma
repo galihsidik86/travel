@@ -260,6 +260,10 @@ model User {
   fullName     String
   phone        String?
   lastLoginAt  DateTime?
+  // Stage 255 — admin recently-viewed trail. JSON array of recent
+  // entity navigations ({kind, id, label, viewedAt}); bounded to
+  // last 15 in service layer. NULL = never tracked (back-compat).
+  recentEntities Json?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
