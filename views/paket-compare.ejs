@@ -1,0 +1,131 @@
+<%- include('partials/head', { title: 'Bandingkan Paket — Religio Pro' }) %>
+<%- include('partials/topbar', { user, active: 'admin' }) %>
+
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← Dashboard</a> · <strong>Bandingkan paket</strong></div>
+
+  <h1>Bandingkan <em>paket</em></h1>
+  <p class="sub">Pilih 2-4 paket untuk side-by-side. Revenue, biaya, margin, dan ROI sejajar dalam satu lembar.</p>
+
+  <%# Slug picker form %>
+  <form method="GET" action="/admin/paket-compare" style="padding:14px 16px;background:rgba(212,175,55,0.03);border:1px solid var(--gold-300);border-radius:var(--r-sm);margin-bottom:24px;">
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);margin-bottom:10px;">
+      <strong>Pilih paket (max 4):</strong> centang lalu klik Bandingkan.
+    </div>
+    <%
+      const selected = new Set(((query?.slugs || '').toString()).split(',').map((s) => s.trim()).filter(Boolean));
+    %>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px 14px;font-family:var(--font-mono);font-size:11.5px;">
+      <% allActivePaket.forEach(function(p) { %>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 8px;border-radius:3px;background:rgba(255,255,255,0.02);">
+          <input type="checkbox" name="_slug" value="<%= p.slug %>" <%= selected.has(p.slug) ? 'checked' : '' %> class="paket-cmp-check" style="accent-color:var(--gold-300);">
+          <div style="line-height:1.3;">
+            <div style="color:var(--cream-100);"><%= p.title %></div>
+            <div style="color:var(--ink-200);font-size:9.5px;letter-spacing:0.06em;"><%= p.slug %> · DEP <%= fmt.dateShort(p.departureDate) %></div>
+          </div>
+        </label>
+      <% }) %>
+    </div>
+    <input type="hidden" name="slugs" id="paket-cmp-hidden" value="<%= query?.slugs || '' %>">
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+      <button type="submit" id="paket-cmp-submit" class="btn btn--primary">Bandingkan</button>
+      <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);" id="paket-cmp-counter">0 dipilih</span>
+    </div>
+  </form>
+
+  <script>
+    (function() {
+      const checks = document.querySelectorAll('.paket-cmp-check');
+      const hidden = document.getElementById('paket-cmp-hidden');
+      const counter = document.getElementById('paket-cmp-counter');
+      const submit = document.getElementById('paket-cmp-submit');
+      function refresh() {
+        const sel = [...checks].filter((c) => c.checked).map((c) => c.value);
+        hidden.value = sel.join(',');
+        counter.textContent = sel.length + ' dipilih' + (sel.length > 4 ? ' (akan dipotong di 4)' : '');
+        submit.disabled = sel.length === 0;
+      }
+      checks.forEach((c) => c.addEventListener('change', refresh));
+      refresh();
+    })();
+  </script>
+
+  <% if (data.missingSlugs && data.missingSlugs.length > 0) { %>
+    <div style="padding:10px 14px;background:rgba(181,86,74,0.08);border:1px solid var(--ruby);color:var(--ruby);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;margin-bottom:14px;">
+      Slug tidak ditemukan: <strong><%= data.missingSlugs.join(', ') %></strong>
+    </div>
+  <% } %>
+
+  <% if (data.paket.length > 0) { %>
+    <%
+      function fmtCell(p, row) {
+        const v = p[row.key];
+        if (v === null || v === undefined) {
+          if (row.kind === 'idr_or_null' || row.kind === 'margin_pct') return '—';
+        }
+        switch (row.kind) {
+          case 'text': return v || '—';
+          case 'int': return v != null ? v : '—';
+          case 'date': return v ? fmt.dateShort(v) : '—';
+          case 'days': return v != null ? (v < 0 ? `${Math.abs(v)}h lewat` : `${v}h lagi`) : '—';
+          case 'pct': return v != null ? v + '%' : '—';
+          case 'kursi': return `${p.kursiTerisi} / ${p.kursiTotal}`;
+          case 'idr': return 'Rp ' + fmt.rpShort(v || 0);
+          case 'idr_or_null': return v != null ? 'Rp ' + fmt.rpShort(v) : '—';
+          case 'roi': return v != null ? v + '×' : '—';
+          case 'rate_pct': return v != null ? (v * 100).toFixed(1) + '%' : '—';
+          case 'margin_pct': return v != null ? v + '%' : '—';
+          case 'conv_pct': return v != null ? v + '%' : '—';
+          default: return v ?? '—';
+        }
+      }
+    %>
+    <div style="overflow-x:auto;border:1px solid var(--hairline);border-radius:var(--r-sm);">
+      <table class="tbl" style="min-width:<%= 160 + data.paket.length * 200 %>px;">
+        <thead>
+          <tr>
+            <th style="width:160px;background:var(--ink-1000);position:sticky;left:0;z-index:2;">Metrik</th>
+            <% data.paket.forEach(function(p) { %>
+              <th style="width:200px;">
+                <a href="/admin?tab=manifest&manifestPaket=<%= p.slug %>" style="color:var(--gold-300);text-decoration:none;">
+                  <%= p.title %>
+                </a>
+                <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.06em;"><%= p.slug %></div>
+              </th>
+            <% }) %>
+          </tr>
+        </thead>
+        <tbody>
+          <% data.metricRows.forEach(function(row) { %>
+            <tr>
+              <td style="background:var(--ink-1000);position:sticky;left:0;font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.04em;"><%= row.label %></td>
+              <% data.paket.forEach(function(p) {
+                const txt = fmtCell(p, row);
+                let color = 'var(--cream-100)';
+                if (row.kind === 'margin_pct' && p.marginPct != null) {
+                  color = p.marginPct >= 20 ? 'var(--emerald)'
+                        : p.marginPct >= 5  ? 'var(--gold-300)'
+                        : p.marginPct >= 0  ? 'var(--amber)' : 'var(--ruby)';
+                } else if (row.kind === 'roi' && p.roiX != null) {
+                  color = p.roiX >= 5 ? 'var(--emerald)'
+                        : p.roiX >= 3 ? 'var(--gold-300)'
+                        : p.roiX >= 1 ? 'var(--amber)' : 'var(--ruby)';
+                }
+              %>
+                <td style="font-family:var(--font-mono);font-size:12px;color:<%= color %>;">
+                  <%= txt %>
+                </td>
+              <% }) %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } else if (data.inputSlugs && data.inputSlugs.length > 0) { %>
+    <div style="padding:30px;text-align:center;font-family:var(--font-mono);color:var(--ink-200);">
+      Tidak ada paket yang cocok dengan slug yang dipilih.
+    </div>
+  <% } %>
+</div>
+
+<%- include('partials/foot') %>

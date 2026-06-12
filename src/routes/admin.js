@@ -106,6 +106,30 @@ router.get(
   }),
 );
 
+// Stage 250 — multi-paket side-by-side comparison. Up to 4 slugs
+// via `?slugs=a,b,c,d` query param.
+router.get(
+  '/paket-compare',
+  asyncHandler(async (req, res) => {
+    const raw = (req.query.slugs || '').toString();
+    const slugs = raw.split(',').map((s) => s.trim()).filter(Boolean);
+    const { getPaketComparison } = await import('../services/paketCompare.js');
+    const data = await getPaketComparison({ slugs });
+    // Render the form even with no slugs (admin lands here to pick paket)
+    const allActivePaket = await (await import('../lib/db.js')).db.paket.findMany({
+      where: { deletedAt: null, status: { not: 'ARCHIVED' } },
+      select: { slug: true, title: true, departureDate: true, status: true },
+      orderBy: { departureDate: 'asc' },
+    });
+    res.render('paket-compare', {
+      user: req.user,
+      data,
+      allActivePaket,
+      query: req.query,
+    });
+  }),
+);
+
 // Stage 38 — refund drill-down. Either ?paket=<slug> or ?agent=<slug>
 // (use `kantor-pusat` for walk-ins). Days override via ?days=N.
 router.get(

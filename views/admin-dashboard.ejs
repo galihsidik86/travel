@@ -569,6 +569,9 @@
       <a href="/admin/calendar" class="rail__item" style="text-decoration:none;">
         Kalender
       </a>
+      <a href="/admin/paket-compare" class="rail__item" style="text-decoration:none;">
+        Bandingkan paket
+      </a>
       <a href="/admin/bookings" class="rail__item" style="text-decoration:none;">
         Cari booking
       </a>
@@ -2207,6 +2210,91 @@
                 <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:1px;">pax · <%= t.bookings %> booking<% if (t.paketCount > 1) { %> · <%= t.paketCount %> paket<% } %></div>
               </div>
             <% }) %>
+          </div>
+        </div>
+      <% } %>
+
+      <%# Stage 252 — paket yang belum BEP. Sorted infeasible-first then
+          by daysToDeparture asc. Hidden when nothing actionable. %>
+      <% if (typeof breakEvenOverview !== 'undefined' && breakEvenOverview && breakEvenOverview.rows.length > 0) { %>
+        <div class="panel" style="margin-top:16px;border-left:3px solid var(--amber);">
+          <div class="panel__head">
+            <h3>Paket belum BEP</h3>
+            <span class="meta">
+              <%= breakEvenOverview.totals.paketCount %> PAKET
+              <% if (breakEvenOverview.totals.infeasibleCount > 0) { %>
+                · <span style="color:var(--ruby);"><%= breakEvenOverview.totals.infeasibleCount %> TIDAK MUNGKIN</span>
+              <% } %>
+            </span>
+          </div>
+          <p class="sub" style="margin:0 0 10px;">Paket aktif yang masih butuh LUNAS lagi untuk menutup biaya vendor + komisi. Infeasible = projected booksNeeded melebihi seatsLeft.</p>
+          <% breakEvenOverview.rows.forEach(function(r) {
+            const color = r.feasible ? 'var(--amber)' : 'var(--ruby)';
+            const tag = r.feasible ? `${r.booksNeeded} LUNAS lagi` : `Butuh ${r.booksNeeded}, kursi tersisa ${r.seatsLeft}`;
+          %>
+            <div style="padding:8px 10px;background:rgba(212,175,55,0.03);border-left:3px solid <%= color %>;border-radius:0 3px 3px 0;margin-bottom:6px;font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+                <a href="/admin/paket/<%= r.paket.slug %>/edit" style="color:var(--gold-300);text-decoration:none;font-weight:600;"><%= r.paket.title %></a>
+                <span style="color:<%= color %>;font-weight:600;"><%= tag %></span>
+              </div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:2px;">
+                DEP <%= fmt.dateShort(r.paket.departureDate) %><% if (r.daysToDeparture != null) { %> · <%= r.daysToDeparture %>h lagi<% } %>
+                · margin/pax Rp <%= fmt.rpShort(r.marginPerPax || 0) %>
+                · net so far <span style="color:<%= (r.netSoFarIdr || 0) >= 0 ? 'var(--emerald)' : 'var(--ruby)' %>;">Rp <%= fmt.rpShort(r.netSoFarIdr || 0) %></span>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <%# Stage 251 — network-wide expected revenue from pipeline.
+          Hidden when nothing in pipeline (no real-estate waste). %>
+      <% if (typeof networkRevenueForecast !== 'undefined' && networkRevenueForecast && networkRevenueForecast.totals.bookings > 0) {
+           const nrf = networkRevenueForecast;
+      %>
+        <div class="panel" style="margin-top:16px;border-left:3px solid var(--gold-300);">
+          <div class="panel__head">
+            <h3>Proyeksi cash inflow</h3>
+            <span class="meta"><%= nrf.totals.bookings %> BOOKING · <%= nrf.totals.paketCount %> PAKET</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:10px 0 14px;">
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.14em;text-transform:uppercase;">Sisa tagihan total</div>
+              <div style="font-family:var(--font-display);font-size:22px;color:var(--cream-100);margin-top:4px;font-weight:500;">Rp <%= fmt.rpShort(nrf.totals.remaining) %></div>
+            </div>
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.14em;text-transform:uppercase;">Expected (weighted)</div>
+              <div style="font-family:var(--font-display);font-size:22px;color:var(--gold-300);margin-top:4px;font-weight:500;">Rp <%= fmt.rpShort(nrf.totals.weightedExpected) %></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">PER STATUS · WEIGHTED</div>
+              <% nrf.perStatus.filter((s) => s.bookings > 0).forEach(function(s) { %>
+                <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:var(--hairline-soft);font-family:var(--font-mono);font-size:11.5px;">
+                  <span style="color:var(--cream-100);"><%= s.status %></span>
+                  <span style="color:var(--ink-200);font-size:10px;">×<%= s.probability %></span>
+                  <span style="color:var(--gold-300);font-weight:600;">Rp <%= fmt.rpShort(s.weightedExpected) %></span>
+                </div>
+              <% }) %>
+            </div>
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">TOP 5 PAKET · BERANGKAT TERDEKAT</div>
+              <% nrf.perPaket.slice(0, 5).forEach(function(p) { %>
+                <div style="padding:5px 0;border-bottom:var(--hairline-soft);font-family:var(--font-mono);font-size:11.5px;">
+                  <div style="display:flex;justify-content:space-between;">
+                    <a href="/admin?tab=manifest&manifestPaket=<%= p.paket.slug %>" style="color:var(--cream-100);text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><%= p.paket.title %></a>
+                    <span style="color:var(--gold-300);font-weight:600;">Rp <%= fmt.rpShort(p.weightedExpected) %></span>
+                  </div>
+                  <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:1px;">
+                    DEP <%= fmt.dateShort(p.paket.departureDate) %> · <%= p.bookings %> booking · sisa Rp <%= fmt.rpShort(p.remaining) %>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+          <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
+            Weighted = sisa tagihan × probability per status. Heuristic: PENDING 30%, BOOKED 50%, DP 70%, PARTIAL 85%, LUNAS 100%.
           </div>
         </div>
       <% } %>

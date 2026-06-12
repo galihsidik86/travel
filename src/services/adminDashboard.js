@@ -410,6 +410,24 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getBookingTagRollup failed:', err?.message || err);
   }
 
+  // Stage 251 — network-wide expected revenue from active pipeline.
+  let networkRevenueForecast = null;
+  try {
+    const { getNetworkRevenueForecast } = await import('./networkRevenueForecast.js');
+    networkRevenueForecast = await getNetworkRevenueForecast();
+  } catch (err) {
+    console.warn('[admin-overview] networkRevenueForecast failed:', err?.message || err);
+  }
+
+  // Stage 252 — network-wide break-even surface (paket not yet break even)
+  let breakEvenOverview = null;
+  try {
+    const { getNetworkBreakEvenOverview } = await import('./paketBreakEvenOverview.js');
+    breakEvenOverview = await getNetworkBreakEvenOverview();
+  } catch (err) {
+    console.warn('[admin-overview] breakEvenOverview failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -433,6 +451,8 @@ export async function getAdminOverview(opts = {}) {
     cohortRetention,
     landingSpeed,
     bookingTagRollup,
+    networkRevenueForecast,
+    breakEvenOverview,
     emailCtr,
     analytics: {
       funnel: globalFunnel,
