@@ -3,7 +3,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import {
   getAdminOverview, getManifestForPaket, getFinanceSummary, filterManifestByPickup,
-  filterManifestByDietary,
+  filterManifestByDietary, filterManifestByTag,
   exportManifestCsv, getPrintManifest,
 } from '../services/adminDashboard.js';
 import { getBunkingForPaket } from '../services/bunking.js';
@@ -40,6 +40,8 @@ router.get(
     const manifestPickupId = (req.query.manifestPickup || '').toString();
     // Stage 215 — dietary filter on manifest tab
     const manifestDietary = (req.query.manifestDietary || '').toString();
+    // Stage 229 — tag filter on manifest tab
+    const manifestTag = (req.query.manifestTag || '').toString();
     const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
@@ -55,16 +57,30 @@ router.get(
     ]);
     // Stage 205 — apply pickup filter to a shallow copy so the raw
     // bookings array stays available for the summary panel. Stage 215
-    // composes the dietary filter on top of the pickup filter.
+    // composes the dietary filter on top of the pickup filter; S229
+    // adds tag filter on top of those.
     let manifest = manifestRaw;
     if (manifest && manifestPickupId) manifest = filterManifestByPickup(manifest, manifestPickupId);
     if (manifest && manifestDietary) manifest = filterManifestByDietary(manifest, manifestDietary);
+    if (manifest && manifestTag) manifest = filterManifestByTag(manifest, manifestTag);
+    // Stage 229 — distinct tags from the unfiltered manifest so the
+    // tag dropdown shows everything available even after narrowing.
+    const manifestTagOptions = (() => {
+      if (!manifestRaw) return [];
+      const set = new Set();
+      for (const b of manifestRaw.bookings) {
+        if (Array.isArray(b.tags)) for (const t of b.tags) set.add(t);
+      }
+      return [...set].sort();
+    })();
     res.render('admin-dashboard', {
       user: req.user,
       ...overview,
       manifest,
       manifestPickupId,
       manifestDietary,
+      manifestTag,
+      manifestTagOptions,
       finance,
       bunking,
       paketRecap,

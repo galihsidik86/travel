@@ -400,6 +400,16 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] getLandingSpeed failed:', err?.message || err);
   }
 
+  // Stage 230 — booking tag aggregate. Best-effort; failure dims the
+  // panel but doesn't 500 the overview.
+  let bookingTagRollup = null;
+  try {
+    const { getBookingTagRollup } = await import('./bookingTagRollup.js');
+    bookingTagRollup = await getBookingTagRollup();
+  } catch (err) {
+    console.warn('[admin-overview] getBookingTagRollup failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -422,6 +432,7 @@ export async function getAdminOverview(opts = {}) {
     referrerBreakdown,
     cohortRetention,
     landingSpeed,
+    bookingTagRollup,
     emailCtr,
     analytics: {
       funnel: globalFunnel,
@@ -689,6 +700,24 @@ export function filterManifestByDietary(result, dietary) {
     return isSpecial ? d !== 'REGULAR' : d === dietary;
   });
   return { ...result, bookings: filtered, filteredByDietary: dietary };
+}
+
+/**
+ * Stage 229 — narrow a manifest result to bookings carrying `tag`.
+ * Uppercases input for case-insensitive match. Unknown tags silently
+ * return unchanged (defensive against renamed tags on a bookmark);
+ * empty + ALL → no-op. Composes with the pickup + dietary filters
+ * since each shallow-copies the bookings array.
+ */
+export function filterManifestByTag(result, tag) {
+  if (!result || !tag || tag === 'ALL') return result;
+  const normalised = String(tag).trim().toUpperCase();
+  if (!normalised) return result;
+  const filtered = result.bookings.filter((b) => {
+    const tags = Array.isArray(b.tags) ? b.tags : [];
+    return tags.includes(normalised);
+  });
+  return { ...result, bookings: filtered, filteredByTag: normalised };
 }
 
 /**

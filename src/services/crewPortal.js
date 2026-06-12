@@ -66,7 +66,9 @@ export async function getAssignedManifest({ userId, slug }) {
         where: { status: { notIn: ['CANCELLED', 'REFUNDED'] } },
         orderBy: [{ kelas: 'asc' }, { createdAt: 'asc' }],
         select: {
-          id: true, bookingNo: true, kelas: true, paxCount: true, status: true,
+          // Stage 231 — booking tags (S226) on crew manifest so muthawwif
+          // sees VIP/LANSIA/etc. at a glance.
+          id: true, bookingNo: true, kelas: true, paxCount: true, status: true, tags: true,
           jemaah: {
             select: {
               id: true, fullName: true, phone: true,
@@ -361,7 +363,9 @@ export async function getPaketAttendanceReport(paketSlug) {
         where: { status: { notIn: ['CANCELLED', 'REFUNDED'] } },
         orderBy: [{ kelas: 'asc' }, { createdAt: 'asc' }],
         select: {
-          id: true, bookingNo: true, kelas: true, paxCount: true, status: true,
+          // Stage 231 — booking tags (S226) on crew manifest so muthawwif
+          // sees VIP/LANSIA/etc. at a glance.
+          id: true, bookingNo: true, kelas: true, paxCount: true, status: true, tags: true,
           jemaah: { select: { fullName: true, phone: true } },
           attendanceMarks: {
             select: { paketDayId: true, present: true },

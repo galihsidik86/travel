@@ -2158,6 +2158,27 @@
         </div>
       <% } %>
 
+      <%# Stage 230 — booking tag aggregate. Across all ACTIVE-paket
+          non-cancelled bookings, count per-tag with paxCount + paket
+          spread. Hidden when nothing tagged. %>
+      <% if (typeof bookingTagRollup !== 'undefined' && bookingTagRollup && bookingTagRollup.tags.length > 0) { %>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel__head">
+            <h3>Booking tag aktif</h3>
+            <span class="meta"><%= bookingTagRollup.totalTaggedBookings %> BOOKING DENGAN TAG</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px 12px;padding:6px 0;">
+            <% bookingTagRollup.tags.forEach(function(t) { %>
+              <div style="padding:8px 12px;background:rgba(212,175,55,0.04);border-left:3px solid var(--gold-300);border-radius:3px;">
+                <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.04em;color:var(--gold-300);"><%= t.tag %></div>
+                <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);margin-top:2px;"><%= t.paxCount %></div>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:1px;">pax · <%= t.bookings %> booking<% if (t.paketCount > 1) { %> · <%= t.paketCount %> paket<% } %></div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
       <% const km_a = analytics.komisiMonthly;
          const km_maxKom = Math.max(1, ...km_a.map((m) => Math.max(m.earned, m.paid)));
          const km_totalEarned = km_a.reduce((a, m) => a + m.earned, 0);
@@ -2759,9 +2780,16 @@
           <% } %>
           <%# Stage 215 — show active dietary filter chip + reset %>
           <% if (typeof manifestDietary !== 'undefined' && manifestDietary) { %>
-            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %><% if (manifestPickupId) { %>&manifestPickup=<%= encodeURIComponent(manifestPickupId) %><% } %>"
+            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %><% if (manifestPickupId) { %>&manifestPickup=<%= encodeURIComponent(manifestPickupId) %><% } %><% if (manifestTag) { %>&manifestTag=<%= encodeURIComponent(manifestTag) %><% } %>"
                style="background:transparent;border:1px solid var(--gold-300);border-radius:var(--r-sm);padding:8px 14px;text-decoration:none;color:var(--gold-300);align-self:center;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">
               × Reset diet (<%= manifestDietary === '__SPECIAL__' ? 'KHUSUS' : manifestDietary %>)
+            </a>
+          <% } %>
+          <%# Stage 229 — show active tag filter chip + reset %>
+          <% if (typeof manifestTag !== 'undefined' && manifestTag) { %>
+            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %><% if (manifestPickupId) { %>&manifestPickup=<%= encodeURIComponent(manifestPickupId) %><% } %><% if (manifestDietary) { %>&manifestDietary=<%= encodeURIComponent(manifestDietary) %><% } %>"
+               style="background:transparent;border:1px solid var(--gold-300);border-radius:var(--r-sm);padding:8px 14px;text-decoration:none;color:var(--gold-300);align-self:center;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">
+              × Reset tag (<%= manifestTag %>)
             </a>
           <% } %>
         </div>
@@ -2789,6 +2817,26 @@
               <% ['REGULAR','VEGETARIAN','HALAL_STRICT','SOFT_TEXTURE','DIABETIC','OTHER'].forEach(function(d) { %>
                 <option value="<%= d %>" <%= curDiet === d ? 'selected' : '' %>>Diet: <%= d %></option>
               <% }) %>
+            </select>
+          <% } %>
+          <%# Stage 229 — tag filter. `manifestTagOptions` comes from the
+              unfiltered raw manifest (route-side) so admin always sees
+              every available tag even after narrowing by tag itself. %>
+          <%
+            const availableTags = typeof manifestTagOptions !== 'undefined' ? manifestTagOptions : [];
+            const curTag = (typeof manifestTag !== 'undefined' ? manifestTag : '') || '';
+          %>
+          <% if (manifest && (availableTags.length > 0 || curTag)) { %>
+            <select name="manifestTag" class="input" onchange="this.form.submit()" title="Filter tag">
+              <option value="" <%= !curTag ? 'selected' : '' %>>Tag: semua</option>
+              <% availableTags.forEach(function(t) { %>
+                <option value="<%= t %>" <%= curTag === t ? 'selected' : '' %>>Tag: <%= t %></option>
+              <% }) %>
+              <%# Always include current selection so a tag filter persists
+                  even if the current narrow has no rows with that tag. %>
+              <% if (curTag && !availableTags.includes(curTag)) { %>
+                <option value="<%= curTag %>" selected>Tag: <%= curTag %> (no rows)</option>
+              <% } %>
             </select>
           <% } %>
           <% if (manifest) { %>
@@ -2912,6 +2960,19 @@
                     %>
                     <div style="margin-top:4px;">
                       <span class="badge badge--<%= dp.color %>" style="font-size:9.5px;letter-spacing:0.04em;" title="<%= tip %>"><%= dp.label %></span>
+                    </div>
+                  <% } %>
+                  <%# Stage 229 — booking tag pills (S226). Render in the
+                      docs/diet cell to keep the table compact; each pill is
+                      clickable to filter the manifest by that tag. %>
+                  <% if (Array.isArray(b.tags) && b.tags.length > 0) { %>
+                    <div style="margin-top:4px;display:flex;gap:3px;flex-wrap:wrap;">
+                      <% b.tags.forEach(function(t) { %>
+                        <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %>&manifestTag=<%= encodeURIComponent(t) %>"
+                           style="background:rgba(212,175,55,0.10);border:1px solid var(--gold-300);color:var(--gold-300);padding:1px 6px;border-radius:3px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.04em;text-decoration:none;">
+                          <%= t %>
+                        </a>
+                      <% }) %>
                     </div>
                   <% } %>
                 </td>

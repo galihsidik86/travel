@@ -242,6 +242,15 @@
             </td>
             <td>
               <div class="nm"><%= b.jemaah.fullName %></div>
+              <%# Stage 231 — booking tag pills (S226). Surfaces VIP / LANSIA
+                  / HONEYMOON tags so crew sees who needs special attention. %>
+              <% if (Array.isArray(b.tags) && b.tags.length > 0) { %>
+                <div style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap;">
+                  <% b.tags.forEach(function(t) { %>
+                    <span style="background:rgba(212,175,55,0.12);border:1px solid var(--gold-300);color:var(--gold-300);padding:1px 6px;border-radius:3px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.04em;"><%= t %></span>
+                  <% }) %>
+                </div>
+              <% } %>
               <div class="sx">📱 <%= b.jemaah.phone %></div>
               <% if (b.jemaah.emergencyContact) { %>
                 <div class="sx">🆘 <%= b.jemaah.emergencyContact %></div>
