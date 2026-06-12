@@ -776,6 +776,26 @@
         </div>
       <% } %>
 
+      <%# Stage 242 — booking tag rollup (VIP/LANSIA/HONEYMOON for the
+          agen's own pool). Hidden when nothing tagged. %>
+      <% if (typeof tagRollup !== 'undefined' && tagRollup && tagRollup.tags.length > 0) { %>
+        <div class="panel-an" style="margin-top:24px;">
+          <div class="panel-an__head">
+            <h3>Tag jemaah Anda</h3>
+            <span class="meta"><%= tagRollup.totalTaggedBookings %> booking dengan tag</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px 12px;padding:6px 0;">
+            <% tagRollup.tags.forEach(function(t) { %>
+              <div style="padding:8px 12px;background:rgba(212,175,55,0.04);border-left:3px solid var(--gold-300);border-radius:3px;">
+                <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.04em;color:var(--gold-300);"><%= t.tag %></div>
+                <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);margin-top:2px;"><%= t.paxCount %></div>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:1px;">pax · <%= t.bookings %> booking<% if (t.paketCount > 1) { %> · <%= t.paketCount %> paket<% } %></div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+
       <!-- Riwayat payout -->
       <!-- Stage 99 — projected komisi from active bookings -->
       <% if (typeof commissionForecast !== 'undefined' && commissionForecast && commissionForecast.totals.bookings > 0) { %>
@@ -806,6 +826,29 @@
               <% }) %>
             </div>
           </div>
+          <%# Stage 243 — per-paket breakdown. Top 5 by expected; agen
+              sees which trip is anchoring their pipeline. %>
+          <% if (commissionForecast.perPaket && commissionForecast.perPaket.length > 0) { %>
+            <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--hairline-soft);">
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">PER PAKET · TOP <%= Math.min(5, commissionForecast.perPaket.length) %></div>
+              <% commissionForecast.perPaket.slice(0, 5).forEach(function(p) { %>
+                <div style="padding:8px 10px;background:rgba(212,175,55,0.04);border-left:2px solid var(--gold-300);border-radius:0 3px 3px 0;margin-bottom:6px;">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+                    <strong style="font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);"><%= p.paket.title %></strong>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);font-weight:600;">Rp <%= fmt.rpShort(p.expectedIdr) %></span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);margin-top:3px;">
+                    <span>⏰ <%= p.paket.departureDate ? fmt.dateShort(p.paket.departureDate) : 'TBA' %> · <%= p.bookings %> booking · komisi <%= (p.rate * 100).toFixed(1) %>%</span>
+                    <span style="color:var(--ink-100);">
+                      <% p.perStatus.forEach(function(ps, idx) { %>
+                        <%= ps.status %>×<%= ps.bookings %><% if (idx < p.perStatus.length - 1) { %> · <% } %>
+                      <% }) %>
+                    </span>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
           <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
             Estimasi pakai probability heuristic per status (PENDING 30%, BOOKED 50%, DP_PAID 70%, PARTIAL 85%). Komisi sesungguhnya tercatat saat status LUNAS.
           </div>
@@ -921,6 +964,52 @@
       </header>
 
       <%- include('partials/date-range', { from: rFrom, to: rTo, basePath: '/agen' }) %>
+
+      <%# Stage 241 — dietary view for soon-departing paket. Only renders
+          when there's at least one non-REGULAR jemaah in window. %>
+      <% if (typeof dietaryView !== 'undefined' && dietaryView && dietaryView.totalSpecialPax > 0) {
+           const DIET_PILL = {
+             VEGETARIAN:   { label: '🥬 VEG',   color: 'emerald' },
+             HALAL_STRICT: { label: '☪ HALAL+', color: 'gold' },
+             SOFT_TEXTURE: { label: '🥣 SOFT',  color: 'amber' },
+             DIABETIC:     { label: '🩸 DIAB',  color: 'ruby' },
+             OTHER:        { label: '⚠ DIET',   color: 'sapphire' },
+           };
+      %>
+        <div class="panel" style="margin-bottom:18px;padding:14px 16px;border:1px solid var(--gold-300);background:rgba(212,175,55,0.04);border-radius:var(--r-sm);">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+            <h3 style="margin:0;font-family:var(--font-display);color:var(--gold-300);">🍽 Diet khusus jemaah Anda (14 hari ke depan)</h3>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);">
+              <%= dietaryView.totalSpecialPax %> / <%= dietaryView.totalPax %> pax · perlu perhatian
+            </div>
+          </div>
+          <p class="sub" style="margin:0 0 12px;">Konfirmasi ke jemaah sebelum admin brief ke kitchen.</p>
+          <% dietaryView.paket.forEach(function(p) {
+               if (p.specialPax === 0) return;
+          %>
+            <div style="margin-top:10px;padding:10px 12px;background:var(--ink-1000);border-left:3px solid var(--gold-300);border-radius:0 var(--r-sm) var(--r-sm) 0;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+                <strong style="font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);"><%= p.paket.title %></strong>
+                <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--gold-300);">⏰ <%= fmt.dateShort(p.paket.departureDate) %></span>
+              </div>
+              <ul style="margin:8px 0 0;padding-left:18px;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);line-height:1.7;">
+                <% p.specials.forEach(function(b) {
+                     const dp = DIET_PILL[b.jemaah.dietary] || { label: b.jemaah.dietary, color: 'sapphire' };
+                %>
+                  <li>
+                    <strong><%= b.jemaah.fullName %></strong>
+                    <a href="https://wa.me/<%= (b.jemaah.phone || '').replace(/\D+/g, '').replace(/^0/, '62') %>" target="_blank" rel="noopener" style="color:var(--gold-300);text-decoration:none;font-size:10px;">📱</a>
+                    <span class="badge badge--<%= dp.color %>" style="font-size:9px;margin-left:4px;"><%= dp.label %></span>
+                    <% if (b.jemaah.dietaryNotes) { %>
+                      <span style="color:var(--ink-200);"> · <%= b.jemaah.dietaryNotes %></span>
+                    <% } %>
+                  </li>
+                <% }) %>
+              </ul>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
 
       <!-- Funnel — SVG descending-width chart (shared primitive with /admin) -->
       <div class="panel-an">

@@ -52,7 +52,7 @@ function monthKey(date) {
  * @returns {Promise<{rows:[{month,bookings,expectedIdr}], totals, perStatus}>}
  */
 export async function getAgentCommissionForecast({ agentId, windowDays = 90, now = new Date() } = {}) {
-  if (!agentId) return { rows: [], totals: { bookings: 0, expectedIdr: 0 }, perStatus: [] };
+  if (!agentId) return { rows: [], totals: { bookings: 0, expectedIdr: 0 }, perStatus: [], perPaket: [] };
 
   // Window: only departures up to N days out. Unscheduled bookings
   // (departureDate=null) are always included — admin wants the pipeline
@@ -69,7 +69,8 @@ export async function getAgentCommissionForecast({ agentId, windowDays = 90, now
     },
     select: {
       id: true, bookingNo: true, status: true, totalAmount: true,
-      paket: { select: { id: true, departureDate: true, komisiRate: true } },
+      // Stage 243 — slug + title for per-paket breakdown
+      paket: { select: { id: true, slug: true, title: true, departureDate: true, komisiRate: true } },
     },
   });
 
@@ -77,6 +78,8 @@ export async function getAgentCommissionForecast({ agentId, windowDays = 90, now
     return {
       rows: [], totals: { bookings: 0, expectedIdr: 0 },
       perStatus: [],
+      // Stage 243 — keep perPaket shape consistent on empty
+      perPaket: [],
       windowDays, agentId,
     };
   }
@@ -100,6 +103,8 @@ export async function getAgentCommissionForecast({ agentId, windowDays = 90, now
   // Aggregate per (month, status)
   const byMonth = new Map();      // monthKey → { bookings:0, expectedIdr:0 }
   const byStatus = new Map();     // status → { bookings:0, expectedIdr:0 }
+  // Stage 243 — per-paket aggregation so agen plans per-trip
+  const byPaket = new Map();      // paketId → { paket, bookings:0, expectedIdr:0, perStatus: Map }
   let totalBookings = 0, totalExpected = 0;
 
   for (const b of bookings) {
@@ -116,6 +121,29 @@ export async function getAgentCommissionForecast({ agentId, windowDays = 90, now
 
     if (!byStatus.has(b.status)) byStatus.set(b.status, { bookings: 0, expectedIdr: 0 });
     const s = byStatus.get(b.status); s.bookings += 1; s.expectedIdr += expected;
+
+    // S243 — per-paket bucket with nested per-status so agen sees
+    // which trip's expected is anchored to which booking phase.
+    if (b.paket?.id) {
+      if (!byPaket.has(b.paket.id)) {
+        byPaket.set(b.paket.id, {
+          paket: {
+            id: b.paket.id, slug: b.paket.slug, title: b.paket.title,
+            departureDate: b.paket.departureDate,
+          },
+          rate, // effective rate used for this paket (matrix > override > paket > default)
+          bookings: 0, expectedIdr: 0,
+          perStatus: new Map(),
+        });
+      }
+      const p = byPaket.get(b.paket.id);
+      p.bookings += 1;
+      p.expectedIdr += expected;
+      if (!p.perStatus.has(b.status)) p.perStatus.set(b.status, { bookings: 0, expectedIdr: 0 });
+      const ps = p.perStatus.get(b.status);
+      ps.bookings += 1;
+      ps.expectedIdr += expected;
+    }
 
     totalBookings += 1;
     totalExpected += expected;
@@ -144,9 +172,26 @@ export async function getAgentCommissionForecast({ agentId, windowDays = 90, now
     };
   });
 
+  // Stage 243 — flatten per-paket map into sorted array. Sort by
+  // expectedIdr desc so the heaviest-revenue paket lands first.
+  const perPaket = [...byPaket.values()]
+    .map((p) => ({
+      paket: p.paket,
+      rate: p.rate,
+      bookings: p.bookings,
+      expectedIdr: Math.round(p.expectedIdr),
+      perStatus: [...p.perStatus.entries()].map(([status, v]) => ({
+        status,
+        bookings: v.bookings,
+        expectedIdr: Math.round(v.expectedIdr),
+      })),
+    }))
+    .sort((a, z) => z.expectedIdr - a.expectedIdr);
+
   return {
     rows,
     perStatus,
+    perPaket,
     totals: { bookings: totalBookings, expectedIdr: Math.round(totalExpected) },
     windowDays,
     agentId,
