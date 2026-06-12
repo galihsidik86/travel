@@ -2041,6 +2041,38 @@
               <% } %>
             </div>
           </div>
+          <%# Stage 236 — per-reason-code breakdown. UNSET bucket
+              rendered last regardless of size (mirrors S175). %>
+          <% if (refundAnalytics.perReasonCode && refundAnalytics.perReasonCode.length > 0) { %>
+            <div style="margin-top:14px;padding-top:12px;border-top:var(--hairline-soft);">
+              <div class="rc-h">Per kategori alasan</div>
+              <%
+                const REASON_LABELS = {
+                  JEMAAH_REQUEST: 'Jemaah minta',
+                  PAKET_CANCELLED: 'Paket dibatalkan',
+                  VISA_REJECTED: 'Visa ditolak',
+                  JEMAAH_ILL: 'Jemaah sakit',
+                  DOCUMENT_INCOMPLETE: 'Dokumen tidak lengkap',
+                  NO_SHOW_REFUND: 'No-show refund',
+                  GOODWILL: 'Goodwill',
+                  DUPLICATE_PAYMENT: 'Pembayaran dobel',
+                  FRAUD_CHARGEBACK: 'Fraud / chargeback',
+                  OTHER: 'Lainnya',
+                  __UNSET__: '(tanpa kode)',
+                };
+              %>
+              <% refundAnalytics.perReasonCode.forEach((rc) => {
+                   const isUnset = rc.code === '__UNSET__';
+                   const label = REASON_LABELS[rc.code] || rc.code;
+              %>
+                <div class="rc-row" style="<%= isUnset ? 'color:var(--ink-200);' : '' %>">
+                  <span class="rc-name"><%= label %><% if (!isUnset) { %> <span style="color:var(--ink-200);font-family:var(--font-mono);font-size:10px;">· <%= rc.refundCount %>x</span><% } else { %> <span style="font-family:var(--font-mono);font-size:10px;">· perlu kategorisasi</span><% } %></span>
+                  <span class="rc-amt"><%= fmt.rpShort(rc.refunded) %></span>
+                  <span class="rc-rate" style="color:var(--ink-100);"><%= rc.sharePct ?? '—' %>%</span>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
         </div>
         <style>
           .refund-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px; }

@@ -1371,6 +1371,12 @@ model Payment {
 
   notes String? @db.Text
 
+  // Stage 235 — structured refund reason code on the negative-amount
+  // (refund) Payment row. Validated service-side against an allowlist
+  // so refund analytics can aggregate by category. NULL on PAID rows
+  // + on legacy refund rows pre-S235.
+  refundReasonCode String? @db.VarChar(40)
+
   // 5pp: back-reference to PaymentIntent (nullable — direct admin-recorded payments have none)
   intent PaymentIntent?
 
@@ -1379,6 +1385,7 @@ model Payment {
 
   @@index([bookingId])
   @@index([status])
+  @@index([refundReasonCode])
 }
 
 // 5pp: Gateway intent — durable record of "we asked Midtrans to take payment".

@@ -15,6 +15,12 @@ const RefundSchema = z.object({
   amount: z.preprocess((v) => Number(v), z.number().positive().max(50_000_000_000)),
   method: z.enum(['VA', 'QRIS', 'EWALLET', 'CARD', 'TRANSFER', 'CASH']),
   reason: z.string().min(3, 'Alasan refund min. 3 karakter').max(2000),
+  // Stage 235 — optional structured reason code. Service validates against
+  // the REFUND_REASON_CODES allowlist; route just trims + passes through.
+  reasonCode: z.preprocess(
+    (v) => (v === '' || v == null ? null : String(v).trim()),
+    z.string().max(40).nullable().optional(),
+  ),
   // S145 — explicit acknowledgment of no-show context. Accepts both
   // string "true"/"1" (form-encoded) and boolean (JSON).
   acknowledgeNoShow: z.preprocess(
@@ -31,6 +37,7 @@ router.post(
       req,
       actor: { id: req.user.id, email: req.user.email, role: req.user.role },
       ...data,
+      reasonCode: data.reasonCode ?? null,
     });
     res.status(201).json(result);
   }),

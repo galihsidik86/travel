@@ -424,6 +424,16 @@ router.post(
   }),
 );
 
+// Stage 237 — auto-cancel stale unpaid PENDING bookings
+router.post(
+  '/auto-cancel-stale-pending',
+  asyncHandler(async (_req, res) => {
+    const { runAutoCancelStalePending } = await import('../services/autoCancelStalePending.js');
+    const result = await runJob('auto-cancel-stale-pending', () => runAutoCancelStalePending({}));
+    res.json(result);
+  }),
+);
+
 router.post(
   '/scan-agent-dormancy',
   asyncHandler(async (_req, res) => {

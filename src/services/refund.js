@@ -7,6 +7,26 @@ import { notifyRefundIssued } from './notifications.js';
 const METHODS = new Set(['VA', 'QRIS', 'EWALLET', 'CARD', 'TRANSFER', 'CASH']);
 
 /**
+ * Stage 235 — refund reason code allowlist. Most overlap with the S175
+ * BookingCancelReason enum (refunds usually trail cancels) plus refund-
+ * specific cases: DUPLICATE_PAYMENT, FRAUD_CHARGEBACK. Stored as
+ * VARCHAR not enum so adding codes later doesn't need a migration.
+ */
+export const REFUND_REASON_CODES = [
+  'JEMAAH_REQUEST',
+  'PAKET_CANCELLED',
+  'VISA_REJECTED',
+  'JEMAAH_ILL',
+  'DOCUMENT_INCOMPLETE',
+  'NO_SHOW_REFUND',
+  'GOODWILL',
+  'DUPLICATE_PAYMENT',
+  'FRAUD_CHARGEBACK',
+  'OTHER',
+];
+const REFUND_REASON_SET = new Set(REFUND_REASON_CODES);
+
+/**
  * Issue a refund against a CANCELLED booking.
  *   - Creates a new Payment row with negative `amount` and status=REFUNDED
  *     (Payment is treated as append-only — never mutate the original PAID rows).
@@ -19,12 +39,23 @@ const METHODS = new Set(['VA', 'QRIS', 'EWALLET', 'CARD', 'TRANSFER', 'CASH']);
  *   - amount > 0 and ≤ current paidAmount.
  *   - method ∈ PaymentMethod enum.
  */
-export async function issueRefund({ req, actor, bookingId, amount, method, reason, acknowledgeNoShow = false }) {
+export async function issueRefund({ req, actor, bookingId, amount, method, reason, reasonCode = null, acknowledgeNoShow = false }) {
   if (!METHODS.has(method)) {
     throw new HttpError(400, 'Metode refund tidak valid', 'INVALID_METHOD');
   }
   if (!reason || reason.trim().length < 3) {
     throw new HttpError(400, 'Alasan refund wajib (min. 3 karakter)', 'REFUND_REASON_REQUIRED');
+  }
+  // Stage 235 — validate optional structured reason code. Case-
+  // insensitive normalisation; empty string → null. Mirrors S175
+  // cancelReasonCode pattern.
+  let refundReasonCode = null;
+  if (reasonCode != null && reasonCode !== '') {
+    const code = String(reasonCode).trim().toUpperCase();
+    if (!REFUND_REASON_SET.has(code)) {
+      throw new HttpError(400, `Refund reason code tidak valid: ${reasonCode}`, 'BAD_REFUND_REASON_CODE');
+    }
+    refundReasonCode = code;
   }
   const amt = Number(amount);
   if (!Number.isFinite(amt) || amt <= 0) {
@@ -84,6 +115,9 @@ export async function issueRefund({ req, actor, bookingId, amount, method, reaso
         status: 'REFUNDED',
         paidAt: new Date(),
         notes: reason.trim(),
+        // Stage 235 — structured reason code for analytics. NULL when admin
+        // didn't pick a code (legacy / quick refund).
+        ...(refundReasonCode ? { refundReasonCode } : {}),
       },
     });
     const updatedBooking = await tx.booking.update({
@@ -109,6 +143,9 @@ export async function issueRefund({ req, actor, bookingId, amount, method, reaso
       paymentId: payment.id,
       method,
       reason: reason.trim(),
+      // Stage 235 — propagate the structured code into the audit row
+      // so compliance scans can answer "how many GOODWILL refunds last quarter?"
+      ...(refundReasonCode ? { refundReasonCode } : {}),
       fullRefund: newPaid === 0,
       // Stage 145 — durable trail of the ack flag when a no-show full
       // refund went through. Lets compliance review "did we knowingly

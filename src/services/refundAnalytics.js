@@ -136,6 +136,9 @@ export async function getRefundAnalytics({ now = new Date(), days = 90, limit = 
       },
       select: {
         amount: true,
+        // Stage 236 — pull the structured code so the per-reason rollup
+        // can aggregate categories. NULL bucket renders as "(tanpa kode)".
+        refundReasonCode: true,
         booking: {
           select: {
             paketId: true, agentId: true,
@@ -210,6 +213,34 @@ export async function getRefundAnalytics({ now = new Date(), days = 90, limit = 
     (acc, r) => acc + Math.abs(toNumber(r.amount) ?? 0),
     0,
   );
+
+  // Stage 236 — per-reason-code rollup. NULL refundReasonCode (legacy /
+  // admin skipped the dropdown) buckets under `__UNSET__` sentinel; the
+  // view renders it as "(tanpa kode)" so admin sees the categorisation
+  // backlog at a glance.
+  const reasonTotals = new Map();
+  for (const r of refunds) {
+    const refundAmt = Math.abs(toNumber(r.amount) ?? 0);
+    const code = r.refundReasonCode || '__UNSET__';
+    const row = reasonTotals.get(code) || { code, refunded: 0, refundCount: 0 };
+    row.refunded += refundAmt;
+    row.refundCount += 1;
+    reasonTotals.set(code, row);
+  }
+  const perReasonCode = [...reasonTotals.values()]
+    .map((r) => ({
+      ...r,
+      sharePct: totalRefunded > 0
+        ? Math.round((r.refunded / totalRefunded) * 1000) / 10
+        : null,
+    }))
+    // Sort by refunded desc, but __UNSET__ always at the end so the
+    // categorised data dominates the visual ranking (mirrors S175).
+    .sort((a, b) => {
+      if (a.code === '__UNSET__' && b.code !== '__UNSET__') return 1;
+      if (b.code === '__UNSET__' && a.code !== '__UNSET__') return -1;
+      return b.refunded - a.refunded;
+    });
   const totalPaid = payments.reduce(
     (acc, p) => acc + (toNumber(p.amount) ?? 0),
     0,
@@ -232,5 +263,6 @@ export async function getRefundAnalytics({ now = new Date(), days = 90, limit = 
     },
     perPaket: paketRows,
     perAgent: agentRows,
+    perReasonCode,
   };
 }

@@ -99,6 +99,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-pickup-reminder': 24 * 60 * 60_000, // daily (Stage 219)
   'auto-publish-paket': 24 * 60 * 60_000, // daily (Stage 227)
   'backfill-auto-tags': 24 * 60 * 60_000, // daily (Stage 232-234)
+  'auto-cancel-stale-pending': 24 * 60 * 60_000, // daily (Stage 237)
   'scan-agent-dormancy': 24 * 60 * 60_000, // daily (Stage 185)
   'prune': 7 * 24 * 60 * 60_000,          // weekly — bounded-growth pass
 };

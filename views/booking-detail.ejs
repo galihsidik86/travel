@@ -1010,6 +1010,25 @@
         </select>
       </div>
 
+      <%# Stage 235 — structured reason code dropdown. Optional but
+          recommended; admin who picks "OTHER" gives the free-text below. %>
+      <div class="field">
+        <label class="label" for="rf-reason-code">Kategori alasan (untuk analitik)</label>
+        <select class="input" id="rf-reason-code" name="reasonCode">
+          <option value="">— pilih kategori (opsional) —</option>
+          <option value="JEMAAH_REQUEST">Jemaah minta batal/refund</option>
+          <option value="PAKET_CANCELLED">Paket dibatalkan oleh kami</option>
+          <option value="VISA_REJECTED">Visa ditolak</option>
+          <option value="JEMAAH_ILL">Jemaah sakit / meninggal</option>
+          <option value="DOCUMENT_INCOMPLETE">Dokumen tidak lengkap</option>
+          <option value="NO_SHOW_REFUND">No-show (admin acknowledge)</option>
+          <option value="GOODWILL">Goodwill (diskresi admin)</option>
+          <option value="DUPLICATE_PAYMENT">Pembayaran dobel</option>
+          <option value="FRAUD_CHARGEBACK">Fraud / chargeback</option>
+          <option value="OTHER">Lainnya</option>
+        </select>
+      </div>
+
       <div class="field">
         <label class="label" for="rf-reason">Alasan refund *</label>
         <textarea class="input" id="rf-reason" name="reason" required minlength="3" maxlength="2000" rows="3" placeholder="Mis. nasabah minta refund, biaya admin dipotong 10%, dll."></textarea>
