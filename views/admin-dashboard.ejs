@@ -2918,6 +2918,57 @@
           <p>Tambahkan paket dulu untuk melihat manifesnya.</p>
         </div>
       <% } else { %>
+        <%# Stage 247 — per-paket document expiry triage. Renders above
+            the manifest when there's at least one expired/expiring doc
+            so admin sees the leak before scanning rows individually. %>
+        <% if (typeof docOverview !== 'undefined' && docOverview && docOverview.counts.total > 0) {
+             const DOC_LABEL = {
+               PASSPORT: 'Paspor',
+               VISA_UMROH: 'Visa Umroh',
+               MANASIK_CERT: 'Sertifikat Manasik',
+               HEALTH_CERT: 'Surat Sehat',
+               VACCINE_MENINGITIS: 'Vaksin Meningitis',
+               MARRIAGE_CERT: 'Buku Nikah',
+               FAMILY_CARD: 'Kartu Keluarga',
+               OTHER: 'Lainnya',
+             };
+             const BAND_COLOR = { EXPIRED: 'ruby', URGENT: 'amber', WARNING: 'gold' };
+        %>
+          <div class="panel" style="margin-bottom:18px;padding:14px 18px;border:1px solid var(--ruby);background:rgba(181,86,74,0.04);border-radius:var(--r-sm);">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;gap:10px;flex-wrap:wrap;">
+              <h3 style="margin:0;font-family:var(--font-display);color:var(--ruby);">📄 Dokumen perlu perhatian</h3>
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);">
+                <% if (docOverview.counts.expired > 0) { %><span style="color:var(--ruby);"><%= docOverview.counts.expired %> EXPIRED</span> · <% } %>
+                <% if (docOverview.counts.urgent > 0) { %><span style="color:var(--amber);"><%= docOverview.counts.urgent %> &lt;30 HARI</span> · <% } %>
+                <% if (docOverview.counts.warning > 0) { %><span style="color:var(--gold-300);"><%= docOverview.counts.warning %> &lt;60 HARI</span><% } %>
+              </div>
+            </div>
+            <p class="sub" style="margin:0 0 12px;">Klik nama jemaah untuk buka edit profil. Renew via tombol RENEW pada panel dokumen.</p>
+            <div style="max-height:300px;overflow-y:auto;">
+              <% docOverview.rows.slice(0, 30).forEach(function(r) {
+                const today = new Date();
+                const days = Math.ceil((new Date(r.document.expiresAt).getTime() - today.getTime()) / 86_400_000);
+                const color = BAND_COLOR[r.band] || 'gold';
+              %>
+                <div style="display:grid;grid-template-columns:120px 1fr 220px 80px;gap:10px;padding:8px 10px;border-bottom:1px dashed var(--hairline-soft);font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);align-items:baseline;">
+                  <span class="badge badge--<%= color %>" style="font-size:9px;letter-spacing:0.06em;"><%= r.band %></span>
+                  <a href="/admin/jemaah/<%= r.jemaah.id %>/edit" style="color:var(--cream-100);text-decoration:none;">
+                    <strong style="color:var(--gold-300);"><%= r.jemaah.fullName %></strong>
+                    <% if (r.jemaah.phone) { %> · <span style="color:var(--ink-200);">📱 <%= r.jemaah.phone %></span><% } %>
+                  </a>
+                  <span><%= DOC_LABEL[r.document.type] || r.document.type %><% if (r.document.refNumber) { %> · <span style="color:var(--ink-200);"><%= r.document.refNumber %></span><% } %></span>
+                  <span style="text-align:right;color:var(--<%= color %>);">
+                    <% if (r.band === 'EXPIRED') { %><%= Math.abs(days) %>h lewat<% } else { %><%= days %>h lagi<% } %>
+                  </span>
+                </div>
+              <% }) %>
+            </div>
+            <% if (docOverview.counts.total > 30) { %>
+              <div class="sub" style="margin-top:8px;">+ <%= docOverview.counts.total - 30 %> dokumen lainnya (filter manifest untuk lihat detail per jemaah)</div>
+            <% } %>
+          </div>
+        <% } %>
+
         <!-- Stage 110 — bulk select + dossier export. The action bar
              auto-shows when ≥1 row is checked. -->
         <form id="bulk-bundle-form" method="POST" action="/admin/manifest/<%= manifest.paket.slug %>/bundles.zip">

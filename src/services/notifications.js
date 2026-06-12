@@ -543,6 +543,77 @@ export async function notifyCancelRequested({ booking, reason, requestedByEmail 
 }
 
 /**
+ * Stage 249 — jemaah submitted a doc that needs admin verification.
+ * Fan-out EMAIL to ACTIVE OWNER+SUPERADMIN+MANAJER_OPS so the
+ * verification queue doesn't slip. **Silent when nothing to verify** —
+ * uses the GENERIC type since body is short and admin doesn't need
+ * a template variant per doc type. Per-admin row so each can be
+ * retried independently.
+ *
+ * **Idempotency caveat**: a jemaah who re-saves the same doc multiple
+ * times (changing refNumber, attaching file, then saving notes) will
+ * fire multiple notifs. The dedup check below skips when there's an
+ * unread notif of the same `relatedEntityId` from the last hour —
+ * good enough to absorb the typical save burst without dropping a
+ * genuine resubmission a day later.
+ */
+export async function notifyDocSubmittedAdmin({ jemaah, doc, kind = 'submit' }) {
+  if (!jemaah || !doc) return { skipped: true, reason: 'missing_args' };
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { skipped: true, reason: 'no_admins' };
+
+  // Skip if an EMAIL for this doc has been queued in the last hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60_000);
+  const recent = await db.notification.findFirst({
+    where: {
+      type: 'GENERIC',
+      relatedEntity: 'JemaahDocument',
+      relatedEntityId: doc.id,
+      createdAt: { gte: oneHourAgo },
+    },
+    select: { id: true },
+  });
+  if (recent) return { skipped: true, reason: 'recent_burst' };
+
+  const docTypeLabel = doc.type || 'dokumen';
+  const subjectVerb = kind === 'file_upload' ? 'mengunggah file' : 'mengirim';
+  const subject = `[Verifikasi] ${jemaah.fullName || 'Jemaah'} ${subjectVerb} ${docTypeLabel}`;
+  const body = [
+    `Jemaah ${jemaah.fullName || jemaah.id || '-'} ${subjectVerb} ${docTypeLabel}.`,
+    '',
+    doc.refNumber ? `No. ref: ${doc.refNumber}` : null,
+    doc.expiresAt ? `Expire: ${new Date(doc.expiresAt).toISOString().slice(0, 10)}` : null,
+    '',
+    `Tinjau di /admin/jemaah/${jemaah.id}/edit`,
+  ].filter((l) => l !== null).join('\n');
+
+  let enqueued = 0;
+  await Promise.all(admins.map(async (a) => {
+    try {
+      await enqueueNotification({
+        type: 'GENERIC', channel: 'EMAIL',
+        recipientEmail: a.email,
+        subject, body,
+        payload: { kind: 'doc_submitted', jemaahId: jemaah.id, docId: doc.id, docType: doc.type, source: kind },
+        relatedEntity: 'JemaahDocument', relatedEntityId: doc.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyDocSubmittedAdmin]', a.email, err?.message || err);
+    }
+  }));
+  return { enqueued };
+}
+
+/**
  * Stage 224 — admin declined the jemaah's cancel request. Sends an EMAIL
  * (+ WA if phone present) to the jemaah explaining the decline. Uses
  * the GENERIC notif type — body is admin-written content, no template

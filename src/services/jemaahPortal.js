@@ -375,6 +375,22 @@ export async function submitMyDoc({ req, actor, userId, input }) {
     after: { jemaahId: profile.id, type: doc.type, status: doc.status, refNumber: doc.refNumber, selfSubmit: true },
   });
 
+  // Stage 249 — notify admin queue when jemaah just submitted something
+  // that needs review. Fire-and-forget; the doc write is load-bearing.
+  // Skip when status is PENDING (no real submission — jemaah saved a
+  // draft without ref number or file).
+  if (doc.status === 'SUBMITTED') {
+    try {
+      const { notifyDocSubmittedAdmin } = await import('./notifications.js');
+      await notifyDocSubmittedAdmin({
+        jemaah: { id: profile.id, fullName: profile.fullName },
+        doc, kind: 'submit',
+      });
+    } catch (err) {
+      console.warn('[submitMyDoc] notif failed:', err?.message || err);
+    }
+  }
+
   return doc;
 }
 

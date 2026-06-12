@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { upsertDoc, deleteDoc } from '../services/jemaahDocs.js';
+import { upsertDoc, deleteDoc, bulkVerifyDocs } from '../services/jemaahDocs.js';
 
 const router = Router({ mergeParams: true });
 
@@ -20,6 +20,21 @@ router.post(
       jemaahId: req.params.id, input: req.body,
     });
     res.status(201).json({ doc });
+  }),
+);
+
+// Stage 248 — bulk verify multiple docs for one jemaah in one call.
+// Body: { docIds: [...] }. Per-row failure caught; returns counters.
+router.post(
+  '/:id/documents/bulk-verify',
+  asyncHandler(async (req, res) => {
+    const docIds = Array.isArray(req.body?.docIds) ? req.body.docIds : [];
+    const result = await bulkVerifyDocs({
+      req, actor: actorFrom(req),
+      jemaahId: req.params.id,
+      docIds,
+    });
+    res.json(result);
   }),
 );
 

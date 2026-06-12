@@ -73,6 +73,17 @@ router.get(
       }
       return [...set].sort();
     })();
+    // Stage 247 — per-paket document expiry overview. Best-effort; failure
+    // dims the panel via null. Only fetched when a paket is selected.
+    let docOverview = null;
+    if (manifestSlug) {
+      try {
+        const { getPaketDocOverview } = await import('../services/paketDocOverview.js');
+        docOverview = await getPaketDocOverview({ paketSlug: manifestSlug });
+      } catch (err) {
+        console.warn('[admin] doc overview failed:', err?.message || err);
+      }
+    }
     res.render('admin-dashboard', {
       user: req.user,
       ...overview,
@@ -81,6 +92,7 @@ router.get(
       manifestDietary,
       manifestTag,
       manifestTagOptions,
+      docOverview,
       finance,
       bunking,
       paketRecap,

@@ -96,6 +96,23 @@ export async function uploadMyDocFile({ req, actor, userId, docId, file }) {
       selfSubmit: true,
     },
   });
+
+  // Stage 249 — notify admin queue when jemaah just uploaded a doc
+  // file. Fire-and-forget. Only fires when the upload transitioned the
+  // doc to SUBMITTED (PENDING → SUBMITTED OR VERIFIED-reset → SUBMITTED).
+  if (updated.status === 'SUBMITTED' && statusChanged) {
+    try {
+      const jemaah = await db.jemaahProfile.findUnique({
+        where: { id: doc.jemaahId },
+        select: { id: true, fullName: true },
+      });
+      const { notifyDocSubmittedAdmin } = await import('./notifications.js');
+      await notifyDocSubmittedAdmin({ jemaah, doc: updated, kind: 'file_upload' });
+    } catch (err) {
+      console.warn('[uploadMyDocFile] notif failed:', err?.message || err);
+    }
+  }
+
   return updated;
 }
 

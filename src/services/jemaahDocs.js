@@ -148,3 +148,73 @@ export async function deleteDoc({ req, actor, jemaahId, docId }) {
     before: { jemaahId, type: doc.type, status: doc.status, hasFile: !!doc.filePath },
   });
 }
+
+/**
+ * Stage 248 — bulk verify a set of docIds for one jemaah. Admin ticks
+ * multiple doc rows in the jemaah-edit panel and one click flips them
+ * all to VERIFIED with stamps.
+ *
+ * **Per-row failure caught + skipped** — a bad row (already verified,
+ * REJECTED, etc.) doesn't abort the batch. Returns
+ * `{verified, skipped, failed}` so the UI shows the real counts.
+ *
+ * `jemaahId` scopes the bulk action: requested doc IDs that don't
+ * belong to this jemaah are silently skipped (tuple guard against
+ * a forged docId pointing at someone else's doc).
+ *
+ * Skip-when-already-VERIFIED keeps re-runs idempotent (no audit pollution).
+ * REJECTED docs refused (admin should reject again or open the row to
+ * re-process — not bulk-flip a rejection).
+ */
+export async function bulkVerifyDocs({ req, actor, jemaahId, docIds = [] }) {
+  await loadJemaah(jemaahId);
+  if (!Array.isArray(docIds) || docIds.length === 0) {
+    return { requested: 0, verified: 0, skipped: 0, failed: 0 };
+  }
+  // Tuple guard — only act on docs belonging to this jemaah
+  const candidates = await db.jemaahDocument.findMany({
+    where: { id: { in: docIds }, jemaahId },
+    select: { id: true, status: true, type: true },
+  });
+  const eligibleIds = new Set();
+  const skippedReasons = [];
+  for (const c of candidates) {
+    if (c.status === 'VERIFIED') { skippedReasons.push({ id: c.id, reason: 'already_verified' }); continue; }
+    if (c.status === 'REJECTED') { skippedReasons.push({ id: c.id, reason: 'rejected' }); continue; }
+    eligibleIds.add(c.id);
+  }
+  const now = new Date();
+  let verified = 0;
+  let failed = 0;
+  for (const id of eligibleIds) {
+    try {
+      const before = candidates.find((c) => c.id === id);
+      const updated = await db.jemaahDocument.update({
+        where: { id },
+        data: {
+          status: 'VERIFIED',
+          verifiedAt: now,
+          verifiedById: actor?.id || null,
+        },
+        select: { id: true, type: true, status: true },
+      });
+      await audit({
+        req, actor,
+        action: 'UPDATE', entity: 'JemaahDocument', entityId: id,
+        before: { status: before?.status, type: before?.type },
+        after: { status: 'VERIFIED', type: updated.type, jemaahId, bulkVerified: true },
+      });
+      verified += 1;
+    } catch (err) {
+      console.warn('[bulkVerifyDocs]', id, err?.message || err);
+      failed += 1;
+    }
+  }
+  return {
+    requested: docIds.length,
+    verified,
+    skipped: docIds.length - candidates.length + skippedReasons.length, // includes cross-jemaah-skipped
+    failed,
+    skippedReasons,
+  };
+}

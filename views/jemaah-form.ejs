@@ -379,6 +379,14 @@
       %>
         <div class="doc-row<%= expWarn ? ' exp-' + expWarn.tier : '' %>" data-type="<%= type %>" data-doc-id="<%= doc?.id || '' %>">
           <div class="doc-row__head">
+            <%# Stage 248 — bulk-verify checkbox. Only renders when doc
+                exists + is not already VERIFIED + not REJECTED. Empty
+                <span> placeholder otherwise keeps the flex layout stable. %>
+            <% if (doc && doc.status !== 'VERIFIED' && doc.status !== 'REJECTED') { %>
+              <input type="checkbox" class="doc-bulk-check" data-bulk-doc-id="<%= doc.id %>" title="Pilih untuk verifikasi massal" style="cursor:pointer;">
+            <% } else { %>
+              <span style="display:inline-block;width:16px;"></span>
+            <% } %>
             <span class="doc-pill state-<%= state %>"><%= DOC_PILL[type] %></span>
             <span class="doc-row__lbl"><%= DOC_LABELS[type] %></span>
             <% if (doc?.verifiedAt) { %>
@@ -611,6 +619,59 @@
       });
     }
   });
+
+  // Stage 248 — bulk verify action bar wiring
+  (function() {
+    const checks = document.querySelectorAll('.doc-bulk-check');
+    if (checks.length === 0) return;
+    const bar = document.getElementById('doc-bulk-bar');
+    const count = document.getElementById('doc-bulk-count');
+    const verifyBtn = document.getElementById('doc-bulk-verify');
+    const clearBtn = document.getElementById('doc-bulk-clear');
+    function refresh() {
+      const sel = [...checks].filter((c) => c.checked).length;
+      if (count) count.textContent = String(sel);
+      if (bar) bar.style.display = sel > 0 ? 'flex' : 'none';
+    }
+    checks.forEach((c) => c.addEventListener('change', refresh));
+    clearBtn?.addEventListener('click', () => {
+      checks.forEach((c) => { c.checked = false; });
+      refresh();
+    });
+    verifyBtn?.addEventListener('click', async () => {
+      const docIds = [...checks].filter((c) => c.checked).map((c) => c.dataset.bulkDocId);
+      if (docIds.length === 0) return;
+      verifyBtn.disabled = true;
+      try {
+        const r = await fetch('/api/jemaah/<%= target.id %>/documents/bulk-verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ docIds }),
+        });
+        if (!r.ok) {
+          setDocErr('Gagal bulk verify');
+          return;
+        }
+        const data = await r.json().catch(() => null);
+        // Visual flash + reload
+        const msg = data ? `Verified: ${data.verified}, skipped: ${data.skipped}, failed: ${data.failed}` : 'OK';
+        alert(msg);
+        location.reload();
+      } catch (err) {
+        setDocErr(err?.message || 'Network error');
+      } finally {
+        verifyBtn.disabled = false;
+      }
+    });
+  })();
 </script>
+
+<%# Stage 248 — floating bulk verify action bar (only shows when ≥1
+    checkbox checked). Hidden by default; JS toggles display. %>
+<div id="doc-bulk-bar" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink-1000);border:1px solid var(--gold-300);box-shadow:0 8px 24px rgba(0,0,0,0.4);padding:12px 20px;border-radius:var(--r-sm);display:none;align-items:center;gap:14px;z-index:50;">
+  <span style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);"><span id="doc-bulk-count">0</span> dokumen dipilih</span>
+  <button type="button" id="doc-bulk-verify" style="background:var(--gold-300);color:var(--ink-1000);border:0;padding:8px 18px;border-radius:var(--r-xs);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-weight:600;">✓ Verifikasi semua</button>
+  <a href="#" id="doc-bulk-clear" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);text-decoration:none;">× clear</a>
+</div>
 </body>
 </html>
