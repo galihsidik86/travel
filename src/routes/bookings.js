@@ -352,11 +352,26 @@ router.get(
       noteTemplates = await listNoteTemplates()
         .catch((err) => { console.warn('[booking-detail] note templates failed:', err?.message || err); return []; });
     }
+    // Stage 221 — paket pickups for the admin pickup-set dropdown. Same
+    // RBAC as cancel/edit. Best-effort — missing pickups just hides the
+    // dropdown, doesn't 500 the page.
+    const canSetPickup = CANCEL_ROLES.includes(req.user.role)
+      && booking.status !== 'CANCELLED' && booking.status !== 'REFUNDED';
+    let paketPickups = [];
+    if (canSetPickup) {
+      try {
+        const { listPickupsWithOccupancy } = await import('../services/paketPickups.js');
+        paketPickups = await listPickupsWithOccupancy(booking.paketId);
+      } catch (err) {
+        console.warn('[booking-detail] paket pickups failed:', err?.message || err);
+      }
+    }
     res.render('booking-detail', {
       user: req.user, b: booking,
       canCancel, canRefund, canEditNotes, canTransfer, agents,
       paymentIntents, canCancelIntent,
       activityFeed, noteTemplates,
+      canSetPickup, paketPickups,
     });
   }),
 );
@@ -454,6 +469,29 @@ router.post(
       res.redirect(`/admin/bookings/${req.params.id}?ok=notes_pin`);
     } catch (err) {
       const msg = err.message || 'Gagal pin catatan';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 221 — admin sets pickup on a booking. Useful for walk-in /
+// phone bookings where jemaah doesn't have a /saya account. Same
+// capacity + cross-paket guards as the S202 jemaah self-pick.
+router.post(
+  '/:id/pickup',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const { adminSetBookingPickup } = await import('../services/bookingPickupChoice.js');
+      const pickupId = (req.body?.pickupId || '').toString();
+      await adminSetBookingPickup({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id,
+        pickupId: pickupId || null,
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=pickup`);
+    } catch (err) {
+      const msg = err.message || 'Gagal set pickup';
       res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
     }
   }),

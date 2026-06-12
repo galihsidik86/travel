@@ -524,6 +524,11 @@ model Paket {
   adsSpendIdr   Decimal? @db.Decimal(15, 2)
   adsNotes      String?  @db.Text
 
+  // Stage 222 — WhatsApp group invite URL for trip coordination chat.
+  // Surfaced as "Gabung grup WA" CTA to LUNAS jemaah + assigned crew.
+  // Nullable; admin curates manually after the group is created.
+  waGroupUrl    String?  @db.VarChar(500)
+
   // Stage 34 — paket clone lineage (S18 created the clone flow; this is the
   // back-reference column). Null when the paket is an original. Populated by
   // the clone service so the YoY leaderboard can compare this season to the
@@ -1703,6 +1708,13 @@ model PaketPickup {
   // Stage 212 — pax-count cap per bus. NULL = no cap (back-compat).
   // S202 jemaah self-pick refuses PICKUP_FULL 409 when at the cap.
   maxCapacity Int?
+  // Stage 220 — driver contact (all nullable; admin may not know at create).
+  // Jemaah sees this on /saya/bookings/:id so they can call the driver at
+  // the curb; pickup roster CSV (S208) gets columns for the same info so
+  // bus drivers self-identify on the spreadsheet.
+  driverName  String? @db.VarChar(120)
+  driverPhone String? @db.VarChar(30)
+  plateNumber String? @db.VarChar(20)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

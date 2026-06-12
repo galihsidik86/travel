@@ -190,6 +190,21 @@
     </div>
   <% } %>
 
+  <%# Stage 222 — WhatsApp group invite. LUNAS-only to avoid spam from
+      speculative bookings that might cancel. Link opens in new tab. %>
+  <% if (b.status === 'LUNAS' && b.paket.waGroupUrl) { %>
+    <div style="padding:14px 18px;background:rgba(74,143,109,0.06);border:1px solid var(--emerald);border-radius:var(--r-sm);margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <div style="font-family:var(--font-display);font-size:16px;color:var(--cream-100);font-weight:500;">Grup koordinasi WhatsApp</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);margin-top:3px;letter-spacing:0.04em;">Info perjalanan + tanya-jawab langsung dengan tim &amp; sesama jemaah.</div>
+      </div>
+      <a href="<%= b.paket.waGroupUrl %>" target="_blank" rel="noopener nofollow"
+         style="background:var(--emerald);color:var(--ink-1000);padding:10px 16px;border-radius:4px;text-decoration:none;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;font-weight:600;text-transform:uppercase;">
+        💬 Gabung grup WA
+      </a>
+    </div>
+  <% } %>
+
   <div class="head">
     <div>
       <h1><em><%= b.paket.title %></em></h1>
@@ -382,6 +397,16 @@
             <% if (p.maxCapacity != null) { %>
               <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:<%= isFull ? 'var(--ruby)' : 'var(--ink-200)' %>;">
                 Kapasitas: <%= p.occupiedPax %> / <%= p.maxCapacity %> pax
+              </div>
+            <% } %>
+            <%# Stage 220 — driver contact for the curb. Only when set + only
+                for jemaah on this pickup (chosen) to avoid leaking driver
+                phone to everyone scrolling the picker. %>
+            <% if (chosen && (p.driverName || p.driverPhone || p.plateNumber)) { %>
+              <div style="margin-top:8px;padding-top:6px;border-top:1px dashed var(--hairline-soft);font-family:var(--font-mono);font-size:10.5px;color:var(--cream-100);line-height:1.7;">
+                <% if (p.driverName) { %>👤 <%= p.driverName %><br><% } %>
+                <% if (p.driverPhone) { %>📞 <a href="tel:<%= p.driverPhone %>" style="color:var(--gold-300);"><%= p.driverPhone %></a><br><% } %>
+                <% if (p.plateNumber) { %>🚌 Plat <strong style="color:var(--gold-300);"><%= p.plateNumber %></strong><% } %>
               </div>
             <% } %>
             <% if (clickable) { %>

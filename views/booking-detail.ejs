@@ -365,6 +365,39 @@
         </div>
       <% } %>
 
+      <%# Stage 221 — admin pickup setter. Walk-in / phone bookings don't
+          have a /saya account so the jemaah self-pick path (S202) can't
+          help; admin assigns the pickup directly from here. Only shows
+          when paket has curated pickup points. %>
+      <% if (typeof canSetPickup !== 'undefined' && canSetPickup && paketPickups && paketPickups.length > 0) { %>
+        <div class="panel" style="background:rgba(212,175,55,0.03);border:1px solid var(--gold-300);margin-bottom:18px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+            <strong style="font-family:var(--font-display);color:var(--gold-300);">🚌 Pickup point</strong>
+            <% if (b.pickupId) { %>
+              <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Pilihan saat ini: <strong style="color:var(--gold-300);"><%= (paketPickups.find((p) => p.id === b.pickupId)?.label) || '—' %></strong></span>
+            <% } else { %>
+              <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--amber);">Belum dipilih (TBD)</span>
+            <% } %>
+          </div>
+          <form method="POST" action="/admin/bookings/<%= b.id %>/pickup" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <select name="pickupId" class="input" style="flex:1 1 240px;min-width:200px;">
+              <option value="">— TBD (kosongkan pilihan) —</option>
+              <% paketPickups.forEach(function(p) { %>
+                <% const selected = b.pickupId === p.id; %>
+                <% const fullTag = p.isFull && !selected ? ' · PENUH' : ''; %>
+                <% const capTag = p.maxCapacity != null ? ` (${p.occupiedPax}/${p.maxCapacity})` : ''; %>
+                <option value="<%= p.id %>" <%= selected ? 'selected' : '' %> <%= p.isFull && !selected ? 'disabled' : '' %>>
+                  <%= p.label %><%= capTag %><%= fullTag %><% if (p.departTime) { %> · <%= p.departTime %><% } %>
+                </option>
+              <% }) %>
+            </select>
+            <button type="submit" class="btn btn--primary" style="padding:6px 18px;">Set Pickup</button>
+          </form>
+          <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">Admin override — pilihan jemaah dari /saya akan ditimpa. Tidak bisa pilih bus yang sudah penuh.</div>
+        </div>
+      <% } %>
+
       <!-- Info -->
       <div class="panel">
         <h3>Info booking</h3>

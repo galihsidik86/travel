@@ -92,6 +92,15 @@
          title="Download manifest sebagai CSV (untuk referensi offline)">
         ⬇ Export CSV
       </a>
+      <%# Stage 222 — WA group invite for trip coordination. Crew uses
+          the same group jemaah do — no separate role-scoped link. %>
+      <% if (paket.waGroupUrl) { %>
+        <a href="<%= paket.waGroupUrl %>" target="_blank" rel="noopener nofollow"
+           style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-1000);background:var(--emerald);text-decoration:none;border:1px solid var(--emerald);padding:8px 16px;border-radius:var(--r-sm);font-weight:600;"
+           title="Buka grup WhatsApp koordinasi paket">
+          💬 Grup WA
+        </a>
+      <% } %>
     </div>
   </div>
 

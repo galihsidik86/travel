@@ -33,6 +33,19 @@ export const PickupSchema = z.object({
     (v) => (v === '' || v == null ? null : Number(v)),
     z.number().int().min(1).max(200).nullable().optional(),
   ),
+  // Stage 220 — driver contact. All nullable; empty string → null clear.
+  driverName: z.preprocess(
+    (v) => (v === '' || v == null ? null : String(v).trim()),
+    z.string().max(120).nullable().optional(),
+  ),
+  driverPhone: z.preprocess(
+    (v) => (v === '' || v == null ? null : String(v).trim()),
+    z.string().max(30).nullable().optional(),
+  ),
+  plateNumber: z.preprocess(
+    (v) => (v === '' || v == null ? null : String(v).trim().toUpperCase()),
+    z.string().max(20).nullable().optional(),
+  ),
 });
 
 export async function listPickups(paketId) {
@@ -85,6 +98,9 @@ export async function createPickup({ req, actor, paketId, input }) {
       notes: data.notes ?? null,
       sortOrder: data.sortOrder ?? 0,
       maxCapacity: data.maxCapacity ?? null,
+      driverName: data.driverName ?? null,
+      driverPhone: data.driverPhone ?? null,
+      plateNumber: data.plateNumber ?? null,
     },
   });
   await audit({
@@ -110,6 +126,9 @@ export async function updatePickup({ req, actor, id, input }) {
       notes: data.notes ?? null,
       sortOrder: data.sortOrder ?? 0,
       maxCapacity: data.maxCapacity ?? null,
+      driverName: data.driverName ?? null,
+      driverPhone: data.driverPhone ?? null,
+      plateNumber: data.plateNumber ?? null,
     },
   });
   await audit({

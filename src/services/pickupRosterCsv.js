@@ -39,7 +39,7 @@ export async function buildPickupRosterCsv(paketSlug, { pickupId = null } = {}) 
     where,
     select: {
       id: true, bookingNo: true, kelas: true, paxCount: true, status: true,
-      pickup: { select: { id: true, label: true, address: true, departTime: true, sortOrder: true } },
+      pickup: { select: { id: true, label: true, address: true, departTime: true, sortOrder: true, driverName: true, driverPhone: true, plateNumber: true } },
       jemaah: {
         select: {
           fullName: true, phone: true, nik: true,
@@ -63,6 +63,8 @@ export async function buildPickupRosterCsv(paketSlug, { pickupId = null } = {}) 
 
   const header = [
     'pickup', 'departTime', 'address',
+    // Stage 220 — driver contact + plate. Empty for TBD rows.
+    'driverName', 'driverPhone', 'plateNumber',
     'bookingNo', 'jemaahName', 'phone', 'nik',
     'emergencyContact', 'kelas', 'paxCount', 'roomNo', 'status',
   ];
@@ -70,6 +72,9 @@ export async function buildPickupRosterCsv(paketSlug, { pickupId = null } = {}) 
     b.pickup?.label || 'TBD',
     b.pickup?.departTime || '',
     b.pickup?.address || '',
+    b.pickup?.driverName || '',
+    b.pickup?.driverPhone || '',
+    b.pickup?.plateNumber || '',
     b.bookingNo,
     b.jemaah.fullName,
     b.jemaah.phone || '',
@@ -90,10 +95,16 @@ export async function buildPickupRosterCsv(paketSlug, { pickupId = null } = {}) 
   const summary = [...perPickup.entries()]
     .map(([label, count]) => `${label}=${count}`)
     .join('; ');
+  // Footer aligned to the 15-col header (S220 added 3 driver cols).
+  // 'TOTAL' lands in the jemaahName slot; pax sum lands in paxCount;
+  // per-pickup summary lands in status (long-string overflow tolerated).
   const footer = [
-    '', '', '', '', 'TOTAL', '', '', '',
-    '', String(bookings.reduce((acc, b) => acc + b.paxCount, 0)),
-    '', summary,
+    '', '', '',                                        // pickup, departTime, address
+    '', '', '',                                        // driverName, driverPhone, plateNumber
+    '', 'TOTAL', '', '',                               // bookingNo, jemaahName, phone, nik
+    '', '',                                            // emergencyContact, kelas
+    String(bookings.reduce((acc, b) => acc + b.paxCount, 0)), // paxCount
+    '', summary,                                       // roomNo, status (carries summary)
   ].map(esc).join(',');
 
   const csv = ['\ufeff' + header.join(','), ...lines, footer].join('\r\n');

@@ -60,6 +60,8 @@ export async function getAssignedManifest({ userId, slug }) {
       id: true, slug: true, title: true,
       departureDate: true, returnDate: true, durationDays: true,
       kursiTotal: true, kursiTerisi: true,
+      // Stage 222 — WA group invite for trip coordination
+      waGroupUrl: true,
       bookings: {
         where: { status: { notIn: ['CANCELLED', 'REFUNDED'] } },
         orderBy: [{ kelas: 'asc' }, { createdAt: 'asc' }],

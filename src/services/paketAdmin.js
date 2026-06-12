@@ -73,6 +73,21 @@ export const PaketSchema = z.object({
     z.union([z.number().nonnegative('Biaya tidak boleh negatif'), z.null()]).optional(),
   ),
   costNotes: optStrLong,
+  // Stage 222 — WhatsApp group invite URL for trip coordination chat.
+  // Empty string → clear; undefined → no change; non-empty stores.
+  // Validates as http(s) URL when present; jemaah/crew click-through
+  // assumes a real wa.me / chat.whatsapp.com link.
+  waGroupUrl: z.preprocess(
+    (v) => {
+      if (v === undefined) return undefined;
+      const s = blank(v);
+      return s === undefined ? null : String(s);
+    },
+    z.union([
+      z.string().url('WhatsApp group URL harus diawali http(s)://').max(500),
+      z.null(),
+    ]).optional(),
+  ),
 }).refine((d) => d.returnDate >= d.departureDate, {
   message: 'Tanggal pulang tidak boleh sebelum tanggal berangkat',
   path: ['returnDate'],
@@ -140,6 +155,8 @@ function toPaketData(parsed, userId) {
       ? { costPerPaxIdr: parsed.costPerPaxIdr == null ? null : parsed.costPerPaxIdr.toFixed(2) }
       : {}),
     ...(parsed.costNotes !== undefined ? { costNotes: parsed.costNotes ?? null } : {}),
+    // Stage 222 — same 3-state pattern for the WhatsApp group URL.
+    ...(parsed.waGroupUrl !== undefined ? { waGroupUrl: parsed.waGroupUrl ?? null } : {}),
     ...(userId ? { createdById: userId } : {}),
   };
 }
