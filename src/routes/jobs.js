@@ -394,6 +394,16 @@ router.post(
   }),
 );
 
+// Stage 219 — daily pickup choice reminder for near-departure paket
+router.post(
+  '/send-pickup-reminder',
+  asyncHandler(async (_req, res) => {
+    const { sendPickupReminders } = await import('../services/pickupReminder.js');
+    const result = await runJob('send-pickup-reminder', () => sendPickupReminders({}));
+    res.json(result);
+  }),
+);
+
 router.post(
   '/scan-agent-dormancy',
   asyncHandler(async (_req, res) => {

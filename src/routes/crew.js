@@ -89,7 +89,18 @@ router.get(
       select: { jemaahId: true, body: true, updatedAt: true },
     });
     const myNotesByJemaah = Object.fromEntries(myNotes.map((n) => [n.jemaahId, n]));
-    res.render('crew-manifest', { user: req.user, paket: manifest, myNotesByJemaah });
+    // Stage 218 — surface admin-posted paket announcements (S192) to crew.
+    // Crew need the same heads-up jemaah get ("visa delayed", "pickup time
+    // moved"). Best-effort — a query failure dims the panel but the
+    // manifest still renders.
+    let announcements = [];
+    try {
+      const { listActiveAnnouncements } = await import('../services/paketAnnouncements.js');
+      announcements = await listActiveAnnouncements({ paketId: manifest.id });
+    } catch (err) {
+      console.warn('[crew-manifest] announcements load failed:', err?.message || err);
+    }
+    res.render('crew-manifest', { user: req.user, paket: manifest, myNotesByJemaah, announcements });
   }),
 );
 

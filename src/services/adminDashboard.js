@@ -513,6 +513,10 @@ export async function exportManifestCsv(paketSlug) {
     'Agen', 'Agen Slug',
     'Booking Fee At', 'Cancelled At', 'Cancel Reason',
     'Doc Verified', 'Doc Total',
+    // Stage 217 — dietary columns. Pairs with S210 + S211 dietary roll-up CSV;
+    // landing here too so admin can grep / pivot the existing manifest export
+    // by diet without downloading a second file.
+    'Dietary', 'Dietary Notes',
   ];
 
   const escape = (v) => {
@@ -547,6 +551,9 @@ export async function exportManifestCsv(paketSlug) {
       b.cancelReason ?? '',
       verified,
       docs.length,
+      // Stage 217 — dietary fields; null-safe defaults so old jemaah render REGULAR / empty
+      b.jemaah?.dietary || 'REGULAR',
+      b.jemaah?.dietaryNotes ?? '',
     ].map(escape).join(',');
   });
 

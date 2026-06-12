@@ -162,6 +162,7 @@ enum NotificationType {
   DOC_EXPIRING_SOON // tracked doc expiresAt < 30d → email jemaah (Stage 173)
   PASSPORT_RENEWAL_REMINDER // JemaahProfile.passportExpiry < 90d → email + WA jemaah (Stage 203)
   CREW_DIETARY_BRIEF // Monday-of-week-of-departure email per crew with non-REGULAR dietary roll-up (Stage 213)
+  PICKUP_REMINDER // jemaah on near-departure paket with no pickup chosen → email + WA (Stage 219)
   GENERIC // catch-all for ad-hoc notifs
 }
 
