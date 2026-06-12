@@ -92,6 +92,16 @@
          title="Download manifest sebagai CSV (untuk referensi offline)">
         ⬇ Export CSV
       </a>
+      <%# Stage 244 — on-demand dietary brief CSV. Renders only when at
+          least one non-REGULAR jemaah exists (dietarySummary already
+          gates that panel). %>
+      <% if (typeof paket.dietarySummary !== 'undefined' && paket.dietarySummary && paket.dietarySummary.specials.length > 0) { %>
+        <a href="/crew/paket/<%= paket.slug %>/dietary.csv"
+           style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:8px 16px;border-radius:var(--r-sm);"
+           title="Brief diet untuk kitchen hotel">
+          🍽 Diet CSV
+        </a>
+      <% } %>
       <%# Stage 222 — WA group invite for trip coordination. Crew uses
           the same group jemaah do — no separate role-scoped link. %>
       <% if (paket.waGroupUrl) { %>

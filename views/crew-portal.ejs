@@ -109,6 +109,10 @@
   <div class="topbar">
     <div>MUTHAWWIF · <span class="who"><%= user.email %></span></div>
     <div style="display:flex;gap:10px;align-items:center;">
+      <%# Stage 245 — cross-paket ICE contact book %>
+      <a href="/crew/contacts" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;color:var(--ink-100);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 14px;border:var(--hairline-soft);border-radius:var(--r-sm);">
+        <span>Kontak</span>
+      </a>
       <%# Stage 148 — unread notif badge linking to /crew/notifications. %>
       <a href="/crew/notifications" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;color:var(--ink-100);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;padding:6px 14px;border:var(--hairline-soft);border-radius:var(--r-sm);">
         <span>Notifikasi</span>
@@ -125,6 +129,63 @@
     <h1>Assalamu'alaikum,<br><em><%= user.fullName.split(' ')[0] %></em>.</h1>
     <div class="sub">Pilih paket untuk melihat manifest jemaah, kamar, dan kesiapan dokumen.</div>
   </div>
+
+  <%# Stage 246 — "Hari ini" widget. Only renders when there's at least
+      one signal worth showing (no empty panel waste). %>
+  <%
+    const hasToday = typeof today !== 'undefined' && today && (
+      today.departingSoon.length > 0
+      || today.attendanceDueToday.length > 0
+      || today.openIncidents.length > 0
+    );
+  %>
+  <% if (hasToday) { %>
+    <div style="background:rgba(212,175,55,0.04);border:1px solid var(--gold-300);border-radius:var(--r-sm);padding:18px 20px;margin-bottom:24px;">
+      <h3 style="margin:0 0 12px;font-family:var(--font-display);color:var(--gold-300);font-size:18px;">📍 Hari ini</h3>
+
+      <% if (today.departingSoon.length > 0) { %>
+        <div style="margin-bottom:12px;">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">🛫 Paket berangkat ≤ 48 jam (<%= today.departingSoon.length %>)</div>
+          <% today.departingSoon.forEach(function(p) { %>
+            <a href="/crew/paket/<%= p.slug %>" style="display:block;padding:8px 12px;background:var(--ink-1000);border-left:3px solid var(--amber);border-radius:0 3px 3px 0;margin-bottom:6px;text-decoration:none;font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);">
+              <strong style="color:var(--gold-300);"><%= p.title %></strong>
+              · <%= fmt.dateLong(p.departureDate) %>
+              · <span style="color:var(--ink-200);"><%= p.kursiTerisi %> / <%= p.kursiTotal %> kursi</span>
+            </a>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <% if (today.attendanceDueToday.length > 0) { %>
+        <div style="margin-bottom:12px;">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">✓ Absensi hari ini (<%= today.attendanceDueToday.length %>)</div>
+          <% today.attendanceDueToday.forEach(function(a) { %>
+            <a href="/crew/paket/<%= a.paket.slug %>/attendance/<%= a.day.id %>" style="display:block;padding:8px 12px;background:var(--ink-1000);border-left:3px solid var(--emerald);border-radius:0 3px 3px 0;margin-bottom:6px;text-decoration:none;font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);">
+              <strong style="color:var(--emerald);">H<%= a.day.dayNumber %>: <%= a.day.title %></strong>
+              · <span style="color:var(--ink-200);"><%= a.paket.title %></span>
+              <span style="color:var(--gold-300);float:right;">Mark sekarang →</span>
+            </a>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <% if (today.openIncidents.length > 0) { %>
+        <div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">⚠ Insiden Anda belum tuntas (<%= today.openIncidents.length %>)</div>
+          <% today.openIncidents.forEach(function(inc) { %>
+            <div style="padding:8px 12px;background:var(--ink-1000);border-left:3px solid <%= inc.status === 'OPEN' ? 'var(--ruby)' : 'var(--amber)' %>;border-radius:0 3px 3px 0;margin-bottom:6px;font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);">
+              <strong style="color:<%= inc.status === 'OPEN' ? 'var(--ruby)' : 'var(--amber)' %>;"><%= inc.type %></strong>
+              · <span style="color:var(--ink-100);"><%= inc.message ? (inc.message.length > 80 ? inc.message.slice(0, 80) + '…' : inc.message) : '—' %></span>
+              <div style="color:var(--ink-200);font-size:10px;margin-top:3px;">
+                <%= inc.status %> · <%= fmt.dateLong(inc.createdAt) %>
+                <% if (inc.paket) { %>· <%= inc.paket.title %><% } %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  <% } %>
 
   <% if (paketList.length === 0) { %>
     <div class="empty">

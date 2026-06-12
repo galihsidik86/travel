@@ -28,15 +28,37 @@ router.get(
     // assigneeEmail = their email. Best-effort: failure to load
     // tasks shouldn't 500 the dashboard.
     const { getMyOpenTasks } = await import('../services/tasks.js');
-    const [paketList, myIncidents, unreadCount, myTasks] = await Promise.all([
+    // Stage 246 — "Hari ini" widget (departing soon, attendance due, open incidents)
+    const { getCrewToday } = await import('../services/crewToday.js');
+    const [paketList, myIncidents, unreadCount, myTasks, today] = await Promise.all([
       listAssignedPaket(req.user.id),
       listMyIncidents(req.user.id, { limit: 10 }),
       // Stage 148 — unread badge on crew topbar
       countUnreadForUser(req.user.id).catch(() => 0),
       getMyOpenTasks({ assigneeEmail: req.user.email })
         .catch((err) => { console.warn('[crew] tasks failed:', err?.message || err); return null; }),
+      getCrewToday({ userId: req.user.id })
+        .catch((err) => { console.warn('[crew] today failed:', err?.message || err); return null; }),
     ]);
-    res.render('crew-portal', { user: req.user, paketList, myIncidents, unreadCount, myTasks });
+    res.render('crew-portal', { user: req.user, paketList, myIncidents, unreadCount, myTasks, today });
+  }),
+);
+
+// Stage 245 — cross-paket ICE contact book. Read-only, paginated list of
+// all jemaah on crew's currently-assigned paket; supports `?q=` substring
+// search across name/phone/emergency contact/bookingNo/paket title.
+router.get(
+  '/contacts',
+  asyncHandler(async (req, res) => {
+    const { getCrewContactBook } = await import('../services/crewContactBook.js');
+    const result = await getCrewContactBook({
+      userId: req.user.id,
+      q: req.query.q || '',
+      page: parseInt(req.query.page, 10) || 1,
+    });
+    res.render('crew-contacts', {
+      user: req.user, ...result,
+    });
   }),
 );
 
@@ -131,6 +153,23 @@ router.get(
     if (!out) throw new HttpError(404, 'Paket tidak ditemukan atau Anda tidak di-assign', 'NOT_ASSIGNED');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${out.filename}"`);
+    res.send(out.csv);
+  }),
+);
+
+// Stage 244 — on-demand dietary brief CSV (S211/S213 parallel for crew).
+// Same assignment gate as the manifest export — 404 when not assigned.
+router.get(
+  '/paket/:slug/dietary.csv',
+  asyncHandler(async (req, res) => {
+    const { buildCrewDietaryCsv } = await import('../services/crewDietaryCsv.js');
+    const out = await buildCrewDietaryCsv({ userId: req.user.id, paketSlug: req.params.slug });
+    if (!out) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+    if (out.notAssigned) throw new HttpError(404, 'Paket tidak ditemukan atau Anda tidak di-assign', 'NOT_ASSIGNED');
+    const safeSlug = out.paket.slug.replace(/[^A-Za-z0-9_-]/g, '_');
+    const today = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="dietary_${safeSlug}_${today}.csv"`);
     res.send(out.csv);
   }),
 );

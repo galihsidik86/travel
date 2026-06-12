@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Crew · Kontak Jemaah</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding-bottom: 18px; margin-bottom: 28px; border-bottom: var(--hairline-soft); font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-bottom: 14px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; font-weight: 500; color: var(--cream-100); margin: 0 0 8px; letter-spacing: -0.015em; }
+  .sub { font-family: var(--font-mono); font-size: 12px; color: var(--ink-200); margin: 0 0 20px; letter-spacing: 0.04em; }
+
+  .search-bar { display: flex; gap: 10px; margin-bottom: 18px; }
+  .search-bar input { flex: 1; background: var(--ink-1000); color: var(--cream-100); border: 1px solid var(--hairline-soft); padding: 9px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; }
+  .search-bar button { background: transparent; border: 1px solid var(--gold-300); color: var(--gold-300); padding: 9px 20px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+
+  .summary { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-bottom: 14px; }
+  .summary strong { color: var(--cream-100); }
+
+  .card { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-sm); padding: 14px 16px; margin-bottom: 10px; }
+  .card .row1 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .card .name { font-family: var(--font-display); font-size: 17px; color: var(--cream-100); font-weight: 500; }
+  .card .paket { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); letter-spacing: 0.04em; }
+  .card .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); margin-top: 6px; line-height: 1.7; }
+  .card .meta a { color: var(--gold-300); text-decoration: none; }
+  .card .ice { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--hairline-soft); font-family: var(--font-mono); font-size: 11px; color: var(--cream-100); line-height: 1.6; }
+  .card .ice .label { color: var(--ink-200); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .empty { text-align: center; padding: 40px 20px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-200); border: 1px dashed var(--hairline-soft); border-radius: var(--r-sm); }
+
+  .pagination { margin-top: 24px; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+  .pagination a { color: var(--gold-300); text-decoration: none; padding: 6px 14px; border: 1px solid var(--gold-300); border-radius: var(--r-sm); }
+  .pagination a.disabled { color: var(--ink-200); border-color: var(--ink-200); pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <a href="/crew" style="color:var(--gold-300);text-decoration:none;">← Dashboard</a>
+    <span class="who">📱 KONTAK JEMAAH</span>
+  </div>
+
+  <div class="crumb"><a href="/crew">Dashboard</a> · Kontak jemaah</div>
+  <h1>Kontak <em>jemaah</em></h1>
+  <p class="sub">Daftar jemaah aktif di semua paket yang Anda damping. Termasuk nomor darurat (ICE).</p>
+
+  <form method="GET" action="/crew/contacts" class="search-bar">
+    <input type="text" name="q" placeholder="Cari nama, telepon, atau bookingNo…" value="<%= q || '' %>" autofocus>
+    <button type="submit">Cari</button>
+    <% if (q) { %>
+      <a href="/crew/contacts" style="background:transparent;border:1px solid var(--ink-200);color:var(--ink-100);padding:9px 16px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;align-self:center;">× Reset</a>
+    <% } %>
+  </form>
+
+  <div class="summary">
+    <% if (q) { %>
+      Hasil pencarian "<strong><%= q %></strong>": <strong><%= pagination.total %></strong> jemaah
+    <% } else { %>
+      <strong><%= pagination.total %></strong> jemaah aktif di paket Anda
+    <% } %>
+  </div>
+
+  <% if (rows.length === 0) { %>
+    <div class="empty">
+      <% if (q) { %>
+        Tidak ada jemaah yang cocok dengan pencarian.
+      <% } else { %>
+        Belum ada jemaah aktif di paket yang Anda damping.
+      <% } %>
+    </div>
+  <% } else { %>
+    <% rows.forEach(function(b) {
+         const phone = (b.jemaah.phone || '').replace(/\D+/g, '').replace(/^0/, '62');
+    %>
+      <div class="card">
+        <div class="row1">
+          <div>
+            <div class="name"><%= b.jemaah.fullName %></div>
+            <div class="paket"><%= b.paket.title %> · DEP <%= fmt.dateShort(b.paket.departureDate) %></div>
+          </div>
+          <div style="text-align:right;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">
+            <%= b.bookingNo %><br>
+            <%= b.kelas %> · <%= b.paxCount %> pax
+            <% if (b.room) { %><br>kamar <%= b.room.roomNo %><% } %>
+          </div>
+        </div>
+        <div class="meta">
+          <% if (b.jemaah.phone) { %>
+            📱 <a href="tel:<%= b.jemaah.phone %>"><%= b.jemaah.phone %></a>
+            · <a href="https://wa.me/<%= phone %>" target="_blank" rel="noopener">WA</a>
+          <% } %>
+          <% if (b.pickup) { %>
+            · 🚌 <%= b.pickup.label %><% if (b.pickup.departTime) { %> ⏰ <%= b.pickup.departTime %><% } %>
+          <% } %>
+        </div>
+        <% if (b.jemaah.emergencyContact) { %>
+          <div class="ice">
+            <span class="label">🆘 Kontak darurat (ICE):</span><br>
+            <%= b.jemaah.emergencyContact %>
+          </div>
+        <% } %>
+        <% if (b.jemaah.passportNo) { %>
+          <div class="meta">
+            🛂 <%= b.jemaah.passportNo %><% if (b.jemaah.passportExpiry) { %> · exp <%= fmt.dateShort(b.jemaah.passportExpiry) %><% } %>
+          </div>
+        <% } %>
+      </div>
+    <% }) %>
+
+    <% if (pagination.pageCount > 1) { %>
+      <div class="pagination">
+        <div>Halaman <%= pagination.page %> dari <%= pagination.pageCount %></div>
+        <div style="display:flex;gap:8px;">
+          <% if (pagination.page > 1) { %>
+            <a href="/crew/contacts?page=<%= pagination.page - 1 %><% if (q) { %>&q=<%= encodeURIComponent(q) %><% } %>">← Sebelumnya</a>
+          <% } %>
+          <% if (pagination.page < pagination.pageCount) { %>
+            <a href="/crew/contacts?page=<%= pagination.page + 1 %><% if (q) { %>&q=<%= encodeURIComponent(q) %><% } %>">Berikutnya →</a>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+  <% } %>
+</div>
+
+</body>
+</html>
