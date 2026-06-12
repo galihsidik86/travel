@@ -468,6 +468,32 @@
               </div>
             </div>
           <% } %>
+          <%# Stage 257 — group siblings panel. Visible when groupKey is set
+              even if no siblings exist (admin needs to see the key). %>
+          <% if (b.groupKey) { %>
+            <div class="info-item" style="grid-column: 1/-1;">
+              <div class="l">Grup booking</div>
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);margin-top:4px;">
+                <a href="/admin?tab=manifest&manifestPaket=<%= b.paket.slug %>&manifestGroup=<%= encodeURIComponent(b.groupKey) %>" style="color:var(--gold-300);text-decoration:none;font-weight:600;">🔗 <%= b.groupKey %></a>
+                <% if (typeof groupSiblings !== 'undefined' && groupSiblings.length > 0) { %>
+                  · <%= groupSiblings.length %> booking lain di grup
+                <% } %>
+              </div>
+              <% if (typeof groupSiblings !== 'undefined' && groupSiblings.length > 0) { %>
+                <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+                  <% groupSiblings.forEach(function(s) { %>
+                    <a href="/admin/bookings/<%= s.id %>" style="padding:5px 10px;background:rgba(212,175,55,0.04);border:1px solid var(--hairline-soft);border-radius:3px;text-decoration:none;font-family:var(--font-mono);font-size:10.5px;color:var(--cream-100);">
+                      <strong style="color:var(--gold-300);"><%= s.bookingNo %></strong>
+                      · <%= s.jemaah?.fullName || '—' %>
+                      · <%= s.kelas %>
+                      <span style="color:var(--ink-200);">(<%= s.status %>)</span>
+                    </a>
+                  <% }) %>
+                </div>
+              <% } %>
+            </div>
+          <% } %>
+
           <%# Stage 226 — booking tags. Admin curates labels (VIP/LANSIA/etc.)
               for fast manifest filtering + visual identification. %>
           <div class="info-item" style="grid-column: 1/-1;">
@@ -771,6 +797,9 @@
           <% } %>
           <% if (canTransfer) { %>
             <button type="button" id="open-transfer">↪ TRANSFER AGEN</button>
+          <% } %>
+          <% if (canCancel) { %>
+            <button type="button" id="open-clone">⎘ CLONE</button>
           <% } %>
           <% if (canCancel) { %>
             <button type="button" class="danger" id="open-cancel">× CANCEL BOOKING</button>
@@ -1097,6 +1126,79 @@
   </div>
 </div>
 <% } %>
+
+<%# Stage 256 — clone modal. CANCEL_ROLES can clone. %>
+<% if (canCancel) { %>
+<div class="modal-overlay" id="clone-modal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <header class="modal__head">
+      <h3>Clone booking → jemaah baru</h3>
+      <button type="button" class="modal__close" id="clone-close-x" aria-label="Tutup">×</button>
+    </header>
+    <form method="POST" action="/admin/bookings/<%= b.id %>/clone">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <div style="padding:10px 14px;background:rgba(212,175,55,0.04);border:1px solid var(--gold-300);border-radius:var(--r-sm);margin-bottom:14px;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);">
+        Akan kloning paket <strong style="color:var(--gold-300);"><%= b.paket.title %></strong>
+        · kelas <strong><%= b.kelas %></strong>
+        · agen <strong><%= b.agent?.displayName || 'Kantor Pusat' %></strong>
+        <% if (b.groupKey) { %>
+          · <strong style="color:var(--gold-300);">grup <%= b.groupKey %></strong>
+        <% } else { %>
+          · grup baru akan dibuat
+        <% } %>
+      </div>
+
+      <div class="field">
+        <label class="label" for="cf-jname">Nama jemaah baru *</label>
+        <input class="input" id="cf-jname" name="newJemaahName" required minlength="2" maxlength="190" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="label" for="cf-jphone">Telepon jemaah baru *</label>
+        <input class="input" id="cf-jphone" name="newJemaahPhone" required maxlength="30" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="label" for="cf-jemail">Email (opsional)</label>
+        <input class="input" type="email" id="cf-jemail" name="newJemaahEmail" maxlength="190" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="label" for="cf-jnik">NIK (opsional, 16 digit)</label>
+        <input class="input" id="cf-jnik" name="newJemaahNik" maxlength="16" pattern="\d{16}" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="label" for="cf-pax">PAX (default sama dengan source: <%= b.paxCount %>)</label>
+        <input class="input" type="number" id="cf-pax" name="paxCount" min="1" max="20" value="<%= b.paxCount %>">
+      </div>
+      <div class="field">
+        <label class="label" for="cf-prefix">Catatan tambahan (opsional)</label>
+        <textarea class="input" id="cf-prefix" name="notesPrefix" rows="2" maxlength="500" placeholder="Mis. Istri dari Pak Ahmad"></textarea>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" id="clone-close">Batal</button>
+        <button type="submit" class="btn btn--primary">Buat clone</button>
+      </div>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<script>
+  // Stage 256 — clone modal wiring
+  (function() {
+    const modal = document.getElementById('clone-modal');
+    const openBtn = document.getElementById('open-clone');
+    const closeX = document.getElementById('clone-close-x');
+    const closeB = document.getElementById('clone-close');
+    if (!modal || !openBtn) return;
+    openBtn.addEventListener('click', () => modal.classList.add('is-open'));
+    if (closeX) closeX.addEventListener('click', () => modal.classList.remove('is-open'));
+    if (closeB) closeB.addEventListener('click', () => modal.classList.remove('is-open'));
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('is-open');
+    });
+  })();
+</script>
 
 <script>
   // Pay modal — for the booking detail page we redirect to manifest tab + open Pay there.

@@ -723,6 +723,20 @@ export function filterManifestByDietary(result, dietary) {
 }
 
 /**
+ * Stage 258 — narrow a manifest result to bookings sharing `groupKey`.
+ * Case-sensitive exact match (group keys are auto-generated uppercase
+ * IDs like `G-AB12CD`). Unknown keys return empty bookings — same
+ * pattern as S229 tag filter when the input doesn't match any row.
+ */
+export function filterManifestByGroup(result, groupKey) {
+  if (!result || !groupKey || groupKey === 'ALL') return result;
+  const normalised = String(groupKey).trim();
+  if (!normalised) return result;
+  const filtered = result.bookings.filter((b) => b.groupKey === normalised);
+  return { ...result, bookings: filtered, filteredByGroup: normalised };
+}
+
+/**
  * Stage 229 — narrow a manifest result to bookings carrying `tag`.
  * Uppercases input for case-insensitive match. Unknown tags silently
  * return unchanged (defensive against renamed tags on a bookmark);

@@ -374,6 +374,24 @@ router.get(
         console.warn('[booking-detail] paket pickups failed:', err?.message || err);
       }
     }
+    // Stage 257 — group siblings (other bookings sharing the same
+    // groupKey). Best-effort — failure dims the panel.
+    let groupSiblings = [];
+    if (booking.groupKey) {
+      try {
+        groupSiblings = await db.booking.findMany({
+          where: { groupKey: booking.groupKey, id: { not: booking.id } },
+          orderBy: { createdAt: 'asc' },
+          take: 20,
+          select: {
+            id: true, bookingNo: true, status: true, kelas: true, paxCount: true,
+            jemaah: { select: { fullName: true } },
+          },
+        });
+      } catch (err) {
+        console.warn('[booking-detail] group siblings failed:', err?.message || err);
+      }
+    }
     res.render('booking-detail', {
       user: req.user, b: booking,
       canCancel, canRefund, canEditNotes, canTransfer, agents,
@@ -382,6 +400,8 @@ router.get(
       canSetPickup, paketPickups,
       // Stage 226 — tag presets for the booking-detail tag chip picker
       bookingTagPresets: BOOKING_TAG_PRESETS,
+      // Stage 257 — group siblings
+      groupSiblings,
     });
   }),
 );
@@ -502,6 +522,35 @@ router.post(
       res.redirect(`/admin/bookings/${req.params.id}?ok=pickup`);
     } catch (err) {
       const msg = err.message || 'Gagal set pickup';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 256 — clone a booking onto a new jemaah. Form-encoded fields:
+// newJemaahName, newJemaahPhone, newJemaahEmail?, newJemaahNik?,
+// paxCount?, notesPrefix?
+router.post(
+  '/:id/clone',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const { cloneBooking } = await import('../services/bookingClone.js');
+      const result = await cloneBooking({
+        req, actor: actorFrom(req),
+        sourceBookingId: req.params.id,
+        newJemaah: {
+          fullName: (req.body?.newJemaahName || '').toString(),
+          phone: (req.body?.newJemaahPhone || '').toString(),
+          email: (req.body?.newJemaahEmail || '').toString() || null,
+          nik: (req.body?.newJemaahNik || '').toString() || null,
+        },
+        paxCount: req.body?.paxCount ? Number(req.body.paxCount) : undefined,
+        notesPrefix: (req.body?.notesPrefix || '').toString() || undefined,
+      });
+      res.redirect(`/admin/bookings/${result.booking.id}?ok=cloned&from=${encodeURIComponent(req.params.id)}`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal clone booking';
       res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
     }
   }),

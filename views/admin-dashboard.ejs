@@ -3037,9 +3037,16 @@
           <% } %>
           <%# Stage 229 — show active tag filter chip + reset %>
           <% if (typeof manifestTag !== 'undefined' && manifestTag) { %>
-            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %><% if (manifestPickupId) { %>&manifestPickup=<%= encodeURIComponent(manifestPickupId) %><% } %><% if (manifestDietary) { %>&manifestDietary=<%= encodeURIComponent(manifestDietary) %><% } %>"
+            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %><% if (manifestPickupId) { %>&manifestPickup=<%= encodeURIComponent(manifestPickupId) %><% } %><% if (manifestDietary) { %>&manifestDietary=<%= encodeURIComponent(manifestDietary) %><% } %><% if (typeof manifestGroup !== 'undefined' && manifestGroup) { %>&manifestGroup=<%= encodeURIComponent(manifestGroup) %><% } %>"
                style="background:transparent;border:1px solid var(--gold-300);border-radius:var(--r-sm);padding:8px 14px;text-decoration:none;color:var(--gold-300);align-self:center;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">
               × Reset tag (<%= manifestTag %>)
+            </a>
+          <% } %>
+          <%# Stage 258 — show active group filter chip + reset %>
+          <% if (typeof manifestGroup !== 'undefined' && manifestGroup) { %>
+            <a href="/admin?tab=manifest&manifestPaket=<%= manifest.paket.slug %><% if (manifestPickupId) { %>&manifestPickup=<%= encodeURIComponent(manifestPickupId) %><% } %><% if (manifestDietary) { %>&manifestDietary=<%= encodeURIComponent(manifestDietary) %><% } %><% if (manifestTag) { %>&manifestTag=<%= encodeURIComponent(manifestTag) %><% } %>"
+               style="background:transparent;border:1px solid var(--gold-300);border-radius:var(--r-sm);padding:8px 14px;text-decoration:none;color:var(--gold-300);align-self:center;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">
+              × Reset grup (<%= manifestGroup %>)
             </a>
           <% } %>
         </div>

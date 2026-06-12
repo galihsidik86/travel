@@ -3,7 +3,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import {
   getAdminOverview, getManifestForPaket, getFinanceSummary, filterManifestByPickup,
-  filterManifestByDietary, filterManifestByTag,
+  filterManifestByDietary, filterManifestByTag, filterManifestByGroup,
   exportManifestCsv, getPrintManifest,
 } from '../services/adminDashboard.js';
 import { getBunkingForPaket } from '../services/bunking.js';
@@ -50,6 +50,8 @@ router.get(
     const manifestDietary = (req.query.manifestDietary || '').toString();
     // Stage 229 — tag filter on manifest tab
     const manifestTag = (req.query.manifestTag || '').toString();
+    // Stage 258 — group filter on manifest tab
+    const manifestGroup = (req.query.manifestGroup || '').toString();
     const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
@@ -71,6 +73,7 @@ router.get(
     if (manifest && manifestPickupId) manifest = filterManifestByPickup(manifest, manifestPickupId);
     if (manifest && manifestDietary) manifest = filterManifestByDietary(manifest, manifestDietary);
     if (manifest && manifestTag) manifest = filterManifestByTag(manifest, manifestTag);
+    if (manifest && manifestGroup) manifest = filterManifestByGroup(manifest, manifestGroup);
     // Stage 229 — distinct tags from the unfiltered manifest so the
     // tag dropdown shows everything available even after narrowing.
     const manifestTagOptions = (() => {
@@ -100,6 +103,7 @@ router.get(
       manifestDietary,
       manifestTag,
       manifestTagOptions,
+      manifestGroup,
       docOverview,
       recentEntities,
       finance,
