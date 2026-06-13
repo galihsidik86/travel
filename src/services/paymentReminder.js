@@ -43,6 +43,9 @@ export async function getPaymentReminderCandidates({
       totalAmount: true, paidAmount: true,
       kelas: true, paxCount: true,
       jemaahUserId: true,
+      // Stage 270 — pull schedule so the reminder body can target the
+      // next PENDING installment instead of generic balance.
+      installmentSchedule: true,
       paket: { select: { slug: true, title: true, departureDate: true } },
       jemaah: {
         select: {
@@ -93,6 +96,9 @@ export async function sendPaymentReminders({
   }
   const { notifyPaymentReminder } = await import('./notifications.js');
   let enqueued = 0, skipped = 0, errors = 0;
+  // Stage 270 — installment-aware. Use the first PENDING installment
+  // as the targeted anchor when one exists.
+  const { summariseSchedule } = await import('./bookingInstallments.js');
   for (const b of rows) {
     try {
       const total = Number(b.totalAmount?.toString?.() ?? b.totalAmount) || 0;
@@ -101,8 +107,19 @@ export async function sendPaymentReminders({
       const daysUntil = Math.max(0, Math.ceil(
         (b.paket.departureDate.getTime() - now.getTime()) / (24 * 60 * 60_000),
       ));
+      const schedule = Array.isArray(b.installmentSchedule) ? b.installmentSchedule : null;
+      const summary = summariseSchedule(schedule, { now });
+      const nextInstallment = summary && summary.nextDue ? {
+        dueDate: summary.nextDue,
+        amountIdr: summary.nextDueAmount,
+        // Days until this specific installment is due
+        daysUntilDue: Math.ceil(
+          (new Date(summary.nextDue + 'T00:00:00').getTime() - now.getTime()) / (24 * 60 * 60_000),
+        ),
+        overdueCount: summary.overdueCount,
+      } : null;
       const r = await notifyPaymentReminder({
-        booking: b, outstanding, daysUntil,
+        booking: b, outstanding, daysUntil, nextInstallment,
       });
       if (r.enqueued) enqueued += r.enqueued;
       else skipped += 1;

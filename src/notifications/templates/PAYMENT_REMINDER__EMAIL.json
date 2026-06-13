@@ -1,4 +1,4 @@
 {
   "subject": "Pengingat pelunasan {{paketTitle}} — {{daysUntil}} hari lagi",
-  "body": "Assalamu'alaikum {{jemaahName}},\n\nKami mengingatkan bahwa booking {{bookingNo}} untuk {{paketTitle}} (berangkat {{departureLabel}}) masih memiliki sisa pembayaran sebesar Rp {{outstandingIdr}}. Mohon dilunasi sebelum tanggal keberangkatan ({{daysUntil}} hari lagi).\n\nUntuk membayar online: buka /saya/bookings/{{bookingNo}} → klik 'Bayar online'.\nUntuk transfer manual: hubungi tim Religio Pro.\n\nBaarakallahu fiikum,\nReligio Pro"
+  "body": "Assalamu'alaikum {{jemaahName}},\n\nKami mengingatkan bahwa booking {{bookingNo}} untuk {{paketTitle}} (berangkat {{departureLabel}}) masih memiliki sisa pembayaran sebesar Rp {{outstandingIdr}}.{{installmentLine}}\n\nMohon dilunasi sebelum tanggal keberangkatan ({{daysUntil}} hari lagi).\n\nUntuk membayar online: buka /saya/bookings/{{bookingNo}} → klik 'Bayar online'.\nUntuk transfer manual: hubungi tim Religio Pro.\n\nBaarakallahu fiikum,\nReligio Pro"
 }

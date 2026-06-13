@@ -523,6 +523,92 @@
             </div>
           <% } %>
 
+          <%# Stage 268 — installment schedule panel. Admin sets N
+              installments via inline table; jemaah sees them on /saya. %>
+          <%
+            const schedule = Array.isArray(b.installmentSchedule) ? b.installmentSchedule : [];
+            const canSetSchedule = canEditNotes && b.status !== 'CANCELLED' && b.status !== 'REFUNDED';
+          %>
+          <% if (schedule.length > 0 || canSetSchedule) { %>
+            <div class="info-item" style="grid-column: 1/-1;">
+              <div class="l">Jadwal cicilan</div>
+              <% if (schedule.length > 0) { %>
+                <table style="width:100%;border-collapse:collapse;margin-top:6px;font-family:var(--font-mono);font-size:11px;">
+                  <thead><tr style="border-bottom:1px solid var(--hairline-soft);">
+                    <th style="text-align:left;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">#</th>
+                    <th style="text-align:left;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">JATUH TEMPO</th>
+                    <th style="text-align:right;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">JUMLAH</th>
+                    <th style="text-align:left;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">STATUS</th>
+                  </tr></thead>
+                  <tbody>
+                    <% schedule.forEach(function(i, idx) { %>
+                      <tr>
+                        <td style="padding:4px;color:var(--ink-200);"><%= idx + 1 %></td>
+                        <td style="padding:4px;color:var(--cream-100);"><%= i.dueDate %></td>
+                        <td style="padding:4px;color:var(--cream-100);text-align:right;"><%= fmt.rpShort(i.amountIdr) %></td>
+                        <td style="padding:4px;">
+                          <% if (i.status === 'PAID') { %>
+                            <span style="color:var(--emerald);font-weight:600;">✓ PAID</span>
+                            <% if (i.paidAt) { %>
+                              <span style="color:var(--ink-300);font-size:10px;"> (<%= new Date(i.paidAt).toISOString().slice(0,10) %>)</span>
+                            <% } %>
+                          <% } else { %>
+                            <span style="color:var(--gold-300);">PENDING</span>
+                          <% } %>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              <% } else { %>
+                <div class="sx" style="margin-top:4px;">— belum ada jadwal cicilan —</div>
+              <% } %>
+              <% if (canSetSchedule) { %>
+                <%# Editable parallel-array form: rows of dueDate[]/amountIdr[] %>
+                <details style="margin-top:8px;">
+                  <summary style="cursor:pointer;font-family:var(--font-mono);font-size:10px;color:var(--gold-300);letter-spacing:0.1em;">EDIT JADWAL</summary>
+                  <form method="POST" action="/admin/bookings/<%= b.id %>/installments" style="margin-top:10px;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <div id="inst-rows">
+                      <% (schedule.length > 0 ? schedule : [{dueDate:'',amountIdr:''}]).forEach(function(i) { %>
+                        <div style="display:flex;gap:6px;margin-bottom:5px;">
+                          <input type="date" name="dueDate" value="<%= i.dueDate || '' %>" required style="flex:0 0 160px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                          <input type="number" name="amountIdr" min="1" step="1" value="<%= i.amountIdr || '' %>" placeholder="Rp" required style="flex:1;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                          <button type="button" class="inst-rm" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:11px;">×</button>
+                        </div>
+                      <% }) %>
+                    </div>
+                    <div style="display:flex;gap:6px;margin-top:8px;">
+                      <button type="button" id="inst-add" style="background:transparent;border:1px solid var(--hairline-soft);color:var(--ink-200);padding:5px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">+ Baris</button>
+                      <button type="submit" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:5px 14px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">Simpan jadwal</button>
+                      <button type="submit" formnovalidate onclick="document.querySelectorAll('#inst-rows input').forEach(i => i.removeAttribute('required'));document.getElementById('inst-rows').innerHTML='';" style="background:transparent;border:1px dashed var(--hairline-soft);color:var(--ink-200);padding:5px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">Hapus semua</button>
+                    </div>
+                  </form>
+                  <script>
+                    (function () {
+                      const root = document.getElementById('inst-rows');
+                      if (!root) return;
+                      function attachRm() {
+                        root.querySelectorAll('.inst-rm').forEach((b) => {
+                          b.onclick = () => b.parentElement.remove();
+                        });
+                      }
+                      attachRm();
+                      const addBtn = document.getElementById('inst-add');
+                      if (addBtn) addBtn.onclick = () => {
+                        const div = document.createElement('div');
+                        div.style.cssText = 'display:flex;gap:6px;margin-bottom:5px;';
+                        div.innerHTML = '<input type="date" name="dueDate" required style="flex:0 0 160px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"><input type="number" name="amountIdr" min="1" step="1" placeholder="Rp" required style="flex:1;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"><button type="button" class="inst-rm" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:11px;">×</button>';
+                        root.appendChild(div);
+                        attachRm();
+                      };
+                    })();
+                  </script>
+                </details>
+              <% } %>
+            </div>
+          <% } %>
+
           <%# Stage 226 — booking tags. Admin curates labels (VIP/LANSIA/etc.)
               for fast manifest filtering + visual identification. %>
           <div class="info-item" style="grid-column: 1/-1;">

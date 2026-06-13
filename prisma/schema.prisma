@@ -1334,6 +1334,13 @@ model Booking {
   // can type manually on walk-in create form. NULL = ungrouped.
   groupKey String? @db.VarChar(40)
 
+  // Stage 268 — installment schedule. JSON array of
+  //   {id, dueDate, amountIdr, status: PENDING|PAID, paidAt?}
+  // Null = no schedule (legacy / lump-sum). Admin sets via booking
+  // detail; jemaah sees on /saya/bookings/:id. S269 auto-marks
+  // installments PAID when payments land.
+  installmentSchedule Json?
+
   // Stage 232-234 — auto-tag idempotency tracker. JSON array of
   // auto-tag codes that have ALREADY been computed-and-applied for
   // this booking. Used by `bookingAutoTag` to honour admin's manual

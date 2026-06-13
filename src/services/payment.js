@@ -44,6 +44,10 @@ export async function recordPayment({ req, actor, bookingId, amount, method, cur
       paket: { select: { id: true, komisiRate: true } },
     },
   });
+  // Stage 269 — installment auto-reconcile. Pull existing schedule
+  // (if any) so we can mark next PENDING entries PAID inside the tx.
+  // Imported lazily to avoid circular import with bookingInstallments.
+  const { applyPaymentToSchedule } = await import('./bookingInstallments.js');
   if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
   if (booking.status === 'CANCELLED' || booking.status === 'REFUNDED') {
     throw new HttpError(409, 'Booking sudah cancelled/refunded — tidak bisa terima pembayaran baru', 'BOOKING_CLOSED');
@@ -55,6 +59,12 @@ export async function recordPayment({ req, actor, bookingId, amount, method, cur
   const newStatus = transitionStatus(booking.status, newPaid, totalAmount);
   const statusChanged = newStatus !== booking.status;
   const reachedLunas = newStatus === 'LUNAS' && booking.status !== 'LUNAS';
+
+  // Stage 269 — compute the schedule update OUTSIDE the tx (pure
+  // function) and pass into the tx writer.
+  const existingSchedule = Array.isArray(booking.installmentSchedule)
+    ? booking.installmentSchedule : null;
+  const reconcile = applyPaymentToSchedule(existingSchedule, amt);
 
   const { payment, updatedBooking } = await db.$transaction(async (tx) => {
     const payment = await tx.payment.create({
@@ -76,6 +86,8 @@ export async function recordPayment({ req, actor, bookingId, amount, method, cur
         paidAmount: newPaid.toFixed(2),
         status: newStatus,
         ...(booking.bookingFeeAt == null && currentPaid === 0 ? { bookingFeeAt: new Date() } : {}),
+        // Stage 269 — write the reconciled schedule back when it changed
+        ...(reconcile.changed ? { installmentSchedule: reconcile.schedule } : {}),
       },
     });
     return { payment, updatedBooking };
@@ -133,6 +145,10 @@ export async function recordPayment({ req, actor, bookingId, amount, method, cur
       amount: amt,
       statusChanged,
       komisiCreated: !!komisi,
+      // Stage 269 — surface installment reconcile in the timeline
+      ...(reconcile.changed ? { installmentsMarkedPaid: reconcile.schedule.filter(
+        (e, i) => e.status === 'PAID' && existingSchedule[i]?.status !== 'PAID',
+      ).length } : {}),
     },
   });
 

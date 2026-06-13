@@ -565,6 +565,42 @@ router.post(
   }),
 );
 
+// Stage 268 — set installment schedule. JSON body: schedule[] of
+//   {dueDate: 'YYYY-MM-DD', amountIdr: number, status?: 'PENDING'|'PAID'}
+// Empty array / missing → clears.
+router.post(
+  '/:id/installments',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const { setBookingInstallmentSchedule } = await import('../services/bookingInstallments.js');
+      // Body can arrive as either form-encoded (one row per dueDate/amount
+      // pair, parallel arrays) or pure JSON. Normalise into the array shape.
+      let schedule;
+      if (Array.isArray(req.body?.schedule)) {
+        schedule = req.body.schedule;
+      } else if (Array.isArray(req.body?.dueDate)) {
+        // Parallel-array form encoding: dueDate[], amountIdr[]
+        schedule = req.body.dueDate.map((d, i) => ({
+          dueDate: d,
+          amountIdr: Number(req.body.amountIdr?.[i]),
+        }));
+      } else {
+        schedule = [];
+      }
+      await setBookingInstallmentSchedule({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id,
+        schedule,
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=installments`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal simpan installment';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
 // Stage 259 — manual group assignment. Form field: groupKey
 //   "" → clear, "NEW" → mint fresh, "G-XXXXXX" → assign to that key.
 router.post(

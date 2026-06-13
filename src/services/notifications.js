@@ -879,7 +879,7 @@ export async function notifyAgentAnnualRecap({ recap, agent } = {}) {
  * via enqueueNotification). Silent when the jemaah has neither.
  */
 export async function notifyPaymentReminder({
-  booking, outstanding, daysUntil,
+  booking, outstanding, daysUntil, nextInstallment = null,
 } = {}) {
   if (!booking) return { enqueued: 0, skipped: true };
   const j = booking.jemaah;
@@ -891,6 +891,24 @@ export async function notifyPaymentReminder({
     return { enqueued: 0, skipped: true, reason: 'no_contact' };
   }
   const departure = booking.paket.departureDate;
+  // Stage 270 — when a next-installment is known, the message anchors
+  // on it ("Cicilan #2 jatuh tempo 5 hari lagi, Rp 5jt") rather than
+  // the generic balance. Fallback to the legacy generic body otherwise.
+  let installmentLine = '';
+  if (nextInstallment && nextInstallment.dueDate) {
+    const amt = Math.round(nextInstallment.amountIdr).toLocaleString('id-ID');
+    if (nextInstallment.daysUntilDue < 0) {
+      const lateDays = Math.abs(nextInstallment.daysUntilDue);
+      installmentLine = `\n\nCicilan jatuh tempo ${nextInstallment.dueDate} (telat ${lateDays} hari): Rp ${amt}`;
+    } else if (nextInstallment.daysUntilDue === 0) {
+      installmentLine = `\n\nCicilan jatuh tempo HARI INI (${nextInstallment.dueDate}): Rp ${amt}`;
+    } else {
+      installmentLine = `\n\nCicilan jatuh tempo ${nextInstallment.dueDate} (${nextInstallment.daysUntilDue} hari lagi): Rp ${amt}`;
+    }
+    if (nextInstallment.overdueCount > 0) {
+      installmentLine += ` · ⚠ ${nextInstallment.overdueCount} cicilan overdue`;
+    }
+  }
   const vars = {
     jemaahName: j.fullName || '',
     bookingNo: booking.bookingNo,
@@ -898,6 +916,8 @@ export async function notifyPaymentReminder({
     outstandingIdr: Math.round(outstanding).toLocaleString('id-ID'),
     daysUntil: String(daysUntil),
     departureLabel: departure ? departure.toISOString().slice(0, 10) : '',
+    // Stage 270 — empty string when no schedule (template renders nothing)
+    installmentLine,
   };
   let enqueued = 0;
   if (recipientEmail) {
