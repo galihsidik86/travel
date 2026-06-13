@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Cicilan overdue</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head {
+    margin-bottom: 24px; display: flex; justify-content: space-between;
+    align-items: end; gap: 24px; flex-wrap: wrap;
+  }
+  .head h1 {
+    font-family: var(--font-display); font-size: 36px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+  .kpi-strip {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+    border: 1px solid var(--ruby); border-radius: var(--r-md);
+    overflow: hidden; margin-bottom: 22px;
+  }
+  .kpi {
+    padding: 16px 20px; background: rgba(212,89,89,0.04);
+    border-right: 1px solid var(--hairline-soft);
+  }
+  .kpi:last-child { border-right: none; }
+  .kpi .l { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .kpi .v { font-family: var(--font-mono); font-size: 22px; color: var(--cream-100); margin-top: 6px; font-weight: 600; }
+  .kpi .v.ruby { color: var(--ruby); }
+  table.t { width: 100%; border-collapse: collapse; }
+  table.t th, table.t td {
+    padding: 10px 12px; text-align: left; font-family: var(--font-mono);
+    font-size: 11.5px; border-bottom: 1px solid var(--hairline-soft);
+  }
+  table.t th { color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 400; font-size: 9.5px; }
+  table.t td { color: var(--cream-100); }
+  table.t a { color: var(--gold-300); text-decoration: none; font-weight: 600; }
+  table.t tr:last-child td { border-bottom: none; }
+  .pill {
+    display: inline-block; padding: 2px 7px; border-radius: 3px;
+    font-size: 9.5px; letter-spacing: 0.1em; border: 1px solid;
+  }
+  .pill-ruby { color: var(--ruby); border-color: var(--ruby); }
+  .pill-gold { color: var(--gold-300); border-color: var(--gold-300); }
+  .panel {
+    background: var(--ink-900); border: 1px solid var(--hairline-soft);
+    border-radius: var(--r-md); padding: 22px;
+  }
+  .flash { padding: 10px 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; margin-bottom: 16px; }
+  .flash.ok { background: rgba(80,176,113,0.08); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(212,89,89,0.08); border: 1px solid var(--ruby); color: var(--ruby); }
+  .btn-send {
+    background: transparent; border: 1px solid var(--gold-300); color: var(--gold-300);
+    padding: 5px 12px; border-radius: 3px; font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+  }
+  @media (max-width: 720px) { .kpi-strip { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/admin">← /admin</a> · CICILAN OVERDUE</div>
+
+    <div class="head">
+      <div>
+        <h1>Cicilan overdue</h1>
+        <div class="sub">
+          Booking aktif dengan ≥1 cicilan jatuh tempo yang belum dibayar
+        </div>
+      </div>
+    </div>
+
+    <% if (ok) { %><div class="flash ok">✓ <%= ok %></div><% } %>
+    <% if (err) { %><div class="flash err">✕ <%= err %></div><% } %>
+
+    <% if (rows.length === 0) { %>
+      <div class="panel" style="text-align:center;color:var(--ink-200);font-family:var(--font-mono);font-size:13px;">
+        — Tidak ada cicilan overdue saat ini —
+      </div>
+    <% } else {
+         const totalIdr = rows.reduce((a, r) => a + r.overdueIdr, 0);
+         const totalCount = rows.reduce((a, r) => a + r.overdueCount, 0);
+    %>
+      <div class="kpi-strip">
+        <div class="kpi"><div class="l">Booking overdue</div><div class="v ruby"><%= rows.length %></div></div>
+        <div class="kpi"><div class="l">Cicilan overdue</div><div class="v"><%= totalCount %></div></div>
+        <div class="kpi"><div class="l">Total nilai</div><div class="v ruby">Rp <%= fmt.rpShort(totalIdr) %></div></div>
+      </div>
+
+      <div class="panel">
+        <table class="t">
+          <thead><tr>
+            <th>Booking</th><th>Jemaah</th><th>Paket</th>
+            <th style="text-align:right;">Overdue</th>
+            <th>Next due</th>
+            <th>Agen</th>
+            <th>Aksi</th>
+          </tr></thead>
+          <tbody>
+            <% rows.forEach(function(r) { %>
+              <tr>
+                <td><a href="/admin/bookings/<%= r.bookingId %>"><%= r.bookingNo %></a></td>
+                <td><%= r.jemaahName %></td>
+                <td><%= r.paketTitle %></td>
+                <td style="text-align:right;">
+                  <span class="pill pill-ruby"><%= r.overdueCount %>×</span>
+                  <div style="margin-top:2px;color:var(--ruby);">Rp <%= fmt.rpShort(r.overdueIdr) %></div>
+                </td>
+                <td><%= r.nextDue || '—' %></td>
+                <td><%= r.agentName || (r.agentSlug ? r.agentSlug : 'Kantor Pusat') %></td>
+                <td>
+                  <form method="POST" action="/admin/installments-overdue/<%= r.bookingId %>/remind"
+                        style="display:inline;" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='...';">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn-send">✉ Kirim reminder</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</body>
+</html>

@@ -567,6 +567,14 @@
                 <%# Editable parallel-array form: rows of dueDate[]/amountIdr[] %>
                 <details style="margin-top:8px;">
                   <summary style="cursor:pointer;font-family:var(--font-mono);font-size:10px;color:var(--gold-300);letter-spacing:0.1em;">EDIT JADWAL</summary>
+                  <%# Stage 271 — auto-suggest schedule. JS fetches the
+                      proposed plan + populates the form. %>
+                  <div style="margin-bottom:10px;display:flex;gap:6px;align-items:center;">
+                    <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">Jumlah cicilan:</span>
+                    <input type="number" id="inst-suggest-n" value="6" min="1" max="24" style="width:60px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:4px 8px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                    <button type="button" id="inst-suggest-btn" style="background:transparent;border:1px solid var(--sapphire);color:var(--sapphire);padding:5px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">↻ Sarankan jadwal</button>
+                    <span id="inst-suggest-msg" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);"></span>
+                  </div>
                   <form method="POST" action="/admin/bookings/<%= b.id %>/installments" style="margin-top:10px;">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <div id="inst-rows">
@@ -594,13 +602,45 @@
                         });
                       }
                       attachRm();
-                      const addBtn = document.getElementById('inst-add');
-                      if (addBtn) addBtn.onclick = () => {
+                      function makeRow(dueDate, amountIdr) {
                         const div = document.createElement('div');
                         div.style.cssText = 'display:flex;gap:6px;margin-bottom:5px;';
-                        div.innerHTML = '<input type="date" name="dueDate" required style="flex:0 0 160px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"><input type="number" name="amountIdr" min="1" step="1" placeholder="Rp" required style="flex:1;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"><button type="button" class="inst-rm" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:11px;">×</button>';
-                        root.appendChild(div);
+                        div.innerHTML = '<input type="date" name="dueDate" value="' + (dueDate || '') + '" required style="flex:0 0 160px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"><input type="number" name="amountIdr" min="1" step="1" value="' + (amountIdr || '') + '" placeholder="Rp" required style="flex:1;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;"><button type="button" class="inst-rm" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:11px;">×</button>';
+                        return div;
+                      }
+                      const addBtn = document.getElementById('inst-add');
+                      if (addBtn) addBtn.onclick = () => {
+                        root.appendChild(makeRow('', ''));
                         attachRm();
+                      };
+                      // Stage 271 — Sarankan jadwal: fetch proposed plan + populate.
+                      const sBtn = document.getElementById('inst-suggest-btn');
+                      const sMsg = document.getElementById('inst-suggest-msg');
+                      if (sBtn) sBtn.onclick = async () => {
+                        const count = Number(document.getElementById('inst-suggest-n').value) || 6;
+                        sMsg.textContent = '...';
+                        try {
+                          const r = await fetch('/admin/bookings/<%= b.id %>/installments/suggest', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ count }),
+                          });
+                          if (!r.ok) {
+                            const j = await r.json().catch(() => ({}));
+                            sMsg.textContent = '✕ ' + (j?.error?.message || 'Gagal');
+                            sMsg.style.color = 'var(--ruby)';
+                            return;
+                          }
+                          const { schedule } = await r.json();
+                          root.innerHTML = '';
+                          for (const i of schedule) root.appendChild(makeRow(i.dueDate, i.amountIdr));
+                          attachRm();
+                          sMsg.textContent = '✓ ' + schedule.length + ' cicilan diisi';
+                          sMsg.style.color = 'var(--emerald)';
+                        } catch (err) {
+                          sMsg.textContent = '✕ network';
+                          sMsg.style.color = 'var(--ruby)';
+                        }
                       };
                     })();
                   </script>

@@ -8,6 +8,7 @@ import {
   summariseSchedule,
   applyPaymentToSchedule,
   setBookingInstallmentSchedule,
+  suggestInstallmentPlan,
 } from '../src/services/bookingInstallments.js';
 
 const adminActor = { id: null, email: 'admin@test', role: 'OWNER' };
@@ -257,4 +258,136 @@ test('setBookingInstallmentSchedule: empty array clears + skip-audit-on-no-op', 
     bookingId: b.id, schedule: null,
   });
   assert.equal(noop.updated, false);
+});
+
+// ── Stage 271 — suggestInstallmentPlan ──────────────────────────
+
+async function setPaketDepartureMs(paket, msFromNow) {
+  const d = new Date(Date.now() + msFromNow);
+  await db.paket.update({
+    where: { id: paket.id }, data: { departureDate: d, returnDate: d },
+  });
+}
+
+test('suggestInstallmentPlan: 404 on unknown booking', async () => {
+  await assert.rejects(
+    () => suggestInstallmentPlan({ bookingId: 'cknotexist' }),
+    (err) => err.code === 'BOOKING_NOT_FOUND' && err.status === 404,
+  );
+});
+
+test('suggestInstallmentPlan: refuses on CANCELLED', async (t) => {
+  const paket = await tempPaket(t, 'sip-cxl');
+  const jemaah = await tempJemaah(t, 'sip-cxl');
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id, totalAmount: '10000000' });
+  await db.booking.update({ where: { id: b.id }, data: { status: 'CANCELLED' } });
+  await assert.rejects(
+    () => suggestInstallmentPlan({ bookingId: b.id }),
+    (err) => err.code === 'BOOKING_CLOSED' && err.status === 409,
+  );
+});
+
+test('suggestInstallmentPlan: refuses when balance is zero', async (t) => {
+  const paket = await tempPaket(t, 'sip-zero');
+  const jemaah = await tempJemaah(t, 'sip-zero');
+  await setPaketDepartureMs(paket, 90 * 24 * 60 * 60_000);
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id, totalAmount: '5000000' });
+  await db.booking.update({ where: { id: b.id }, data: { paidAmount: '5000000' } });
+  await assert.rejects(
+    () => suggestInstallmentPlan({ bookingId: b.id }),
+    (err) => err.code === 'BALANCE_ZERO' && err.status === 409,
+  );
+});
+
+test('suggestInstallmentPlan: refuses when departure is past/unset', async (t) => {
+  const paket = await tempPaket(t, 'sip-past');
+  const jemaah = await tempJemaah(t, 'sip-past');
+  await setPaketDepartureMs(paket, -7 * 24 * 60 * 60_000);
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id, totalAmount: '5000000' });
+  await assert.rejects(
+    () => suggestInstallmentPlan({ bookingId: b.id }),
+    (err) => err.code === 'DEPARTURE_PAST' && err.status === 409,
+  );
+});
+
+test('suggestInstallmentPlan: refuses when departure is too close (no time)', async (t) => {
+  const paket = await tempPaket(t, 'sip-close');
+  const jemaah = await tempJemaah(t, 'sip-close');
+  // 10 days out — lastDue = departure - 30d, which is in the past
+  await setPaketDepartureMs(paket, 10 * 24 * 60 * 60_000);
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id, totalAmount: '5000000' });
+  await assert.rejects(
+    () => suggestInstallmentPlan({ bookingId: b.id }),
+    (err) => err.code === 'NO_TIME' && err.status === 409,
+  );
+});
+
+test('suggestInstallmentPlan: refuses bad count (0, negative, >24)', async (t) => {
+  const paket = await tempPaket(t, 'sip-cnt');
+  const jemaah = await tempJemaah(t, 'sip-cnt');
+  await setPaketDepartureMs(paket, 200 * 24 * 60 * 60_000);
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id, totalAmount: '5000000' });
+  await assert.rejects(
+    () => suggestInstallmentPlan({ bookingId: b.id, count: 0 }),
+    (err) => err.code === 'BAD_COUNT',
+  );
+  await assert.rejects(
+    () => suggestInstallmentPlan({ bookingId: b.id, count: 25 }),
+    (err) => err.code === 'BAD_COUNT',
+  );
+});
+
+test('suggestInstallmentPlan: returns N entries with sum = remaining balance', async (t) => {
+  const paket = await tempPaket(t, 'sip-sum');
+  const jemaah = await tempJemaah(t, 'sip-sum');
+  await setPaketDepartureMs(paket, 200 * 24 * 60 * 60_000);
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id, totalAmount: '10000000' });
+  await db.booking.update({ where: { id: b.id }, data: { paidAmount: '1000000' } });
+  // Remaining = 9,000,000
+  const r = await suggestInstallmentPlan({ bookingId: b.id, count: 3 });
+  assert.equal(r.length, 3);
+  const sum = r.reduce((acc, i) => acc + i.amountIdr, 0);
+  assert.equal(sum, 9000000);
+});
+
+test('suggestInstallmentPlan: handles rounding via tail-cents convention', async (t) => {
+  const paket = await tempPaket(t, 'sip-rnd');
+  const jemaah = await tempJemaah(t, 'sip-rnd');
+  await setPaketDepartureMs(paket, 200 * 24 * 60 * 60_000);
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id, totalAmount: '10000001' });
+  // Remaining = 10,000,001 with N=3 → 3,333,333 × 2 + 3,333,335 (last has the tail)
+  const r = await suggestInstallmentPlan({ bookingId: b.id, count: 3 });
+  assert.equal(r.length, 3);
+  assert.equal(r[0].amountIdr, 3333333);
+  assert.equal(r[1].amountIdr, 3333333);
+  assert.equal(r[2].amountIdr, 3333335);
+  // Sum must equal remaining (the rounding contract)
+  const sum = r.reduce((acc, i) => acc + i.amountIdr, 0);
+  assert.equal(sum, 10000001);
+});
+
+test('suggestInstallmentPlan: N=1 collapses to single installment on lastDue', async (t) => {
+  const paket = await tempPaket(t, 'sip-one');
+  const jemaah = await tempJemaah(t, 'sip-one');
+  await setPaketDepartureMs(paket, 200 * 24 * 60 * 60_000);
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id, totalAmount: '10000000' });
+  const r = await suggestInstallmentPlan({ bookingId: b.id, count: 1 });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].amountIdr, 10000000);
+});
+
+test('suggestInstallmentPlan: returned plan passes normaliseSchedule round-trip', async (t) => {
+  const paket = await tempPaket(t, 'sip-rt');
+  const jemaah = await tempJemaah(t, 'sip-rt');
+  await setPaketDepartureMs(paket, 200 * 24 * 60 * 60_000);
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id, totalAmount: '10000000' });
+  const proposed = await suggestInstallmentPlan({ bookingId: b.id, count: 5 });
+  // Must round-trip through normalise without error
+  const r = normaliseSchedule(proposed);
+  assert.equal(r.length, 5);
+  for (const e of r) {
+    assert.match(e.dueDate, /^\d{4}-\d{2}-\d{2}$/);
+    assert.ok(e.amountIdr > 0);
+    assert.equal(e.status, 'PENDING');
+  }
 });

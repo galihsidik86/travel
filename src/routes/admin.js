@@ -131,6 +131,69 @@ router.get(
   }),
 );
 
+// Stage 273 — admin overdue installments queue page.
+router.get(
+  '/installments-overdue',
+  asyncHandler(async (req, res) => {
+    const { getOverdueInstallmentBookings } = await import('../services/installmentOverdueDigest.js');
+    const rows = await getOverdueInstallmentBookings();
+    res.render('installments-overdue', {
+      user: req.user, rows,
+      ok: req.query.ok || null, err: req.query.err || null,
+    });
+  }),
+);
+
+// Stage 273 — send PAYMENT_REMINDER for one booking immediately,
+// bypassing the S172 cooldown. Same as the existing daily cron's
+// per-row send but synchronous + targeted.
+router.post(
+  '/installments-overdue/:bookingId/remind',
+  asyncHandler(async (req, res) => {
+    const { bookingId } = req.params;
+    try {
+      const booking = await (await import('../lib/db.js')).db.booking.findUnique({
+        where: { id: bookingId },
+        select: {
+          id: true, bookingNo: true, status: true,
+          totalAmount: true, paidAmount: true,
+          jemaahUserId: true,
+          installmentSchedule: true,
+          paket: { select: { slug: true, title: true, departureDate: true } },
+          jemaah: { select: { id: true, fullName: true, phone: true, user: { select: { id: true, email: true } } } },
+        },
+      });
+      if (!booking) throw new Error('Booking tidak ditemukan');
+      const total = Number(booking.totalAmount?.toString?.() ?? booking.totalAmount) || 0;
+      const paid = Number(booking.paidAmount?.toString?.() ?? booking.paidAmount) || 0;
+      const outstanding = total - paid;
+      const now = new Date();
+      const daysUntil = booking.paket?.departureDate
+        ? Math.max(0, Math.ceil((booking.paket.departureDate.getTime() - now.getTime()) / 86_400_000))
+        : 0;
+      const { summariseSchedule } = await import('../services/bookingInstallments.js');
+      const summary = summariseSchedule(booking.installmentSchedule || null, { now });
+      const nextInstallment = summary && summary.nextDue ? {
+        dueDate: summary.nextDue,
+        amountIdr: summary.nextDueAmount,
+        daysUntilDue: Math.ceil(
+          (new Date(summary.nextDue + 'T00:00:00').getTime() - now.getTime()) / 86_400_000,
+        ),
+        overdueCount: summary.overdueCount,
+      } : null;
+      const { notifyPaymentReminder } = await import('../services/notifications.js');
+      const r = await notifyPaymentReminder({
+        booking, outstanding, daysUntil, nextInstallment,
+      });
+      const tag = r.enqueued > 0 ? 'sent' : 'skipped';
+      res.redirect(`/admin/installments-overdue?ok=${tag}_${bookingId.slice(-6)}`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal kirim reminder';
+      res.redirect(`/admin/installments-overdue?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
 // Stage 253 — global admin search page. `?q=...` returns categorized
 // results across bookings + jemaah + paket + agen.
 router.get(

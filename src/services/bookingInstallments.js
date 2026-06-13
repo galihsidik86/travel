@@ -182,6 +182,98 @@ export async function setBookingInstallmentSchedule({ req, actor, bookingId, sch
  * single source of truth for money math. This function returns the
  * new schedule + caller writes it inside the same transaction.
  */
+/**
+ * Stage 271 — auto-suggest an installment plan. Splits remaining balance
+ * (`totalAmount - paidAmount`) into N roughly-equal monthly installments
+ * ending one month before `departureDate` (or before `manifestClosesAt`,
+ * whichever is earlier).
+ *
+ * Tail-cents convention: the last installment carries the rounding
+ * remainder so the sum exactly matches the remaining balance. (Splitting
+ * Rp 10,000,000 over 3 → 3,333,333 × 2 + 3,333,334.)
+ *
+ * Refusals:
+ *   - `remaining <= 0` → BALANCE_ZERO (nothing to schedule)
+ *   - `count < 1 OR > 24` → BAD_COUNT (server-side cap matches normaliseSchedule)
+ *   - `departureDate <= now` → DEPARTURE_PAST (no room to schedule)
+ *   - end-of-schedule cutoff <= now → NO_TIME (jemaah at <30 days; pay now)
+ *
+ * Does NOT persist — returns the proposed array. Caller decides whether
+ * to apply it via `setBookingInstallmentSchedule`. This keeps the UX
+ * "review before save" — admin can tweak counts/dates after.
+ */
+export async function suggestInstallmentPlan({ bookingId, count = 6, now = new Date() }) {
+  const booking = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true, totalAmount: true, paidAmount: true, status: true,
+      paket: { select: { departureDate: true, manifestClosesAt: true } },
+    },
+  });
+  if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+  if (booking.status === 'CANCELLED' || booking.status === 'REFUNDED') {
+    throw new HttpError(409, 'Booking sudah cancelled/refunded', 'BOOKING_CLOSED');
+  }
+  const total = Number(booking.totalAmount?.toString?.() ?? booking.totalAmount) || 0;
+  const paid = Number(booking.paidAmount?.toString?.() ?? booking.paidAmount) || 0;
+  const remaining = total - paid;
+  if (remaining <= 0) {
+    throw new HttpError(409, 'Tidak ada sisa pembayaran untuk dijadwalkan', 'BALANCE_ZERO');
+  }
+  const n = Math.floor(Number(count));
+  if (!Number.isFinite(n) || n < 1 || n > 24) {
+    throw new HttpError(400, 'Jumlah cicilan harus 1-24', 'BAD_COUNT');
+  }
+
+  const departure = booking.paket?.departureDate ? new Date(booking.paket.departureDate) : null;
+  const closes = booking.paket?.manifestClosesAt ? new Date(booking.paket.manifestClosesAt) : null;
+  if (!departure || departure.getTime() <= now.getTime()) {
+    throw new HttpError(409, 'Tanggal keberangkatan sudah lewat / belum diset', 'DEPARTURE_PAST');
+  }
+
+  // End cutoff: 1 month before departure OR manifest close, whichever earlier
+  const lastDue = new Date(Math.min(
+    departure.getTime() - 30 * 24 * 60 * 60_000,
+    closes ? closes.getTime() : Infinity,
+  ));
+  if (lastDue.getTime() <= now.getTime()) {
+    throw new HttpError(409, 'Sudah terlalu dekat keberangkatan untuk dijadwalkan', 'NO_TIME');
+  }
+
+  // First due ~1 week from now (give jemaah breathing room before first payment).
+  // If N=1, just last due. Otherwise spread evenly between firstDue and lastDue.
+  const firstDue = new Date(now.getTime() + 7 * 24 * 60 * 60_000);
+  if (firstDue.getTime() >= lastDue.getTime()) {
+    // Window too tight — collapse to single installment on lastDue
+    return [{
+      id: undefined, // let normaliseSchedule auto-generate
+      dueDate: localYmd(lastDue),
+      amountIdr: remaining,
+      status: 'PENDING',
+    }];
+  }
+
+  // Split evenly. Each gets floor(remaining/n); last carries the remainder.
+  const each = Math.floor(remaining / n);
+  const tail = remaining - each * (n - 1);
+  const span = lastDue.getTime() - firstDue.getTime();
+  const step = n > 1 ? span / (n - 1) : 0;
+  const out = [];
+  for (let i = 0; i < n; i += 1) {
+    const due = new Date(firstDue.getTime() + step * i);
+    out.push({
+      dueDate: localYmd(due),
+      amountIdr: i === n - 1 ? tail : each,
+      status: 'PENDING',
+    });
+  }
+  return out;
+}
+
+function localYmd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function applyPaymentToSchedule(schedule, amountIdr, { now = new Date() } = {}) {
   if (!schedule || schedule.length === 0) return { changed: false, schedule };
   if (!amountIdr || amountIdr <= 0) return { changed: false, schedule };

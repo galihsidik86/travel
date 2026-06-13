@@ -565,6 +565,21 @@ router.post(
   }),
 );
 
+// Stage 271 — auto-suggest installment plan. JSON returns proposed
+// schedule for admin to review (NOT persisted — admin saves via S268).
+router.post(
+  '/:id/installments/suggest',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    const { suggestInstallmentPlan } = await import('../services/bookingInstallments.js');
+    const count = Number(req.body?.count) || 6;
+    const schedule = await suggestInstallmentPlan({
+      bookingId: req.params.id, count,
+    });
+    res.json({ schedule });
+  }),
+);
+
 // Stage 268 — set installment schedule. JSON body: schedule[] of
 //   {dueDate: 'YYYY-MM-DD', amountIdr: number, status?: 'PENDING'|'PAID'}
 // Empty array / missing → clears.

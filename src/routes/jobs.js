@@ -404,6 +404,16 @@ router.post(
   }),
 );
 
+// Stage 272 — admin digest of bookings with overdue installments
+router.post(
+  '/send-installment-overdue-digest',
+  asyncHandler(async (_req, res) => {
+    const { sendInstallmentOverdueDigest } = await import('../services/installmentOverdueDigest.js');
+    const result = await runJob('send-installment-overdue-digest', () => sendInstallmentOverdueDigest({}));
+    res.json(result);
+  }),
+);
+
 // Stage 227 — auto-publish DRAFT paket whose publishedAt has elapsed
 router.post(
   '/auto-publish-paket',

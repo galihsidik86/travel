@@ -163,6 +163,7 @@ enum NotificationType {
   PASSPORT_RENEWAL_REMINDER // JemaahProfile.passportExpiry < 90d → email + WA jemaah (Stage 203)
   CREW_DIETARY_BRIEF // Monday-of-week-of-departure email per crew with non-REGULAR dietary roll-up (Stage 213)
   PICKUP_REMINDER // jemaah on near-departure paket with no pickup chosen → email + WA (Stage 219)
+  INSTALLMENT_OVERDUE_ADMIN // daily digest of bookings with overdue installment(s) → OWNER+SUPERADMIN+MANAJER_OPS (Stage 272)
   GENERIC // catch-all for ad-hoc notifs
 }
 
