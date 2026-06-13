@@ -469,26 +469,55 @@
             </div>
           <% } %>
           <%# Stage 257 — group siblings panel. Visible when groupKey is set
-              even if no siblings exist (admin needs to see the key). %>
-          <% if (b.groupKey) { %>
+              even if no siblings exist (admin needs to see the key).
+              Stage 259 — assign/clear form visible to CANCEL_ROLES on
+              active bookings, regardless of current group state. %>
+          <%
+            const canSetGroup = canEditNotes && b.status !== 'CANCELLED' && b.status !== 'REFUNDED';
+          %>
+          <% if (b.groupKey || canSetGroup) { %>
             <div class="info-item" style="grid-column: 1/-1;">
               <div class="l">Grup booking</div>
-              <div style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);margin-top:4px;">
-                <a href="/admin?tab=manifest&manifestPaket=<%= b.paket.slug %>&manifestGroup=<%= encodeURIComponent(b.groupKey) %>" style="color:var(--gold-300);text-decoration:none;font-weight:600;">🔗 <%= b.groupKey %></a>
+              <% if (b.groupKey) { %>
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--cream-100);margin-top:4px;">
+                  <a href="/admin/groups/<%= encodeURIComponent(b.groupKey) %>" style="color:var(--gold-300);text-decoration:none;font-weight:600;">🔗 <%= b.groupKey %></a>
+                  <% if (typeof groupMeta !== 'undefined' && groupMeta?.label) { %>
+                    <span style="color:var(--cream-100);font-family:var(--font-sans);font-weight:600;"> · <%= groupMeta.label %></span>
+                  <% } %>
+                  <% if (typeof groupSiblings !== 'undefined' && groupSiblings.length > 0) { %>
+                    · <%= groupSiblings.length %> booking lain di grup
+                  <% } %>
+                </div>
                 <% if (typeof groupSiblings !== 'undefined' && groupSiblings.length > 0) { %>
-                  · <%= groupSiblings.length %> booking lain di grup
+                  <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+                    <% groupSiblings.forEach(function(s) { %>
+                      <a href="/admin/bookings/<%= s.id %>" style="padding:5px 10px;background:rgba(212,175,55,0.04);border:1px solid var(--hairline-soft);border-radius:3px;text-decoration:none;font-family:var(--font-mono);font-size:10.5px;color:var(--cream-100);">
+                        <strong style="color:var(--gold-300);"><%= s.bookingNo %></strong>
+                        · <%= s.jemaah?.fullName || '—' %>
+                        · <%= s.kelas %>
+                        <span style="color:var(--ink-200);">(<%= s.status %>)</span>
+                      </a>
+                    <% }) %>
+                  </div>
                 <% } %>
-              </div>
-              <% if (typeof groupSiblings !== 'undefined' && groupSiblings.length > 0) { %>
-                <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-                  <% groupSiblings.forEach(function(s) { %>
-                    <a href="/admin/bookings/<%= s.id %>" style="padding:5px 10px;background:rgba(212,175,55,0.04);border:1px solid var(--hairline-soft);border-radius:3px;text-decoration:none;font-family:var(--font-mono);font-size:10.5px;color:var(--cream-100);">
-                      <strong style="color:var(--gold-300);"><%= s.bookingNo %></strong>
-                      · <%= s.jemaah?.fullName || '—' %>
-                      · <%= s.kelas %>
-                      <span style="color:var(--ink-200);">(<%= s.status %>)</span>
-                    </a>
-                  <% }) %>
+              <% } else { %>
+                <div class="sx" style="margin-top:4px;">— belum di-group —</div>
+              <% } %>
+              <% if (canSetGroup) { %>
+                <%# Stage 259 — manual group assign/clear. %>
+                <form method="POST" action="/admin/bookings/<%= b.id %>/group" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="text" name="groupKey" maxlength="40"
+                         value="<%= b.groupKey || '' %>"
+                         placeholder="G-AB12CD atau NEW"
+                         style="flex:1 1 180px;min-width:160px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;">
+                  <button type="submit" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:5px 12px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">Simpan grup</button>
+                  <% if (b.groupKey) { %>
+                    <button type="submit" formaction="/admin/bookings/<%= b.id %>/group" onclick="this.form.groupKey.value=''" style="background:transparent;border:1px dashed var(--hairline-soft);color:var(--ink-200);padding:5px 10px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10px;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;">× Lepas dari grup</button>
+                  <% } %>
+                </form>
+                <div style="margin-top:4px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">
+                  Ketik <code>NEW</code> untuk buat grup baru, atau salin <code>G-XXXXXX</code> dari booking lain.
                 </div>
               <% } %>
             </div>

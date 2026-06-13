@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Grup <%= group.groupKey %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; }
+  .head h1 {
+    font-family: var(--font-display); font-size: 36px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head h1 .key {
+    font-family: var(--font-mono); font-size: 22px;
+    color: var(--gold-300); letter-spacing: 0.04em;
+    margin-right: 12px;
+  }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+  .panel {
+    background: var(--ink-900); border: 1px solid var(--hairline-soft);
+    border-radius: var(--r-md); padding: 22px; margin-bottom: 22px;
+  }
+  .panel h2 {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--gold-300); letter-spacing: 0.18em;
+    text-transform: uppercase; margin: 0 0 14px;
+  }
+  .kpi-strip {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 0;
+    border: 1px solid var(--hairline-soft); border-radius: var(--r-md);
+    overflow: hidden; margin-bottom: 22px;
+  }
+  .kpi {
+    padding: 16px 18px; background: var(--ink-900);
+    border-right: 1px solid var(--hairline-soft);
+  }
+  .kpi:last-child { border-right: none; }
+  .kpi .l { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; }
+  .kpi .v { font-family: var(--font-mono); font-size: 20px; color: var(--cream-100); margin-top: 6px; font-weight: 600; }
+  .kpi .v.gold { color: var(--gold-300); }
+  table.members { width: 100%; border-collapse: collapse; }
+  table.members th, table.members td {
+    padding: 10px 12px; text-align: left; font-family: var(--font-mono); font-size: 11px;
+    border-bottom: 1px solid var(--hairline-soft);
+  }
+  table.members th { color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 400; font-size: 9.5px; }
+  table.members td { color: var(--cream-100); }
+  table.members tr:last-child td { border-bottom: none; }
+  table.members a { color: var(--gold-300); text-decoration: none; font-weight: 600; }
+  .status-pill {
+    display: inline-block; padding: 2px 7px; border-radius: 3px;
+    font-size: 9px; letter-spacing: 0.12em; border: 1px solid;
+  }
+  .s-PENDING, .s-BOOKED { color: var(--ink-200); border-color: var(--hairline-soft); }
+  .s-DP_PAID, .s-PARTIAL { color: var(--gold-300); border-color: var(--gold-300); }
+  .s-LUNAS { color: var(--emerald); border-color: var(--emerald); }
+  .s-CANCELLED, .s-REFUNDED { color: var(--ruby); border-color: var(--ruby); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid label { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; }
+  .form-grid input, .form-grid textarea {
+    width: 100%; background: var(--ink-1000); color: var(--cream-100);
+    border: 1px solid var(--hairline-soft); padding: 8px 12px;
+    border-radius: 3px; font-family: var(--font-sans); font-size: 13px;
+    box-sizing: border-box;
+  }
+  .form-grid textarea { font-family: var(--font-mono); font-size: 12px; min-height: 60px; }
+  .actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .btn-gold { background: transparent; border: 1px solid var(--gold-300); color: var(--gold-300); padding: 7px 18px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; text-decoration: none; }
+  .btn-ghost { background: transparent; border: 1px solid var(--hairline-soft); color: var(--ink-200); padding: 7px 18px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; text-decoration: none; }
+  .flash { padding: 10px 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; margin-bottom: 16px; }
+  .flash.ok { background: rgba(80,176,113,0.08); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(212,89,89,0.08); border: 1px solid var(--ruby); color: var(--ruby); }
+  @media (max-width: 720px) {
+    .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/admin">← /admin</a> · GRUP BOOKING</div>
+
+    <div class="head">
+      <div>
+        <h1><span class="key"><%= group.groupKey %></span><%= group.label || 'Grup tanpa nama' %></h1>
+        <div class="sub">
+          <%= totals.memberCount %> booking · <%= totals.activeCount %> aktif · <%= totals.paxCount %> pax
+          <% if (group.createdAt) { %> · Dibuat <%= group.createdAt.toISOString().slice(0,10) %><% } %>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn-gold" href="/admin/groups/<%= encodeURIComponent(group.groupKey) %>/export.csv">⇩ CSV</a>
+      </div>
+    </div>
+
+    <% if (ok) { %><div class="flash ok">✓ <%= ok === 'label' ? 'Label disimpan' : ok %></div><% } %>
+    <% if (err) { %><div class="flash err">✕ <%= err %></div><% } %>
+
+    <div class="kpi-strip">
+      <div class="kpi"><div class="l">Member</div><div class="v"><%= totals.memberCount %></div></div>
+      <div class="kpi"><div class="l">Aktif</div><div class="v"><%= totals.activeCount %></div></div>
+      <div class="kpi"><div class="l">Total PAX</div><div class="v"><%= totals.paxCount %></div></div>
+      <div class="kpi"><div class="l">Total Tagihan</div><div class="v gold"><%= fmt.rpShort(totals.totalAmountIdr) %></div></div>
+      <div class="kpi"><div class="l">Sudah Bayar</div><div class="v gold"><%= fmt.rpShort(totals.paidAmountIdr) %></div></div>
+      <div class="kpi"><div class="l">Sisa</div><div class="v"><%= fmt.rpShort(totals.balanceIdr) %></div></div>
+    </div>
+
+    <% if (canEdit) { %>
+      <div class="panel">
+        <h2>Label & Catatan</h2>
+        <form method="POST" action="/admin/groups/<%= encodeURIComponent(group.groupKey) %>/label">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="form-grid">
+            <div>
+              <label for="lbl">Nama grup (publik)</label>
+              <input type="text" id="lbl" name="label" maxlength="120"
+                     value="<%= group.label || '' %>"
+                     placeholder="Keluarga Pak Ahmad / Grup Manasik Tazkia / ...">
+            </div>
+            <div>
+              <label for="nts">Catatan internal (admin only)</label>
+              <textarea id="nts" name="notes" maxlength="4000"
+                        placeholder="Catatan koordinasi keluarga / kontak primer / dsb."><%= group.notes || '' %></textarea>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn-gold">Simpan label</button>
+            <a class="btn-ghost" href="/admin/groups/<%= encodeURIComponent(group.groupKey) %>">Batal</a>
+          </div>
+        </form>
+      </div>
+    <% } %>
+
+    <div class="panel">
+      <h2>Anggota grup (<%= totals.memberCount %>)</h2>
+      <% if (group.members.length === 0) { %>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">— tidak ada anggota —</div>
+      <% } else { %>
+        <table class="members">
+          <thead>
+            <tr>
+              <th>Booking No</th><th>Jemaah</th><th>Paket</th><th>Kelas</th>
+              <th>PAX</th><th>Status</th><th>Tagihan</th><th>Paid</th><th>Sisa</th><th>Agen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% group.members.forEach(function(m) {
+                 const total = Number(m.totalAmount?.toString?.() ?? m.totalAmount) || 0;
+                 const paid = Number(m.paidAmount?.toString?.() ?? m.paidAmount) || 0;
+            %>
+              <tr>
+                <td><a href="/admin/bookings/<%= m.id %>"><%= m.bookingNo %></a></td>
+                <td><%= m.jemaah?.fullName || '—' %></td>
+                <td>
+                  <% if (m.paket) { %>
+                    <a href="/admin/paket/<%= m.paket.slug %>/edit"><%= m.paket.title %></a>
+                  <% } else { %>—<% } %>
+                </td>
+                <td><%= m.kelas %></td>
+                <td><%= m.paxCount %></td>
+                <td><span class="status-pill s-<%= m.status %>"><%= m.status %></span></td>
+                <td><%= fmt.rpShort(total) %></td>
+                <td><%= fmt.rpShort(paid) %></td>
+                <td><%= fmt.rpShort(total - paid) %></td>
+                <td><%= m.agent?.displayName || 'Kantor Pusat' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

@@ -1747,6 +1747,23 @@ model BookingNoteTemplate {
   updatedAt DateTime @updatedAt
 }
 
+// Stage 260 — group-level metadata for a Booking.groupKey cluster. The
+// groupKey itself lives denormalised on each Booking row (S257); this
+// table carries the human-friendly nickname (e.g. "Keluarga Pak Ahmad")
+// admin attaches once to make the group readable across surfaces.
+//
+// Standalone table — no FK back to Booking.groupKey because that column
+// isn't unique on Booking (every member of a group shares it). Looked up
+// by groupKey string on demand. Rows with no live member become dangling
+// metadata; harmless + cheap to leave for now.
+model BookingGroup {
+  groupKey  String   @id @db.VarChar(40)
+  label     String?  @db.VarChar(120)
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Stage 190 — per-paket FAQ. Admin curates common questions per paket;
 // renders as accordion below hero on /p/:slug.
 model PaketFaq {

@@ -376,20 +376,27 @@ router.get(
     }
     // Stage 257 — group siblings (other bookings sharing the same
     // groupKey). Best-effort — failure dims the panel.
+    // Stage 260 — group label (BookingGroup row). Same best-effort.
     let groupSiblings = [];
+    let groupMeta = null;
     if (booking.groupKey) {
       try {
-        groupSiblings = await db.booking.findMany({
-          where: { groupKey: booking.groupKey, id: { not: booking.id } },
-          orderBy: { createdAt: 'asc' },
-          take: 20,
-          select: {
-            id: true, bookingNo: true, status: true, kelas: true, paxCount: true,
-            jemaah: { select: { fullName: true } },
-          },
-        });
+        const [siblings, meta] = await Promise.all([
+          db.booking.findMany({
+            where: { groupKey: booking.groupKey, id: { not: booking.id } },
+            orderBy: { createdAt: 'asc' },
+            take: 20,
+            select: {
+              id: true, bookingNo: true, status: true, kelas: true, paxCount: true,
+              jemaah: { select: { fullName: true } },
+            },
+          }),
+          db.bookingGroup.findUnique({ where: { groupKey: booking.groupKey } }),
+        ]);
+        groupSiblings = siblings;
+        groupMeta = meta;
       } catch (err) {
-        console.warn('[booking-detail] group siblings failed:', err?.message || err);
+        console.warn('[booking-detail] group siblings/meta failed:', err?.message || err);
       }
     }
     res.render('booking-detail', {
@@ -402,6 +409,8 @@ router.get(
       bookingTagPresets: BOOKING_TAG_PRESETS,
       // Stage 257 — group siblings
       groupSiblings,
+      // Stage 260 — group metadata (label/notes)
+      groupMeta,
     });
   }),
 );
@@ -551,6 +560,30 @@ router.post(
       res.redirect(`/admin/bookings/${result.booking.id}?ok=cloned&from=${encodeURIComponent(req.params.id)}`);
     } catch (err) {
       const msg = err?.message || 'Gagal clone booking';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 259 — manual group assignment. Form field: groupKey
+//   "" → clear, "NEW" → mint fresh, "G-XXXXXX" → assign to that key.
+router.post(
+  '/:id/group',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const { setBookingGroupKey } = await import('../services/bookingGroup.js');
+      const raw = req.body?.groupKey;
+      // Empty string from the form = clear → pass null. "NEW" passes through.
+      const value = raw == null || raw === '' ? null : String(raw);
+      await setBookingGroupKey({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id,
+        groupKey: value,
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=group`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal set group';
       res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
     }
   }),
