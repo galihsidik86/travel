@@ -567,16 +567,25 @@ router.post(
 
 // Stage 271 — auto-suggest installment plan. JSON returns proposed
 // schedule for admin to review (NOT persisted — admin saves via S268).
+// Catches HttpError + returns JSON so the fetch caller can show inline
+// error (rather than navigating to the HTML error page).
 router.post(
   '/:id/installments/suggest',
   requireRole(...CANCEL_ROLES),
   asyncHandler(async (req, res) => {
-    const { suggestInstallmentPlan } = await import('../services/bookingInstallments.js');
-    const count = Number(req.body?.count) || 6;
-    const schedule = await suggestInstallmentPlan({
-      bookingId: req.params.id, count,
-    });
-    res.json({ schedule });
+    try {
+      const { suggestInstallmentPlan } = await import('../services/bookingInstallments.js');
+      const count = Number(req.body?.count) || 6;
+      const schedule = await suggestInstallmentPlan({
+        bookingId: req.params.id, count,
+      });
+      res.json({ schedule });
+    } catch (err) {
+      const status = err?.status || 500;
+      res.status(status).json({
+        error: { code: err?.code || 'INTERNAL', message: err?.message || 'Internal error' },
+      });
+    }
   }),
 );
 
