@@ -38,9 +38,20 @@ export async function getAgentDashboard(agentId, opts = {}) {
       select: { slug: true, title: true, subtitle: true, departureDate: true, kursiTotal: true, kursiTerisi: true },
       orderBy: { departureDate: 'asc' },
     }),
+    // Stage 266 — kanban excludes snoozed leads (snoozedUntilAt > now).
+    // No cron needed; the filter just naturally returns them when the
+    // date elapses. Sort: overdue followUpAt first (asc nulls last —
+    // Prisma's default puts nulls first, but we want unscheduled rows
+    // at the bottom so overdue/due-today bubble up).
     db.lead.findMany({
-      where: { agentId, deletedAt: null, status: { in: ['COLD', 'WARM'] } },
-      orderBy: [{ followUpAt: 'asc' }, { createdAt: 'desc' }],
+      where: {
+        agentId, deletedAt: null, status: { in: ['COLD', 'WARM'] },
+        OR: [
+          { snoozedUntilAt: null },
+          { snoozedUntilAt: { lte: new Date() } },
+        ],
+      },
+      orderBy: [{ followUpAt: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }],
     }),
     getAgentFunnel(agentId, opts),
     getLeadSourceBreakdown(agentId, opts),

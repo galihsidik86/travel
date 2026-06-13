@@ -1634,6 +1634,12 @@ model Lead {
   score      Int? // 0-100, dipakai untuk progress bar di kartu
   followUpAt DateTime?
 
+  // Stage 266 — snooze. When set + in the future, the lead is hidden
+  // from the kanban (agent doesn't want to look at it today). Auto-
+  // returns when the date elapses; no cron needed — the kanban query
+  // filters `snoozedUntilAt: null OR snoozedUntilAt <= now`.
+  snoozedUntilAt DateTime?
+
   // Konversi ke Booking (untuk audit kalau sudah convert)
   convertedAt        DateTime?
   convertedBookingId String?   @unique

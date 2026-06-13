@@ -1,10 +1,23 @@
-<div class="lead"
+<%
+  // Stage 265 — overdue helper (computed view-side, no extra DB).
+  let overdueDays = 0;
+  let dueToday = false;
+  if (lead.followUpAt) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    const fu = new Date(lead.followUpAt);
+    if (fu < today) overdueDays = Math.floor((today.getTime() - fu.getTime()) / 86400000);
+    else if (fu < tomorrow) dueToday = true;
+  }
+%>
+<div class="lead<%= overdueDays > 0 ? ' lead--overdue' : '' %><%= dueToday ? ' lead--due-today' : '' %>"
   data-lead-id="<%= lead.id %>"
   data-lead-name="<%= lead.fullName %>"
   data-lead-paket="<%= lead.interestedPaketSlug || '' %>"
   data-lead-kelas="<%= lead.interestedKelas || '' %>"
   data-lead-pax="<%= lead.estPaxCount || '' %>"
-  data-lead-notes="<%= lead.notes || '' %>">
+  data-lead-notes="<%= lead.notes || '' %>"
+  <% if (overdueDays > 0) { %>style="border-left:3px solid var(--ruby);"<% } else if (dueToday) { %>style="border-left:3px solid var(--gold-300);"<% } %>>
   <div class="lead__head">
     <%# Stage 186 — bulk-select checkbox. Pure UI; click events bubble
         up to the kanban container's listener which handles selection. %>
@@ -29,7 +42,9 @@
       <%= lead.estValueIdr ? fmt.rpShort(lead.estValueIdr) : '—' %>
     </span>
     <% if (lead.followUpAt) { %>
-      <span class="lead__chip">F/U <%= fmt.dateShort(lead.followUpAt) %></span>
+      <span class="lead__chip"<% if (overdueDays > 0) { %> style="background:rgba(212,89,89,0.12);color:var(--ruby);"<% } else if (dueToday) { %> style="background:rgba(212,175,55,0.12);color:var(--gold-300);"<% } %>>
+        F/U <%= fmt.dateShort(lead.followUpAt) %><%= overdueDays > 0 ? ' (' + overdueDays + 'h late)' : '' %><%= dueToday ? ' (hari ini)' : '' %>
+      </span>
     <% } %>
   </div>
 
@@ -48,6 +63,10 @@
     <% if (typeof demoteTo === 'string' && demoteTo) { %>
       <button type="button" data-move="<%= demoteTo %>">← <%= demoteTo %></button>
     <% } %>
+    <%# Stage 266 — snooze button. Quick 7-day default; agent can extend
+        via the form-encoded prompt() override. Pure data-attr; JS handler
+        in agen-crm.ejs picks it up. %>
+    <button type="button" data-snooze-lead="7" title="Sembunyikan dari kanban selama 7 hari">😴</button>
     <% if (lead.status === 'WARM') { %>
       <button type="button" class="primary" data-convert-lead>→ BOOKING</button>
     <% } %>

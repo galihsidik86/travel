@@ -539,6 +539,49 @@
         }
       %>
 
+      <%# Stage 267 — "Hari ini" follow-up widget. Hidden when empty. %>
+      <% if (typeof todayLeads !== 'undefined' && todayLeads && todayLeads.total > 0) { %>
+        <div style="margin-bottom:18px;padding:14px 18px;background:rgba(212,175,55,0.06);border:1px solid var(--gold-300);border-left-width:3px;border-radius:var(--r-md);">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:10px;">
+            <strong style="font-family:var(--font-display);font-size:15px;color:var(--gold-300);">📅 Follow-up hari ini</strong>
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">
+              <%= todayLeads.overdue.length %> overdue · <%= todayLeads.today.length %> hari ini
+            </span>
+          </div>
+          <% if (todayLeads.overdue.length > 0) { %>
+            <div style="margin-bottom:8px;">
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ruby);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">⚠ Overdue (<%= todayLeads.overdue.length %>)</div>
+              <% todayLeads.overdue.forEach(function(l) {
+                   const daysOverdue = Math.floor((Date.now() - new Date(l.followUpAt).getTime()) / 86400000);
+              %>
+                <div style="padding:6px 10px;background:var(--ink-1000);border-left:2px solid var(--ruby);border-radius:3px;margin-bottom:5px;font-family:var(--font-mono);font-size:11.5px;display:flex;justify-content:space-between;gap:10px;">
+                  <span style="color:var(--cream-100);font-weight:600;"><%= l.fullName %></span>
+                  <span style="color:var(--ink-200);font-size:10.5px;">
+                    <%= l.phone %>
+                    <% if (l.interestedPaketSlug) { %> · <%= l.interestedPaketSlug %><% } %>
+                    · <span style="color:var(--ruby);"><%= daysOverdue %>h overdue</span>
+                  </span>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+          <% if (todayLeads.today.length > 0) { %>
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--gold-300);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Hari ini (<%= todayLeads.today.length %>)</div>
+              <% todayLeads.today.forEach(function(l) { %>
+                <div style="padding:6px 10px;background:var(--ink-1000);border-left:2px solid var(--gold-300);border-radius:3px;margin-bottom:5px;font-family:var(--font-mono);font-size:11.5px;display:flex;justify-content:space-between;gap:10px;">
+                  <span style="color:var(--cream-100);font-weight:600;"><%= l.fullName %></span>
+                  <span style="color:var(--ink-200);font-size:10.5px;">
+                    <%= l.phone %>
+                    <% if (l.interestedPaketSlug) { %> · <%= l.interestedPaketSlug %><% } %>
+                  </span>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      <% } %>
+
       <div class="kanban">
         <!-- COLD -->
         <div class="col">
@@ -1355,6 +1398,17 @@
         <label class="label" for="lf-notes">Catatan</label>
         <input class="input" name="notes" id="lf-notes" maxlength="500" placeholder="Mis. tertarik VVIP keluarga 4 orang">
       </div>
+      <%# Stage 265/266 — follow-up + snooze inputs %>
+      <div class="field-grid">
+        <div class="field">
+          <label class="label" for="lf-fu">Follow-up tanggal</label>
+          <input class="input" type="date" name="followUpAt" id="lf-fu">
+        </div>
+        <div class="field">
+          <label class="label" for="lf-snz">Snooze sampai</label>
+          <input class="input" type="date" name="snoozedUntilAt" id="lf-snz">
+        </div>
+      </div>
 
       <div class="actions">
         <button type="button" class="btn btn--ghost" id="lead-cancel">Batal</button>
@@ -1553,6 +1607,29 @@
     const conv = card.querySelector('[data-convert-lead]');
     if (conv) {
       conv.addEventListener('click', () => openConvert(card));
+    }
+    // Stage 266 — snooze. Quick 7-day default; agent can extend via
+    // prompt() override. PATCH /api/leads/:id with snoozedUntilAt.
+    const snz = card.querySelector('[data-snooze-lead]');
+    if (snz) {
+      snz.addEventListener('click', async () => {
+        const defaultDays = parseInt(snz.dataset.snoozeLead, 10) || 7;
+        const input = prompt(`Snooze berapa hari? (default: ${defaultDays})`, String(defaultDays));
+        if (input == null) return;
+        const days = parseInt(input, 10);
+        if (!Number.isFinite(days) || days < 1) return;
+        const until = new Date();
+        until.setDate(until.getDate() + days);
+        const ymd = until.toISOString().slice(0, 10);
+        snz.disabled = true;
+        const r = await fetch('/api/leads/' + id, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ snoozedUntilAt: ymd }),
+        });
+        if (r.ok) location.reload();
+        else snz.disabled = false;
+      });
     }
   });
 

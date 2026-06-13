@@ -44,7 +44,36 @@ export const LeadCreateSchema = z.object({
     (v) => (v === '' || v == null ? undefined : Number(v)),
     z.number().int().min(0).max(100).optional(),
   ),
-  followUpAt: optStr.pipe(z.string().datetime({ offset: true }).optional()).optional(),
+  // Stage 265 — accept BOTH date-only (`<input type="date">` → `YYYY-MM-DD`)
+  // and full ISO datetime, so the kanban inline edit + API callers share
+  // one schema. Three-state preprocessor (mirrors S5u/S22 pattern):
+  //   undefined → preserve (PATCH semantics)
+  //   null or '' → clear (explicit erase)
+  //   valid string → set
+  followUpAt: z.preprocess(
+    (v) => {
+      if (v === undefined) return undefined;
+      if (v === null || v === '') return null;
+      const s = String(v);
+      // `YYYY-MM-DD` lacks a time component — append T00:00:00 so the
+      // downstream `new Date(...)` parses without falling back to the
+      // local midnight (we treat date-only as start-of-day local).
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00:00`;
+      return s;
+    },
+    z.union([z.string(), z.null()]).optional(),
+  ),
+  // Stage 266 — snooze. Same preprocessor convention as followUpAt.
+  snoozedUntilAt: z.preprocess(
+    (v) => {
+      if (v === undefined) return undefined;
+      if (v === null || v === '') return null;
+      const s = String(v);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00:00`;
+      return s;
+    },
+    z.union([z.string(), z.null()]).optional(),
+  ),
 });
 
 // Update permits LOST too (status machine: COLD/WARM ↔ LOST; CONVERTED only
@@ -92,6 +121,7 @@ export async function createLead({ req, actor, agentId, input }) {
       estValueIdr: data.estValueIdr != null ? data.estValueIdr.toFixed(2) : null,
       score: data.score ?? null,
       followUpAt: data.followUpAt ? new Date(data.followUpAt) : null,
+      snoozedUntilAt: data.snoozedUntilAt ? new Date(data.snoozedUntilAt) : null,
     },
   });
   await audit({
@@ -123,6 +153,7 @@ export async function updateLead({ req, actor, agentId, leadId, input }) {
   if (patch.estValueIdr !== undefined) data.estValueIdr = patch.estValueIdr != null ? patch.estValueIdr.toFixed(2) : null;
   if (patch.score !== undefined) data.score = patch.score ?? null;
   if (patch.followUpAt !== undefined) data.followUpAt = patch.followUpAt ? new Date(patch.followUpAt) : null;
+  if (patch.snoozedUntilAt !== undefined) data.snoozedUntilAt = patch.snoozedUntilAt ? new Date(patch.snoozedUntilAt) : null;
 
   const lead = await db.lead.update({ where: { id: before.id }, data });
   await audit({
