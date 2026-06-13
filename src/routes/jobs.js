@@ -414,6 +414,16 @@ router.post(
   }),
 );
 
+// Stage 276 — admin digest of SUBMITTED docs awaiting verify > 48h
+router.post(
+  '/send-doc-verify-sla',
+  asyncHandler(async (_req, res) => {
+    const { sendDocVerifySlaDigest } = await import('../services/docVerifySlaDigest.js');
+    const result = await runJob('send-doc-verify-sla', () => sendDocVerifySlaDigest({}));
+    res.json(result);
+  }),
+);
+
 // Stage 227 — auto-publish DRAFT paket whose publishedAt has elapsed
 router.post(
   '/auto-publish-paket',

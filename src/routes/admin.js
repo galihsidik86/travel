@@ -131,6 +131,49 @@ router.get(
   }),
 );
 
+// Stage 275 — bulk reject SUBMITTED docs from the docs-pending queue.
+router.post(
+  '/docs-pending/bulk-reject',
+  asyncHandler(async (req, res) => {
+    try {
+      const { bulkRejectDocs } = await import('../services/jemaahDocs.js');
+      // docIds may arrive as a single string (one checkbox) or array
+      let docIds = req.body?.docIds;
+      if (!docIds) docIds = [];
+      else if (!Array.isArray(docIds)) docIds = [docIds];
+      const result = await bulkRejectDocs({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        docIds: docIds.map(String),
+        reason: req.body?.reason || '',
+      });
+      const flash = `bulk_reject:${result.rejected}/${result.requested}` +
+        (result.failed > 0 ? `:failed=${result.failed}` : '');
+      res.redirect(`/admin/docs-pending?ok=${encodeURIComponent(flash)}`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal bulk reject';
+      res.redirect(`/admin/docs-pending?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 274 — admin docs-pending queue page.
+router.get(
+  '/docs-pending',
+  asyncHandler(async (req, res) => {
+    const { getPendingDocs, getPendingDocCounts } = await import('../services/docsPendingQueue.js');
+    const docType = (req.query.docType || '').toString().toUpperCase() || null;
+    const [rows, counts] = await Promise.all([
+      getPendingDocs({ docType }),
+      getPendingDocCounts(),
+    ]);
+    res.render('docs-pending', {
+      user: req.user, rows, counts, docType,
+      ok: req.query.ok || null, err: req.query.err || null,
+    });
+  }),
+);
+
 // Stage 273 — admin overdue installments queue page.
 router.get(
   '/installments-overdue',

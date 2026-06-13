@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Dokumen pending</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head {
+    margin-bottom: 24px; display: flex; justify-content: space-between;
+    align-items: end; gap: 24px; flex-wrap: wrap;
+  }
+  .head h1 {
+    font-family: var(--font-display); font-size: 36px; font-weight: 500;
+    color: var(--cream-100); margin: 0; letter-spacing: -0.015em;
+  }
+  .head .sub {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px;
+  }
+  .kpi-strip {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 0;
+    border: 1px solid var(--hairline-soft); border-radius: var(--r-md);
+    overflow: hidden; margin-bottom: 22px;
+  }
+  .kpi {
+    padding: 12px 10px; background: var(--ink-900);
+    border-right: 1px solid var(--hairline-soft);
+    text-align: center; text-decoration: none;
+  }
+  .kpi:last-child { border-right: none; }
+  .kpi.is-active { background: rgba(212,175,55,0.08); border-bottom: 2px solid var(--gold-300); }
+  .kpi .l { font-family: var(--font-mono); font-size: 9px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; }
+  .kpi .v { font-family: var(--font-mono); font-size: 18px; color: var(--cream-100); margin-top: 4px; font-weight: 600; }
+  .kpi .v.gold { color: var(--gold-300); }
+  .kpi .v.muted { color: var(--ink-300); }
+  table.t { width: 100%; border-collapse: collapse; }
+  table.t th, table.t td {
+    padding: 10px 12px; text-align: left; font-family: var(--font-mono);
+    font-size: 11.5px; border-bottom: 1px solid var(--hairline-soft);
+  }
+  table.t th { color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 400; font-size: 9.5px; }
+  table.t td { color: var(--cream-100); }
+  table.t a { color: var(--gold-300); text-decoration: none; font-weight: 600; }
+  table.t tr.aged-warn { background: rgba(212,175,55,0.04); }
+  table.t tr.aged-bad { background: rgba(212,89,89,0.06); }
+  .age { font-family: var(--font-mono); font-size: 10px; padding: 2px 6px; border-radius: 3px; }
+  .age-fresh { color: var(--ink-200); }
+  .age-warn { color: var(--gold-300); }
+  .age-bad { color: var(--ruby); font-weight: 600; }
+  .panel {
+    background: var(--ink-900); border: 1px solid var(--hairline-soft);
+    border-radius: var(--r-md); padding: 20px;
+  }
+  .flash { padding: 10px 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; margin-bottom: 16px; }
+  .flash.ok { background: rgba(80,176,113,0.08); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(212,89,89,0.08); border: 1px solid var(--ruby); color: var(--ruby); }
+  .bulk-bar {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--ink-1000); border: 1px solid var(--gold-300);
+    color: var(--cream-100); padding: 12px 18px; border-radius: var(--r-md);
+    font-family: var(--font-mono); font-size: 12px; z-index: 1000;
+    display: none; gap: 12px; align-items: center;
+  }
+  .bulk-bar.is-on { display: flex; }
+  .doc-type {
+    display: inline-block; padding: 2px 8px; border-radius: 3px;
+    background: rgba(116,170,234,0.08); color: var(--sapphire);
+    font-size: 10px; letter-spacing: 0.06em; font-weight: 600;
+  }
+  @media (max-width: 720px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/admin">← /admin</a> · DOKUMEN PENDING VERIFIKASI</div>
+
+    <div class="head">
+      <div>
+        <h1>Dokumen pending</h1>
+        <div class="sub">Jemaah sudah submit · menunggu verifikasi staff</div>
+      </div>
+    </div>
+
+    <% if (ok) { %><div class="flash ok">✓ <%= ok %></div><% } %>
+    <% if (err) { %><div class="flash err">✕ <%= err %></div><% } %>
+
+    <%# KPI strip: per doc-type counts. Clicking filters the page. %>
+    <%
+      const DOC_TYPES = ['PASSPORT', 'VISA_UMROH', 'MANASIK_CERT', 'HEALTH_CERT',
+                         'VACCINE_MENINGITIS', 'MARRIAGE_CERT', 'FAMILY_CARD', 'OTHER'];
+    %>
+    <div class="kpi-strip">
+      <% DOC_TYPES.forEach(function(t) {
+           const cnt = counts[t] || 0;
+           const isActive = docType === t;
+      %>
+        <a href="/admin/docs-pending<%= isActive ? '' : '?docType=' + t %>" class="kpi<%= isActive ? ' is-active' : '' %>">
+          <div class="l"><%= t.replace(/_/g, ' ') %></div>
+          <div class="v <%= cnt === 0 ? 'muted' : (isActive ? 'gold' : '') %>"><%= cnt %></div>
+        </a>
+      <% }) %>
+    </div>
+
+    <% if (docType) { %>
+      <div style="margin-bottom:12px;font-family:var(--font-mono);font-size:11px;">
+        Filter aktif: <strong style="color:var(--gold-300);"><%= docType %></strong>
+        · <a href="/admin/docs-pending" style="color:var(--ink-200);text-decoration:none;">× reset</a>
+      </div>
+    <% } %>
+
+    <% if (rows.length === 0) { %>
+      <div class="panel" style="text-align:center;color:var(--ink-200);font-family:var(--font-mono);font-size:13px;">
+        — Tidak ada dokumen pending<%= docType ? ' untuk ' + docType : '' %> —
+      </div>
+    <% } else { %>
+      <div class="panel">
+        <form id="bulk-form" method="POST" action="/admin/docs-pending/bulk-reject" onsubmit="return confirmBulkReject(event)">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <table class="t">
+            <thead><tr>
+              <th style="width:24px;"><input type="checkbox" id="select-all" style="accent-color:var(--gold-300);"></th>
+              <th>Tipe</th>
+              <th>Jemaah</th>
+              <th>No. Ref</th>
+              <th>Booking</th>
+              <th>Disubmit</th>
+              <th style="text-align:right;">Umur</th>
+              <th>File</th>
+              <th>Aksi</th>
+            </tr></thead>
+            <tbody>
+              <% rows.forEach(function(d) {
+                   const ageCls = d.ageHours == null ? 'fresh' :
+                                  d.ageHours >= 48 ? 'bad' :
+                                  d.ageHours >= 24 ? 'warn' : 'fresh';
+                   const rowCls = ageCls === 'bad' ? 'aged-bad' : (ageCls === 'warn' ? 'aged-warn' : '');
+              %>
+                <tr class="<%= rowCls %>">
+                  <td><input type="checkbox" name="docIds" value="<%= d.id %>" class="bulk-cb" style="accent-color:var(--gold-300);"></td>
+                  <td><span class="doc-type"><%= d.type %></span></td>
+                  <td><a href="/admin/jemaah/<%= d.jemaah.id %>/edit"><%= d.jemaah.fullName %></a></td>
+                  <td><%= d.refNumber || '—' %></td>
+                  <td>
+                    <% if (d.booking) { %>
+                      <a href="/admin/bookings/<%= d.booking.id %>"><%= d.booking.bookingNo %></a>
+                      <div style="font-size:10px;color:var(--ink-300);"><%= d.booking.paket?.title || '' %></div>
+                    <% } else { %>—<% } %>
+                  </td>
+                  <td><%= d.submittedAt ? d.submittedAt.toISOString().slice(0,16).replace('T', ' ') : '—' %></td>
+                  <td style="text-align:right;">
+                    <span class="age age-<%= ageCls %>">
+                      <%= d.ageHours == null ? '—' : (d.ageHours < 24 ? d.ageHours + 'h' : Math.floor(d.ageHours/24) + 'd') %>
+                    </span>
+                  </td>
+                  <td>
+                    <% if (d.filePath) { %>
+                      <a href="/admin/jemaah/<%= d.jemaah.id %>/documents/<%= d.id %>/file" target="_blank">📄 Lihat</a>
+                    <% } else { %>—<% } %>
+                  </td>
+                  <td>
+                    <a href="/admin/jemaah/<%= d.jemaah.id %>/edit#doc-<%= d.id %>" style="color:var(--gold-300);text-decoration:none;font-size:10px;">→ Verifikasi</a>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </form>
+
+        <%# Stage 275 — floating bulk action bar %>
+        <div class="bulk-bar" id="bulk-bar">
+          <span><strong id="bulk-count">0</strong> dipilih</span>
+          <input type="text" id="bulk-reason" placeholder="Alasan tolak (min. 3 karakter)" minlength="3" maxlength="500"
+                 style="background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:6px 10px;border-radius:3px;font-family:var(--font-mono);font-size:11px;width:280px;">
+          <button type="button" id="bulk-reject-btn"
+                  style="background:var(--ruby);border:0;color:var(--cream-100);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">⚠ Tolak semua</button>
+          <a href="#" id="bulk-clear" style="color:var(--ink-200);text-decoration:none;font-size:11px;">batal</a>
+        </div>
+
+        <script>
+          (function () {
+            const form = document.getElementById('bulk-form');
+            const bar = document.getElementById('bulk-bar');
+            const cnt = document.getElementById('bulk-count');
+            const all = document.getElementById('select-all');
+            const reasonInput = document.getElementById('bulk-reason');
+            const cbs = () => Array.from(form.querySelectorAll('.bulk-cb'));
+            function refresh() {
+              const checked = cbs().filter((c) => c.checked);
+              cnt.textContent = String(checked.length);
+              bar.classList.toggle('is-on', checked.length > 0);
+              if (all) {
+                const total = cbs().length;
+                all.checked = checked.length === total && total > 0;
+                all.indeterminate = checked.length > 0 && checked.length < total;
+              }
+            }
+            cbs().forEach((c) => c.addEventListener('change', refresh));
+            if (all) all.addEventListener('change', () => {
+              cbs().forEach((c) => { c.checked = all.checked; });
+              refresh();
+            });
+            document.getElementById('bulk-clear').addEventListener('click', (e) => {
+              e.preventDefault();
+              cbs().forEach((c) => { c.checked = false; });
+              refresh();
+            });
+            document.getElementById('bulk-reject-btn').addEventListener('click', () => {
+              const reason = (reasonInput.value || '').trim();
+              if (reason.length < 3) { alert('Alasan tolak wajib (min. 3 karakter)'); return; }
+              if (!confirm('Tolak ' + cnt.textContent + ' dokumen ini? Tindakan tidak bisa di-undo via UI; jemaah harus re-submit.')) return;
+              // Append reason as hidden input then submit
+              const h = document.createElement('input');
+              h.type = 'hidden'; h.name = 'reason'; h.value = reason;
+              form.appendChild(h);
+              form.submit();
+            });
+            window.confirmBulkReject = function (e) {
+              // Block accidental submit (e.g. Enter inside reason input)
+              return false;
+            };
+            refresh();
+          })();
+        </script>
+      </div>
+    <% } %>
+  </div>
+</body>
+</html>

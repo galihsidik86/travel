@@ -166,6 +166,90 @@ export async function deleteDoc({ req, actor, jemaahId, docId }) {
  * REJECTED docs refused (admin should reject again or open the row to
  * re-process — not bulk-flip a rejection).
  */
+/**
+ * Stage 275 — bulk reject SUBMITTED docs from the cross-jemaah queue.
+ * Distinct from S248 `bulkVerifyDocs` (which is per-jemaah on the edit
+ * page); here the admin is acting from the global `/admin/docs-pending`
+ * queue across MANY jemaah, so no tuple guard — admin owns the trust.
+ *
+ * Rules:
+ *   - Only SUBMITTED rows flip to REJECTED (skip VERIFIED + PENDING + EXPIRED).
+ *   - `reason` (min 3 chars) becomes the doc's `notes` field appended with
+ *     `[Rejected by admin: <reason>]` so jemaah sees why on /saya.
+ *   - Per-row failure caught — bad row doesn't abort the batch.
+ *   - Audit row per actually-rejected doc carries `bulkRejected:true` +
+ *     the reason so timeline scans can grep the cohort.
+ */
+export async function bulkRejectDocs({ req, actor, docIds = [], reason }) {
+  if (!Array.isArray(docIds) || docIds.length === 0) {
+    return { requested: 0, rejected: 0, skipped: 0, failed: 0, skippedReasons: [] };
+  }
+  if (!reason || String(reason).trim().length < 3) {
+    throw new HttpError(400, 'Alasan tolak wajib (min. 3 karakter)', 'REJECT_REASON_REQUIRED');
+  }
+  const cleanReason = String(reason).trim().slice(0, 500);
+
+  const candidates = await db.jemaahDocument.findMany({
+    where: { id: { in: docIds } },
+    select: { id: true, status: true, type: true, jemaahId: true, notes: true },
+  });
+  const skippedReasons = [];
+  const eligible = [];
+  for (const c of candidates) {
+    if (c.status !== 'SUBMITTED') {
+      skippedReasons.push({ id: c.id, reason: 'not_submitted', current: c.status });
+      continue;
+    }
+    eligible.push(c);
+  }
+  // Cap defensively to prevent runaway requests.
+  if (eligible.length > 500) {
+    throw new HttpError(400, 'Maksimal 500 dokumen per request', 'BATCH_TOO_LARGE');
+  }
+
+  let rejected = 0;
+  let failed = 0;
+  const now = new Date();
+  for (const c of eligible) {
+    try {
+      const beforeNotes = c.notes || '';
+      const sep = beforeNotes ? '\n' : '';
+      const nextNotes = `${beforeNotes}${sep}[Rejected by admin: ${cleanReason}]`.slice(0, 4000);
+      await db.jemaahDocument.update({
+        where: { id: c.id },
+        data: {
+          status: 'REJECTED',
+          notes: nextNotes,
+          // S70 reuses verifiedAt/verifiedById as the "staff action" stamps —
+          // adopt the same convention here so the timeline column doesn't grow.
+          verifiedAt: now,
+          verifiedById: actor?.id || null,
+        },
+      });
+      await audit({
+        req, actor,
+        action: 'UPDATE', entity: 'JemaahDocument', entityId: c.id,
+        before: { status: c.status, type: c.type },
+        after: {
+          status: 'REJECTED', type: c.type, jemaahId: c.jemaahId,
+          bulkRejected: true, reason: cleanReason,
+        },
+      });
+      rejected += 1;
+    } catch (err) {
+      console.warn('[bulkRejectDocs]', c.id, err?.message || err);
+      failed += 1;
+    }
+  }
+  return {
+    requested: docIds.length,
+    rejected,
+    skipped: docIds.length - candidates.length + skippedReasons.length, // includes missing-from-DB
+    failed,
+    skippedReasons,
+  };
+}
+
 export async function bulkVerifyDocs({ req, actor, jemaahId, docIds = [] }) {
   await loadJemaah(jemaahId);
   if (!Array.isArray(docIds) || docIds.length === 0) {

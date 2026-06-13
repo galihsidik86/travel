@@ -164,6 +164,7 @@ enum NotificationType {
   CREW_DIETARY_BRIEF // Monday-of-week-of-departure email per crew with non-REGULAR dietary roll-up (Stage 213)
   PICKUP_REMINDER // jemaah on near-departure paket with no pickup chosen → email + WA (Stage 219)
   INSTALLMENT_OVERDUE_ADMIN // daily digest of bookings with overdue installment(s) → OWNER+SUPERADMIN+MANAJER_OPS (Stage 272)
+  DOC_VERIFY_SLA_ADMIN // daily digest of SUBMITTED docs > 48h awaiting verify → OWNER+SUPERADMIN+MANAJER_OPS (Stage 276)
   GENERIC // catch-all for ad-hoc notifs
 }
 
