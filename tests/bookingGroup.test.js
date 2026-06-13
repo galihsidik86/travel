@@ -9,6 +9,7 @@ import {
   generateGroupKey,
   getBookingGroup,
   setGroupLabel,
+  bulkCancelGroup,
 } from '../src/services/bookingGroup.js';
 
 const adminActor = { id: null, email: 'admin@test', role: 'OWNER' };
@@ -348,6 +349,140 @@ test('getBookingGroup: returns label after setGroupLabel + members linked', asyn
     assert.equal(r.notes, 'Catatan internal');
     assert.equal(r.members.length, 1);
     assert.equal(r.members[0].bookingNo, b.bookingNo);
+  } finally {
+    await db.bookingGroup.deleteMany({ where: { groupKey: key } });
+  }
+});
+
+// ── Stage 262 — bulkCancelGroup ──────────────────────────────────
+
+test('bulkCancelGroup: 400 on malformed key', async () => {
+  await assert.rejects(
+    () => bulkCancelGroup({
+      req: fakeReq, actor: adminActor,
+      groupKey: 'invalid', reason: 'visa rejected',
+    }),
+    (err) => err.code === 'BAD_GROUP_KEY' && err.status === 400,
+  );
+});
+
+test('bulkCancelGroup: 400 on missing reason', async () => {
+  await assert.rejects(
+    () => bulkCancelGroup({
+      req: fakeReq, actor: adminActor,
+      groupKey: 'G-AB12CD', reason: 'x',
+    }),
+    (err) => err.code === 'REASON_REQUIRED' && err.status === 400,
+  );
+});
+
+test('bulkCancelGroup: 404 on empty group', async () => {
+  await assert.rejects(
+    () => bulkCancelGroup({
+      req: fakeReq, actor: adminActor,
+      groupKey: 'G-NONE99', reason: 'visa rejected',
+    }),
+    (err) => err.code === 'GROUP_EMPTY' && err.status === 404,
+  );
+});
+
+test('bulkCancelGroup: cancels all active members + reports counts', async (t) => {
+  const paket = await tempPaket(t, 'grp-bcl');
+  const j1 = await tempJemaah(t, 'grp-bcl-1');
+  const j2 = await tempJemaah(t, 'grp-bcl-2');
+  const b1 = await tempBooking({ paket, jemaahProfileId: j1.jemaah.id });
+  const b2 = await tempBooking({ paket, jemaahProfileId: j2.jemaah.id });
+  const key = `G-BCL${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+  try {
+    await setBookingGroupKey({ req: fakeReq, actor: adminActor, bookingId: b1.id, groupKey: key });
+    await setBookingGroupKey({ req: fakeReq, actor: adminActor, bookingId: b2.id, groupKey: key });
+    const r = await bulkCancelGroup({
+      req: fakeReq, actor: adminActor,
+      groupKey: key, reason: 'visa rejected for whole family',
+    });
+    assert.equal(r.requested, 2);
+    assert.equal(r.cancelled.length, 2);
+    assert.equal(r.skipped.length, 0);
+    assert.equal(r.failed.length, 0);
+    const after1 = await db.booking.findUnique({ where: { id: b1.id }, select: { status: true } });
+    const after2 = await db.booking.findUnique({ where: { id: b2.id }, select: { status: true } });
+    assert.equal(after1.status, 'CANCELLED');
+    assert.equal(after2.status, 'CANCELLED');
+  } finally {
+    await db.bookingGroup.deleteMany({ where: { groupKey: key } });
+  }
+});
+
+test('bulkCancelGroup: skips already-CANCELLED members (no error)', async (t) => {
+  const paket = await tempPaket(t, 'grp-skp');
+  const j1 = await tempJemaah(t, 'grp-skp-1');
+  const j2 = await tempJemaah(t, 'grp-skp-2');
+  const b1 = await tempBooking({ paket, jemaahProfileId: j1.jemaah.id });
+  const b2 = await tempBooking({ paket, jemaahProfileId: j2.jemaah.id });
+  const key = `G-SKP${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+  try {
+    await setBookingGroupKey({ req: fakeReq, actor: adminActor, bookingId: b1.id, groupKey: key });
+    await setBookingGroupKey({ req: fakeReq, actor: adminActor, bookingId: b2.id, groupKey: key });
+    // Pre-cancel b1 directly (bypassing cancelBooking so no side-effects)
+    await db.booking.update({ where: { id: b1.id }, data: { status: 'CANCELLED' } });
+    const r = await bulkCancelGroup({
+      req: fakeReq, actor: adminActor,
+      groupKey: key, reason: 'visa rejected',
+    });
+    assert.equal(r.requested, 2);
+    assert.equal(r.cancelled.length, 1);
+    assert.equal(r.skipped.length, 1);
+    assert.equal(r.skipped[0].reason, 'already_terminal');
+    assert.equal(r.skipped[0].id, b1.id);
+  } finally {
+    await db.bookingGroup.deleteMany({ where: { groupKey: key } });
+  }
+});
+
+test('bulkCancelGroup: writes one BookingGroup audit row with counts', async (t) => {
+  const paket = await tempPaket(t, 'grp-aud2');
+  const jemaah = await tempJemaah(t, 'grp-aud2');
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id });
+  const key = `G-AU2${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+  try {
+    await setBookingGroupKey({ req: fakeReq, actor: adminActor, bookingId: b.id, groupKey: key });
+    await bulkCancelGroup({
+      req: fakeReq, actor: adminActor,
+      groupKey: key, reason: 'visa rejected',
+    });
+    const groupAudits = await db.auditLog.findMany({
+      where: { entity: 'BookingGroup', entityId: key },
+      orderBy: { createdAt: 'desc' },
+    });
+    const bulkRow = groupAudits.find((r) => r.after?.bulkCancel === true);
+    assert.ok(bulkRow);
+    assert.equal(bulkRow.after.requested, 1);
+    assert.equal(bulkRow.after.cancelled, 1);
+  } finally {
+    await db.bookingGroup.deleteMany({ where: { groupKey: key } });
+  }
+});
+
+test('bulkCancelGroup: bookingNo prefix carries the group key for audit grep', async (t) => {
+  const paket = await tempPaket(t, 'grp-tag');
+  const jemaah = await tempJemaah(t, 'grp-tag');
+  const b = await tempBooking({ paket, jemaahProfileId: jemaah.jemaah.id });
+  const key = `G-TAG${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+  try {
+    await setBookingGroupKey({ req: fakeReq, actor: adminActor, bookingId: b.id, groupKey: key });
+    await bulkCancelGroup({
+      req: fakeReq, actor: adminActor,
+      groupKey: key, reason: 'family visa issue',
+    });
+    const cancelAudit = await db.auditLog.findFirst({
+      where: { entity: 'Booking', entityId: b.id, action: 'STATUS_CHANGE' },
+      orderBy: { createdAt: 'desc' },
+    });
+    assert.ok(cancelAudit);
+    // Reason is wrapped with the group prefix so admin grep finds bulk-cancelled rows
+    const reasonStr = cancelAudit.after?.cancelReason || '';
+    assert.ok(reasonStr.includes(`bulk group ${key}`), `expected reason to contain bulk group prefix; got: ${reasonStr}`);
+    assert.ok(reasonStr.includes('family visa issue'));
   } finally {
     await db.bookingGroup.deleteMany({ where: { groupKey: key } });
   }

@@ -6,7 +6,8 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
-import { getBookingGroup, setGroupLabel, normaliseGroupKey } from '../services/bookingGroup.js';
+import { getBookingGroup, setGroupLabel, normaliseGroupKey, bulkCancelGroup } from '../services/bookingGroup.js';
+import { CANCEL_REASON_CODES } from '../services/bookingAdmin.js';
 
 const router = Router();
 
@@ -49,8 +50,10 @@ router.get(
       byStatus: {},
     });
     const canEdit = EDIT_ROLES.includes(req.user.role);
+    const canCancel = EDIT_ROLES.includes(req.user.role);
     res.render('group-detail', {
-      user: req.user, group, totals, canEdit,
+      user: req.user, group, totals, canEdit, canCancel,
+      cancelReasonCodes: CANCEL_REASON_CODES,
       ok: req.query.ok || null, err: req.query.err || null,
     });
   }),
@@ -78,6 +81,33 @@ router.post(
       res.redirect(`/admin/groups/${encodeURIComponent(key)}?ok=label`);
     } catch (err) {
       const msg = err?.message || 'Gagal simpan label';
+      res.redirect(`/admin/groups/${encodeURIComponent(key)}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// ── POST /admin/groups/:key/bulk-cancel ────────────────────────
+// Stage 262 — cancel every active member with one shared reason.
+router.post(
+  '/:key/bulk-cancel',
+  requireRole(...EDIT_ROLES),
+  asyncHandler(async (req, res) => {
+    const key = normaliseGroupKey(req.params.key);
+    if (!key) {
+      return res.redirect(`/admin/bookings?err=${encodeURIComponent('Format groupKey tidak valid')}`);
+    }
+    try {
+      const result = await bulkCancelGroup({
+        req, actor: actorFrom(req),
+        groupKey: key,
+        reason: req.body?.reason || '',
+        reasonCode: req.body?.reasonCode || null,
+      });
+      const flash = `bulk_cancel:${result.cancelled.length}/${result.requested}` +
+        (result.failed.length > 0 ? `:failed=${result.failed.length}` : '');
+      res.redirect(`/admin/groups/${encodeURIComponent(key)}?ok=${encodeURIComponent(flash)}`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal bulk cancel';
       res.redirect(`/admin/groups/${encodeURIComponent(key)}?err=${encodeURIComponent(msg)}`);
     }
   }),

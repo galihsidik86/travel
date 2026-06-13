@@ -145,7 +145,20 @@ router.get(
     } catch (err) {
       console.warn('[jemaah-booking] activity load failed:', err?.message || err);
     }
-    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, announcements, pickups, activity, query: req.query });
+    // Stage 264 — group view (privacy-sanitized sibling list). Best-effort.
+    let groupView = null;
+    if (booking.groupKey) {
+      try {
+        const { getJemaahGroupView } = await import('../services/jemaahGroupView.js');
+        groupView = await getJemaahGroupView({
+          groupKey: booking.groupKey,
+          currentBookingId: booking.id,
+        });
+      } catch (err) {
+        console.warn('[jemaah-booking] group view load failed:', err?.message || err);
+      }
+    }
+    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, announcements, pickups, activity, groupView, query: req.query });
   }),
 );
 

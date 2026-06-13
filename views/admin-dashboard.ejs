@@ -2489,6 +2489,75 @@
         </div>
       <% } %>
 
+      <!-- Stage 263 — group needs-attention rollup -->
+      <% if (typeof groupAttention !== 'undefined' && groupAttention && groupAttention.rows.length > 0) { %>
+        <div class="panel" style="margin-top:16px;border-left:3px solid var(--amber);">
+          <div class="panel__head">
+            <h3>⚠ Grup butuh perhatian</h3>
+            <span class="meta">
+              <%= groupAttention.rows.length %> grup
+              <% if (groupAttention.total > groupAttention.rows.length) { %>
+                · <%= groupAttention.total - groupAttention.rows.length %> grup lain tidak ditampilkan
+              <% } %>
+            </span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;margin-top:8px;font-family:var(--font-mono);font-size:11.5px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--hairline-soft);">
+                <th style="text-align:left;padding:8px 6px;color:var(--ink-200);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;font-weight:400;">Grup</th>
+                <th style="text-align:left;padding:8px 6px;color:var(--ink-200);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;font-weight:400;">Member</th>
+                <th style="text-align:left;padding:8px 6px;color:var(--ink-200);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;font-weight:400;">Sisa Bayar</th>
+                <th style="text-align:left;padding:8px 6px;color:var(--ink-200);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;font-weight:400;">Pickup</th>
+                <th style="text-align:left;padding:8px 6px;color:var(--ink-200);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;font-weight:400;">Dokumen</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% groupAttention.rows.forEach(function(g) { %>
+                <tr style="border-bottom:1px solid var(--hairline-soft);">
+                  <td style="padding:8px 6px;">
+                    <a href="/admin/groups/<%= encodeURIComponent(g.groupKey) %>" style="color:var(--gold-300);text-decoration:none;font-weight:600;"><%= g.groupKey %></a>
+                    <% if (g.label) { %>
+                      <span style="color:var(--cream-100);font-family:var(--font-sans);font-size:11px;"> · <%= g.label %></span>
+                    <% } %>
+                    <% if (g.paket) { %>
+                      <div style="font-size:10px;color:var(--ink-300);margin-top:2px;"><%= g.paket.title %></div>
+                    <% } %>
+                  </td>
+                  <td style="padding:8px 6px;color:var(--cream-100);"><%= g.memberCount %></td>
+                  <td style="padding:8px 6px;">
+                    <% if (g.unpaidCount > 0) { %>
+                      <span style="color:var(--ruby);font-weight:600;"><%= g.unpaidCount %> jemaah</span>
+                      <div style="font-size:10px;color:var(--ink-300);">Rp <%= fmt.rpShort(g.unpaidBalanceIdr) %></div>
+                    <% } else { %>
+                      <span style="color:var(--ink-300);">—</span>
+                    <% } %>
+                  </td>
+                  <td style="padding:8px 6px;">
+                    <% if (g.missingPickupCount > 0) { %>
+                      <span style="color:var(--amber);font-weight:600;"><%= g.missingPickupCount %> jemaah</span>
+                    <% } else if (g.offersPickup) { %>
+                      <span style="color:var(--emerald);">✓</span>
+                    <% } else { %>
+                      <span style="color:var(--ink-300);">—</span>
+                    <% } %>
+                  </td>
+                  <td style="padding:8px 6px;">
+                    <% if (g.missingDocCount > 0) { %>
+                      <span style="color:var(--amber);font-weight:600;"><%= g.missingDocCount %> jemaah</span>
+                    <% } else { %>
+                      <span style="color:var(--emerald);">✓</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <div style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
+            Per-grup rollup: passport / visa umroh / vaksin meningitis = wajib. Pickup gap hanya muncul jika paket sudah punya konfigurasi titik jemput.
+          </div>
+        </div>
+      <% } %>
+
       <!-- Stage 100 — cross-agent komisi pipeline forecast -->
       <% if (networkForecast && networkForecast.totals.bookings > 0) { %>
         <div class="panel" style="margin-top:16px;border-left:3px solid var(--gold-300);">

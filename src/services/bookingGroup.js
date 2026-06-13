@@ -190,3 +190,85 @@ export async function setGroupLabel({ req, actor, groupKey, label, notes }) {
 
   return { updated: true, group: after };
 }
+
+/**
+ * Stage 262 — cancel every ACTIVE member of a group with one shared
+ * reason. Routes through the canonical `cancelBooking` so notif fan-out,
+ * seat release, komisi flip, and audit row all fire per-member —
+ * identical behaviour to clicking cancel on each booking individually,
+ * just done in one trip.
+ *
+ * Per-member failure is caught + reported (`failed[]`) but doesn't
+ * abort the loop — partial completion is better than nothing for a
+ * 10-member family booking where one row hits a stale-state issue.
+ * Members already CANCELLED/REFUNDED are silently skipped (no audit
+ * pollution; admin who re-runs after one previously-failed member
+ * isn't penalised).
+ */
+export async function bulkCancelGroup({ req, actor, groupKey, reason, reasonCode = null }) {
+  const key = normaliseGroupKey(groupKey);
+  if (!key) throw new HttpError(400, 'Format groupKey tidak valid', 'BAD_GROUP_KEY');
+  if (!reason || reason.trim().length < 3) {
+    throw new HttpError(400, 'Alasan cancel wajib (min. 3 karakter)', 'REASON_REQUIRED');
+  }
+
+  const members = await db.booking.findMany({
+    where: { groupKey: key },
+    select: { id: true, bookingNo: true, status: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  if (members.length === 0) {
+    throw new HttpError(404, 'Grup tidak ditemukan atau kosong', 'GROUP_EMPTY');
+  }
+
+  const { cancelBooking } = await import('./bookingAdmin.js');
+
+  const result = {
+    groupKey: key,
+    requested: members.length,
+    cancelled: [],
+    skipped: [],
+    failed: [],
+  };
+
+  for (const m of members) {
+    if (m.status === 'CANCELLED' || m.status === 'REFUNDED') {
+      result.skipped.push({ id: m.id, bookingNo: m.bookingNo, reason: 'already_terminal' });
+      continue;
+    }
+    try {
+      await cancelBooking({
+        req, actor,
+        bookingId: m.id,
+        reason: `[bulk group ${key}] ${reason.trim()}`,
+        reasonCode,
+      });
+      result.cancelled.push({ id: m.id, bookingNo: m.bookingNo });
+    } catch (err) {
+      result.failed.push({
+        id: m.id, bookingNo: m.bookingNo,
+        reason: err?.code || err?.message || 'unknown',
+      });
+    }
+  }
+
+  // One bookkeeping audit row on the BookingGroup so admin can grep
+  // "did anyone bulk-cancel my family?" without scanning N booking
+  // audit rows. The per-booking rows still exist (cancelBooking wrote
+  // them); this is a navigation/index aid.
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'BookingGroup', entityId: key,
+    after: {
+      bulkCancel: true,
+      reason: reason.trim(),
+      reasonCode,
+      requested: result.requested,
+      cancelled: result.cancelled.length,
+      skipped: result.skipped.length,
+      failed: result.failed.length,
+    },
+  });
+
+  return result;
+}

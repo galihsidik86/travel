@@ -118,6 +118,41 @@
       <div class="kpi"><div class="l">Sisa</div><div class="v"><%= fmt.rpShort(totals.balanceIdr) %></div></div>
     </div>
 
+    <% if (typeof canCancel !== 'undefined' && canCancel && totals.activeCount > 0) { %>
+      <%# Stage 262 — bulk cancel every active member of the group %>
+      <div class="panel" style="border-color:var(--ruby);">
+        <h2 style="color:var(--ruby);">⚠ Bulk cancel grup</h2>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin-bottom:10px;">
+          Akan membatalkan <strong style="color:var(--cream-100);"><%= totals.activeCount %> booking aktif</strong>
+          di grup ini. Booking yang sudah CANCELLED/REFUNDED diabaikan.
+        </div>
+        <form method="POST" action="/admin/groups/<%= encodeURIComponent(group.groupKey) %>/bulk-cancel"
+              onsubmit="return confirm('Cancel <%= totals.activeCount %> booking di grup ini? Tindakan tidak bisa dibatalkan.')">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="form-grid">
+            <div>
+              <label for="bcr-code">Kode alasan</label>
+              <select id="bcr-code" name="reasonCode"
+                      style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:8px 12px;border-radius:3px;font-family:var(--font-mono);font-size:12px;box-sizing:border-box;">
+                <option value="">— pilih kode —</option>
+                <% (cancelReasonCodes || []).forEach(function(c) { %>
+                  <option value="<%= c %>"><%= c %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div>
+              <label for="bcr-reason">Alasan (min. 3 karakter)</label>
+              <input type="text" id="bcr-reason" name="reason" minlength="3" maxlength="2000" required
+                     placeholder="Visa rejected · Family withdrawal · ...">
+            </div>
+          </div>
+          <div class="actions">
+            <button type="submit" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:7px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">⚠ Cancel <%= totals.activeCount %> booking</button>
+          </div>
+        </form>
+      </div>
+    <% } %>
+
     <% if (canEdit) { %>
       <div class="panel">
         <h2>Label & Catatan</h2>

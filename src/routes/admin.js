@@ -52,7 +52,17 @@ router.get(
     const manifestTag = (req.query.manifestTag || '').toString();
     // Stage 258 — group filter on manifest tab
     const manifestGroup = (req.query.manifestGroup || '').toString();
-    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast] = await Promise.all([
+    // Stage 263 — group needs-attention rollup (best-effort)
+    const groupAttentionPromise = (async () => {
+      try {
+        const { getGroupsNeedsAttention } = await import('../services/groupNeedsAttention.js');
+        return await getGroupsNeedsAttention({ limit: 10 });
+      } catch (err) {
+        console.warn('[admin] group needs-attention failed:', err?.message || err);
+        return null;
+      }
+    })();
+    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
@@ -64,6 +74,7 @@ router.get(
       // Stage 100 — cross-agent komisi pipeline. Best-effort.
       getAllAgentsCommissionForecast({ windowDays: 90 })
         .catch((err) => { console.warn('[admin] network forecast failed:', err?.message || err); return null; }),
+      groupAttentionPromise,
     ]);
     // Stage 205 — apply pickup filter to a shallow copy so the raw
     // bookings array stays available for the summary panel. Stage 215
@@ -113,6 +124,7 @@ router.get(
       myMentions,
       myTasks,
       networkForecast,
+      groupAttention,
       activeTab: req.query.tab || 'overview',
       range,
     });
