@@ -617,6 +617,81 @@
             </div>
           <% } %>
 
+          <%# Stage 295 — adjustments panel (discount/surcharge). %>
+          <%
+            const adjList = typeof bookingAdjustments !== 'undefined' && Array.isArray(bookingAdjustments) ? bookingAdjustments : [];
+            const reasonCodes = typeof adjustmentReasonCodes !== 'undefined' && Array.isArray(adjustmentReasonCodes) ? adjustmentReasonCodes : [];
+            const canAdjust = canEditNotes && b.status !== 'CANCELLED' && b.status !== 'REFUNDED';
+            const adjNet = adjList.reduce((acc, x) => {
+              const a = Number(x.amountIdr?.toString?.() ?? x.amountIdr) || 0;
+              return acc + (x.kind === 'DISCOUNT' ? -a : +a);
+            }, 0);
+          %>
+          <% if (adjList.length > 0 || canAdjust) { %>
+            <div class="info-item" style="grid-column: 1/-1;">
+              <div class="l">Discount / surcharge<% if (adjList.length > 0) { %> (<%= adjList.length %> · net <%= adjNet >= 0 ? '+' : '' %><%= fmt.rpShort(adjNet) %>)<% } %></div>
+              <% if (adjList.length > 0) { %>
+                <table style="width:100%;border-collapse:collapse;margin-top:6px;font-family:var(--font-mono);font-size:11px;">
+                  <thead><tr style="border-bottom:1px solid var(--hairline-soft);">
+                    <th style="text-align:left;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">KIND</th>
+                    <th style="text-align:left;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">REASON</th>
+                    <th style="text-align:left;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">NOTE</th>
+                    <th style="text-align:right;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">DELTA</th>
+                    <% if (canAdjust) { %><th style="width:24px;"></th><% } %>
+                  </tr></thead>
+                  <tbody>
+                    <% adjList.forEach(function(x) {
+                         const amt = Number(x.amountIdr?.toString?.() ?? x.amountIdr) || 0;
+                         const sign = x.kind === 'DISCOUNT' ? -amt : +amt;
+                         const tone = x.kind === 'DISCOUNT' ? 'var(--emerald)' : 'var(--ruby)';
+                    %>
+                      <tr>
+                        <td style="padding:4px;"><span style="font-size:9.5px;color:<%= tone %>;border:1px solid <%= tone %>;padding:1px 6px;border-radius:3px;letter-spacing:0.08em;"><%= x.kind %></span></td>
+                        <td style="padding:4px;color:var(--cream-100);"><%= x.reasonCode %></td>
+                        <td style="padding:4px;color:var(--ink-100);font-size:10.5px;font-style:italic;"><%= x.reasonNote || '—' %></td>
+                        <td style="padding:4px;color:<%= tone %>;text-align:right;font-weight:600;"><%= sign >= 0 ? '+' : '' %><%= fmt.rpShort(sign) %></td>
+                        <% if (canAdjust) { %>
+                          <td style="padding:4px;text-align:right;">
+                            <form method="POST" action="/admin/bookings/<%= b.id %>/adjustments/<%= x.id %>/remove"
+                                  style="display:inline;" onsubmit="return confirm('Hapus adjustment ini? totalAmount akan dibalik.');">
+                              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                              <button type="submit" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:2px 7px;border-radius:3px;cursor:pointer;font-size:11px;font-family:var(--font-mono);">×</button>
+                            </form>
+                          </td>
+                        <% } %>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              <% } else { %>
+                <div class="sx" style="margin-top:4px;">— belum ada discount/surcharge —</div>
+              <% } %>
+              <% if (canAdjust) { %>
+                <form method="POST" action="/admin/bookings/<%= b.id %>/adjustments/add" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <select name="kind" required style="background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                    <option value="DISCOUNT">DISCOUNT (kurangi)</option>
+                    <option value="SURCHARGE">SURCHARGE (tambah)</option>
+                  </select>
+                  <input type="number" name="amountIdr" min="1" step="1" placeholder="Rp" required
+                         style="width:140px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                  <select name="reasonCode" required style="background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                    <option value="">— alasan —</option>
+                    <% reasonCodes.forEach(function(c) { %>
+                      <option value="<%= c %>"><%= c %></option>
+                    <% }) %>
+                  </select>
+                  <input type="text" name="reasonNote" maxlength="500" placeholder="Note (opsional)"
+                         style="flex:1;min-width:160px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                  <button type="submit" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:5px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">+ Adjust</button>
+                </form>
+                <div style="margin-top:4px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">
+                  totalAmount otomatis berubah · refund (post-cancel) terpisah · audit row penuh disimpan
+                </div>
+              <% } %>
+            </div>
+          <% } %>
+
           <%# Stage 268 — installment schedule panel. Admin sets N
               installments via inline table; jemaah sees them on /saya. %>
           <%

@@ -420,6 +420,16 @@ router.get(
     } catch (err) {
       console.warn('[booking-detail] addons load failed:', err?.message || err);
     }
+    // Stage 295 — booking adjustments (discount/surcharge)
+    let bookingAdjustments = [];
+    let adjustmentReasonCodes = [];
+    try {
+      const { listBookingAdjustments, ADJUSTMENT_REASON_CODES } = await import('../services/bookingAdjustments.js');
+      bookingAdjustments = await listBookingAdjustments(booking.id);
+      adjustmentReasonCodes = ADJUSTMENT_REASON_CODES;
+    } catch (err) {
+      console.warn('[booking-detail] adjustments load failed:', err?.message || err);
+    }
     res.render('booking-detail', {
       user: req.user, b: booking,
       canCancel, canRefund, canEditNotes, canTransfer, agents,
@@ -436,6 +446,8 @@ router.get(
       handoverLineage,
       // Stage 284 — booking add-ons + catalog
       bookingAddons, addonCatalog,
+      // Stage 295 — booking adjustments + reason allowlist
+      bookingAdjustments, adjustmentReasonCodes,
     });
   }),
 );
@@ -585,6 +597,49 @@ router.post(
       res.redirect(`/admin/bookings/${result.booking.id}?ok=cloned&from=${encodeURIComponent(req.params.id)}`);
     } catch (err) {
       const msg = err?.message || 'Gagal clone booking';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 295/296 — add a discount/surcharge adjustment.
+router.post(
+  '/:id/adjustments/add',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const { addBookingAdjustment } = await import('../services/bookingAdjustments.js');
+      await addBookingAdjustment({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id,
+        kind: (req.body?.kind || '').toString(),
+        amountIdr: req.body?.amountIdr,
+        reasonCode: (req.body?.reasonCode || '').toString(),
+        reasonNote: (req.body?.reasonNote || '').toString() || null,
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=adjustment_added`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal tambah adjustment';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 295 — remove a previously-added adjustment.
+router.post(
+  '/:id/adjustments/:adjustmentId/remove',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const { removeBookingAdjustment } = await import('../services/bookingAdjustments.js');
+      await removeBookingAdjustment({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id,
+        adjustmentId: req.params.adjustmentId,
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=adjustment_removed`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal remove adjustment';
       res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
     }
   }),

@@ -2543,6 +2543,52 @@
         </div>
       <% } %>
 
+      <!-- Stage 297 — adjustment ledger (last 90d) -->
+      <% if (typeof adjustmentLedger !== 'undefined' && adjustmentLedger && adjustmentLedger.totals.rowCount > 0) {
+           const t = adjustmentLedger.totals;
+      %>
+        <div class="panel" style="margin-top:16px;border-left:3px solid <%= t.netIdr < 0 ? 'var(--emerald)' : 'var(--ruby)' %>;">
+          <div class="panel__head">
+            <h3>💸 Discount / surcharge ledger (<%= adjustmentLedger.days %> hari)</h3>
+            <span class="meta">
+              <%= t.rowCount %> row ·
+              <span style="color:var(--emerald);">− Rp <%= fmt.rpShort(t.discountIdr) %></span> ·
+              <span style="color:var(--ruby);">+ Rp <%= fmt.rpShort(t.surchargeIdr) %></span> ·
+              net <strong style="color:<%= t.netIdr < 0 ? 'var(--emerald)' : 'var(--ruby)' %>;"><%= t.netIdr >= 0 ? '+' : '' %><%= fmt.rpShort(t.netIdr) %></strong>
+            </span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:10px;">
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">PER REASON</div>
+              <% adjustmentLedger.perReason.forEach(function(r) { %>
+                <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:5px 0;border-bottom:1px solid var(--hairline-soft);font-family:var(--font-mono);font-size:11.5px;">
+                  <span style="color:var(--cream-100);"><%= r.reasonCode %></span>
+                  <span style="color:var(--emerald);font-size:10px;" title="discount">
+                    <% if (r.discountIdr > 0) { %>−<%= fmt.rpShort(r.discountIdr) %><% } else { %>—<% } %>
+                  </span>
+                  <span style="color:var(--ruby);font-size:10px;" title="surcharge">
+                    <% if (r.surchargeIdr > 0) { %>+<%= fmt.rpShort(r.surchargeIdr) %><% } else { %>—<% } %>
+                  </span>
+                </div>
+              <% }) %>
+            </div>
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">TOP ADMIN</div>
+              <% adjustmentLedger.topActors.forEach(function(a) { %>
+                <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:5px 0;border-bottom:1px solid var(--hairline-soft);font-family:var(--font-mono);font-size:11.5px;">
+                  <span style="color:var(--cream-100);"><%= a.email %></span>
+                  <span style="color:var(--ink-200);font-size:10px;"><%= a.count %>x</span>
+                  <span style="color:var(--gold-300);font-weight:600;">Rp <%= fmt.rpShort(a.totalAbsIdr) %></span>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+          <div style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);">
+            Discount mengurangi totalAmount · surcharge menambah · CANCELLED/REFUNDED dikecualikan.
+          </div>
+        </div>
+      <% } %>
+
       <!-- Stage 285 — add-on revenue tally -->
       <% if (typeof addonRevenue !== 'undefined' && addonRevenue && addonRevenue.totals.attachCount > 0) { %>
         <div class="panel" style="margin-top:16px;border-left:3px solid var(--gold-300);">

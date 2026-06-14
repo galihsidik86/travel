@@ -1430,6 +1430,7 @@ model Booking {
   mentions        BookingMention[]
   tasks           Task[]
   addons          BookingAddon[]
+  adjustments     BookingAdjustment[]
 
   @@index([paketId])
   @@index([agentId])
@@ -1908,6 +1909,36 @@ model BookingAddon {
   createdByEmail   String?     @db.VarChar(190)
 
   @@index([bookingId])
+}
+
+// Stage 295 — per-booking adjustment (discount or surcharge). Admin
+// records a Rp amount + reason; service mutates Booking.totalAmount
+// in the same transaction so the existing money flow (status
+// transitions, LUNAS-on-paid, installment reconcile S269) all stay
+// correct without changes.
+//
+// Distinct from S145/S235 refund (which is post-cancel only) and from
+// S284 BookingAddon (which is a positive line item, not a price tweak).
+// Adjustments are the right primitive for promotions, loyalty rebates,
+// family-pricing, or staff-correction adjustments.
+enum BookingAdjustmentKind {
+  DISCOUNT  // amount reduces totalAmount (stored as positive; service subtracts)
+  SURCHARGE // amount adds to totalAmount (stored as positive; service adds)
+}
+
+model BookingAdjustment {
+  id             String                @id @default(cuid())
+  bookingId      String
+  booking        Booking               @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  kind           BookingAdjustmentKind
+  amountIdr      Decimal               @db.Decimal(15, 2)
+  reasonCode     String                @db.VarChar(40) // see ADJUSTMENT_REASON_CODES in service
+  reasonNote     String?               @db.Text
+  createdAt      DateTime              @default(now())
+  createdByEmail String?               @db.VarChar(190)
+
+  @@index([bookingId])
+  @@index([reasonCode, createdAt])
 }
 
 // Stage 289 — public inquiry. Form on /p/:slug captures interest
