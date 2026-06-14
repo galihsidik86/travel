@@ -167,6 +167,7 @@ enum NotificationType {
   DOC_VERIFY_SLA_ADMIN // daily digest of SUBMITTED docs > 48h awaiting verify → OWNER+SUPERADMIN+MANAJER_OPS (Stage 276)
   CREW_DAILY_REPORT_REMINDER // evening WA nudge to crew who haven't submitted today's report (Stage 279)
   CREW_DAILY_REPORT_MISSED_ADMIN // morning email to admin listing crew who missed yesterday's report (Stage 279)
+  BOOKING_HANDOVER // admin transferred booking to a new jemaah → notif to both old and new (Stage 281)
   GENERIC // catch-all for ad-hoc notifs
 }
 

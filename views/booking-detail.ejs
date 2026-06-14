@@ -523,6 +523,37 @@
             </div>
           <% } %>
 
+          <%# Stage 282 — handover lineage. Shows all previous jemaah
+              on this booking with handover dates + reasons. Hidden when
+              no handover has occurred (90%+ of bookings). %>
+          <% if (typeof handoverLineage !== 'undefined' && handoverLineage.length > 0) { %>
+            <div class="info-item" style="grid-column: 1/-1;">
+              <div class="l">Riwayat handover (<%= handoverLineage.length %>×)</div>
+              <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;">
+                <% handoverLineage.forEach(function(h) { %>
+                  <div style="padding:8px 12px;background:rgba(116,170,234,0.05);border-left:3px solid var(--sapphire);border-radius:3px;font-family:var(--font-mono);font-size:10.5px;color:var(--cream-100);line-height:1.55;">
+                    <div style="display:flex;justify-content:space-between;gap:10px;">
+                      <span>
+                        <strong style="color:var(--ink-200);"><%= h.previousJemaahName || '—' %></strong>
+                        <span style="color:var(--ink-300);"> → </span>
+                        <strong style="color:var(--sapphire);"><%= h.newJemaahName || '—' %></strong>
+                      </span>
+                      <span style="color:var(--ink-200);font-size:10px;"><%= fmt.dateLong(h.at) %></span>
+                    </div>
+                    <div style="margin-top:4px;color:var(--ink-200);">
+                      Status pada saat handover: <strong style="color:var(--cream-100);"><%= h.bookingStatusAtHandover || '—' %></strong>
+                      <% if (h.acknowledgedLunas) { %> · <span style="color:var(--ruby);">⚠ LUNAS ack</span><% } %>
+                      <% if (h.actorEmail) { %> · oleh <%= h.actorEmail %><% } %>
+                    </div>
+                    <% if (h.reason) { %>
+                      <div style="margin-top:4px;color:var(--cream-100);font-style:italic;">"<%= h.reason %>"</div>
+                    <% } %>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+          <% } %>
+
           <%# Stage 268 — installment schedule panel. Admin sets N
               installments via inline table; jemaah sees them on /saya. %>
           <%
@@ -957,6 +988,10 @@
             <button type="button" id="open-clone">⎘ CLONE</button>
           <% } %>
           <% if (canCancel) { %>
+            <%# Stage 280 — handover: replace jemaah on existing booking %>
+            <button type="button" id="open-handover">⇄ HANDOVER JEMAAH</button>
+          <% } %>
+          <% if (canCancel) { %>
             <button type="button" class="danger" id="open-cancel">× CANCEL BOOKING</button>
           <% } %>
           <% if (canRefund) { %>
@@ -1354,6 +1389,84 @@
     });
   })();
 </script>
+
+<%# Stage 280 — handover modal: replace jemaah on this booking %>
+<% if (canCancel) { %>
+<div class="modal-overlay" id="handover-modal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <header class="modal__head">
+      <h3>Handover ke jemaah baru</h3>
+      <button type="button" class="modal__close" id="handover-close-x" aria-label="Tutup">×</button>
+    </header>
+    <form method="POST" action="/admin/bookings/<%= b.id %>/handover">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <div style="padding:10px 14px;background:rgba(116,170,234,0.06);border:1px solid var(--sapphire);border-radius:var(--r-sm);margin-bottom:14px;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);line-height:1.6;">
+        <strong style="color:var(--sapphire);">Booking <%= b.bookingNo %></strong> ·
+        status <strong><%= b.status %></strong> ·
+        kelas <%= b.kelas %> · <%= b.paxCount %> PAX<br>
+        Jemaah saat ini: <strong><%= b.jemaah?.fullName %></strong> (<%= b.jemaah?.phone %>)<br>
+        <span style="color:var(--ink-200);">Setelah handover: paket / harga / pembayaran / agen tetap; hanya identitas jemaah berubah.</span>
+      </div>
+
+      <% if (b.status === 'LUNAS') { %>
+        <div style="padding:10px 14px;background:rgba(212,89,89,0.06);border:1px solid var(--ruby);border-radius:var(--r-sm);margin-bottom:14px;font-family:var(--font-mono);font-size:11px;color:var(--ruby);">
+          ⚠ Booking LUNAS — uang sudah lunas terkumpul. Hanya OWNER yang boleh handover, dan harus tick acknowledge.
+        </div>
+        <div class="field">
+          <label class="label" style="display:flex;gap:8px;align-items:center;cursor:pointer;">
+            <input type="checkbox" name="acknowledgeLunas" value="true" required>
+            Saya mengerti: uang sudah lunas, perubahan jemaah ini terkonfirmasi tertulis dari kedua belah pihak.
+          </label>
+        </div>
+      <% } %>
+
+      <div class="field">
+        <label class="label" for="hf-jname">Nama jemaah baru *</label>
+        <input class="input" id="hf-jname" name="newJemaahName" required minlength="2" maxlength="190" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="label" for="hf-jphone">Telepon jemaah baru *</label>
+        <input class="input" id="hf-jphone" name="newJemaahPhone" required maxlength="30" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="label" for="hf-jemail">Email (opsional)</label>
+        <input class="input" type="email" id="hf-jemail" name="newJemaahEmail" maxlength="190" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="label" for="hf-jnik">NIK (opsional, 16 digit)</label>
+        <input class="input" id="hf-jnik" name="newJemaahNik" maxlength="16" pattern="\d{16}" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="label" for="hf-reason">Alasan handover * (min. 3 karakter)</label>
+        <textarea class="input" id="hf-reason" name="reason" rows="2" required minlength="3" maxlength="500" placeholder="Mis. jemaah lama batal karena sakit, alihkan ke saudara"></textarea>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" id="handover-close">Batal</button>
+        <button type="submit" class="btn btn--primary">Konfirmasi handover</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Stage 280 — handover modal wiring
+  (function() {
+    const modal = document.getElementById('handover-modal');
+    const openBtn = document.getElementById('open-handover');
+    const closeX = document.getElementById('handover-close-x');
+    const closeB = document.getElementById('handover-close');
+    if (!modal || !openBtn) return;
+    openBtn.addEventListener('click', () => modal.classList.add('is-open'));
+    if (closeX) closeX.addEventListener('click', () => modal.classList.remove('is-open'));
+    if (closeB) closeB.addEventListener('click', () => modal.classList.remove('is-open'));
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('is-open');
+    });
+  })();
+</script>
+<% } %>
 
 <script>
   // Pay modal — for the booking detail page we redirect to manifest tab + open Pay there.

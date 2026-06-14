@@ -664,6 +664,118 @@ export async function notifyCancelRequestDeclined({ booking, declineReason, admi
 }
 
 /**
+ * Stage 281 — booking handover notif fan-out. Notifies BOTH old jemaah
+ * ("transferred to X") and new jemaah ("you now have booking Y") on
+ * the same event. New jemaah is just a freshly-spawned profile (no
+ * user account yet — they'll claim via bookingNo+phone), so they only
+ * get a WA/email if contact info is set on the new profile.
+ *
+ * GENERIC notif type carries the body — handover messages are
+ * admin-driven and don't benefit from a per-channel template.
+ *
+ * Best-effort: notif failure logs but doesn't propagate (handover
+ * already succeeded — the jemaah swap is the load-bearing change).
+ */
+export async function notifyBookingHandover({ booking, previousJemaah, newJemaah, reason, adminEmail }) {
+  const bookingNo = booking?.bookingNo;
+  let enqueued = 0;
+
+  // --- old jemaah: "your booking has been transferred" ---
+  if (previousJemaah && (previousJemaah.email || previousJemaah.phone)) {
+    const subject = `Booking ${bookingNo} telah dialihkan ke jemaah lain`;
+    const body = [
+      `Halo ${previousJemaah.fullName || 'Jemaah'},`,
+      '',
+      `Booking ${bookingNo} sudah resmi dialihkan ke ${newJemaah?.fullName || 'jemaah baru'}.`,
+      '',
+      `Alasan: ${reason}`,
+      '',
+      'Anda tidak lagi menjadi pemegang booking ini. Untuk klarifikasi atau dispute,',
+      `silakan hubungi tim Religio Pro langsung (${adminEmail || 'admin@religio.pro'}).`,
+      '',
+      '— Religio Pro',
+    ].join('\n');
+    if (previousJemaah.email) {
+      try {
+        await enqueueNotification({
+          type: 'BOOKING_HANDOVER', channel: 'EMAIL',
+          recipientEmail: previousJemaah.email,
+          recipientUserId: previousJemaah.userId || null,
+          subject, body,
+          payload: { kind: 'handover_old', bookingNo, newJemaahName: newJemaah?.fullName },
+          relatedEntity: 'Booking', relatedEntityId: booking.id,
+        });
+        enqueued += 1;
+      } catch (err) {
+        console.warn('[notifyBookingHandover] old/email failed:', err?.message || err);
+      }
+    }
+    if (previousJemaah.phone) {
+      try {
+        await enqueueNotification({
+          type: 'BOOKING_HANDOVER', channel: 'WA',
+          recipientPhone: previousJemaah.phone,
+          recipientUserId: previousJemaah.userId || null,
+          subject, body,
+          payload: { kind: 'handover_old', bookingNo, newJemaahName: newJemaah?.fullName },
+          relatedEntity: 'Booking', relatedEntityId: booking.id,
+        });
+        enqueued += 1;
+      } catch (err) {
+        console.warn('[notifyBookingHandover] old/WA failed:', err?.message || err);
+      }
+    }
+  }
+
+  // --- new jemaah: "you now have this booking" ---
+  if (newJemaah && (newJemaah.email || newJemaah.phone)) {
+    const subject = `Booking ${bookingNo} sekarang atas nama Anda`;
+    const body = [
+      `Halo ${newJemaah.fullName || 'Jemaah'},`,
+      '',
+      `Booking ${bookingNo} dialihkan kepada Anda dari pemegang sebelumnya.`,
+      '',
+      `Untuk melihat detail trip, claim booking ini via /saya/claim`,
+      `dengan No. Booking ${bookingNo} dan nomor telepon Anda.`,
+      '',
+      'Jika ada pertanyaan, hubungi tim Religio Pro.',
+      '',
+      '— Religio Pro',
+    ].join('\n');
+    if (newJemaah.email) {
+      try {
+        await enqueueNotification({
+          type: 'BOOKING_HANDOVER', channel: 'EMAIL',
+          recipientEmail: newJemaah.email,
+          subject, body,
+          payload: { kind: 'handover_new', bookingNo },
+          relatedEntity: 'Booking', relatedEntityId: booking.id,
+        });
+        enqueued += 1;
+      } catch (err) {
+        console.warn('[notifyBookingHandover] new/email failed:', err?.message || err);
+      }
+    }
+    if (newJemaah.phone) {
+      try {
+        await enqueueNotification({
+          type: 'BOOKING_HANDOVER', channel: 'WA',
+          recipientPhone: newJemaah.phone,
+          subject, body,
+          payload: { kind: 'handover_new', bookingNo },
+          relatedEntity: 'Booking', relatedEntityId: booking.id,
+        });
+        enqueued += 1;
+      } catch (err) {
+        console.warn('[notifyBookingHandover] new/WA failed:', err?.message || err);
+      }
+    }
+  }
+
+  return { enqueued };
+}
+
+/**
  * Crew SOS / emergency incident fan-out (admin-targeted). Triggered by
  * createIncident. EMAIL + WA both fire so admins are reachable on whichever
  * channel they're glued to. One row per (admin × channel) so each delivery

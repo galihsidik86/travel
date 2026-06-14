@@ -399,6 +399,14 @@ router.get(
         console.warn('[booking-detail] group siblings/meta failed:', err?.message || err);
       }
     }
+    // Stage 282 — handover lineage (best-effort)
+    let handoverLineage = [];
+    try {
+      const { getBookingHandoverLineage } = await import('../services/bookingHandover.js');
+      handoverLineage = await getBookingHandoverLineage(booking.id);
+    } catch (err) {
+      console.warn('[booking-detail] handover lineage failed:', err?.message || err);
+    }
     res.render('booking-detail', {
       user: req.user, b: booking,
       canCancel, canRefund, canEditNotes, canTransfer, agents,
@@ -411,6 +419,8 @@ router.get(
       groupSiblings,
       // Stage 260 — group metadata (label/notes)
       groupMeta,
+      // Stage 282 — handover lineage
+      handoverLineage,
     });
   }),
 );
@@ -560,6 +570,34 @@ router.post(
       res.redirect(`/admin/bookings/${result.booking.id}?ok=cloned&from=${encodeURIComponent(req.params.id)}`);
     } catch (err) {
       const msg = err?.message || 'Gagal clone booking';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 280 — admin handover: replace jemaah on existing booking.
+// Status-tier authz lives inside the service.
+router.post(
+  '/:id/handover',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const { handoverBookingJemaah } = await import('../services/bookingHandover.js');
+      await handoverBookingJemaah({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id,
+        newJemaah: {
+          fullName: (req.body?.newJemaahName || '').toString(),
+          phone: (req.body?.newJemaahPhone || '').toString(),
+          email: (req.body?.newJemaahEmail || '').toString() || null,
+          nik: (req.body?.newJemaahNik || '').toString() || null,
+        },
+        reason: (req.body?.reason || '').toString(),
+        acknowledgeLunas: req.body?.acknowledgeLunas === 'on' || req.body?.acknowledgeLunas === 'true',
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=handover`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal handover';
       res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
     }
   }),
