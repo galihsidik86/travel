@@ -414,6 +414,16 @@ router.post(
   }),
 );
 
+// Stage 291 — daily admin digest of stale inquiries
+router.post(
+  '/send-inquiry-sla',
+  asyncHandler(async (_req, res) => {
+    const { sendInquirySlaDigest } = await import('../services/inquirySlaDigest.js');
+    const result = await runJob('send-inquiry-sla', () => sendInquirySlaDigest({}));
+    res.json(result);
+  }),
+);
+
 // Stage 276 — admin digest of SUBMITTED docs awaiting verify > 48h
 router.post(
   '/send-doc-verify-sla',

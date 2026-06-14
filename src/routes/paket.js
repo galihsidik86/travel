@@ -134,6 +134,7 @@ paketHtmlRouter.get(
       paket, agent, currentUser: req.user || null, prefillJemaah,
       heroVariant, ctaText, testimonials, publicCrew, faqs,
       seo,
+      query: req.query,
     });
   }),
 );

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Inquiries</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; }
+  .head h1 { font-family: var(--font-display); font-size: 36px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; margin-top: 8px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+  .tabs a { padding: 6px 14px; background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-sm); color: var(--ink-200); text-decoration: none; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; }
+  .tabs a.is-active { background: rgba(212,175,55,0.08); border-color: var(--gold-300); color: var(--gold-300); }
+  .panel { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 20px; }
+  table.t { width: 100%; border-collapse: collapse; }
+  table.t th, table.t td { padding: 10px 12px; text-align: left; font-family: var(--font-mono); font-size: 11.5px; border-bottom: 1px solid var(--hairline-soft); vertical-align: top; }
+  table.t th { color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 400; font-size: 9.5px; }
+  table.t td { color: var(--cream-100); }
+  table.t tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 9.5px; letter-spacing: 0.1em; border: 1px solid; }
+  .pill-NEW { color: var(--gold-300); border-color: var(--gold-300); }
+  .pill-CONTACTED { color: var(--sapphire); border-color: var(--sapphire); }
+  .pill-CONVERTED { color: var(--emerald); border-color: var(--emerald); }
+  .pill-ARCHIVED { color: var(--ink-300); border-color: var(--ink-300); }
+  .flash { padding: 10px 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; margin-bottom: 16px; }
+  .flash.ok { background: rgba(80,176,113,0.08); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(212,89,89,0.08); border: 1px solid var(--ruby); color: var(--ruby); }
+  .acts { display: flex; gap: 4px; flex-wrap: wrap; }
+  .acts button, .acts input { font-family: var(--font-mono); font-size: 10px; }
+  .acts input { padding: 3px 6px; background: var(--ink-1000); color: var(--cream-100); border: 1px solid var(--hairline-soft); border-radius: 3px; width: 90px; }
+  .btn-go { background: transparent; border: 1px solid var(--gold-300); color: var(--gold-300); padding: 4px 9px; border-radius: 3px; cursor: pointer; }
+  .btn-arch { background: transparent; border: 1px solid var(--ink-300); color: var(--ink-300); padding: 4px 9px; border-radius: 3px; cursor: pointer; }
+  .btn-contact { background: transparent; border: 1px solid var(--sapphire); color: var(--sapphire); padding: 4px 9px; border-radius: 3px; cursor: pointer; }
+  .msg { color: var(--ink-100); font-style: italic; max-width: 360px; }
+  .pager { margin-top: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); display: flex; gap: 10px; align-items: center; }
+  .pager a { color: var(--gold-300); text-decoration: none; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/admin">← /admin</a> · INQUIRIES</div>
+
+    <div class="head">
+      <div>
+        <h1>Inquiry queue</h1>
+        <div class="sub">Submissions dari form "tanya dulu" di /p/:slug · convert ke Lead via tombol di kanan</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <% const STATUSES = ['NEW', 'CONTACTED', 'CONVERTED', 'ARCHIVED']; %>
+      <a href="/admin/inquiries" class="<%= statusFilter === 'ALL' ? 'is-active' : '' %>">SEMUA · <%= total %></a>
+      <% STATUSES.forEach(function(s) { %>
+        <a href="/admin/inquiries?status=<%= s %>" class="<%= statusFilter === s ? 'is-active' : '' %>"><%= s %></a>
+      <% }) %>
+    </div>
+
+    <% if (ok) { %><div class="flash ok">✓ <%= ok %></div><% } %>
+    <% if (err) { %><div class="flash err">✕ <%= err %></div><% } %>
+
+    <% if (rows.length === 0) { %>
+      <div class="panel" style="text-align:center;color:var(--ink-200);font-family:var(--font-mono);font-size:13px;">
+        — Tidak ada inquiry<%= statusFilter !== 'ALL' ? ' dengan status ' + statusFilter : '' %> —
+      </div>
+    <% } else { %>
+      <div class="panel">
+        <table class="t">
+          <thead><tr>
+            <th>Status</th><th>Nama</th><th>Kontak</th><th>Paket / Agen</th>
+            <th>Pesan</th><th>Masuk</th><th>Aksi</th>
+          </tr></thead>
+          <tbody>
+            <% rows.forEach(function(r) { %>
+              <tr>
+                <td><span class="pill pill-<%= r.status %>"><%= r.status %></span></td>
+                <td><%= r.fullName %></td>
+                <td>
+                  <a href="https://wa.me/<%= r.phone.replace(/\D/g, '').replace(/^0/, '62') %>" target="_blank" rel="noopener" style="color:var(--gold-300);text-decoration:none;"><%= r.phone %></a>
+                  <% if (r.email) { %><div style="font-size:10px;color:var(--ink-200);"><%= r.email %></div><% } %>
+                </td>
+                <td>
+                  <% if (r.paketSlug) { %>
+                    <a href="/p/<%= r.paketSlug %>" target="_blank" rel="noopener" style="color:var(--cream-100);text-decoration:none;"><%= r.paketSlug %></a>
+                  <% } else { %><span style="color:var(--ink-300);">— landing —</span><% } %>
+                  <% if (r.agentSlug) { %>
+                    <div style="font-size:10px;color:var(--ink-200);">→ <%= r.agentSlug %></div>
+                  <% } %>
+                </td>
+                <td><div class="msg"><%= r.message || '—' %></div></td>
+                <td><%= r.createdAt.toISOString().slice(0,16).replace('T', ' ') %></td>
+                <td>
+                  <% if (r.status === 'NEW' || r.status === 'CONTACTED') { %>
+                    <form method="POST" action="/admin/inquiries/<%= r.id %>/convert" class="acts">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="text" name="agentSlug" placeholder="agen slug" value="<%= r.agentSlug || '' %>" required>
+                      <button type="submit" class="btn-go" title="Convert ke Lead di CRM agen">→ LEAD</button>
+                    </form>
+                  <% } %>
+                  <% if (r.status === 'NEW') { %>
+                    <form method="POST" action="/admin/inquiries/<%= r.id %>/contact" class="acts" style="margin-top:4px;">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="submit" class="btn-contact" title="Tandai sudah dihubungi (bukan convert)">✓ CONTACTED</button>
+                    </form>
+                  <% } %>
+                  <% if (r.status !== 'CONVERTED' && r.status !== 'ARCHIVED') { %>
+                    <form method="POST" action="/admin/inquiries/<%= r.id %>/archive" class="acts" style="margin-top:4px;"
+                          onsubmit="const v = prompt('Alasan archive (opsional)'); if (v === null) return false; this.querySelector('[name=reason]').value = v; return confirm('Archive inquiry ini?');">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="reason" value="">
+                      <button type="submit" class="btn-arch" title="Spam / tidak tertarik">× ARCHIVE</button>
+                    </form>
+                  <% } %>
+                  <% if (r.status === 'CONVERTED' && r.convertedLeadId) { %>
+                    <div style="font-size:10px;color:var(--ink-200);">→ lead <code><%= r.convertedLeadId.slice(-6).toUpperCase() %></code></div>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <% if (total > pageSize) { %>
+          <div class="pager">
+            <% if (page > 1) { %><a href="?<%= statusFilter !== 'ALL' ? 'status=' + statusFilter + '&' : '' %>page=<%= page - 1 %>">← prev</a><% } %>
+            <span>Halaman <%= page %> · total <%= total %></span>
+            <% if (page * pageSize < total) { %><a href="?<%= statusFilter !== 'ALL' ? 'status=' + statusFilter + '&' : '' %>page=<%= page + 1 %>">next →</a><% } %>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+</body>
+</html>

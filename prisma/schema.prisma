@@ -1909,6 +1909,43 @@ model BookingAddon {
   @@index([bookingId])
 }
 
+// Stage 289 — public inquiry. Form on /p/:slug captures interest
+// from visitors who aren't ready to book yet (low-friction ask).
+// Admin reviews the queue + converts to a Lead under a chosen
+// agent (S290). Distinct from S5 leads — those are agent-CRM rows;
+// inquiries are pre-lead, unrouted, and may never convert.
+enum InquiryStatus {
+  NEW       // just submitted, not yet reviewed
+  CONTACTED // admin/agent acknowledged; manual flip
+  CONVERTED // S290 created a Lead; terminal
+  ARCHIVED  // not interested / spam; terminal
+}
+
+model PublicInquiry {
+  id          String        @id @default(cuid())
+  paketSlug   String?       @db.VarChar(190)
+  agentSlug   String?       @db.VarChar(190)
+  fullName    String        @db.VarChar(190)
+  phone       String        @db.VarChar(30)
+  email       String?       @db.VarChar(190)
+  message     String?       @db.Text
+  status      InquiryStatus @default(NEW)
+  ip          String?       @db.VarChar(64)
+  userAgent   String?       @db.Text
+  // Set when admin clicks "convert to lead"; for audit / undo navigation.
+  convertedLeadId String?   @unique
+  convertedAt     DateTime?
+  archivedAt      DateTime?
+  archivedReason  String?   @db.VarChar(500)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([paketSlug])
+  @@index([agentSlug])
+  @@index([phone])
+}
+
 // Stage 192 — per-paket announcement banner. Admin posts; renders on
 // /saya/bookings/:id for jemaah on this paket. Optional schedule
 // window (publishedAt → expiresAt). Multiple announcements per paket

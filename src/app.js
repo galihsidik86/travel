@@ -13,6 +13,7 @@ import authWebRouter from './routes/authWeb.js';
 import { paketHtmlRouter, paketJsonRouter } from './routes/paket.js';
 import paketChildrenRouter from './routes/paketChildren.js';
 import bookingRouter from './routes/booking.js';
+import { inquiryPublicRouter, inquiryAdminRouter } from './routes/inquiry.js';
 import agenRouter from './routes/agen.js';
 import leadsRouter from './routes/leads.js';
 import adminRouter from './routes/admin.js';
@@ -106,6 +107,7 @@ export function createApp() {
   app.use('/api/paket', paketChildrenRouter);
   app.use('/api/paket', paketJsonRouter);
   app.use('/api/booking', bookingRouter);
+  app.use('/api', inquiryPublicRouter);
   app.use('/api/waitlist', waitlistRouter);
   app.use('/api/leads', leadsRouter);
   // 5pp: payment gateway (mounts /api/payments/intent + /api/payments/midtrans/webhook
@@ -157,6 +159,7 @@ export function createApp() {
   app.use('/admin/users', usersAdminRouter);
   app.use('/admin/jemaah', jemaahAdminRouter);
   app.use('/admin/bookings', bookingsAdminRouter);
+  app.use('/admin/inquiries', inquiryAdminRouter);
   app.use('/admin/payouts', payoutsRouter);
   app.use('/admin/audit', auditRouter);
   app.use('/admin/notifications', notificationsRouter);

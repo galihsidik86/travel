@@ -740,6 +740,17 @@
         </div>
       <% } %>
 
+      <%# Stage 289 — inquiry success / error flash %>
+      <% if (query?.inquiry === 'sent') { %>
+        <div style="margin-bottom:14px;padding:12px 16px;background:rgba(80,176,113,0.10);border:1px solid var(--emerald);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;color:var(--emerald);">
+          ✓ Inquiry Anda terkirim — tim kami akan menghubungi via WA dalam 24 jam.
+        </div>
+      <% } else if (query?.inquiry === 'err') { %>
+        <div style="margin-bottom:14px;padding:12px 16px;background:rgba(212,89,89,0.10);border:1px solid var(--ruby);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;color:var(--ruby);">
+          ✕ <%= query?.msg || 'Gagal kirim inquiry' %>
+        </div>
+      <% } %>
+
       <form id="booking-form" class="form-grid" novalidate>
         <input type="hidden" name="paketSlug" value="<%= paket.slug %>">
         <% if (agent) { %><input type="hidden" name="agentSlug" value="<%= agent.slug %>"><% } %>
@@ -802,6 +813,27 @@
           </button>
         </div>
       </form>
+
+      <%# Stage 289 — low-friction inquiry form. For visitors not ready
+          to book; gives admins/agents a lead path without commit. %>
+      <details style="margin-top:20px;border-top:1px solid var(--hairline-soft);padding-top:18px;">
+        <summary style="cursor:pointer;font-family:var(--font-mono);font-size:12px;color:var(--gold-300);letter-spacing:0.06em;text-align:center;">💬 Belum siap booking? Tanya dulu — admin akan WA Anda</summary>
+        <form method="POST" action="/api/inquiry" style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="paketSlug" value="<%= paket.slug %>">
+          <% if (agent) { %><input type="hidden" name="agentSlug" value="<%= agent.slug %>"><% } %>
+          <input class="input" name="fullName" required minlength="2" maxlength="190" placeholder="Nama Anda"
+                 value="<%= prefillJemaah ? prefillJemaah.fullName : '' %>">
+          <input class="input" name="phone" required minlength="8" maxlength="30" inputmode="tel" placeholder="WhatsApp (0812-XXXX-XXXX)"
+                 value="<%= prefillJemaah ? prefillJemaah.phone : '' %>">
+          <input class="input" name="email" type="email" maxlength="190" placeholder="Email (opsional)">
+          <textarea class="input" name="message" rows="3" maxlength="2000" placeholder="Pertanyaan / kebutuhan khusus (opsional)"></textarea>
+          <button type="submit" class="btn btn--outline-gold" style="margin-top:4px;">📩 Kirim inquiry</button>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);text-align:center;">
+            Admin akan menghubungi via WhatsApp dalam 24 jam. Tidak ada komitmen.
+          </div>
+        </form>
+      </details>
     </div>
   </div>
 

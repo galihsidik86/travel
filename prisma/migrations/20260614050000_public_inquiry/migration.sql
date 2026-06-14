@@ -1,0 +1,25 @@
+-- Stage 289 — public inquiry from /p/:slug. Pre-lead capture surface.
+CREATE TABLE `PublicInquiry` (
+  `id`               VARCHAR(191) NOT NULL,
+  `paketSlug`        VARCHAR(190) NULL,
+  `agentSlug`        VARCHAR(190) NULL,
+  `fullName`         VARCHAR(190) NOT NULL,
+  `phone`            VARCHAR(30)  NOT NULL,
+  `email`            VARCHAR(190) NULL,
+  `message`          TEXT NULL,
+  `status`           ENUM('NEW', 'CONTACTED', 'CONVERTED', 'ARCHIVED') NOT NULL DEFAULT 'NEW',
+  `ip`               VARCHAR(64) NULL,
+  `userAgent`        TEXT NULL,
+  `convertedLeadId`  VARCHAR(191) NULL,
+  `convertedAt`      DATETIME(3) NULL,
+  `archivedAt`       DATETIME(3) NULL,
+  `archivedReason`   VARCHAR(500) NULL,
+  `createdAt`        DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt`        DATETIME(3) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `PublicInquiry_convertedLeadId_key` (`convertedLeadId`),
+  KEY `PublicInquiry_status_createdAt_idx` (`status`, `createdAt`),
+  KEY `PublicInquiry_paketSlug_idx` (`paketSlug`),
+  KEY `PublicInquiry_agentSlug_idx` (`agentSlug`),
+  KEY `PublicInquiry_phone_idx` (`phone`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
