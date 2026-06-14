@@ -100,6 +100,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-installment-overdue-digest': 24 * 60 * 60_000, // daily (Stage 272)
   'send-doc-verify-sla': 24 * 60 * 60_000, // daily (Stage 276)
   'send-inquiry-sla': 24 * 60 * 60_000, // daily (Stage 291)
+  'send-post-departure-reengage': 24 * 60 * 60_000, // daily (Stage 293)
   'send-crew-daily-report-reminder': 24 * 60 * 60_000, // daily evening (Stage 279)
   'send-crew-daily-report-missed': 24 * 60 * 60_000, // daily morning (Stage 279)
   'auto-publish-paket': 24 * 60 * 60_000, // daily (Stage 227)

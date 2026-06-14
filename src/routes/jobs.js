@@ -414,6 +414,16 @@ router.post(
   }),
 );
 
+// Stage 293 — daily ~30d post-departure re-engagement nudge
+router.post(
+  '/send-post-departure-reengage',
+  asyncHandler(async (_req, res) => {
+    const { sendPostDepartureReengage } = await import('../services/postDepartureReengage.js');
+    const result = await runJob('send-post-departure-reengage', () => sendPostDepartureReengage({}));
+    res.json(result);
+  }),
+);
+
 // Stage 291 — daily admin digest of stale inquiries
 router.post(
   '/send-inquiry-sla',

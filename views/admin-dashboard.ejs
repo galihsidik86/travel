@@ -2498,6 +2498,51 @@
         </div>
       <% } %>
 
+      <!-- Stage 294 — returning customer rollup (last 6 months) -->
+      <% if (typeof returningRollup !== 'undefined' && returningRollup && returningRollup.sampleSize > 0) {
+           const tr = returningRollup.total;
+           const tone = tr.ratePct == null ? 'var(--ink-300)'
+             : tr.ratePct >= 30 ? 'var(--emerald)'
+             : tr.ratePct >= 15 ? 'var(--gold-300)'
+             : 'var(--ruby)';
+      %>
+        <div class="panel" style="margin-top:16px;border-left:3px solid <%= tone %>;">
+          <div class="panel__head">
+            <h3>🌟 Returning customer (6 bulan)</h3>
+            <span class="meta">
+              <%= tr.repeat %> / <%= tr.lunas %> LUNAS ·
+              <strong style="color:<%= tone %>;"><%= tr.ratePct == null ? '—' : tr.ratePct + '%' %></strong> repeat rate
+            </span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;margin-top:8px;font-family:var(--font-mono);font-size:11.5px;">
+            <thead><tr style="border-bottom:1px solid var(--hairline-soft);">
+              <th style="text-align:left;padding:6px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;">Bulan</th>
+              <th style="text-align:right;padding:6px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;">LUNAS</th>
+              <th style="text-align:right;padding:6px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;">Repeat</th>
+              <th style="text-align:right;padding:6px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;">Rate</th>
+            </tr></thead>
+            <tbody>
+              <% returningRollup.months.forEach(function(m) {
+                   const mTone = m.repeatRatePct == null ? 'var(--ink-300)'
+                     : m.repeatRatePct >= 30 ? 'var(--emerald)'
+                     : m.repeatRatePct >= 15 ? 'var(--gold-300)'
+                     : (m.totalLunas > 0 ? 'var(--ruby)' : 'var(--ink-300)');
+              %>
+                <tr style="border-bottom:1px solid var(--hairline-soft);">
+                  <td style="padding:6px;color:var(--cream-100);"><%= m.label %></td>
+                  <td style="padding:6px;color:var(--cream-100);text-align:right;"><%= m.totalLunas %></td>
+                  <td style="padding:6px;color:var(--cream-100);text-align:right;"><%= m.repeatLunas %></td>
+                  <td style="padding:6px;color:<%= mTone %>;text-align:right;font-weight:600;"><%= m.repeatRatePct == null ? '—' : m.repeatRatePct + '%' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <div style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
+            Repeat = jemaah dengan ≥1 LUNAS booking sebelum bulan ini. Diukur via createdAt (kapan re-book).
+          </div>
+        </div>
+      <% } %>
+
       <!-- Stage 285 — add-on revenue tally -->
       <% if (typeof addonRevenue !== 'undefined' && addonRevenue && addonRevenue.totals.attachCount > 0) { %>
         <div class="panel" style="margin-top:16px;border-left:3px solid var(--gold-300);">

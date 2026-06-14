@@ -43,6 +43,7 @@
     "job:send-installment-overdue-digest": "node --env-file-if-exists=.env src/jobs/send-installment-overdue-digest.js",
     "job:send-doc-verify-sla": "node --env-file-if-exists=.env src/jobs/send-doc-verify-sla.js",
     "job:send-inquiry-sla": "node --env-file-if-exists=.env src/jobs/send-inquiry-sla.js",
+    "job:send-post-departure-reengage": "node --env-file-if-exists=.env src/jobs/send-post-departure-reengage.js",
     "job:send-crew-daily-report-reminder": "node --env-file-if-exists=.env src/jobs/send-crew-daily-report-reminder.js",
     "job:send-crew-daily-report-missed": "node --env-file-if-exists=.env src/jobs/send-crew-daily-report-missed.js",
     "job:send-doc-expiring": "node --env-file-if-exists=.env src/jobs/send-doc-expiring.js",

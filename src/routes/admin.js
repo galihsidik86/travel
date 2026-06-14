@@ -52,6 +52,17 @@ router.get(
     const manifestTag = (req.query.manifestTag || '').toString();
     // Stage 258 — group filter on manifest tab
     const manifestGroup = (req.query.manifestGroup || '').toString();
+    // Stage 294 — returning customer rollup (best-effort)
+    const returningRollupPromise = (async () => {
+      try {
+        const { getReturningCustomerRollup } = await import('../services/returningCustomerRollup.js');
+        return await getReturningCustomerRollup({ months: 6 });
+      } catch (err) {
+        console.warn('[admin] returning rollup failed:', err?.message || err);
+        return null;
+      }
+    })();
+
     // Stage 285 — add-on revenue rollup (best-effort)
     const addonRevenuePromise = (async () => {
       try {
@@ -84,7 +95,7 @@ router.get(
         return null;
       }
     })();
-    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention, crewReportTally, addonRevenue] = await Promise.all([
+    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention, crewReportTally, addonRevenue, returningRollup] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
@@ -99,6 +110,7 @@ router.get(
       groupAttentionPromise,
       crewReportTallyPromise,
       addonRevenuePromise,
+      returningRollupPromise,
     ]);
     // Destructure last entry — slightly less idiomatic but keeps the
     // Promise.all positional argument list intact.
@@ -153,6 +165,7 @@ router.get(
       groupAttention,
       crewReportTally,
       addonRevenue,
+      returningRollup,
       activeTab: req.query.tab || 'overview',
       range,
     });

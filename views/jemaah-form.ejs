@@ -446,6 +446,79 @@
     </div>
   </div>
 
+  <%# Stage 292 — lifetime panel. Surfaces all past bookings + lifetime
+      totals + repeat-customer flag. Hidden when jemaah has zero bookings. %>
+  <% if (typeof lifetime !== 'undefined' && lifetime && lifetime.bookings.length > 0) { %>
+    <div class="panel" style="margin-top:24px;border-left:3px solid <%= lifetime.repeatFlag ? 'var(--emerald)' : 'var(--gold-300)' %>;">
+      <h3 style="color:<%= lifetime.repeatFlag ? 'var(--emerald)' : 'var(--gold-300)' %>;">
+        <%= lifetime.repeatFlag ? '🌟 Repeat customer' : '📊 Lifetime' %>
+        <% if (lifetime.repeatFlag) { %>
+          <span style="font-size:11px;font-family:var(--font-mono);background:rgba(80,176,113,0.15);padding:3px 8px;border-radius:3px;letter-spacing:0.08em;margin-left:8px;">≥2 LUNAS</span>
+        <% } %>
+      </h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0;border:1px solid var(--hairline-soft);border-radius:var(--r-sm);overflow:hidden;margin-bottom:14px;">
+        <div style="padding:12px 14px;background:var(--ink-900);border-right:1px solid var(--hairline-soft);">
+          <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">Trip total</div>
+          <div style="font-family:var(--font-mono);font-size:18px;color:var(--cream-100);margin-top:4px;font-weight:600;"><%= lifetime.totals.tripCount %></div>
+        </div>
+        <div style="padding:12px 14px;background:var(--ink-900);border-right:1px solid var(--hairline-soft);">
+          <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">LUNAS</div>
+          <div style="font-family:var(--font-mono);font-size:18px;color:var(--emerald);margin-top:4px;font-weight:600;"><%= lifetime.totals.lunasCount %></div>
+        </div>
+        <div style="padding:12px 14px;background:var(--ink-900);border-right:1px solid var(--hairline-soft);">
+          <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">Aktif</div>
+          <div style="font-family:var(--font-mono);font-size:18px;color:var(--gold-300);margin-top:4px;font-weight:600;"><%= lifetime.totals.activeCount %></div>
+        </div>
+        <div style="padding:12px 14px;background:var(--ink-900);border-right:1px solid var(--hairline-soft);">
+          <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">Cancelled</div>
+          <div style="font-family:var(--font-mono);font-size:18px;color:<%= lifetime.totals.cancelledCount > 0 ? 'var(--ruby)' : 'var(--ink-300)' %>;margin-top:4px;font-weight:600;"><%= lifetime.totals.cancelledCount %></div>
+        </div>
+        <div style="padding:12px 14px;background:var(--ink-900);">
+          <div style="font-family:var(--font-mono);font-size:9.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">Revenue LUNAS</div>
+          <div style="font-family:var(--font-mono);font-size:16px;color:var(--gold-300);margin-top:4px;font-weight:600;">Rp <%= fmt.rpShort(lifetime.totals.lifetimeRevenueIdr) %></div>
+        </div>
+      </div>
+      <h4 style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;margin:0 0 8px;">Riwayat booking</h4>
+      <table class="tbl">
+        <thead><tr>
+          <th>Booking</th><th>Paket</th><th>Berangkat</th><th>Status</th><th>Agen</th><th style="text-align:right;">Total</th>
+        </tr></thead>
+        <tbody>
+          <% lifetime.bookings.slice(0, 20).forEach(function(b) {
+               const status = b.status;
+               const tone = status === 'LUNAS' ? 'var(--emerald)' : (status === 'CANCELLED' || status === 'REFUNDED' ? 'var(--ruby)' : 'var(--gold-300)');
+          %>
+            <tr>
+              <td><a href="/admin/bookings/<%= b.id %>" style="color:var(--gold-300);text-decoration:none;font-family:var(--font-mono);"><%= b.bookingNo %></a></td>
+              <td><%= b.paket?.title || '—' %></td>
+              <td style="font-family:var(--font-mono);font-size:11px;"><%= b.paket?.departureDate ? b.paket.departureDate.toISOString().slice(0,10) : '—' %></td>
+              <td><span style="font-family:var(--font-mono);font-size:10px;padding:2px 7px;border:1px solid <%= tone %>;color:<%= tone %>;border-radius:3px;letter-spacing:0.08em;"><%= status %></span></td>
+              <td><%= b.agent?.displayName || 'Kantor Pusat' %></td>
+              <td style="text-align:right;font-family:var(--font-mono);"><%= fmt.rpShort(Number(b.totalAmount.toString()) || 0) %></td>
+            </tr>
+          <% }) %>
+          <% if (lifetime.bookings.length > 20) { %>
+            <tr><td colspan="6" style="text-align:center;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">+ <%= lifetime.bookings.length - 20 %> booking lainnya</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+      <% if (lifetime.siblingProfiles.length > 0) { %>
+        <div style="margin-top:14px;padding:10px 12px;background:rgba(212,175,55,0.04);border:1px solid var(--hairline-soft);border-left:2px solid var(--gold-300);border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+          <strong style="color:var(--gold-300);">⚠ <%= lifetime.siblingProfiles.length %> profil lain dengan telepon sama:</strong>
+          <ul style="margin:6px 0 0 18px;padding:0;color:var(--cream-100);">
+            <% lifetime.siblingProfiles.forEach(function(s) { %>
+              <li>
+                <a href="/admin/jemaah/<%= s.id %>/edit" style="color:var(--gold-300);text-decoration:none;"><%= s.fullName %></a>
+                · <%= s._count.bookings %> booking
+              </li>
+            <% }) %>
+          </ul>
+          <div style="margin-top:6px;color:var(--ink-200);font-size:10px;">Kemungkinan duplikat dari booking anonim pra-claim — jika satu orang, gunakan flow /saya/claim untuk merge.</div>
+        </div>
+      <% } %>
+    </div>
+  <% } %>
+
   <!-- Stage 59 — archived-lead reactivation hint. Surfaces prior CRM
        conversations that S57 auto-archived out of the agent's pipeline. -->
   <% if (typeof archivedLeads !== 'undefined' && archivedLeads.length > 0) { %>

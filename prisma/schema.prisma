@@ -168,6 +168,7 @@ enum NotificationType {
   CREW_DAILY_REPORT_REMINDER // evening WA nudge to crew who haven't submitted today's report (Stage 279)
   CREW_DAILY_REPORT_MISSED_ADMIN // morning email to admin listing crew who missed yesterday's report (Stage 279)
   BOOKING_HANDOVER // admin transferred booking to a new jemaah → notif to both old and new (Stage 281)
+  POST_DEPARTURE_REENGAGE // ~30d after trip return, WA/email nudge to LUNAS jemaah inviting them back (Stage 293)
   GENERIC // catch-all for ad-hoc notifs
 }
 

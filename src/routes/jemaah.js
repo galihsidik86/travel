@@ -83,11 +83,20 @@ router.get(
         });
       }
     }
+    // Stage 292 — lifetime panel (best-effort)
+    let lifetime = null;
+    try {
+      const { getJemaahLifetime } = await import('../services/jemaahLifetime.js');
+      lifetime = await getJemaahLifetime(jemaah.id);
+    } catch (err) {
+      console.warn('[jemaah-edit] lifetime load failed:', err?.message || err);
+    }
     res.render('jemaah-form', {
       user: req.user, target: flat,
       errors: {}, formError: null, META,
       DOC_TYPES, DOC_STATUSES, DOC_PILL,
       archivedLeads,
+      lifetime,
     });
   }),
 );
