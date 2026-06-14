@@ -165,6 +165,8 @@ enum NotificationType {
   PICKUP_REMINDER // jemaah on near-departure paket with no pickup chosen → email + WA (Stage 219)
   INSTALLMENT_OVERDUE_ADMIN // daily digest of bookings with overdue installment(s) → OWNER+SUPERADMIN+MANAJER_OPS (Stage 272)
   DOC_VERIFY_SLA_ADMIN // daily digest of SUBMITTED docs > 48h awaiting verify → OWNER+SUPERADMIN+MANAJER_OPS (Stage 276)
+  CREW_DAILY_REPORT_REMINDER // evening WA nudge to crew who haven't submitted today's report (Stage 279)
+  CREW_DAILY_REPORT_MISSED_ADMIN // morning email to admin listing crew who missed yesterday's report (Stage 279)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -285,6 +287,7 @@ model User {
   payoutsPaid       KomisiPayout[]     @relation("PayoutPaidBy")
   crewAssignments   PaketCrew[]        @relation("CrewAssignedToPaket")
   attendanceMarks   AttendanceMark[]   @relation("AttendanceMarkedBy")
+  crewDailyReports  CrewDailyReport[]  @relation("CrewDailyReport_crew")
   crewJemaahNotes   CrewJemaahNote[]   @relation("CrewJemaahNoteAuthor")
   paketAnnouncements PaketAnnouncement[] @relation("PaketAnnouncementAuthor")
   incidentsCreated  Incident[]         @relation("IncidentCreator")
@@ -597,6 +600,7 @@ model Paket {
   rooms           Room[]
   crewAssignments PaketCrew[]
   crewJemaahNotes CrewJemaahNote[]
+  crewDailyReports CrewDailyReport[]
   incidents       Incident[]
   agentOverrides  AgentPaketKomisi[]
   waitlist        PaketWaitlist[]
@@ -1174,6 +1178,42 @@ model AttendanceMark {
   @@unique([bookingId, paketDayId])
   @@index([paketDayId])
   @@index([bookingId])
+}
+
+// ─── Crew daily reports ──────────────────────────────────────
+//
+// Stage 277 — assigned MUTHAWWIF submits one daily report per
+// (paket, crew, reportDate). Composite-unique so re-submit upserts
+// the same row rather than stacking duplicates. Body is a free-text
+// summary of the day; mood is a coarse traffic-light signal
+// (GREEN/AMBER/RED) so admin sees overall trip health at a glance.
+//
+// dayNumber is denormalised from PaketDay for sorting/display only —
+// not a FK; some paket may have variable-day schedules where the
+// day-N concept doesn't map cleanly. Optional.
+enum CrewReportMood {
+  GREEN  // semua lancar
+  AMBER  // ada gangguan kecil
+  RED    // ada masalah serius (escalate via SOS too)
+}
+
+model CrewDailyReport {
+  id          String         @id @default(cuid())
+  paketId     String
+  paket       Paket          @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  crewUserId  String
+  crewUser    User           @relation("CrewDailyReport_crew", fields: [crewUserId], references: [id], onDelete: Cascade)
+  reportDate  DateTime       @db.Date
+  dayNumber   Int? // optional: day N of the trip (denormalised, no FK)
+  mood        CrewReportMood @default(GREEN)
+  body        String         @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([paketId, crewUserId, reportDate])
+  @@index([paketId, reportDate])
+  @@index([crewUserId, reportDate])
 }
 
 // ─── Crew incidents (SOS / emergency alerts) ────────────────

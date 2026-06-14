@@ -2495,6 +2495,41 @@
         </div>
       <% } %>
 
+      <!-- Stage 278 — crew daily report tally (last 7d) -->
+      <% if (typeof crewReportTally !== 'undefined' && crewReportTally && crewReportTally.total > 0) {
+           const red = crewReportTally.tally.RED || 0;
+           const amber = crewReportTally.tally.AMBER || 0;
+           const green = crewReportTally.tally.GREEN || 0;
+      %>
+        <div class="panel" style="margin-top:16px;border-left:3px solid <%= red > 0 ? 'var(--ruby)' : (amber > 0 ? 'var(--gold-300)' : 'var(--emerald)') %>;">
+          <div class="panel__head">
+            <h3>📝 Laporan crew (<%= crewReportTally.days %> hari terakhir)</h3>
+            <span class="meta">
+              <%= crewReportTally.total %> laporan
+            </span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;margin-top:6px;">
+            <div style="padding:14px 16px;background:rgba(80,176,113,0.06);border:1px solid var(--emerald);border-radius:var(--r-sm);text-align:center;">
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--emerald);letter-spacing:0.1em;text-transform:uppercase;">🟢 Lancar</div>
+              <div style="font-family:var(--font-mono);font-size:26px;color:var(--cream-100);font-weight:600;margin-top:6px;"><%= green %></div>
+            </div>
+            <div style="padding:14px 16px;background:rgba(212,175,55,0.06);border:1px solid <%= amber > 0 ? 'var(--gold-300)' : 'var(--hairline-soft)' %>;border-radius:var(--r-sm);text-align:center;">
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.1em;text-transform:uppercase;">🟡 Gangguan</div>
+              <div style="font-family:var(--font-mono);font-size:26px;color:var(--cream-100);font-weight:600;margin-top:6px;"><%= amber %></div>
+            </div>
+            <div style="padding:14px 16px;background:rgba(212,89,89,0.06);border:1px solid <%= red > 0 ? 'var(--ruby)' : 'var(--hairline-soft)' %>;border-radius:var(--r-sm);text-align:center;">
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--ruby);letter-spacing:0.1em;text-transform:uppercase;">🔴 Bermasalah</div>
+              <div style="font-family:var(--font-mono);font-size:26px;color:<%= red > 0 ? 'var(--ruby)' : 'var(--cream-100)' %>;font-weight:600;margin-top:6px;"><%= red %></div>
+            </div>
+          </div>
+          <% if (red > 0) { %>
+            <div style="margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--ruby);">
+              ⚠ Buka halaman paket-edit untuk membaca laporan 🔴 dan tindaklanjuti.
+            </div>
+          <% } %>
+        </div>
+      <% } %>
+
       <!-- Stage 263 — group needs-attention rollup -->
       <% if (typeof groupAttention !== 'undefined' && groupAttention && groupAttention.rows.length > 0) { %>
         <div class="panel" style="margin-top:16px;border-left:3px solid var(--amber);">

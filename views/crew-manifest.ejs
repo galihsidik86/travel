@@ -151,6 +151,73 @@
     </div>
   <% } %>
 
+  <%# Stage 277 — daily report submit + recent history (this crew's only). %>
+  <% const todayYmd = new Date().toISOString().slice(0, 10);
+     const latestReport = (typeof myReports !== 'undefined' && myReports.length > 0) ? myReports[0] : null;
+     const submittedToday = latestReport && latestReport.reportDate.toISOString().slice(0, 10) === todayYmd;
+     const okFlag = (typeof query !== 'undefined' && query?.ok) || null;
+     const errFlag = (typeof query !== 'undefined' && query?.err) || null;
+  %>
+  <div class="panel" style="margin-bottom:18px;padding:0;border:1px solid var(--hairline);background:rgba(255,255,255,0.02);border-radius:var(--r-sm);overflow:hidden;">
+    <div style="padding:10px 16px;background:rgba(255,255,255,0.03);border-bottom:1px solid var(--hairline);display:flex;justify-content:space-between;align-items:center;gap:14px;">
+      <strong style="font-family:var(--font-display);color:var(--gold-300);font-size:14px;">📝 Laporan harian</strong>
+      <% if (submittedToday) { %>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--emerald);letter-spacing:0.1em;">✓ HARI INI TERKIRIM</span>
+      <% } else { %>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--amber);letter-spacing:0.1em;">⏱ HARI INI BELUM</span>
+      <% } %>
+    </div>
+    <div style="padding:14px 16px;">
+      <% if (okFlag === 'report') { %>
+        <div style="margin-bottom:10px;padding:6px 10px;background:rgba(80,176,113,0.10);border:1px solid var(--emerald);color:var(--emerald);border-radius:3px;font-family:var(--font-mono);font-size:11px;">✓ Laporan tersimpan</div>
+      <% } %>
+      <% if (errFlag) { %>
+        <div style="margin-bottom:10px;padding:6px 10px;background:rgba(212,89,89,0.10);border:1px solid var(--ruby);color:var(--ruby);border-radius:3px;font-family:var(--font-mono);font-size:11px;">✕ <%= errFlag %></div>
+      <% } %>
+      <form method="POST" action="/crew/paket/<%= paket.slug %>/report">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          <label style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;">Mood:</label>
+          <label style="font-family:var(--font-mono);font-size:11px;cursor:pointer;"><input type="radio" name="mood" value="GREEN" checked> <span style="color:var(--emerald);">🟢 Lancar</span></label>
+          <label style="font-family:var(--font-mono);font-size:11px;cursor:pointer;"><input type="radio" name="mood" value="AMBER"> <span style="color:var(--gold-300);">🟡 Ada gangguan</span></label>
+          <label style="font-family:var(--font-mono);font-size:11px;cursor:pointer;"><input type="radio" name="mood" value="RED"> <span style="color:var(--ruby);">🔴 Bermasalah</span></label>
+        </div>
+        <textarea name="body" rows="4" minlength="5" maxlength="4000" required
+                  placeholder="Ringkasan hari ini: kegiatan, kondisi jemaah, masalah, hand-over ke shift berikutnya..."
+                  style="width:100%;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:8px 12px;border-radius:3px;font-family:var(--font-mono);font-size:12px;box-sizing:border-box;line-height:1.5;"></textarea>
+        <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);">
+            <% if (submittedToday) { %>
+              Re-submit akan menimpa laporan hari ini.
+            <% } else { %>
+              Satu laporan per hari per paket.
+            <% } %>
+          </span>
+          <button type="submit" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:6px 16px;border-radius:3px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">Kirim laporan</button>
+        </div>
+      </form>
+      <% if (typeof myReports !== 'undefined' && myReports.length > 0) { %>
+        <details style="margin-top:14px;">
+          <summary style="cursor:pointer;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.1em;">RIWAYAT (<%= myReports.length %>)</summary>
+          <div style="margin-top:8px;">
+            <% myReports.forEach(function(r) {
+                 const moodColor = r.mood === 'RED' ? 'var(--ruby)' : (r.mood === 'AMBER' ? 'var(--gold-300)' : 'var(--emerald)');
+                 const moodIcon = r.mood === 'RED' ? '🔴' : (r.mood === 'AMBER' ? '🟡' : '🟢');
+            %>
+              <div style="padding:8px 10px;margin-bottom:6px;background:var(--ink-1000);border-left:2px solid <%= moodColor %>;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:4px;">
+                  <span style="color:var(--cream-100);font-weight:600;"><%= r.reportDate.toISOString().slice(0,10) %><% if (r.dayNumber) { %> · H<%= r.dayNumber %><% } %></span>
+                  <span style="color:<%= moodColor %>;font-size:10px;"><%= moodIcon %> <%= r.mood %></span>
+                </div>
+                <div style="color:var(--cream-100);line-height:1.5;white-space:pre-wrap;"><%= r.body %></div>
+              </div>
+            <% }) %>
+          </div>
+        </details>
+      <% } %>
+    </div>
+  </div>
+
   <%# Stage 214 — dietary brief panel for hotel/kitchen handoff. Only
       renders when there's ≥1 non-REGULAR jemaah; quiet trips skip the
       panel entirely. Mirrors the S213 email layout so crew see the

@@ -1310,6 +1310,41 @@
       </div>
     <% } %>
 
+    <!-- ====== Crew daily reports (stage 278) — read-only panel ====== -->
+    <% if (mode === 'edit' && typeof crewReports !== 'undefined' && Array.isArray(crewReports)) { %>
+      <div class="panel">
+        <h3>Laporan harian crew</h3>
+        <p class="sub">Crew submit dari <code>/crew/paket/<%= paket.slug %></code>. Mood 🔴 = perlu perhatian segera.</p>
+        <% if (crewReports.length === 0) { %>
+          <div style="padding:14px;border:1px dashed var(--ink-500);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">
+            Belum ada laporan harian dari crew.
+          </div>
+        <% } else { %>
+          <div style="display:flex;flex-direction:column;gap:8px;max-height:480px;overflow-y:auto;">
+            <% crewReports.forEach(function(r) {
+                 const moodColor = r.mood === 'RED' ? 'var(--ruby)' : (r.mood === 'AMBER' ? 'var(--gold-300)' : 'var(--emerald)');
+                 const moodIcon = r.mood === 'RED' ? '🔴' : (r.mood === 'AMBER' ? '🟡' : '🟢');
+            %>
+              <div style="padding:10px 14px;background:var(--ink-1000);border-left:3px solid <%= moodColor %>;border-radius:3px;font-family:var(--font-mono);font-size:11.5px;">
+                <div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:6px;">
+                  <span style="color:var(--cream-100);">
+                    <strong><%= r.reportDate.toISOString().slice(0,10) %></strong>
+                    <% if (r.dayNumber) { %> · H<%= r.dayNumber %><% } %>
+                    · <span style="color:var(--ink-200);"><%= r.crewUser.fullName %></span>
+                  </span>
+                  <span style="color:<%= moodColor %>;font-size:10px;letter-spacing:0.08em;"><%= moodIcon %> <%= r.mood %></span>
+                </div>
+                <div style="color:var(--cream-100);line-height:1.55;white-space:pre-wrap;"><%= r.body %></div>
+                <% if (r.updatedAt > r.createdAt) { %>
+                  <div style="margin-top:4px;font-size:9.5px;color:var(--ink-300);">diedit <%= fmt.dateLong(r.updatedAt) %></div>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
+
     <!-- ====== Per-agent komisi override (stage 14) ====== -->
     <% if (mode === 'edit' && Array.isArray(availableAgents)) { %>
       <div class="panel">

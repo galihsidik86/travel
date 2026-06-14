@@ -52,6 +52,17 @@ router.get(
     const manifestTag = (req.query.manifestTag || '').toString();
     // Stage 258 — group filter on manifest tab
     const manifestGroup = (req.query.manifestGroup || '').toString();
+    // Stage 278 — recent crew report tally for the overview manifest tab
+    const crewReportTallyPromise = (async () => {
+      try {
+        const { getRecentReportTally } = await import('../services/crewDailyReport.js');
+        return await getRecentReportTally({ days: 7 });
+      } catch (err) {
+        console.warn('[admin] crew report tally failed:', err?.message || err);
+        return null;
+      }
+    })();
+
     // Stage 263 — group needs-attention rollup (best-effort)
     const groupAttentionPromise = (async () => {
       try {
@@ -62,7 +73,7 @@ router.get(
         return null;
       }
     })();
-    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention] = await Promise.all([
+    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention, crewReportTally] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
@@ -75,7 +86,10 @@ router.get(
       getAllAgentsCommissionForecast({ windowDays: 90 })
         .catch((err) => { console.warn('[admin] network forecast failed:', err?.message || err); return null; }),
       groupAttentionPromise,
+      crewReportTallyPromise,
     ]);
+    // Destructure last entry — slightly less idiomatic but keeps the
+    // Promise.all positional argument list intact.
     // Stage 205 — apply pickup filter to a shallow copy so the raw
     // bookings array stays available for the summary panel. Stage 215
     // composes the dietary filter on top of the pickup filter; S229
@@ -125,6 +139,7 @@ router.get(
       myTasks,
       networkForecast,
       groupAttention,
+      crewReportTally,
       activeTab: req.query.tab || 'overview',
       range,
     });

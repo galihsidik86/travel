@@ -424,6 +424,26 @@ router.post(
   }),
 );
 
+// Stage 279 — evening WA reminder to in-trip crew who haven't submitted today
+router.post(
+  '/send-crew-daily-report-reminder',
+  asyncHandler(async (_req, res) => {
+    const { sendCrewDailyReportReminder } = await import('../services/crewDailyReportDigest.js');
+    const result = await runJob('send-crew-daily-report-reminder', () => sendCrewDailyReportReminder({}));
+    res.json(result);
+  }),
+);
+
+// Stage 279 — morning admin digest of yesterday's missed crew reports
+router.post(
+  '/send-crew-daily-report-missed',
+  asyncHandler(async (_req, res) => {
+    const { sendCrewDailyReportMissedAdmin } = await import('../services/crewDailyReportDigest.js');
+    const result = await runJob('send-crew-daily-report-missed', () => sendCrewDailyReportMissedAdmin({}));
+    res.json(result);
+  }),
+);
+
 // Stage 227 — auto-publish DRAFT paket whose publishedAt has elapsed
 router.post(
   '/auto-publish-paket',

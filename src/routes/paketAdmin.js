@@ -237,7 +237,9 @@ router.get(
     const { listFaqs } = await import('../services/paketFaqs.js');
     // Stage 196 — pickup points
     const { listPickups } = await import('../services/paketPickups.js');
-    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks, faqs, pickups] = await Promise.all([
+    // Stage 278 — recent crew daily reports for admin visibility
+    const { listPaketReports } = await import('../services/crewDailyReport.js');
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks, faqs, pickups, crewReportsBundle] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
       db.agentProfile.findMany({
@@ -254,6 +256,8 @@ router.get(
       getCostBenchmarks({ paketId: paket.id }),
       listFaqs(paket.id),
       listPickups(paket.id),
+      listPaketReports({ paketSlug: req.params.slug, limit: 20 })
+        .catch((err) => { console.warn('[paket-edit] reports failed:', err?.message || err); return null; }),
     ]);
     res.render('paket-form', {
       user: req.user, mode: 'edit', paket: paketToForm(paket),
@@ -263,6 +267,7 @@ router.get(
       profitability, breakEven, abBreakdown, viewTrend,
       costLines, costCategories: COST_CATEGORIES, costCategoryLabel: getCategoryLabel,
       costBenchmarks, faqs, pickups,
+      crewReports: crewReportsBundle?.reports || [],
     });
   }),
 );

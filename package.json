@@ -42,6 +42,8 @@
     "job:send-payment-reminder": "node --env-file-if-exists=.env src/jobs/send-payment-reminder.js",
     "job:send-installment-overdue-digest": "node --env-file-if-exists=.env src/jobs/send-installment-overdue-digest.js",
     "job:send-doc-verify-sla": "node --env-file-if-exists=.env src/jobs/send-doc-verify-sla.js",
+    "job:send-crew-daily-report-reminder": "node --env-file-if-exists=.env src/jobs/send-crew-daily-report-reminder.js",
+    "job:send-crew-daily-report-missed": "node --env-file-if-exists=.env src/jobs/send-crew-daily-report-missed.js",
     "job:send-doc-expiring": "node --env-file-if-exists=.env src/jobs/send-doc-expiring.js",
     "job:send-passport-renewal": "node --env-file-if-exists=.env src/jobs/send-passport-renewal.js",
     "job:send-crew-dietary-brief": "node --env-file-if-exists=.env src/jobs/send-crew-dietary-brief.js",

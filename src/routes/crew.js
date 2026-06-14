@@ -122,7 +122,38 @@ router.get(
     } catch (err) {
       console.warn('[crew-manifest] announcements load failed:', err?.message || err);
     }
-    res.render('crew-manifest', { user: req.user, paket: manifest, myNotesByJemaah, announcements });
+    // Stage 277 — surface this crew's recent daily reports
+    let myReports = [];
+    try {
+      const { listMyCrewReports } = await import('../services/crewDailyReport.js');
+      myReports = await listMyCrewReports({ userId: req.user.id, paketSlug: req.params.slug, limit: 10 });
+    } catch (err) {
+      console.warn('[crew-manifest] reports load failed:', err?.message || err);
+    }
+    res.render('crew-manifest', { user: req.user, paket: manifest, myNotesByJemaah, announcements, myReports, query: req.query });
+  }),
+);
+
+// Stage 277 — submit (or upsert) crew daily report
+router.post(
+  '/paket/:slug/report',
+  asyncHandler(async (req, res) => {
+    try {
+      const { submitCrewDailyReport } = await import('../services/crewDailyReport.js');
+      await submitCrewDailyReport({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        userId: req.user.id,
+        paketSlug: req.params.slug,
+        reportDate: req.body?.reportDate || null, // default = today
+        body: req.body?.body || '',
+        mood: req.body?.mood || 'GREEN',
+      });
+      res.redirect(`/crew/paket/${req.params.slug}?ok=report`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal simpan laporan';
+      res.redirect(`/crew/paket/${req.params.slug}?err=${encodeURIComponent(msg)}`);
+    }
   }),
 );
 
