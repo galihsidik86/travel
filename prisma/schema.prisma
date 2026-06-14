@@ -611,6 +611,7 @@ model Paket {
   faqs            PaketFaq[]
   announcements   PaketAnnouncement[]
   pickups         PaketPickup[]
+  addons          PaketAddon[]
   webhooks        Webhook[]          @relation("WebhookPaket")
 
   @@index([slug])
@@ -1427,6 +1428,7 @@ model Booking {
   attendanceMarks AttendanceMark[]
   mentions        BookingMention[]
   tasks           Task[]
+  addons          BookingAddon[]
 
   @@index([paketId])
   @@index([agentId])
@@ -1863,6 +1865,48 @@ model PaketPickup {
   bookings   Booking[]
 
   @@index([paketId])
+}
+
+// Stage 283 — per-paket add-on catalog. Admin curates optional extras
+// like "Extra baggage 30kg", "Room upgrade", "Optional ziarah Madinah".
+// Each booking can attach 0..N add-ons (S284 BookingAddon); price is
+// snapshotted at attach time so catalog edits don't retroactively
+// affect existing bookings.
+model PaketAddon {
+  id        String   @id @default(cuid())
+  paketId   String
+  paket     Paket    @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  name      String   @db.VarChar(120)
+  priceIdr  Decimal  @db.Decimal(15, 2)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookingAddons BookingAddon[]
+
+  @@index([paketId, isActive])
+}
+
+// Stage 284 — per-booking add-on attachment. Quantity defaults to 1
+// (most add-ons are "buy once"); price is captured at attach time so
+// catalog mutations don't affect committed bookings. Removing an add-on
+// (admin "× remove" button) deletes the row + decrements Booking.totalAmount
+// in the same transaction. PaketAddon SetNull keeps history when catalog
+// row is later removed.
+model BookingAddon {
+  id               String      @id @default(cuid())
+  bookingId        String
+  booking          Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  addonId          String?
+  addon            PaketAddon? @relation(fields: [addonId], references: [id], onDelete: SetNull)
+  nameSnapshot     String      @db.VarChar(120)
+  priceIdrSnapshot Decimal     @db.Decimal(15, 2)
+  quantity         Int         @default(1)
+  createdAt        DateTime    @default(now())
+  createdByEmail   String?     @db.VarChar(190)
+
+  @@index([bookingId])
 }
 
 // Stage 192 — per-paket announcement banner. Admin posts; renders on

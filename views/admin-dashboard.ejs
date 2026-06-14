@@ -2495,6 +2495,43 @@
         </div>
       <% } %>
 
+      <!-- Stage 285 — add-on revenue tally -->
+      <% if (typeof addonRevenue !== 'undefined' && addonRevenue && addonRevenue.totals.attachCount > 0) { %>
+        <div class="panel" style="margin-top:16px;border-left:3px solid var(--gold-300);">
+          <div class="panel__head">
+            <h3>🧳 Add-on revenue</h3>
+            <span class="meta">
+              <%= addonRevenue.totals.attachCount %> attachment ·
+              <%= addonRevenue.totals.totalQuantity %> qty ·
+              <strong style="color:var(--gold-300);">Rp <%= fmt.rpShort(addonRevenue.totals.revenueIdr) %></strong>
+            </span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;margin-top:8px;font-family:var(--font-mono);font-size:11.5px;">
+            <thead><tr style="border-bottom:1px solid var(--hairline-soft);">
+              <th style="text-align:left;padding:6px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;">Nama</th>
+              <th style="text-align:right;padding:6px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;">Booking</th>
+              <th style="text-align:right;padding:6px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;">Qty</th>
+              <th style="text-align:right;padding:6px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;">Paket</th>
+              <th style="text-align:right;padding:6px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;">Revenue</th>
+            </tr></thead>
+            <tbody>
+              <% addonRevenue.rows.slice(0, 10).forEach(function(r) { %>
+                <tr style="border-bottom:1px solid var(--hairline-soft);">
+                  <td style="padding:6px;color:var(--cream-100);"><%= r.name %></td>
+                  <td style="padding:6px;color:var(--cream-100);text-align:right;"><%= r.attachCount %></td>
+                  <td style="padding:6px;color:var(--cream-100);text-align:right;"><%= r.totalQuantity %></td>
+                  <td style="padding:6px;color:var(--cream-100);text-align:right;"><%= r.paketCount %></td>
+                  <td style="padding:6px;color:var(--gold-300);text-align:right;font-weight:600;">Rp <%= fmt.rpShort(r.revenueIdr) %></td>
+                </tr>
+              <% }) %>
+              <% if (addonRevenue.rows.length > 10) { %>
+                <tr><td colspan="5" style="padding:6px;font-size:10px;color:var(--ink-300);">+ <%= addonRevenue.rows.length - 10 %> add-on lainnya…</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+
       <!-- Stage 278 — crew daily report tally (last 7d) -->
       <% if (typeof crewReportTally !== 'undefined' && crewReportTally && crewReportTally.total > 0) {
            const red = crewReportTally.tally.RED || 0;

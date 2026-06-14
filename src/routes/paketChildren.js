@@ -329,4 +329,36 @@ router.delete(
   }),
 );
 
+// ── Stage 283: Add-on catalog CRUD ───────────────────────────
+router.post(
+  '/:slug/addons',
+  asyncHandler(async (req, res) => {
+    const { createPaketAddon } = await import('../services/paketAddons.js');
+    const row = await createPaketAddon({
+      req, actor: actorFrom(req), paketSlug: req.params.slug, input: req.body,
+    });
+    res.status(201).json({ addon: row });
+  }),
+);
+router.patch(
+  '/:slug/addons/:id',
+  asyncHandler(async (req, res) => {
+    const { updatePaketAddon } = await import('../services/paketAddons.js');
+    const result = await updatePaketAddon({
+      req, actor: actorFrom(req), addonId: req.params.id, input: req.body,
+    });
+    res.json(result);
+  }),
+);
+router.delete(
+  '/:slug/addons/:id',
+  asyncHandler(async (req, res) => {
+    const { deletePaketAddon } = await import('../services/paketAddons.js');
+    const result = await deletePaketAddon({
+      req, actor: actorFrom(req), addonId: req.params.id,
+    });
+    res.json(result);
+  }),
+);
+
 export default router;

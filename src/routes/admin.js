@@ -52,6 +52,17 @@ router.get(
     const manifestTag = (req.query.manifestTag || '').toString();
     // Stage 258 — group filter on manifest tab
     const manifestGroup = (req.query.manifestGroup || '').toString();
+    // Stage 285 — add-on revenue rollup (best-effort)
+    const addonRevenuePromise = (async () => {
+      try {
+        const { getAddonRevenueRollup } = await import('../services/addonRevenue.js');
+        return await getAddonRevenueRollup();
+      } catch (err) {
+        console.warn('[admin] addon revenue rollup failed:', err?.message || err);
+        return null;
+      }
+    })();
+
     // Stage 278 — recent crew report tally for the overview manifest tab
     const crewReportTallyPromise = (async () => {
       try {
@@ -73,7 +84,7 @@ router.get(
         return null;
       }
     })();
-    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention, crewReportTally] = await Promise.all([
+    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention, crewReportTally, addonRevenue] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
@@ -87,6 +98,7 @@ router.get(
         .catch((err) => { console.warn('[admin] network forecast failed:', err?.message || err); return null; }),
       groupAttentionPromise,
       crewReportTallyPromise,
+      addonRevenuePromise,
     ]);
     // Destructure last entry — slightly less idiomatic but keeps the
     // Promise.all positional argument list intact.
@@ -140,6 +152,7 @@ router.get(
       networkForecast,
       groupAttention,
       crewReportTally,
+      addonRevenue,
       activeTab: req.query.tab || 'overview',
       range,
     });

@@ -407,6 +407,19 @@ router.get(
     } catch (err) {
       console.warn('[booking-detail] handover lineage failed:', err?.message || err);
     }
+    // Stage 284 — attached add-ons + paket catalog for the picker
+    let bookingAddons = [];
+    let addonCatalog = [];
+    try {
+      const { listBookingAddons } = await import('../services/bookingAddons.js');
+      const { listPaketAddons } = await import('../services/paketAddons.js');
+      [bookingAddons, addonCatalog] = await Promise.all([
+        listBookingAddons(booking.id),
+        listPaketAddons(booking.paketId, { activeOnly: true }),
+      ]);
+    } catch (err) {
+      console.warn('[booking-detail] addons load failed:', err?.message || err);
+    }
     res.render('booking-detail', {
       user: req.user, b: booking,
       canCancel, canRefund, canEditNotes, canTransfer, agents,
@@ -421,6 +434,8 @@ router.get(
       groupMeta,
       // Stage 282 — handover lineage
       handoverLineage,
+      // Stage 284 — booking add-ons + catalog
+      bookingAddons, addonCatalog,
     });
   }),
 );
@@ -570,6 +585,47 @@ router.post(
       res.redirect(`/admin/bookings/${result.booking.id}?ok=cloned&from=${encodeURIComponent(req.params.id)}`);
     } catch (err) {
       const msg = err?.message || 'Gagal clone booking';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 284 — attach an add-on to a booking. Form fields: addonId, quantity?
+router.post(
+  '/:id/addons/attach',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const { attachBookingAddon } = await import('../services/bookingAddons.js');
+      await attachBookingAddon({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id,
+        addonId: (req.body?.addonId || '').toString(),
+        quantity: req.body?.quantity ? Number(req.body.quantity) : 1,
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=addon_attached`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal attach add-on';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 284 — remove an attached add-on.
+router.post(
+  '/:id/addons/:bookingAddonId/remove',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const { removeBookingAddon } = await import('../services/bookingAddons.js');
+      await removeBookingAddon({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id,
+        bookingAddonId: req.params.bookingAddonId,
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=addon_removed`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal remove add-on';
       res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
     }
   }),

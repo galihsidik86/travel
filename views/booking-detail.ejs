@@ -554,6 +554,69 @@
             </div>
           <% } %>
 
+          <%# Stage 284 — add-ons panel. Attached rows + picker. %>
+          <%
+            const baList = typeof bookingAddons !== 'undefined' && Array.isArray(bookingAddons) ? bookingAddons : [];
+            const baCatalog = typeof addonCatalog !== 'undefined' && Array.isArray(addonCatalog) ? addonCatalog : [];
+            const canSetAddon = canEditNotes && b.status !== 'CANCELLED' && b.status !== 'REFUNDED';
+            const addonRevenue = baList.reduce((acc, x) => acc + (Number(x.priceIdrSnapshot?.toString?.() ?? x.priceIdrSnapshot) || 0) * x.quantity, 0);
+          %>
+          <% if (baList.length > 0 || (canSetAddon && baCatalog.length > 0)) { %>
+            <div class="info-item" style="grid-column: 1/-1;">
+              <div class="l">Add-ons (<%= baList.length %> · <%= fmt.rpShort(addonRevenue) %>)</div>
+              <% if (baList.length > 0) { %>
+                <table style="width:100%;border-collapse:collapse;margin-top:6px;font-family:var(--font-mono);font-size:11px;">
+                  <thead><tr style="border-bottom:1px solid var(--hairline-soft);">
+                    <th style="text-align:left;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">NAMA</th>
+                    <th style="text-align:right;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">HARGA</th>
+                    <th style="text-align:right;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">QTY</th>
+                    <th style="text-align:right;padding:4px;color:var(--ink-200);font-weight:400;font-size:9.5px;letter-spacing:0.1em;">LINE</th>
+                    <% if (canSetAddon) { %><th style="width:24px;"></th><% } %>
+                  </tr></thead>
+                  <tbody>
+                    <% baList.forEach(function(x) {
+                         const lineTotal = (Number(x.priceIdrSnapshot?.toString?.() ?? x.priceIdrSnapshot) || 0) * x.quantity;
+                    %>
+                      <tr>
+                        <td style="padding:4px;color:var(--cream-100);"><%= x.nameSnapshot %><% if (x.addonId == null) { %> <span style="color:var(--ink-300);font-size:9.5px;">(dihapus dari katalog)</span><% } %></td>
+                        <td style="padding:4px;color:var(--cream-100);text-align:right;"><%= fmt.rpShort(Number(x.priceIdrSnapshot?.toString?.() ?? x.priceIdrSnapshot) || 0) %></td>
+                        <td style="padding:4px;color:var(--cream-100);text-align:right;"><%= x.quantity %></td>
+                        <td style="padding:4px;color:var(--gold-300);text-align:right;font-weight:600;"><%= fmt.rpShort(lineTotal) %></td>
+                        <% if (canSetAddon) { %>
+                          <td style="padding:4px;text-align:right;">
+                            <form method="POST" action="/admin/bookings/<%= b.id %>/addons/<%= x.id %>/remove"
+                                  style="display:inline;" onsubmit="return confirm('Hapus add-on ini? totalAmount akan dikurangi.');">
+                              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                              <button type="submit" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:2px 7px;border-radius:3px;cursor:pointer;font-size:11px;font-family:var(--font-mono);">×</button>
+                            </form>
+                          </td>
+                        <% } %>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              <% } else { %>
+                <div class="sx" style="margin-top:4px;">— belum ada add-on —</div>
+              <% } %>
+              <% if (canSetAddon && baCatalog.length > 0) { %>
+                <form method="POST" action="/admin/bookings/<%= b.id %>/addons/attach" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <select name="addonId" required style="flex:1;min-width:200px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                    <option value="">— pilih add-on —</option>
+                    <% baCatalog.forEach(function(c) { %>
+                      <option value="<%= c.id %>"><%= c.name %> · <%= fmt.rpShort(Number(c.priceIdr.toString()) || 0) %></option>
+                    <% }) %>
+                  </select>
+                  <input type="number" name="quantity" min="1" max="50" value="1" style="width:64px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:5px 9px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                  <button type="submit" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:5px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">+ Attach</button>
+                </form>
+                <div style="margin-top:4px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">
+                  totalAmount otomatis bertambah · harga di-snapshot saat attach
+                </div>
+              <% } %>
+            </div>
+          <% } %>
+
           <%# Stage 268 — installment schedule panel. Admin sets N
               installments via inline table; jemaah sees them on /saya. %>
           <%
