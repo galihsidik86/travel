@@ -67,6 +67,16 @@ export function hashVoucher(voucher) {
       method: p.method,
       createdAt: p.createdAt,
     })),
+    // Stage 287 — add-ons in the hash so attach/remove (which
+    // doesn't change paid/total directly the way payments do, but
+    // does change totalAmount via S284 transaction) busts the cache
+    // alongside.
+    addons: (voucher.addons || []).map((a) => ({
+      name: a.name,
+      qty: a.quantity,
+      // priceIdr is the snapshot — already a Number in the shape()
+      price: a.priceIdr,
+    })),
   }));
   return h.digest('hex').slice(0, 16);
 }

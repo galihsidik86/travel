@@ -158,7 +158,21 @@ router.get(
         console.warn('[jemaah-booking] group view load failed:', err?.message || err);
       }
     }
-    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, announcements, pickups, activity, groupView, query: req.query });
+    // Stage 286 — attached add-ons (read-only for jemaah)
+    // Stage 288 — also pull active catalog so jemaah can request more
+    let bookingAddons = [];
+    let addonCatalog = [];
+    try {
+      const { listBookingAddons } = await import('../services/bookingAddons.js');
+      const { listPaketAddons } = await import('../services/paketAddons.js');
+      [bookingAddons, addonCatalog] = await Promise.all([
+        listBookingAddons(booking.id),
+        listPaketAddons(booking.paketId, { activeOnly: true }),
+      ]);
+    } catch (err) {
+      console.warn('[jemaah-booking] addons load failed:', err?.message || err);
+    }
+    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, announcements, pickups, activity, groupView, bookingAddons, addonCatalog, query: req.query });
   }),
 );
 
@@ -320,6 +334,28 @@ router.post(
     const typeState = await setMyNotifTypePrefs({ req, actor, userId: req.user.id, prefs: typePrefs });
 
     res.json({ jemaah: updated, notifTypePrefs: typeState });
+  }),
+);
+
+// Stage 288 — jemaah requests an add-on. Form-encoded (redirect-after-POST
+// since the form is on the booking-detail page, not fetch-driven).
+router.post(
+  '/api/saya/bookings/:id/addon-request',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    try {
+      const { requestBookingAddon } = await import('../services/jemaahAddonRequest.js');
+      await requestBookingAddon({
+        req, userId: req.user.id,
+        bookingId: req.params.id,
+        addonId: (req.body?.addonId || '').toString(),
+        quantity: req.body?.quantity ? Number(req.body.quantity) : 1,
+      });
+      res.redirect(`/saya/bookings/${req.params.id}?ok=addon_request`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal kirim permintaan';
+      res.redirect(`/saya/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
   }),
 );
 

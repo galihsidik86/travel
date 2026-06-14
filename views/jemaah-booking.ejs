@@ -255,6 +255,73 @@
     </div>
   <% } %>
 
+  <%# Stage 286 — attached add-ons (read-only). Hidden when nothing
+      attached AND no active catalog. %>
+  <% const baList = typeof bookingAddons !== 'undefined' && Array.isArray(bookingAddons) ? bookingAddons : [];
+     const baCatalog = typeof addonCatalog !== 'undefined' && Array.isArray(addonCatalog) ? addonCatalog : [];
+     const isOpenForRequest = b.status !== 'CANCELLED' && b.status !== 'REFUNDED';
+     const showCatalog = isOpenForRequest && baCatalog.length > 0;
+  %>
+  <% if (baList.length > 0 || showCatalog) { %>
+    <div class="panel" style="border-left:3px solid var(--sapphire);">
+      <h3>Add-on</h3>
+      <% if (baList.length > 0) {
+           const totalAddon = baList.reduce((acc, x) => acc + (Number(x.priceIdrSnapshot?.toString?.() ?? x.priceIdrSnapshot) || 0) * x.quantity, 0);
+      %>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin-bottom:8px;">
+          <%= baList.length %> add-on terikat · total <strong style="color:var(--gold-300);"><%= fmt.rpShort(totalAddon) %></strong>
+          (sudah termasuk di total booking)
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px;">
+          <thead><tr style="border-bottom:1px solid var(--hairline-soft);">
+            <th style="text-align:left;padding:6px 4px;color:var(--ink-200);font-weight:400;font-size:10px;letter-spacing:0.1em;">NAMA</th>
+            <th style="text-align:right;padding:6px 4px;color:var(--ink-200);font-weight:400;font-size:10px;letter-spacing:0.1em;">HARGA</th>
+            <th style="text-align:right;padding:6px 4px;color:var(--ink-200);font-weight:400;font-size:10px;letter-spacing:0.1em;">QTY</th>
+            <th style="text-align:right;padding:6px 4px;color:var(--ink-200);font-weight:400;font-size:10px;letter-spacing:0.1em;">SUBTOTAL</th>
+          </tr></thead>
+          <tbody>
+            <% baList.forEach(function(x) {
+                 const price = Number(x.priceIdrSnapshot?.toString?.() ?? x.priceIdrSnapshot) || 0;
+                 const lineTotal = price * x.quantity;
+            %>
+              <tr>
+                <td style="padding:8px 4px;color:var(--cream-100);"><%= x.nameSnapshot %></td>
+                <td style="padding:8px 4px;color:var(--cream-100);text-align:right;"><%= fmt.rpShort(price) %></td>
+                <td style="padding:8px 4px;color:var(--cream-100);text-align:right;"><%= x.quantity %></td>
+                <td style="padding:8px 4px;color:var(--gold-300);text-align:right;font-weight:600;"><%= fmt.rpShort(lineTotal) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } else { %>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);">— belum ada add-on —</div>
+      <% } %>
+      <% if (showCatalog) { %>
+        <%# Stage 288 — request add-on flow. Submits a request; admin
+            attaches via S284. Pure jemaah-side ask + admin notif. %>
+        <details style="margin-top:14px;">
+          <summary style="cursor:pointer;font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.06em;">+ MINTA ADD-ON BARU</summary>
+          <form method="POST" action="/api/saya/bookings/<%= b.id %>/addon-request" style="margin-top:10px;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <select name="addonId" required style="flex:1;min-width:200px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:6px 9px;border-radius:3px;font-family:var(--font-mono);font-size:12px;">
+                <option value="">— pilih add-on —</option>
+                <% baCatalog.forEach(function(c) { %>
+                  <option value="<%= c.id %>"><%= c.name %> · <%= fmt.rpShort(Number(c.priceIdr.toString()) || 0) %></option>
+                <% }) %>
+              </select>
+              <input type="number" name="quantity" min="1" max="50" value="1" style="width:64px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:6px 9px;border-radius:3px;font-family:var(--font-mono);font-size:12px;">
+              <button type="submit" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:6px 14px;border-radius:3px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">Kirim permintaan</button>
+            </div>
+            <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">
+              Admin akan konfirmasi + tagihkan; total booking akan bertambah setelah admin attach.
+            </div>
+          </form>
+        </details>
+      <% } %>
+    </div>
+  <% } %>
+
   <%# Stage 268 — installment schedule for jemaah. Read-only; admin owns
       schedule changes. Hidden when no schedule set. %>
   <% if (Array.isArray(b.installmentSchedule) && b.installmentSchedule.length > 0) {

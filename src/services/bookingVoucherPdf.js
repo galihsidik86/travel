@@ -36,10 +36,12 @@ const LANGS = {
     subtitle: 'Voucher Booking',
     sJemaah: 'JEMAAH', sJourney: 'PERJALANAN', sPayment: 'PEMBAYARAN',
     sAgent: 'AGEN PENDAMPING', sItin: 'ITINERARY (RINGKAS)',
+    sAddon: 'ADD-ON',
     name: 'Nama', phone: 'Telepon', email: 'Email', passport: 'Paspor',
     paket: 'Paket', kelas: 'Kelas', depart: 'Berangkat', return_: 'Pulang',
     airline: 'Maskapai', route: 'Rute', room: 'Kamar',
     total: 'Total', paid: 'Sudah dibayar', remaining: 'Sisa', history: 'Riwayat:',
+    addonSubtotal: 'Subtotal add-on', addonQty: 'Qty',
     wa: 'WhatsApp', moreDays: (n) => `+ ${n} hari lainnya…`,
     footer: 'Dibuat',
     fineprint: 'Voucher tidak dapat dialihkan tanpa konfirmasi tim.',
@@ -49,10 +51,12 @@ const LANGS = {
     subtitle: 'Booking Voucher',
     sJemaah: 'PILGRIM', sJourney: 'JOURNEY', sPayment: 'PAYMENT',
     sAgent: 'AGENT', sItin: 'ITINERARY (SUMMARY)',
+    sAddon: 'ADD-ONS',
     name: 'Name', phone: 'Phone', email: 'Email', passport: 'Passport',
     paket: 'Package', kelas: 'Class', depart: 'Departure', return_: 'Return',
     airline: 'Airline', route: 'Route', room: 'Room',
     total: 'Total', paid: 'Paid so far', remaining: 'Remaining', history: 'History:',
+    addonSubtotal: 'Add-on subtotal', addonQty: 'Qty',
     wa: 'WhatsApp', moreDays: (n) => `+ ${n} more days…`,
     footer: 'Issued',
     fineprint: 'Voucher non-transferable without team confirmation.',
@@ -62,10 +66,12 @@ const LANGS = {
     subtitle: 'Wathiqat al-Hajz',
     sJemaah: 'AL-HAAJ', sJourney: 'AL-RIHLAH', sPayment: 'AL-DAFAA',
     sAgent: 'AL-WAKEEL', sItin: 'JADWAL AL-RIHLAH',
+    sAddon: 'AL-IDAFAAT',
     name: 'Al-Ism', phone: 'Al-Haatif', email: 'Bareed', passport: 'Jawaaz al-Safar',
     paket: 'Al-Bernamej', kelas: 'Al-Daraja', depart: 'Al-Mughadara', return_: 'Al-Iyaab',
     airline: 'Sharikat al-Tayaraan', route: 'Al-Masaar', room: 'Al-Ghurfa',
     total: 'Al-Majmoo', paid: 'Al-Madfoo', remaining: 'Al-Baaqi', history: 'Al-Sajl:',
+    addonSubtotal: 'Majmoo al-Idafaat', addonQty: 'Kammiyya',
     wa: 'WhatsApp', moreDays: (n) => `+ ${n} ayyaam ukhraa…`,
     footer: 'Tariikh',
     fineprint: "Hadhihi al-wathiqat ghair qaabilatun lil-tahweel bidoon ta-aakeed al-fariq.",
@@ -244,6 +250,22 @@ function renderVoucherIntoDoc(doc, voucher, lang) {
     });
   }
   doc.moveDown(0.6);
+
+  // ── Add-ons block (Stage 287) ─────────────────────────────
+  if (Array.isArray(voucher.addons) && voucher.addons.length > 0) {
+    section(doc, L.sAddon);
+    voucher.addons.slice(0, 20).forEach((a) => {
+      doc.fontSize(10).fillColor(COLORS.ink)
+        .text(`  • ${a.name}  ·  ${L.addonQty} ${a.quantity}  ·  ${fmtIdr(a.lineTotalIdr)}`);
+    });
+    if (voucher.addons.length > 20) {
+      doc.fontSize(9).fillColor(COLORS.muted)
+        .text(`  + ${voucher.addons.length - 20} add-on lainnya…`);
+    }
+    doc.moveDown(0.2);
+    field(doc, L.addonSubtotal, fmtIdr(voucher.totals.addonSubtotal), COLORS.gold);
+    doc.moveDown(0.6);
+  }
 
   // ── Agent block ───────────────────────────────────────────
   if (voucher.agent) {

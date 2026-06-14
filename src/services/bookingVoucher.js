@@ -48,6 +48,13 @@ const VOUCHER_INCLUDE = {
     orderBy: { createdAt: 'asc' },
     select: { amount: true, currency: true, method: true, paidAt: true, createdAt: true, notes: true, status: true },
   },
+  // Stage 287 — voucher PDF includes attached add-ons section so jemaah
+  // sees exactly what they've been charged for (and admin can hand the
+  // voucher to vendors as proof of extras).
+  addons: {
+    orderBy: { createdAt: 'asc' },
+    select: { nameSnapshot: true, priceIdrSnapshot: true, quantity: true },
+  },
 };
 
 function shape(booking) {
@@ -57,9 +64,23 @@ function shape(booking) {
   const paidAmount = Number(booking.paidAmount?.toString?.() ?? booking.paidAmount) || 0;
   const remaining = Math.max(0, totalAmount - paidAmount);
   const pct = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
+  // Stage 287 — normalise add-on rows so the renderer doesn't have to
+  // peek into Decimal types. addonSubtotal sums all attached add-ons
+  // for the payment-summary footer in the PDF.
+  const addons = Array.isArray(booking.addons) ? booking.addons.map((a) => {
+    const price = Number(a.priceIdrSnapshot?.toString?.() ?? a.priceIdrSnapshot) || 0;
+    return {
+      name: a.nameSnapshot,
+      priceIdr: price,
+      quantity: a.quantity,
+      lineTotalIdr: price * a.quantity,
+    };
+  }) : [];
+  const addonSubtotal = addons.reduce((acc, a) => acc + a.lineTotalIdr, 0);
   return {
     ...booking,
-    totals: { totalAmount, paidAmount, remaining, paidPct: pct },
+    addons,
+    totals: { totalAmount, paidAmount, remaining, paidPct: pct, addonSubtotal },
     generatedAt: new Date(),
   };
 }
