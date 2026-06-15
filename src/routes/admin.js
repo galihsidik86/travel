@@ -211,6 +211,38 @@ router.post(
   }),
 );
 
+// Stage 300 — per-admin notif preferences page.
+router.get(
+  '/notif-prefs',
+  asyncHandler(async (req, res) => {
+    const { ADMIN_NOTIF_TYPES, getAdminPrefs } = await import('../services/adminNotifPrefs.js');
+    const prefs = await getAdminPrefs(req.user.id);
+    res.render('admin-notif-prefs', {
+      user: req.user, types: ADMIN_NOTIF_TYPES, prefs,
+      ok: req.query.ok || null, err: req.query.err || null,
+    });
+  }),
+);
+router.post(
+  '/notif-prefs',
+  asyncHandler(async (req, res) => {
+    try {
+      const { ADMIN_NOTIF_TYPES, setAdminPrefs } = await import('../services/adminNotifPrefs.js');
+      // Form posts: each toggle is `pref_<TYPE>=on` when checked.
+      // Build the {type → boolean} map by iterating known types.
+      const prefs = {};
+      for (const t of ADMIN_NOTIF_TYPES) {
+        prefs[t] = !!req.body?.[`pref_${t}`];
+      }
+      await setAdminPrefs({ userId: req.user.id, prefs });
+      res.redirect('/admin/notif-prefs?ok=saved');
+    } catch (err) {
+      const msg = err?.message || 'Gagal simpan preferensi';
+      res.redirect(`/admin/notif-prefs?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
 // Stage 274 — admin docs-pending queue page.
 router.get(
   '/docs-pending',

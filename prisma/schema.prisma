@@ -290,6 +290,7 @@ model User {
   crewAssignments   PaketCrew[]        @relation("CrewAssignedToPaket")
   attendanceMarks   AttendanceMark[]   @relation("AttendanceMarkedBy")
   crewDailyReports  CrewDailyReport[]  @relation("CrewDailyReport_crew")
+  notifPrefs        AdminNotifPref[]   @relation("AdminNotifPref_user")
   crewJemaahNotes   CrewJemaahNote[]   @relation("CrewJemaahNoteAuthor")
   paketAnnouncements PaketAnnouncement[] @relation("PaketAnnouncementAuthor")
   incidentsCreated  Incident[]         @relation("IncidentCreator")
@@ -1939,6 +1940,20 @@ model BookingAdjustment {
 
   @@index([bookingId])
   @@index([reasonCode, createdAt])
+}
+
+// Stage 300 — per-admin notif type opt-out. Each (userId, type) row
+// with `enabled=false` means the admin opted out of that type.
+// Absence of a row = opt-in (default behaviour).
+model AdminNotifPref {
+  userId    String           @db.VarChar(191)
+  user      User             @relation("AdminNotifPref_user", fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  enabled   Boolean          @default(true)
+  updatedAt DateTime         @updatedAt
+
+  @@id([userId, type])
+  @@index([userId])
 }
 
 // Stage 289 — public inquiry. Form on /p/:slug captures interest

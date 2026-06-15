@@ -72,6 +72,20 @@ export async function enqueueNotification({
       }
     }
 
+    // Stage 300 — per-admin notif type opt-out. Admin-targeted notifs
+    // typically have NO recipientUserId (just an email), so we resolve
+    // via the email lookup. Best-effort; failure logs but doesn't
+    // block enqueue.
+    if (!optOutReason && recipientEmail && channel === 'EMAIL') {
+      try {
+        const { shouldSkipForAdminPrefs } = await import('./adminNotifPrefs.js');
+        const r = await shouldSkipForAdminPrefs({ type, recipientEmail });
+        if (r.skip) optOutReason = r.reason;
+      } catch (err) {
+        console.warn('[notif] admin-prefs check failed:', err?.message || err);
+      }
+    }
+
     // Skip-on-no-recipient
     const hasRecipient = (channel === 'EMAIL' && recipientEmail)
       || (channel === 'WA' && recipientPhone)
@@ -127,6 +141,46 @@ function nextDelayMs(failedAttemptCount) {
 export async function dispatchNotification(notif) {
   const now = new Date();
   const send = SENDERS[notif.channel];
+
+  // Stage 298 — quiet hours gate. WA only; urgent types + admin-
+  // targeted notifs bypass. Defers by bumping nextRetryAt to the
+  // next window opening; the retry mechanism picks it up naturally.
+  try {
+    const { evaluateQuietHours } = await import('./notifQuietHours.js');
+    const gate = evaluateQuietHours(notif, { now });
+    if (gate.defer) {
+      return db.notification.update({
+        where: { id: notif.id },
+        data: {
+          status: 'PENDING',
+          nextRetryAt: gate.deferUntil,
+          error: `deferred: quiet hours (next ${gate.deferUntil.toISOString()})`,
+        },
+      });
+    }
+  } catch (err) {
+    console.warn('[notif] quiet-hours check failed (sending anyway):', err?.message || err);
+  }
+
+  // Stage 299 — per-recipient daily cap. Run AFTER quiet-hours so we
+  // don't burn the cap on something we'd have deferred anyway. Same
+  // PENDING + nextRetryAt deferral pattern.
+  try {
+    const { evaluateDailyCap } = await import('./notifDailyCap.js');
+    const gate = await evaluateDailyCap(notif, { now });
+    if (gate.defer) {
+      return db.notification.update({
+        where: { id: notif.id },
+        data: {
+          status: 'PENDING',
+          nextRetryAt: gate.deferUntil,
+          error: `deferred: daily cap (${gate.count}/${gate.cap} sent in last 24h, next ${gate.deferUntil.toISOString()})`,
+        },
+      });
+    }
+  } catch (err) {
+    console.warn('[notif] daily-cap check failed (sending anyway):', err?.message || err);
+  }
 
   // Helper to compute the FAILED-state patch with retry scheduling.
   const failPatch = (errorMsg) => {

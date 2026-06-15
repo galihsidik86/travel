@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Preferensi Notifikasi</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { margin-bottom: 24px; }
+  .head h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em; }
+  .head .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-top: 8px; max-width: 640px; line-height: 1.6; }
+  .panel { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 24px; }
+  .row { display: grid; grid-template-columns: 24px 1fr; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--hairline-soft); align-items: start; }
+  .row:last-child { border-bottom: none; }
+  .row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--gold-300); margin-top: 3px; cursor: pointer; }
+  .row label { cursor: pointer; }
+  .row .name { font-family: var(--font-mono); font-size: 12px; color: var(--cream-100); letter-spacing: 0.04em; }
+  .row .desc { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 4px; line-height: 1.55; }
+  .actions { display: flex; gap: 12px; margin-top: 22px; align-items: center; }
+  .actions button { font-family: var(--font-mono); font-size: 11px; padding: 8px 18px; border-radius: var(--r-sm); cursor: pointer; letter-spacing: 0.1em; text-transform: uppercase; }
+  .btn-save { background: transparent; border: 1px solid var(--gold-300); color: var(--gold-300); }
+  .btn-all-on { background: transparent; border: 1px dashed var(--hairline-soft); color: var(--ink-200); }
+  .btn-all-off { background: transparent; border: 1px dashed var(--ruby); color: var(--ruby); }
+  .flash { padding: 10px 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; margin-bottom: 16px; }
+  .flash.ok { background: rgba(80,176,113,0.08); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(212,89,89,0.08); border: 1px solid var(--ruby); color: var(--ruby); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/admin">← /admin</a> · NOTIF PREFS</div>
+
+    <div class="head">
+      <h1>Preferensi notifikasi</h1>
+      <div class="sub">
+        Pilih jenis notifikasi yang ingin Anda terima via EMAIL. Notifikasi WA + SOS / insiden lapangan tidak bisa dimatikan (untuk safety). Default: semua menyala.
+      </div>
+    </div>
+
+    <% if (ok) { %><div class="flash ok">✓ Preferensi tersimpan</div><% } %>
+    <% if (err) { %><div class="flash err">✕ <%= err %></div><% } %>
+
+    <form method="POST" action="/admin/notif-prefs">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="panel">
+        <% types.forEach(function(t) {
+             const enabled = prefs[t] !== false; // default true
+        %>
+          <div class="row">
+            <input type="checkbox" id="pref_<%= t %>" name="pref_<%= t %>" <%= enabled ? 'checked' : '' %>>
+            <div>
+              <label for="pref_<%= t %>" class="name"><%= t %></label>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn-save">Simpan</button>
+        <button type="button" class="btn-all-on" onclick="document.querySelectorAll('.panel input[type=checkbox]').forEach(c => c.checked = true);">✓ semua menyala</button>
+        <button type="button" class="btn-all-off" onclick="document.querySelectorAll('.panel input[type=checkbox]').forEach(c => c.checked = false);">× semua mati</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>
