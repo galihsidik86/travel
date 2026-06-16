@@ -830,6 +830,125 @@ export async function notifyBookingHandover({ booking, previousJemaah, newJemaah
 }
 
 /**
+ * Stage 301 — admin cancelled a booking the agent brought. Fires
+ * WA + EMAIL to the agent so they don't keep following up. Best-
+ * effort: notif failure logs but never aborts the cancel.
+ *
+ * Skips when the booking has no agent (walk-in / Kantor Pusat) or
+ * the agent has no contact info.
+ */
+export async function notifyBookingCancelledAgent({ booking, agent, reason, adminEmail }) {
+  if (!agent || (!agent.whatsapp && !agent.userEmail)) {
+    return { skipped: true, reason: 'no_agent_contact' };
+  }
+  const subject = `Booking ${booking.bookingNo} dibatalkan admin`;
+  const jName = booking.jemaah?.fullName || '—';
+  const body = [
+    `Halo ${agent.displayName || agent.slug},`,
+    '',
+    `Booking ${booking.bookingNo} atas nama ${jName} dibatalkan oleh admin.`,
+    `Alasan: ${reason || '—'}`,
+    '',
+    'Hindari follow-up lanjutan ke jemaah untuk booking ini.',
+    `Komisi PENDING/EARNED untuk booking ini sudah ditandai CANCELLED.`,
+    '',
+    `Detail di /agen?tab=leads (atau hubungi admin: ${adminEmail || 'admin@religio.pro'}).`,
+    '',
+    '— Religio Pro',
+  ].join('\n');
+  let enqueued = 0;
+  if (agent.userEmail) {
+    try {
+      await enqueueNotification({
+        type: 'BOOKING_CANCELLED_AGENT', channel: 'EMAIL',
+        recipientEmail: agent.userEmail,
+        recipientUserId: agent.userId || null,
+        subject, body,
+        payload: { kind: 'cancel_to_agent', bookingNo: booking.bookingNo },
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyBookingCancelledAgent] email failed:', err?.message || err);
+    }
+  }
+  if (agent.whatsapp) {
+    try {
+      await enqueueNotification({
+        type: 'BOOKING_CANCELLED_AGENT', channel: 'WA',
+        recipientPhone: agent.whatsapp,
+        recipientUserId: agent.userId || null,
+        subject, body,
+        payload: { kind: 'cancel_to_agent', bookingNo: booking.bookingNo },
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyBookingCancelledAgent] WA failed:', err?.message || err);
+    }
+  }
+  return { enqueued };
+}
+
+/**
+ * Stage 302 — admin issued a refund on an agent's booking. Same shape
+ * as S301 but with refund amount + partial/full flag in the body.
+ */
+export async function notifyRefundIssuedAgent({ booking, agent, amountIdr, partial, adminEmail }) {
+  if (!agent || (!agent.whatsapp && !agent.userEmail)) {
+    return { skipped: true, reason: 'no_agent_contact' };
+  }
+  const amt = Math.round(Number(amountIdr) || 0).toLocaleString('id-ID');
+  const subject = `Refund ${partial ? 'sebagian' : 'penuh'} untuk ${booking.bookingNo}`;
+  const jName = booking.jemaah?.fullName || '—';
+  const body = [
+    `Halo ${agent.displayName || agent.slug},`,
+    '',
+    `Refund ${partial ? 'sebagian' : 'penuh'} sebesar Rp ${amt} sudah diterbitkan untuk booking ${booking.bookingNo} (${jName}).`,
+    '',
+    partial
+      ? 'Booking masih CANCELLED; sisa pembayaran (kalau ada) tidak otomatis dikembalikan.'
+      : 'Booking sekarang berstatus REFUNDED — semua uang sudah dikembalikan.',
+    '',
+    `Hubungi admin (${adminEmail || 'admin@religio.pro'}) jika ada pertanyaan.`,
+    '',
+    '— Religio Pro',
+  ].join('\n');
+  let enqueued = 0;
+  if (agent.userEmail) {
+    try {
+      await enqueueNotification({
+        type: 'REFUND_ISSUED_AGENT', channel: 'EMAIL',
+        recipientEmail: agent.userEmail,
+        recipientUserId: agent.userId || null,
+        subject, body,
+        payload: { kind: 'refund_to_agent', bookingNo: booking.bookingNo, amountIdr: Math.round(Number(amountIdr) || 0), partial },
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyRefundIssuedAgent] email failed:', err?.message || err);
+    }
+  }
+  if (agent.whatsapp) {
+    try {
+      await enqueueNotification({
+        type: 'REFUND_ISSUED_AGENT', channel: 'WA',
+        recipientPhone: agent.whatsapp,
+        recipientUserId: agent.userId || null,
+        subject, body,
+        payload: { kind: 'refund_to_agent', bookingNo: booking.bookingNo, amountIdr: Math.round(Number(amountIdr) || 0), partial },
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyRefundIssuedAgent] WA failed:', err?.message || err);
+    }
+  }
+  return { enqueued };
+}
+
+/**
  * Crew SOS / emergency incident fan-out (admin-targeted). Triggered by
  * createIncident. EMAIL + WA both fire so admins are reachable on whichever
  * channel they're glued to. One row per (admin × channel) so each delivery

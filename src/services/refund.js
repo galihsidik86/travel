@@ -159,7 +159,15 @@ export async function issueRefund({ req, actor, bookingId, amount, method, reaso
     const bookingForNotif = await db.booking.findUnique({
       where: { id: bookingId },
       select: { id: true, bookingNo: true, jemaahUserId: true,
-        jemaah: { select: { fullName: true, phone: true, email: true, userId: true } } },
+        jemaah: { select: { fullName: true, phone: true, email: true, userId: true } },
+        // S302 — agent contact for the agent-refund notif
+        agent: {
+          select: {
+            id: true, slug: true, displayName: true, whatsapp: true,
+            user: { select: { id: true, email: true } },
+          },
+        },
+      },
     });
     if (bookingForNotif) {
       await notifyRefundIssued({
@@ -168,6 +176,28 @@ export async function issueRefund({ req, actor, bookingId, amount, method, reaso
         fullRefund: newPaid === 0,
         reason: reason.trim(),
       });
+      // Stage 302 — agent-side refund notif (best-effort; walk-ins skipped)
+      if (bookingForNotif.agent) {
+        try {
+          const { notifyRefundIssuedAgent } = await import('./notifications.js');
+          await notifyRefundIssuedAgent({
+            booking: bookingForNotif,
+            agent: {
+              id: bookingForNotif.agent.id,
+              slug: bookingForNotif.agent.slug,
+              displayName: bookingForNotif.agent.displayName,
+              whatsapp: bookingForNotif.agent.whatsapp,
+              userId: bookingForNotif.agent.user?.id || null,
+              userEmail: bookingForNotif.agent.user?.email || null,
+            },
+            amountIdr: amt,
+            partial: newPaid !== 0,
+            adminEmail: actor?.email,
+          });
+        } catch (err) {
+          console.warn('[refund] notifyRefundIssuedAgent failed:', err?.message || err);
+        }
+      }
     }
   } catch (err) {
     console.error('[refund] notif failed:', err.message);

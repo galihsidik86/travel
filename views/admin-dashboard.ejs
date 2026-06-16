@@ -2546,6 +2546,71 @@
         </div>
       <% } %>
 
+      <!-- Stage 303 — per-agen cancel/refund rate -->
+      <% if (typeof agentCancelRefund !== 'undefined' && agentCancelRefund && agentCancelRefund.rows && agentCancelRefund.rows.length > 0) {
+           const acrTotals = agentCancelRefund.totals;
+           function acrRateColor(pct) {
+             if (pct == null) return 'var(--ink-300)';
+             if (pct >= 25) return 'var(--ruby)';
+             if (pct >= 10) return 'var(--amber)';
+             return 'var(--emerald)';
+           }
+      %>
+        <div class="panel" style="margin-top:16px;border-left:3px solid var(--amber);">
+          <div class="panel__head">
+            <h3>✕ Cancel / refund per agen (<%= agentCancelRefund.days %> hari)</h3>
+            <span class="meta">
+              <%= acrTotals.agentCount %> agen ·
+              <%= acrTotals.totalBookings %> booking ·
+              <span style="color:var(--ruby);"><%= acrTotals.totalCancel %> cancel</span> ·
+              <span style="color:var(--ruby);"><%= acrTotals.totalRefund %> refund</span> ·
+              <strong>rate <%= acrTotals.overallRatePct == null ? '—' : (acrTotals.overallRatePct + '%') %></strong>
+            </span>
+          </div>
+          <table style="width:100%;margin-top:10px;font-family:var(--font-mono);font-size:11px;border-collapse:collapse;">
+            <thead>
+              <tr style="text-align:left;border-bottom:1px solid var(--hairline-soft);color:var(--ink-300);letter-spacing:0.04em;">
+                <th style="padding:8px 6px;">Agen</th>
+                <th style="padding:8px 6px;text-align:right;">Total</th>
+                <th style="padding:8px 6px;text-align:right;">Cancel</th>
+                <th style="padding:8px 6px;text-align:right;">Refund</th>
+                <th style="padding:8px 6px;text-align:right;">Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% agentCancelRefund.rows.forEach(function(row) {
+                   const combinedRate = (row.cancelRatePct != null && row.refundRatePct != null)
+                     ? Math.round((row.cancelRatePct + row.refundRatePct) * 10) / 10
+                     : null;
+              %>
+                <tr style="border-bottom:1px solid var(--hairline-soft);">
+                  <td style="padding:8px 6px;color:var(--cream-100);">
+                    <% if (row.agentSlug === '__kp__') { %>
+                      <em style="color:var(--ink-200);">Kantor Pusat (walk-in)</em>
+                    <% } else { %>
+                      <%= row.agentName %>
+                      <span style="color:var(--ink-300);font-size:10px;">· <%= row.agentSlug %></span>
+                    <% } %>
+                    <% if (row.lowSample) { %>
+                      <span style="color:var(--ink-300);font-size:10px;letter-spacing:0.04em;">· low</span>
+                    <% } %>
+                  </td>
+                  <td style="padding:8px 6px;text-align:right;color:var(--cream-100);"><%= row.total %></td>
+                  <td style="padding:8px 6px;text-align:right;color:<%= row.cancel > 0 ? 'var(--ruby)' : 'var(--ink-300)' %>;"><%= row.cancel %></td>
+                  <td style="padding:8px 6px;text-align:right;color:<%= row.refund > 0 ? 'var(--ruby)' : 'var(--ink-300)' %>;"><%= row.refund %></td>
+                  <td style="padding:8px 6px;text-align:right;color:<%= acrRateColor(combinedRate) %>;font-weight:600;">
+                    <%= combinedRate == null ? '—' : (combinedRate + '%') %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <div style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
+            Rate = (cancel + refund) / total × 100. Agen dengan &lt; 3 booking di window ditandai 'low' — sample terlalu kecil untuk dipercaya.
+          </div>
+        </div>
+      <% } %>
+
       <!-- Stage 297 — adjustment ledger (last 90d) -->
       <% if (typeof adjustmentLedger !== 'undefined' && adjustmentLedger && adjustmentLedger.totals.rowCount > 0) {
            const t = adjustmentLedger.totals;

@@ -52,6 +52,16 @@ router.get(
     const manifestTag = (req.query.manifestTag || '').toString();
     // Stage 258 — group filter on manifest tab
     const manifestGroup = (req.query.manifestGroup || '').toString();
+    // Stage 303 — per-agen cancel/refund rate rollup (best-effort)
+    const agentCancelRefundPromise = (async () => {
+      try {
+        const { getAgentCancelRefundRollup } = await import('../services/agentCancelRefundRollup.js');
+        return await getAgentCancelRefundRollup({ days: 90 });
+      } catch (err) {
+        console.warn('[admin] agent cancel/refund rollup failed:', err?.message || err);
+        return null;
+      }
+    })();
     // Stage 297 — adjustment ledger (best-effort)
     const adjustmentLedgerPromise = (async () => {
       try {
@@ -106,7 +116,7 @@ router.get(
         return null;
       }
     })();
-    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention, crewReportTally, addonRevenue, returningRollup, adjustmentLedger] = await Promise.all([
+    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention, crewReportTally, addonRevenue, returningRollup, adjustmentLedger, agentCancelRefund] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
@@ -123,6 +133,7 @@ router.get(
       addonRevenuePromise,
       returningRollupPromise,
       adjustmentLedgerPromise,
+      agentCancelRefundPromise,
     ]);
     // Destructure last entry — slightly less idiomatic but keeps the
     // Promise.all positional argument list intact.
@@ -179,6 +190,7 @@ router.get(
       addonRevenue,
       returningRollup,
       adjustmentLedger,
+      agentCancelRefund,
       activeTab: req.query.tab || 'overview',
       range,
     });

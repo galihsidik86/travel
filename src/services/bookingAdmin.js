@@ -376,6 +376,15 @@ export async function cancelBooking({ req, actor, bookingId, reason, reasonCode 
       // S145 — no-show stamp so the cancel audit trail records
       // "this was a no-show being closed out".
       noShowAt: true,
+      // S301 — agent contact for the agent-cancel notif (best-effort).
+      agent: {
+        select: {
+          id: true, slug: true, displayName: true, whatsapp: true,
+          user: { select: { id: true, email: true } },
+        },
+      },
+      // S301 — jemaah name for the agent notif body.
+      jemaah: { select: { fullName: true } },
     },
   });
   if (!before) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
@@ -424,6 +433,30 @@ export async function cancelBooking({ req, actor, bookingId, reason, reasonCode 
       ...(before.noShowAt ? { wasNoShow: true, noShowFlaggedAt: before.noShowAt.toISOString() } : {}),
     },
   });
+
+  // Stage 301 — when the cancelled booking has an agent, notify them
+  // so they don't keep follow-up on dead booking. Walk-in bookings
+  // (agentId null) skip silently. Best-effort — failure logs but
+  // never aborts the cancel.
+  if (before.agent) {
+    try {
+      const { notifyBookingCancelledAgent } = await import('./notifications.js');
+      await notifyBookingCancelledAgent({
+        booking: { id: before.id, bookingNo: before.bookingNo, jemaah: before.jemaah },
+        agent: {
+          id: before.agent.id, slug: before.agent.slug,
+          displayName: before.agent.displayName,
+          whatsapp: before.agent.whatsapp,
+          userId: before.agent.user?.id || null,
+          userEmail: before.agent.user?.email || null,
+        },
+        reason: reason.trim(),
+        adminEmail: actor?.email,
+      });
+    } catch (err) {
+      console.warn('[bookingAdmin] notifyBookingCancelledAgent failed:', err?.message || err);
+    }
+  }
 
   // Stage 42/136 — cancel just freed `paxCount` seats. If a WAITING
   // jemaah on the waitlist is "verified" (existing JEMAAH account with
