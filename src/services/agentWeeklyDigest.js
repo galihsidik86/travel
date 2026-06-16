@@ -69,6 +69,7 @@ async function aggregateAgentWeek({ agentId, start, end }) {
     komisiEarned,
     komisiPaid,
     refundPayments,
+    tripFeedbackRows,
   ] = await Promise.all([
     db.booking.findMany({
       where: { agentId, createdAt: { gte: start, lt: end } },
@@ -112,6 +113,14 @@ async function aggregateAgentWeek({ agentId, start, end }) {
         booking: { agentId },
       },
       select: { amount: true, refundReasonCode: true },
+    }),
+    // S314 — TripFeedback rows this week on bookings owned by the agent.
+    db.tripFeedback.findMany({
+      where: {
+        submittedAt: { gte: start, lt: end },
+        booking: { agentId },
+      },
+      select: { score: true },
     }),
   ]);
   const cancelledBookings = cancelledBookingsRows.length;
@@ -173,6 +182,21 @@ async function aggregateAgentWeek({ agentId, start, end }) {
     refundTotalIdr,
   };
 
+  // S314 — NPS roll: bucket scores within the week + compute %NPS.
+  // Silent (npsPct=null) when total=0 so the email omits the block.
+  let npsProm = 0, npsPas = 0, npsDet = 0;
+  for (const r of tripFeedbackRows) {
+    if (r.score >= 9) npsProm += 1;
+    else if (r.score >= 7) npsPas += 1;
+    else npsDet += 1;
+  }
+  const npsTotal = tripFeedbackRows.length;
+  const npsRollup = {
+    total: npsTotal,
+    promoters: npsProm, passives: npsPas, detractors: npsDet,
+    npsPct: npsTotal > 0 ? Math.round(((npsProm - npsDet) / npsTotal) * 1000) / 10 : null,
+  };
+
   return {
     counts: {
       newBookings: newBookings.length,
@@ -189,6 +213,7 @@ async function aggregateAgentWeek({ agentId, start, end }) {
     },
     topRaw,
     reasonRollup,
+    npsRollup,
   };
 }
 
@@ -257,6 +282,7 @@ export async function buildAgentWeeklyDigest({ agentId, now = new Date() } = {})
     deltas,
     topPaket,
     reasonRollup: current.reasonRollup,
+    npsRollup: current.npsRollup,
     fmt: {
       newBookings: fmtNum(current.counts.newBookings),
       lunasBookings: fmtNum(current.counts.lunasBookings),

@@ -29,7 +29,7 @@ router.get(
     const activeTab = req.query.tab || 'leads';
     const { getAgentCommissionForecast } = await import('../services/agentForecast.js');
     const { listAgentStatements } = await import('../services/komisiStatement.js');
-    const [data, commissionForecast, unreadCount, statements, dietaryView, tagRollup, todayLeads, cancelRefundReasons] = await Promise.all([
+    const [data, commissionForecast, unreadCount, statements, dietaryView, tagRollup, todayLeads, cancelRefundReasons, npsRollup] = await Promise.all([
       getAgentDashboard(profile.id, range),
       getAgentCommissionForecast({ agentId: profile.id, windowDays: 90 })
         .catch((err) => { console.warn('[agen] forecast failed:', err?.message || err); return null; }),
@@ -79,11 +79,21 @@ router.get(
           return null;
         }
       })(),
+      // Stage 313 — per-agent NPS rollup
+      (async () => {
+        try {
+          const { getAgentNpsRollup } = await import('../services/agentNpsRollup.js');
+          return await getAgentNpsRollup({ agentId: profile.id });
+        } catch (err) {
+          console.warn('[agen] nps rollup failed:', err?.message || err);
+          return null;
+        }
+      })(),
     ]);
     res.render('agen-crm', {
       user: req.user, ...data, range, activeTab, commissionForecast,
       unreadCount, statements, dietaryView, tagRollup, todayLeads,
-      cancelRefundReasons,
+      cancelRefundReasons, npsRollup,
     });
   }),
 );

@@ -174,6 +174,7 @@ enum NotificationType {
   BIRTHDAY_GREETING // ucapan ulang tahun, daily cron (Stage 307)
   ANNIVERSARY_REENGAGE // setahun pasca-umroh re-engagement, daily cron (Stage 308)
   TRIP_FEEDBACK_REMINDER // 60d post-return nudge to submit NPS feedback (Stage 312)
+  NPS_DETRACTOR_ALERT // jemaah submitted score ≤4, fan-out to admin for relationship recovery (Stage 315)
   GENERIC // catch-all for ad-hoc notifs
 }
 

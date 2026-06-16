@@ -949,6 +949,63 @@ export async function notifyRefundIssuedAgent({ booking, agent, amountIdr, parti
 }
 
 /**
+ * Stage 315 — fan-out NPS detractor alert to OWNER/SUPERADMIN/MANAJER_OPS
+ * when a jemaah submits TripFeedback with score ≤ 4. KASIR excluded —
+ * relationship recovery is ops/owner work, not cashier work.
+ *
+ * Best-effort posture: notif failure logs but never aborts the feedback
+ * write (the TripFeedback row is the load-bearing artifact).
+ */
+export async function notifyNpsDetractorAlert({ feedback, booking, jemaah, paket, baseUrl = '' }) {
+  if (!feedback || feedback.score > 4) {
+    return { skipped: true, reason: 'not_detractor' };
+  }
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE', deletedAt: null, email: { not: '' },
+    },
+    select: { id: true, email: true },
+  });
+  if (admins.length === 0) return { skipped: true, reason: 'no_admins' };
+  const commentBlock = feedback.comment && feedback.comment.trim().length > 0
+    ? feedback.comment.trim()
+    : '(jemaah tidak menulis komentar)';
+  const vars = {
+    score: String(feedback.score),
+    jemaahName: jemaah?.fullName || '—',
+    jemaahPhone: jemaah?.phone || '—',
+    jemaahEmail: jemaah?.email || '—',
+    paketTitle: paket?.title || '—',
+    bookingNo: booking?.bookingNo || booking?.id || '—',
+    commentBlock,
+    bookingLink: `${baseUrl}/admin/bookings/${booking?.id || ''}`,
+  };
+  const { subject, body } = renderTemplate('NPS_DETRACTOR_ALERT', 'EMAIL', vars);
+  let enqueued = 0;
+  for (const a of admins) {
+    try {
+      await enqueueNotification({
+        type: 'NPS_DETRACTOR_ALERT', channel: 'EMAIL',
+        recipientEmail: a.email,
+        // Admin-targeted — leave recipientUserId null per the inbox rule
+        // (admin-side notifs never leak into a jemaah's /saya/notifications).
+        subject, body,
+        payload: {
+          kind: 'nps_detractor', score: feedback.score,
+          bookingId: booking?.id,
+        },
+        relatedEntity: 'Booking', relatedEntityId: booking?.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyNpsDetractorAlert] email failed:', err?.message || err);
+    }
+  }
+  return { enqueued, recipients: admins.length };
+}
+
+/**
  * Crew SOS / emergency incident fan-out (admin-targeted). Triggered by
  * createIncident. EMAIL + WA both fire so admins are reachable on whichever
  * channel they're glued to. One row per (admin × channel) so each delivery
@@ -2081,6 +2138,23 @@ export async function notifyAgentWeeklyDigest({ digest }) {
     topPaketBlock = lines.join('\n') + '\n';
   }
 
+  // S314 — inline NPS roll for the week. Silent when no feedback landed.
+  let npsBlock = '';
+  const np = digest.npsRollup;
+  if (np && np.total > 0) {
+    const npsLabel = np.npsPct == null
+      ? '—'
+      : (np.npsPct >= 0 ? `+${np.npsPct}` : String(np.npsPct));
+    npsBlock = [
+      '',
+      '— NPS perjalanan minggu ini',
+      `Total feedback: ${np.total}`,
+      `Promoter ${np.promoters} · Passive ${np.passives} · Detractor ${np.detractors}`,
+      `%NPS: ${npsLabel}`,
+      '',
+    ].join('\n');
+  }
+
   // S306 — inline cancel + refund reason rollup for the week. Silent when
   // there's nothing to report (clean weeks don't carry the block).
   let reasonBlock = '';
@@ -2142,6 +2216,7 @@ export async function notifyAgentWeeklyDigest({ digest }) {
     trendKomisiPaid: dKomisiPaid,
     topPaketBlock,
     reasonBlock,
+    npsBlock,
     agenLink: '/agen',
   };
   const { subject, body } = renderTemplate('AGENT_WEEKLY_DIGEST', 'EMAIL', vars);

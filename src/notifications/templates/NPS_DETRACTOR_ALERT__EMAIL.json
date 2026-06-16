@@ -1,0 +1,4 @@
+{
+  "subject": "⚠ Detractor NPS · {{jemaahName}} memberi skor {{score}}/10 untuk {{paketTitle}}",
+  "body": "Halo tim Religio Pro,\n\nSeorang jemaah baru saja memberi skor RENDAH (≤4) untuk perjalanan yang baru selesai. Ini sinyal urgent untuk recovery relationship sebelum keluhan menyebar ke channel publik.\n\n— DETAIL\nJemaah   : {{jemaahName}}\nPhone    : {{jemaahPhone}}\nEmail    : {{jemaahEmail}}\nPaket    : {{paketTitle}}\nBooking  : {{bookingNo}}\nSkor     : {{score}}/10\n\n— KOMENTAR\n{{commentBlock}}\n\n— TINDAK LANJUT\n• Hubungi jemaah dalam 24 jam (WA atau telepon)\n• Dengarkan keluhan tanpa membela diri\n• Tawarkan kompensasi/perbaikan konkret bila perlu\n• Update booking notes setelah follow-up\n\nDetail booking: {{bookingLink}}\n\n— sistem Religio Pro"
+}

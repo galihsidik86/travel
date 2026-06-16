@@ -77,6 +77,29 @@ export async function submitTripFeedback({ userId, bookingId, score, comment }) 
       score: intScore, comment: finalComment,
     },
   });
+
+  // S315 — detractor alert (best-effort; never aborts the feedback write).
+  if (intScore <= 4) {
+    try {
+      const enriched = await db.booking.findUnique({
+        where: { id: bookingId },
+        select: {
+          id: true, bookingNo: true,
+          jemaah: { select: { fullName: true, phone: true, email: true } },
+          paket: { select: { title: true } },
+        },
+      });
+      const { notifyNpsDetractorAlert } = await import('./notifications.js');
+      await notifyNpsDetractorAlert({
+        feedback: row,
+        booking: enriched,
+        jemaah: enriched?.jemaah,
+        paket: enriched?.paket,
+      });
+    } catch (err) {
+      console.warn('[tripFeedback] detractor alert failed:', err?.message || err);
+    }
+  }
   return row;
 }
 

@@ -1358,6 +1358,74 @@
           </div>
         </div>
       <% } %>
+
+      <!-- Stage 313 — per-agent NPS rollup -->
+      <% if (typeof npsRollup !== 'undefined' && npsRollup && npsRollup.total > 0) {
+           const o = npsRollup.overall;
+           function npsTierColor(pct) {
+             if (pct == null) return 'var(--ink-300)';
+             if (pct >= 30) return 'var(--emerald)';
+             if (pct >= 0) return 'var(--amber)';
+             return 'var(--ruby)';
+           }
+      %>
+        <div class="card" style="margin-top:24px;">
+          <div class="card__head">
+            <span class="eyebrow">Skor kepuasan jemaah (<%= npsRollup.days %> hari)</span>
+            <h2 style="margin-top:4px;">NPS perjalanan</h2>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;margin-bottom:14px;">
+            <div style="background:var(--ink-1000);border:1px solid var(--hairline-soft);border-radius:6px;padding:14px;">
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.08em;text-transform:uppercase;">%NPS</div>
+              <div style="font-family:var(--font-display);font-size:24px;color:<%= npsTierColor(o.npsPct) %>;margin-top:4px;"><%= o.npsPct == null ? '—' : (o.npsPct >= 0 ? '+' : '') + o.npsPct %></div>
+            </div>
+            <div style="background:var(--ink-1000);border:1px solid var(--hairline-soft);border-radius:6px;padding:14px;">
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.08em;text-transform:uppercase;">Promoter</div>
+              <div style="font-family:var(--font-display);font-size:24px;color:var(--emerald);margin-top:4px;"><%= o.promoters %></div>
+            </div>
+            <div style="background:var(--ink-1000);border:1px solid var(--hairline-soft);border-radius:6px;padding:14px;">
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.08em;text-transform:uppercase;">Passive</div>
+              <div style="font-family:var(--font-display);font-size:24px;color:var(--gold-300);margin-top:4px;"><%= o.passives %></div>
+            </div>
+            <div style="background:var(--ink-1000);border:1px solid var(--hairline-soft);border-radius:6px;padding:14px;">
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.08em;text-transform:uppercase;">Detractor</div>
+              <div style="font-family:var(--font-display);font-size:24px;color:var(--ruby);margin-top:4px;"><%= o.detractors %></div>
+            </div>
+          </div>
+          <% if (npsRollup.perPaket.length > 0) { %>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Per paket</div>
+            <table style="width:100%;font-family:var(--font-mono);font-size:11px;border-collapse:collapse;">
+              <thead>
+                <tr style="text-align:left;border-bottom:1px solid var(--hairline-soft);color:var(--ink-300);">
+                  <th style="padding:6px 4px;">Paket</th>
+                  <th style="padding:6px 4px;text-align:right;">Total</th>
+                  <th style="padding:6px 4px;text-align:right;">Prom</th>
+                  <th style="padding:6px 4px;text-align:right;">Pas</th>
+                  <th style="padding:6px 4px;text-align:right;">Det</th>
+                  <th style="padding:6px 4px;text-align:right;">Avg</th>
+                  <th style="padding:6px 4px;text-align:right;">%NPS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% npsRollup.perPaket.forEach(function(p) { %>
+                  <tr style="border-bottom:1px solid var(--hairline-soft);opacity:<%= p.lowSample ? '0.55' : '1' %>;">
+                    <td style="padding:6px 4px;color:var(--cream-100);"><%= p.paketTitle %><% if (p.lowSample) { %><span style="color:var(--ink-300);font-size:10px;"> · low</span><% } %></td>
+                    <td style="padding:6px 4px;text-align:right;color:var(--cream-100);"><%= p.total %></td>
+                    <td style="padding:6px 4px;text-align:right;color:var(--emerald);"><%= p.promoters %></td>
+                    <td style="padding:6px 4px;text-align:right;color:var(--gold-300);"><%= p.passives %></td>
+                    <td style="padding:6px 4px;text-align:right;color:var(--ruby);"><%= p.detractors %></td>
+                    <td style="padding:6px 4px;text-align:right;color:var(--cream-100);"><%= p.avgScore %></td>
+                    <td style="padding:6px 4px;text-align:right;font-weight:600;color:<%= npsTierColor(p.npsPct) %>;"><%= p.npsPct == null ? '—' : (p.npsPct >= 0 ? '+' : '') + p.npsPct %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } %>
+          <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);">
+            NPS = %promoter − %detractor. Promoter 9-10, passive 7-8, detractor 0-6. Paket dengan sample &lt; 5 ditandai 'low' — angka terlalu kecil untuk dipercaya.
+          </div>
+        </div>
+      <% } %>
     </section>
 
   </main>
