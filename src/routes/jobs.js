@@ -444,6 +444,16 @@ router.post(
   }),
 );
 
+// Stage 312 — daily 60d post-return feedback nudge
+router.post(
+  '/send-trip-feedback-reminder',
+  asyncHandler(async (_req, res) => {
+    const { sendTripFeedbackReminders } = await import('../services/tripFeedbackReminder.js');
+    const result = await runJob('send-trip-feedback-reminder', () => sendTripFeedbackReminders({}));
+    res.json(result);
+  }),
+);
+
 // Stage 291 — daily admin digest of stale inquiries
 router.post(
   '/send-inquiry-sla',

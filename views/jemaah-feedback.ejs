@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Feedback perjalanan</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 24px 100px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; font-weight: 500; color: var(--cream-100); margin: 0 0 8px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 24px; line-height: 1.6; }
+  .flash { padding: 10px 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; margin-bottom: 16px; }
+  .flash.ok { background: rgba(80,176,113,0.08); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(212,89,89,0.08); border: 1px solid var(--ruby); color: var(--ruby); }
+  .existing { padding: 12px 16px; margin-bottom: 16px; background: rgba(212,175,107,0.06); border: 1px solid var(--gold-300); border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; color: var(--cream-100); letter-spacing: 0.04em; }
+  .panel { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 24px; }
+  .field { margin-bottom: 18px; }
+  .label { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+  .scores { display: grid; grid-template-columns: repeat(11, 1fr); gap: 6px; }
+  .scores label { cursor: pointer; }
+  .scores input[type="radio"] { display: none; }
+  .scores label .score-chip {
+    display: block; padding: 12px 0; text-align: center; border-radius: 6px;
+    font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+    background: var(--ink-1000); border: 1px solid var(--hairline-soft);
+    color: var(--ink-100); transition: all 0.15s;
+  }
+  .scores input:checked + .score-chip { background: var(--gold-300); color: var(--ink-1000); border-color: var(--gold-300); }
+  .scores .score-chip:hover { border-color: var(--gold-300); color: var(--cream-100); }
+  .scale-hints { display: flex; justify-content: space-between; margin-top: 8px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-300); letter-spacing: 0.06em; }
+  textarea.input { width: 100%; padding: 10px 12px; background: var(--ink-1000); border: 1px solid var(--hairline-soft); border-radius: var(--r-sm); color: var(--cream-100); font-size: 13px; box-sizing: border-box; resize: vertical; font-family: var(--font-body); line-height: 1.6; min-height: 120px; }
+  .actions { display: flex; gap: 12px; margin-top: 22px; align-items: center; }
+  .actions button { font-family: var(--font-mono); font-size: 11px; padding: 10px 22px; border-radius: var(--r-sm); cursor: pointer; letter-spacing: 0.1em; text-transform: uppercase; background: transparent; border: 1px solid var(--gold-300); color: var(--gold-300); }
+  .actions a { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); text-decoration: none; padding: 10px 0; letter-spacing: 0.06em; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/saya/bookings/<%= booking.id %>">← /saya/bookings/<%= booking.bookingNo %></a> · FEEDBACK</div>
+
+    <h1>Feedback perjalanan <em><%= booking.paket.title %></em></h1>
+    <div class="sub">
+      Terima kasih sudah memilih Religio Pro. Skor + komentar Anda kami pakai
+      untuk memperbaiki paket berikutnya. Hanya tim internal yang melihat detail ini —
+      kalau ingin testimoni publik, gunakan <a href="/saya/bookings/<%= booking.id %>/testimonial" style="color:var(--gold-300);">halaman testimoni</a>.
+    </div>
+
+    <% if (flash.ok === 'saved') { %><div class="flash ok">✓ Feedback tersimpan. Anda bisa edit kapan saja sebelum kami arsipkan.</div><% } %>
+    <% if (flash.err) { %><div class="flash err">✕ <%= flash.err %></div><% } %>
+
+    <% if (existing) { %>
+      <div class="existing">
+        ✎ Anda pernah submit skor <strong><%= existing.score %>/10</strong> pada <%= fmt.dateLong(existing.submittedAt) %>. Submit lagi akan menggantikan jawaban sebelumnya.
+      </div>
+    <% } %>
+
+    <form method="POST" action="/saya/bookings/<%= booking.id %>/feedback">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="panel">
+        <div class="field">
+          <label class="label">Seberapa besar kemungkinan Anda merekomendasikan kami ke saudara/teman? (0 = tidak mungkin, 10 = sangat mungkin)</label>
+          <div class="scores">
+            <% for (let n = 0; n <= 10; n++) { %>
+              <label>
+                <input type="radio" name="score" value="<%= n %>" <%= (existing && existing.score === n) ? 'checked' : '' %> required>
+                <span class="score-chip"><%= n %></span>
+              </label>
+            <% } %>
+          </div>
+          <div class="scale-hints">
+            <span>tidak mungkin</span>
+            <span>sangat mungkin</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="f-comment">Komentar / cerita perjalanan (opsional)</label>
+          <textarea id="f-comment" class="input" name="comment" maxlength="2000" placeholder="Apa yang paling membekas? Apa yang bisa kami perbaiki?"><%= existing ? existing.comment || '' : '' %></textarea>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit">Simpan</button>
+        <a href="/saya/bookings/<%= booking.id %>">Kembali</a>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

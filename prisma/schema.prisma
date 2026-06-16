@@ -173,6 +173,7 @@ enum NotificationType {
   REFUND_ISSUED_AGENT // admin issued refund on an agent's booking → WA+EMAIL to the agent (Stage 302)
   BIRTHDAY_GREETING // ucapan ulang tahun, daily cron (Stage 307)
   ANNIVERSARY_REENGAGE // setahun pasca-umroh re-engagement, daily cron (Stage 308)
+  TRIP_FEEDBACK_REMINDER // 60d post-return nudge to submit NPS feedback (Stage 312)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -624,6 +625,7 @@ model Paket {
   pickups         PaketPickup[]
   addons          PaketAddon[]
   webhooks        Webhook[]          @relation("WebhookPaket")
+  tripFeedback    TripFeedback[]
 
   @@index([slug])
   @@index([status])
@@ -672,6 +674,30 @@ model Testimonial {
 
   @@index([status, sortOrder])
   @@index([paketId])
+}
+
+// Stage 310 — jemaah trip feedback (NPS). Different from Testimonial:
+// internal quality signal, not public marketing. Scored 0-10 (industry-
+// standard NPS), optional free-text comment. One row per booking (FK is
+// `@unique`) so re-submit upserts in place.
+//
+// NPS bucketing: 9-10 promoter, 7-8 passive, 0-6 detractor. The %NPS
+// metric = %promoters − %detractors over a sample. Aggregation in
+// src/services/tripFeedback.js.
+model TripFeedback {
+  id          String   @id @default(cuid())
+  bookingId   String   @unique
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  // Denormalised so NPS aggregation can group by paket without joining
+  // through Booking — fast cohort math on /admin/nps.
+  paketId     String
+  paket       Paket    @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  score       Int      // 0-10 inclusive (NPS scale)
+  comment     String?  @db.Text
+  submittedAt DateTime @default(now())
+
+  @@index([paketId, submittedAt])
+  @@index([score, submittedAt])
 }
 
 // Stage 26 — paket waitlist. When kursi penuh, jemaah can leave name +
@@ -1441,6 +1467,7 @@ model Booking {
   tasks           Task[]
   addons          BookingAddon[]
   adjustments     BookingAdjustment[]
+  tripFeedback    TripFeedback?
 
   @@index([paketId])
   @@index([agentId])

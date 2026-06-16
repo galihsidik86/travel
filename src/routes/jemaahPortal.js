@@ -541,6 +541,49 @@ router.post(
   }),
 );
 
+// ── S310: Trip feedback (NPS) ────────────────────────────────
+router.get(
+  '/saya/bookings/:id/feedback',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    const booking = await getMyBooking(req.user.id, req.params.id);
+    if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+    if (booking.status !== 'LUNAS') {
+      throw new HttpError(400, 'Feedback hanya bisa diisi setelah booking LUNAS', 'NOT_LUNAS');
+    }
+    const ret = booking.paket?.returnDate;
+    if (!ret || new Date(ret) > new Date()) {
+      throw new HttpError(400, 'Feedback hanya bisa diisi setelah paket kembali', 'PAKET_NOT_RETURNED');
+    }
+    const { getMyTripFeedback } = await import('../services/tripFeedback.js');
+    const existing = await getMyTripFeedback({ userId: req.user.id, bookingId: req.params.id });
+    res.render('jemaah-feedback', {
+      user: req.user, booking, existing,
+      flash: { ok: req.query.ok || null, err: req.query.err || null },
+    });
+  }),
+);
+
+router.post(
+  '/saya/bookings/:id/feedback',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    const { submitTripFeedback } = await import('../services/tripFeedback.js');
+    try {
+      await submitTripFeedback({
+        userId: req.user.id,
+        bookingId: req.params.id,
+        score: req.body?.score,
+        comment: req.body?.comment,
+      });
+      res.redirect(`/saya/bookings/${req.params.id}/feedback?ok=saved`);
+    } catch (err) {
+      const msg = err instanceof HttpError ? err.message : (err?.message || 'Gagal menyimpan');
+      res.redirect(`/saya/bookings/${req.params.id}/feedback?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
 router.delete(
   '/api/saya/documents/:docId',
   ...requireJemaah,

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — NPS</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.015em; }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 24px; }
+  .kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .kpi-card { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 18px; }
+  .kpi-card .lbl { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+  .kpi-card .val { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); }
+  .kpi-card .val.emerald { color: var(--emerald); }
+  .kpi-card .val.ruby { color: var(--ruby); }
+  .kpi-card .val.amber { color: var(--amber); }
+  .panel { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 24px; margin-bottom: 18px; }
+  .panel h2 { font-family: var(--font-display); font-size: 18px; color: var(--cream-100); margin: 0 0 12px; font-weight: 500; }
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; }
+  th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--hairline-soft); color: var(--ink-300); letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px; font-weight: 500; }
+  td { padding: 8px 6px; border-bottom: 1px solid var(--hairline-soft); color: var(--cream-100); }
+  td.right { text-align: right; }
+  tr.dim td { opacity: 0.55; }
+  .nps-pill { display: inline-block; padding: 3px 10px; border-radius: 4px; font-weight: 600; font-size: 11px; }
+  .nps-pill.good { background: rgba(74,143,109,0.12); color: var(--emerald); }
+  .nps-pill.mid { background: rgba(212,175,107,0.12); color: var(--gold-300); }
+  .nps-pill.bad { background: rgba(212,89,89,0.12); color: var(--ruby); }
+  .comment-card { padding: 12px 14px; margin-bottom: 10px; background: var(--ink-1000); border: 1px solid var(--hairline-soft); border-radius: 6px; }
+  .comment-card.promoter { border-left: 3px solid var(--emerald); }
+  .comment-card.passive { border-left: 3px solid var(--gold-300); }
+  .comment-card.detractor { border-left: 3px solid var(--ruby); }
+  .comment-card .meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-300); letter-spacing: 0.04em; margin-bottom: 4px; }
+  .comment-card .body { font-family: var(--font-body); font-size: 13px; color: var(--cream-100); line-height: 1.6; }
+  .window-nav { display: flex; gap: 10px; font-family: var(--font-mono); font-size: 11px; }
+  .window-nav a { color: var(--ink-200); text-decoration: none; padding: 6px 12px; border: 1px solid var(--hairline-soft); border-radius: 4px; }
+  .window-nav a.active { color: var(--gold-300); border-color: var(--gold-300); }
+  .empty { padding: 40px; text-align: center; font-family: var(--font-mono); font-size: 13px; color: var(--ink-300); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/admin">← /admin</a> · NPS</div>
+    <h1>NPS perjalanan jemaah</h1>
+    <div class="sub">
+      %NPS = %promoter − %detractor (skala -100…+100).
+      Promoter 9-10, passive 7-8, detractor 0-6 (industry standard).
+      Paket dengan sample &lt; 5 dianggap "low" — angka tidak ditampilkan.
+    </div>
+
+    <div class="window-nav" style="margin-bottom:18px;">
+      <% [30, 90, 365, 730].forEach(function(d) { %>
+        <a href="/admin/nps?days=<%= d %>" class="<%= days === d ? 'active' : '' %>"><%= d %> hari</a>
+      <% }) %>
+    </div>
+
+    <% if (nps.total === 0) { %>
+      <div class="panel"><div class="empty">Belum ada feedback dalam window ini.</div></div>
+    <% } else {
+         const overall = nps.overall;
+         const tier = (pct) => pct == null ? 'mid' : pct >= 30 ? 'good' : pct >= 0 ? 'mid' : 'bad';
+         const tierClass = tier(overall.npsPct);
+    %>
+      <div class="kpi-strip">
+        <div class="kpi-card">
+          <div class="lbl">%NPS</div>
+          <div class="val <%= tierClass === 'good' ? 'emerald' : tierClass === 'bad' ? 'ruby' : 'amber' %>"><%= overall.npsPct == null ? '—' : (overall.npsPct >= 0 ? '+' : '') + overall.npsPct %></div>
+        </div>
+        <div class="kpi-card">
+          <div class="lbl">Promoter</div>
+          <div class="val emerald"><%= overall.promoters %></div>
+        </div>
+        <div class="kpi-card">
+          <div class="lbl">Passive</div>
+          <div class="val amber"><%= overall.passives %></div>
+        </div>
+        <div class="kpi-card">
+          <div class="lbl">Detractor</div>
+          <div class="val ruby"><%= overall.detractors %></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Per paket (sample ≥ 5 muncul dengan %NPS)</h2>
+        <% if (nps.perPaket.length === 0) { %>
+          <div class="empty">Belum ada per-paket data.</div>
+        <% } else { %>
+          <table>
+            <thead>
+              <tr>
+                <th>Paket</th>
+                <th class="right">Total</th>
+                <th class="right">Prom</th>
+                <th class="right">Pas</th>
+                <th class="right">Det</th>
+                <th class="right">Avg</th>
+                <th class="right">%NPS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% nps.perPaket.forEach(function(p) { %>
+                <tr class="<%= p.lowSample ? 'dim' : '' %>">
+                  <td>
+                    <% if (p.paketSlug) { %>
+                      <a href="/admin/paket/<%= p.paketSlug %>/edit" style="color:var(--cream-100);text-decoration:none;border-bottom:1px dotted var(--ink-200);"><%= p.paketTitle %></a>
+                    <% } else { %>
+                      <%= p.paketTitle %>
+                    <% } %>
+                    <% if (p.lowSample) { %><span style="color:var(--ink-300);font-size:10px;">· low</span><% } %>
+                  </td>
+                  <td class="right"><%= p.total %></td>
+                  <td class="right" style="color:var(--emerald);"><%= p.promoters %></td>
+                  <td class="right" style="color:var(--gold-300);"><%= p.passives %></td>
+                  <td class="right" style="color:var(--ruby);"><%= p.detractors %></td>
+                  <td class="right"><%= p.avgScore %></td>
+                  <td class="right">
+                    <% if (p.npsPct == null) { %>
+                      —
+                    <% } else {
+                         const t = p.npsPct >= 30 ? 'good' : p.npsPct >= 0 ? 'mid' : 'bad';
+                    %>
+                      <span class="nps-pill <%= t %>"><%= (p.npsPct >= 0 ? '+' : '') + p.npsPct %></span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+
+      <% if (nps.recentComments.length > 0) { %>
+        <div class="panel">
+          <h2>Komentar terbaru (10 terakhir)</h2>
+          <% nps.recentComments.forEach(function(c) { %>
+            <div class="comment-card <%= c.bucket %>">
+              <div class="meta">
+                Skor <strong><%= c.score %>/10</strong> · <%= c.jemaahName %>
+                <% if (c.paketTitle) { %> · <%= c.paketTitle %><% } %>
+                · <%= fmt.dateShort(c.submittedAt) %>
+              </div>
+              <div class="body"><%= c.comment %></div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    <% } %>
+  </div>
+</body>
+</html>

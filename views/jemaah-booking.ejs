@@ -190,6 +190,22 @@
     </div>
   <% } %>
 
+  <%# Stage 310 — NPS feedback CTA. Only shown when LUNAS AND paket has
+      already returned (no point reviewing a future trip). Distinct from
+      testimonial — this is internal quality signal, not public marketing. %>
+  <% if (b.status === 'LUNAS' && b.paket.returnDate && new Date(b.paket.returnDate) < new Date()) { %>
+    <div style="padding:14px 18px;background:rgba(120,135,225,0.08);border:1px solid var(--sapphire);border-radius:var(--r-sm);margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <div style="font-family:var(--font-display);font-size:16px;color:var(--cream-100);font-weight:500;">Bagaimana perjalanan Anda?</div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);margin-top:3px;letter-spacing:0.04em;">Skor 0-10 + komentar pendek — hanya tim internal yang lihat. Bantu kami perbaiki paket berikutnya.</div>
+      </div>
+      <a href="/saya/bookings/<%= b.id %>/feedback"
+         style="background:var(--sapphire);color:var(--ink-1000);padding:10px 16px;border-radius:4px;text-decoration:none;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;font-weight:600;text-transform:uppercase;">
+        ★ Beri feedback
+      </a>
+    </div>
+  <% } %>
+
   <%# Stage 222 — WhatsApp group invite. LUNAS-only to avoid spam from
       speculative bookings that might cancel. Link opens in new tab. %>
   <% if (b.status === 'LUNAS' && b.paket.waGroupUrl) { %>

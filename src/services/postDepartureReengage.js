@@ -103,6 +103,9 @@ export async function sendPostDepartureReengage({
       `Sudah sekitar sebulan sejak Anda kembali dari ${b.paket.title}.`,
       'Semoga ibadah Anda diterima dan kebaikan yang dibawa pulang menetap.',
       'Bagaimana kondisi keluarga setelah perjalanan?',
+      // S310 — pair the re-engage with the NPS survey link so jemaah see
+      // the feedback ask organically. /saya gate enforces ownership.
+      `Ada 60 detik luang? Bagi skor + cerita perjalanan: /saya/bookings/${b.id}/feedback`,
       nextTripsLine,
       '',
       'Jika Anda atau saudara berminat berangkat lagi, balas pesan ini',

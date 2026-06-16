@@ -385,6 +385,19 @@ router.get(
   }),
 );
 
+// Stage 311 — admin NPS page. Trailing window default 365d; tunable
+// via ?days= (clamped 30..730). Lists per-paket NPS + recent comments
+// + global KPI strip.
+router.get(
+  '/nps',
+  asyncHandler(async (req, res) => {
+    const days = Math.max(30, Math.min(730, Number(req.query.days) || 365));
+    const { getNpsRollup } = await import('../services/tripFeedback.js');
+    const nps = await getNpsRollup({ days });
+    res.render('admin-nps', { user: req.user, nps, days });
+  }),
+);
+
 // Stage 38 — refund drill-down. Either ?paket=<slug> or ?agent=<slug>
 // (use `kantor-pusat` for walk-ins). Days override via ?days=N.
 router.get(
