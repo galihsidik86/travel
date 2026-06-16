@@ -424,6 +424,26 @@ router.post(
   }),
 );
 
+// Stage 307 — daily birthday greeting
+router.post(
+  '/send-birthday-greeting',
+  asyncHandler(async (_req, res) => {
+    const { sendBirthdayGreetings } = await import('../services/birthdayGreeting.js');
+    const result = await runJob('send-birthday-greeting', () => sendBirthdayGreetings({}));
+    res.json(result);
+  }),
+);
+
+// Stage 308 — daily one-year anniversary nudge
+router.post(
+  '/send-anniversary-reengage',
+  asyncHandler(async (_req, res) => {
+    const { sendAnniversaryReengage } = await import('../services/anniversaryReengage.js');
+    const result = await runJob('send-anniversary-reengage', () => sendAnniversaryReengage({}));
+    res.json(result);
+  }),
+);
+
 // Stage 291 — daily admin digest of stale inquiries
 router.post(
   '/send-inquiry-sla',

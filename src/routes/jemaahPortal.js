@@ -320,6 +320,8 @@ router.post(
       ...req.body,
       notifWa: req.body?.notifWa ?? false,
       notifEmail: req.body?.notifEmail ?? false,
+      // Stage 309 — engagement opt-out (birthday + anniversary touches)
+      notifEngagement: req.body?.notifEngagement ?? false,
     };
     const actor = { id: req.user.id, email: req.user.email, role: req.user.role };
     const updated = await updateMyProfile({ req, actor, userId: req.user.id, input });

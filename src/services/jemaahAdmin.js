@@ -35,6 +35,9 @@ export const JemaahSchema = z.object({
   notes: optStr,
   notifEmail: notifPref,
   notifWa: notifPref,
+  // Stage 309 — engagement opt-out (birthday + anniversary marketing
+  // touches). Separate from transactional notifEmail/notifWa.
+  notifEngagement: notifPref,
   // Stage 210 — dietary preference + free-text notes. 3-state: undefined
   // (field absent) → no change; explicit empty → clear (dietary back to
   // REGULAR, notes to NULL); value → set.
@@ -156,6 +159,8 @@ export async function updateJemaah({ req, actor, jemaahId, input }) {
       // Only update if explicitly sent (5jj — admin form may not include these)
       ...(input.notifEmail !== undefined ? { notifEmail: input.notifEmail } : {}),
       ...(input.notifWa !== undefined ? { notifWa: input.notifWa } : {}),
+      // Stage 309 — engagement opt-out (birthday + anniversary)
+      ...(input.notifEngagement !== undefined ? { notifEngagement: input.notifEngagement } : {}),
       ...consentPatch,
       // Stage 210 — dietary fields. undefined = no change (form omitted); explicit
       // value sets it. dietaryNotes: empty string → null clears.

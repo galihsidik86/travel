@@ -319,6 +319,11 @@
           <input type="checkbox" name="notifEmail" <%= target.notifEmail !== false ? 'checked' : '' %> value="on" style="accent-color:var(--gold-300);width:18px;height:18px;">
           <span>Kirim notifikasi via <strong style="color:var(--gold-300);">Email</strong> (semua jenis)</span>
         </label>
+        <!-- Stage 309 — engagement opt-out (marketing-style touches) -->
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);margin-top:8px;padding-top:8px;border-top:1px dashed var(--ink-700);">
+          <input type="checkbox" name="notifEngagement" <%= target.notifEngagement !== false ? 'checked' : '' %> value="on" style="accent-color:var(--gold-300);width:18px;height:18px;">
+          <span>Kirim sapaan ulang tahun + nudge setahun pasca-umroh (engagement, opsional)</span>
+        </label>
       </div>
 
       <div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--ink-700);">
