@@ -1279,6 +1279,85 @@
           <% } %>
         </div>
       </div>
+
+      <!-- Stage 304 + S305 — per-agent cancel + refund reason breakdown -->
+      <% if (typeof cancelRefundReasons !== 'undefined' && cancelRefundReasons
+             && (cancelRefundReasons.cancel.total > 0 || cancelRefundReasons.refund.total > 0)) {
+           function reasonShareColor(pct) {
+             if (pct == null) return 'var(--ink-300)';
+             if (pct >= 40) return 'var(--ruby)';
+             if (pct >= 20) return 'var(--amber)';
+             return 'var(--ink-100)';
+           }
+      %>
+        <div class="card" style="margin-top:24px;">
+          <div class="card__head">
+            <span class="eyebrow">Mengapa booking saya batal? (<%= cancelRefundReasons.days %> hari)</span>
+            <h2 style="margin-top:4px;">Alasan cancel / refund</h2>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:14px;">
+            <!-- Cancel reasons -->
+            <div>
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">
+                Cancel · <%= cancelRefundReasons.cancel.total %> booking · Rp <%= fmt.rpShort(cancelRefundReasons.cancel.totalPaidIdr) %> uang masuk
+              </div>
+              <% if (cancelRefundReasons.cancel.rows.length === 0) { %>
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-300);padding:14px 0;">Tidak ada pembatalan dalam window — bagus!</div>
+              <% } else { %>
+                <table style="width:100%;font-family:var(--font-mono);font-size:11px;border-collapse:collapse;">
+                  <thead>
+                    <tr style="text-align:left;border-bottom:1px solid var(--hairline-soft);color:var(--ink-300);">
+                      <th style="padding:6px 4px;">Alasan</th>
+                      <th style="padding:6px 4px;text-align:right;">Jumlah</th>
+                      <th style="padding:6px 4px;text-align:right;">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% cancelRefundReasons.cancel.rows.forEach(function(r) { %>
+                      <tr style="border-bottom:1px solid var(--hairline-soft);">
+                        <td style="padding:6px 4px;color:<%= r.code === '__UNSET__' ? 'var(--ink-300)' : 'var(--cream-100)' %>;<%= r.code === '__UNSET__' ? 'font-style:italic;' : '' %>"><%= r.label %></td>
+                        <td style="padding:6px 4px;text-align:right;color:var(--cream-100);"><%= r.count %></td>
+                        <td style="padding:6px 4px;text-align:right;font-weight:600;color:<%= reasonShareColor(r.sharePct) %>;"><%= r.sharePct == null ? '—' : (r.sharePct + '%') %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              <% } %>
+            </div>
+            <!-- Refund reasons -->
+            <div>
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">
+                Refund · <%= cancelRefundReasons.refund.total %> kali · Rp <%= fmt.rpShort(cancelRefundReasons.refund.totalIdr) %> uang keluar
+              </div>
+              <% if (cancelRefundReasons.refund.rows.length === 0) { %>
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-300);padding:14px 0;">Tidak ada refund dalam window.</div>
+              <% } else { %>
+                <table style="width:100%;font-family:var(--font-mono);font-size:11px;border-collapse:collapse;">
+                  <thead>
+                    <tr style="text-align:left;border-bottom:1px solid var(--hairline-soft);color:var(--ink-300);">
+                      <th style="padding:6px 4px;">Alasan</th>
+                      <th style="padding:6px 4px;text-align:right;">Nilai</th>
+                      <th style="padding:6px 4px;text-align:right;">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% cancelRefundReasons.refund.rows.forEach(function(r) { %>
+                      <tr style="border-bottom:1px solid var(--hairline-soft);">
+                        <td style="padding:6px 4px;color:<%= r.code === '__UNSET__' ? 'var(--ink-300)' : 'var(--cream-100)' %>;<%= r.code === '__UNSET__' ? 'font-style:italic;' : '' %>"><%= r.label %></td>
+                        <td style="padding:6px 4px;text-align:right;color:var(--cream-100);">Rp <%= fmt.rpShort(r.refundedIdr) %></td>
+                        <td style="padding:6px 4px;text-align:right;font-weight:600;color:<%= reasonShareColor(r.sharePct) %>;"><%= r.sharePct == null ? '—' : (r.sharePct + '%') %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              <% } %>
+            </div>
+          </div>
+          <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);">
+            Cancel dihitung saat status booking menjadi CANCELLED/REFUNDED dalam window. Refund dihitung dari Payment refund Anda dalam window (IDR). Kategori bantu Anda fokus: misalnya banyak PAYMENT_NOT_RECEIVED → follow-up bayar lebih awal.
+          </div>
+        </div>
+      <% } %>
     </section>
 
   </main>

@@ -2081,6 +2081,43 @@ export async function notifyAgentWeeklyDigest({ digest }) {
     topPaketBlock = lines.join('\n') + '\n';
   }
 
+  // S306 — inline cancel + refund reason rollup for the week. Silent when
+  // there's nothing to report (clean weeks don't carry the block).
+  let reasonBlock = '';
+  const rr = digest.reasonRollup;
+  if (rr && (rr.cancelByCode.length > 0 || rr.refundByCode.length > 0)) {
+    const cancelLabels = {
+      JEMAAH_REQUEST: 'Permintaan jemaah', PAKET_CANCELLED: 'Paket dibatalkan',
+      PAYMENT_NOT_RECEIVED: 'Pembayaran tidak masuk',
+      DOCUMENT_INCOMPLETE: 'Dokumen tidak lengkap',
+      NO_SHOW: 'Tidak hadir', GOODWILL: 'Goodwill', OTHER: 'Lainnya',
+      __UNSET__: 'Belum dikategorikan',
+    };
+    const refundLabels = {
+      JEMAAH_REQUEST: 'Permintaan jemaah', PAKET_CANCELLED: 'Paket dibatalkan',
+      VISA_REJECTED: 'Visa ditolak', JEMAAH_ILL: 'Jemaah sakit',
+      DOCUMENT_INCOMPLETE: 'Dokumen tidak lengkap', NO_SHOW_REFUND: 'Refund no-show',
+      GOODWILL: 'Goodwill', DUPLICATE_PAYMENT: 'Pembayaran ganda',
+      FRAUD_CHARGEBACK: 'Chargeback / fraud', OTHER: 'Lainnya',
+      __UNSET__: 'Belum dikategorikan',
+    };
+    const lines = ['\n— ALASAN CANCEL / REFUND minggu ini'];
+    if (rr.cancelByCode.length > 0) {
+      lines.push('Cancel:');
+      rr.cancelByCode.forEach((r) => {
+        lines.push(`  · ${cancelLabels[r.code] || r.code} · ${r.count}`);
+      });
+    }
+    if (rr.refundByCode.length > 0) {
+      lines.push('Refund:');
+      rr.refundByCode.forEach((r) => {
+        const idrStr = Math.round(r.idr).toLocaleString('id-ID');
+        lines.push(`  · ${refundLabels[r.code] || r.code} · ${r.count}x · Rp ${idrStr}`);
+      });
+    }
+    reasonBlock = lines.join('\n') + '\n';
+  }
+
   const vars = {
     agentName: digest.agent.user.fullName || digest.agent.displayName || 'Agen',
     label: digest.label,
@@ -2104,6 +2141,7 @@ export async function notifyAgentWeeklyDigest({ digest }) {
     trendKomisiEarned: dKomisiEarned,
     trendKomisiPaid: dKomisiPaid,
     topPaketBlock,
+    reasonBlock,
     agenLink: '/agen',
   };
   const { subject, body } = renderTemplate('AGENT_WEEKLY_DIGEST', 'EMAIL', vars);

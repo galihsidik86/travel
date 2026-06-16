@@ -62,12 +62,13 @@ async function aggregateAgentWeek({ agentId, start, end }) {
   const [
     newBookings,
     lunasBookings,
-    cancelledBookings,
+    cancelledBookingsRows,
     leadsCreated,
     leadsConverted,
     leadsLost,
     komisiEarned,
     komisiPaid,
+    refundPayments,
   ] = await Promise.all([
     db.booking.findMany({
       where: { agentId, createdAt: { gte: start, lt: end } },
@@ -77,8 +78,14 @@ async function aggregateAgentWeek({ agentId, start, end }) {
       where: { agentId, status: 'LUNAS', updatedAt: { gte: start, lt: end } },
       select: { id: true, totalAmount: true, paketId: true },
     }),
-    db.booking.count({
-      where: { agentId, status: 'CANCELLED', cancelledAt: { gte: start, lt: end } },
+    // S306 — pull cancel rows (not just count) so we can group by reason.
+    db.booking.findMany({
+      where: {
+        agentId,
+        status: { in: ['CANCELLED', 'REFUNDED'] },
+        cancelledAt: { gte: start, lt: end },
+      },
+      select: { id: true, cancelReasonCode: true },
     }),
     db.lead.count({
       where: { agentId, deletedAt: null, createdAt: { gte: start, lt: end } },
@@ -97,7 +104,17 @@ async function aggregateAgentWeek({ agentId, start, end }) {
       where: { agentId, paidAt: { gte: start, lt: end } },
       select: { amount: true },
     }),
+    // S306 — refund Payment rows so we can group by refundReasonCode.
+    db.payment.findMany({
+      where: {
+        status: 'REFUNDED', currency: 'IDR',
+        createdAt: { gte: start, lt: end },
+        booking: { agentId },
+      },
+      select: { amount: true, refundReasonCode: true },
+    }),
   ]);
+  const cancelledBookings = cancelledBookingsRows.length;
 
   const lunasRevenueIdr = lunasBookings.reduce(
     (acc, b) => acc + (toNumber(b.totalAmount) ?? 0),
@@ -121,6 +138,41 @@ async function aggregateAgentWeek({ agentId, start, end }) {
   }
   const topRaw = [...topMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
 
+  // S306 — group cancel codes + refund codes for the inbox block. NULL
+  // bucket under __UNSET__ so agent sees the categorisation gap.
+  const cancelByCode = new Map();
+  for (const b of cancelledBookingsRows) {
+    const code = b.cancelReasonCode || '__UNSET__';
+    cancelByCode.set(code, (cancelByCode.get(code) || 0) + 1);
+  }
+  const refundByCode = new Map();
+  let refundTotalIdr = 0;
+  for (const p of refundPayments) {
+    const code = p.refundReasonCode || '__UNSET__';
+    const amt = Math.abs(toNumber(p.amount) ?? 0);
+    const cur = refundByCode.get(code) || { count: 0, idr: 0 };
+    cur.count += 1; cur.idr += amt;
+    refundByCode.set(code, cur);
+    refundTotalIdr += amt;
+  }
+  const reasonRollup = {
+    cancelByCode: [...cancelByCode.entries()]
+      .map(([code, count]) => ({ code, count }))
+      .sort((a, b) => {
+        if (a.code === '__UNSET__') return 1;
+        if (b.code === '__UNSET__') return -1;
+        return b.count - a.count;
+      }),
+    refundByCode: [...refundByCode.entries()]
+      .map(([code, v]) => ({ code, count: v.count, idr: v.idr }))
+      .sort((a, b) => {
+        if (a.code === '__UNSET__') return 1;
+        if (b.code === '__UNSET__') return -1;
+        return b.idr - a.idr;
+      }),
+    refundTotalIdr,
+  };
+
   return {
     counts: {
       newBookings: newBookings.length,
@@ -136,6 +188,7 @@ async function aggregateAgentWeek({ agentId, start, end }) {
       komisiPaidIdr,
     },
     topRaw,
+    reasonRollup,
   };
 }
 
@@ -203,6 +256,7 @@ export async function buildAgentWeeklyDigest({ agentId, now = new Date() } = {})
     previous,
     deltas,
     topPaket,
+    reasonRollup: current.reasonRollup,
     fmt: {
       newBookings: fmtNum(current.counts.newBookings),
       lunasBookings: fmtNum(current.counts.lunasBookings),
