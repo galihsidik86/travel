@@ -121,9 +121,72 @@ export async function getCrewToday({ userId, now = new Date() } = {}) {
     take: 10,
   });
 
+  // Stage 323 — today's attendance progress for paket currently in-trip.
+  // For each assigned paket with departureDate ≤ today ≤ returnDate,
+  // find today's PaketDay (computed from days-since-departure) and
+  // tally attendance marks vs total active bookings.
+  let inTripAttendance = [];
+  try {
+    const todayMid = new Date(now); todayMid.setHours(0, 0, 0, 0);
+    const inTripAssignments = await db.paketCrew.findMany({
+      where: {
+        userId,
+        paket: {
+          deletedAt: null,
+          status: { not: 'ARCHIVED' },
+          departureDate: { lte: todayMid },
+          returnDate: { gte: todayMid },
+        },
+      },
+      select: {
+        paket: {
+          select: {
+            id: true, slug: true, title: true,
+            departureDate: true, durationDays: true,
+            days: { select: { id: true, dayNumber: true, title: true }, orderBy: { dayNumber: 'asc' } },
+          },
+        },
+      },
+    });
+    for (const a of inTripAssignments) {
+      const p = a.paket;
+      if (!p) continue;
+      const dep = new Date(p.departureDate); dep.setHours(0, 0, 0, 0);
+      const dayN = Math.floor((todayMid.getTime() - dep.getTime()) / ONE_DAY_MS) + 1;
+      const todayDay = (p.days || []).find((d) => d.dayNumber === dayN);
+      if (!todayDay) continue;
+      // Total active bookings on the paket (CANCELLED/REFUNDED excluded —
+      // matches the manifest definition of "who's actually going").
+      const totalActive = await db.booking.count({
+        where: { paketId: p.id, status: { notIn: ['CANCELLED', 'REFUNDED'] } },
+      });
+      // Per-mark tally for this day. The unique `(dayId, bookingId)` pair
+      // guarantees at most one row per booking; counts are honest.
+      const marks = await db.attendanceMark.findMany({
+        where: { paketDayId: todayDay.id },
+        select: { present: true },
+      });
+      const presentCount = marks.filter((m) => m.present).length;
+      const absentCount = marks.length - presentCount;
+      const unmarkedCount = Math.max(0, totalActive - marks.length);
+      const percentPresent = totalActive > 0
+        ? Math.round((presentCount / totalActive) * 100)
+        : null;
+      inTripAttendance.push({
+        paket: { id: p.id, slug: p.slug, title: p.title },
+        day: { id: todayDay.id, dayNumber: todayDay.dayNumber, title: todayDay.title, totalDays: (p.days || []).length || p.durationDays },
+        totalActive, presentCount, absentCount, unmarkedCount, percentPresent,
+      });
+    }
+  } catch (err) {
+    console.warn('[crewToday] in-trip attendance failed:', err?.message || err);
+    inTripAttendance = [];
+  }
+
   return {
     departingSoon: departingSoon.map((a) => a.paket),
     attendanceDueToday,
     openIncidents,
+    inTripAttendance,
   };
 }

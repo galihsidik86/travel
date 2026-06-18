@@ -650,6 +650,63 @@
     </div>
   <% } %>
 
+  <%# Stage 322 — itinerary timeline. Computes current trip day (same
+      math as S320 getInTripContext) and dims past days, highlights
+      current day gold, leaves future days neutral. Only renders when
+      paket has at least one PaketDay (admin curated). Pre-trip jemaah
+      see the full upcoming itinerary; post-trip sees all days dimmed. %>
+  <% if (b.paket.days && b.paket.days.length > 0) {
+       const today = new Date(); today.setHours(0,0,0,0);
+       const dep = new Date(b.paket.departureDate); dep.setHours(0,0,0,0);
+       const ret = new Date(b.paket.returnDate); ret.setHours(0,0,0,0);
+       const dayN = Math.floor((today.getTime() - dep.getTime()) / 86_400_000) + 1;
+       const inWindow = today >= dep && today <= ret;
+  %>
+    <div class="panel">
+      <h3>Itinerary perjalanan</h3>
+      <%# State pill: pre-trip, in-trip, or post-trip %>
+      <div class="sub" style="margin-bottom:14px;">
+        <% if (today < dep) { %>
+          <span style="color:var(--gold-300);">Belum berangkat</span> · <%= b.paket.days.length %> hari direncanakan
+        <% } else if (today > ret) { %>
+          <span style="color:var(--ink-300);">Perjalanan selesai</span> · semua hari ditampilkan untuk referensi
+        <% } else { %>
+          <span style="color:var(--gold-300);">Hari ke-<%= dayN %> dari <%= b.paket.days.length %></span>
+        <% } %>
+      </div>
+      <div style="position:relative;padding-left:32px;">
+        <%# vertical connecting line %>
+        <div style="position:absolute;left:11px;top:6px;bottom:6px;width:2px;background:linear-gradient(180deg,var(--hairline-soft),var(--ink-700));"></div>
+        <% b.paket.days.forEach(function(d) {
+             const isCurrent = inWindow && d.dayNumber === dayN;
+             const isPast = inWindow && d.dayNumber < dayN;
+             const isFuture = inWindow ? d.dayNumber > dayN : (today < dep);
+             const dotColor = isCurrent ? 'var(--gold-300)' : isPast ? 'var(--emerald)' : 'var(--ink-300)';
+             const titleColor = isCurrent ? 'var(--gold-300)' : isPast ? 'var(--ink-100)' : 'var(--cream-100)';
+             const opacity = (isPast && !isCurrent) ? '0.55' : '1';
+             const cardBg = isCurrent ? 'rgba(212,175,107,0.06)' : 'transparent';
+             const cardBorder = isCurrent ? '1px solid var(--gold-300)' : '1px solid transparent';
+        %>
+          <div style="position:relative;margin-bottom:14px;opacity:<%= opacity %>;">
+            <%# dot %>
+            <div style="position:absolute;left:-26px;top:6px;width:14px;height:14px;border-radius:50%;background:var(--ink-1000);border:2px solid <%= dotColor %>;<%= isCurrent ? 'box-shadow:0 0 0 4px rgba(212,175,107,0.18);' : '' %>"></div>
+            <div style="padding:8px 12px;background:<%= cardBg %>;border:<%= cardBorder %>;border-radius:var(--r-sm);">
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.14em;text-transform:uppercase;">
+                Hari <%= d.dayNumber %>
+                <% if (isCurrent) { %><span style="color:var(--gold-300);font-weight:600;"> · HARI INI</span><% } %>
+                <% if (isPast && !isCurrent) { %><span style="color:var(--emerald);"> · selesai</span><% } %>
+              </div>
+              <div style="font-family:var(--font-display);font-size:16px;color:<%= titleColor %>;line-height:1.3;margin-top:3px;"><%= d.title %></div>
+              <% if (d.description) { %>
+                <div style="font-family:var(--font-body);font-size:13px;color:var(--ink-100);margin-top:6px;line-height:1.55;"><%= d.description %></div>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  <% } %>
+
   <!-- Payment history -->
   <div class="panel">
     <h3>Riwayat pembayaran (<%= b.payments.length %>)</h3>

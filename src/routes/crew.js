@@ -4,6 +4,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
+import { db } from '../lib/db.js';
 import {
   listAssignedPaket, getAssignedManifest, buildCrewManifestCsv,
   listAttendanceDays, getAttendanceGrid, setAttendanceMark,
@@ -238,6 +239,50 @@ router.post(
       notes: req.body?.notes,
     });
     res.redirect(`/crew/paket/${encodeURIComponent(req.params.slug)}/attendance/${req.params.dayId}?ok=saved`);
+  }),
+);
+
+// Stage 324 — crew posts a paket announcement (bus delay, schedule
+// change, kumpul-time, etc.). Reuses the S192 createAnnouncement
+// service path so jemaah see it via the same channels (PaketAnnouncement
+// row → push S193 → email S216 fan-outs). Crew must be assigned to the
+// paket; service-level guard rejects unassigned crew with 404 (anti-
+// enumeration, same convention as the rest of the crew portal).
+router.post(
+  '/paket/:slug/announce',
+  asyncHandler(async (req, res) => {
+    // Tuple guard: confirm crew is assigned to the paket BEFORE letting
+    // them post on its behalf.
+    const paket = await db.paket.findUnique({
+      where: { slug: req.params.slug },
+      select: { id: true, slug: true },
+    });
+    if (!paket) throw new HttpError(404, 'Paket tidak ditemukan', 'NOT_FOUND');
+    const assigned = await db.paketCrew.findFirst({
+      where: { paketId: paket.id, userId: req.user.id },
+      select: { paketId: true },
+    });
+    if (!assigned) throw new HttpError(404, 'Paket tidak ditemukan', 'NOT_ASSIGNED');
+
+    const { createAnnouncement } = await import('../services/paketAnnouncements.js');
+    try {
+      await createAnnouncement({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        paketId: paket.id,
+        input: {
+          title: req.body?.title,
+          body: req.body?.body,
+          // Crew announcements go live immediately (publishedAt defaults
+          // to now in the service). Optional expiresAt accepted from form.
+          expiresAt: req.body?.expiresAt || null,
+        },
+      });
+      res.redirect(`/crew/paket/${encodeURIComponent(req.params.slug)}?ok=announced`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal post';
+      res.redirect(`/crew/paket/${encodeURIComponent(req.params.slug)}?err=${encodeURIComponent(msg)}`);
+    }
   }),
 );
 

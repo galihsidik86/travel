@@ -699,7 +699,15 @@ export async function getMyBooking(userId, bookingId) {
   const booking = await db.booking.findFirst({
     where: { id: bookingId, jemaahUserId: userId },
     include: {
-      paket: { select: { slug: true, title: true, departureDate: true, returnDate: true, durationDays: true, airline: true, routeFrom: true, routeTo: true, manifestClosesAt: true, waGroupUrl: true } },
+      paket: {
+        select: {
+          slug: true, title: true, departureDate: true, returnDate: true,
+          durationDays: true, airline: true, routeFrom: true, routeTo: true,
+          manifestClosesAt: true, waGroupUrl: true,
+          // Stage 322 — itinerary timeline on jemaah booking detail
+          days: { orderBy: { dayNumber: 'asc' }, select: { dayNumber: true, title: true, description: true } },
+        },
+      },
       jemaah: { include: { documents: { orderBy: { type: 'asc' } } } },
       agent: { select: { slug: true, displayName: true, whatsapp: true } },
       room: { select: { roomNo: true, floor: true, wing: true } },
