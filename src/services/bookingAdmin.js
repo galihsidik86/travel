@@ -690,3 +690,203 @@ export async function declineCancelRequest({ req, actor, bookingId, reason }) {
 
   return updated;
 }
+
+// ── Stage 337 — booking reschedule ───────────────────────────────
+//
+// Move a jemaah from one paket to another, preserving paidAmount,
+// agent attribution, notes, and jemaah identity. The source booking
+// goes terminal (status=RESCHEDULED) with rescheduledToBookingId
+// pointing at the new booking. The new booking starts at a status
+// matching the carried paidAmount (PENDING / DP_PAID / PARTIAL / LUNAS).
+//
+// Distinct from:
+//   - cancelBooking + new booking — loses payment history + komisi
+//   - cloneBooking (S256) — creates a NEW booking for a DIFFERENT jemaah
+//   - transferBookingAgent (S5q) — changes agent, same paket
+//   - handoverBookingJemaah (S280) — changes jemaah, same paket
+//
+// Same booking row stays around (status=RESCHEDULED) so the audit
+// timeline + analytics retain the original entry.
+export async function rescheduleBooking({
+  req, actor, sourceBookingId, targetPaketId, targetKelas,
+  targetPaxCount = null, reason = null,
+}) {
+  if (!sourceBookingId) throw new HttpError(400, 'sourceBookingId required', 'BAD_INPUT');
+  if (!targetPaketId) throw new HttpError(400, 'targetPaketId required', 'BAD_INPUT');
+  if (!targetKelas) throw new HttpError(400, 'targetKelas required', 'BAD_INPUT');
+
+  const source = await db.booking.findUnique({
+    where: { id: sourceBookingId },
+    select: {
+      id: true, bookingNo: true, status: true, paxCount: true, kelas: true,
+      paketId: true, jemaahId: true, jemaahUserId: true,
+      agentId: true, agentSlugCap: true, currency: true,
+      paidAmount: true, totalAmount: true, notes: true,
+      paket: { select: { title: true } },
+      jemaah: { select: { fullName: true, phone: true, email: true } },
+    },
+  });
+  if (!source) throw new HttpError(404, 'Booking sumber tidak ditemukan', 'BOOKING_NOT_FOUND');
+  const TERMINAL = new Set(['CANCELLED', 'REFUNDED', 'RESCHEDULED']);
+  if (TERMINAL.has(source.status)) {
+    throw new HttpError(409, `Booking sudah ${source.status} — tidak bisa di-reschedule`, 'SOURCE_CLOSED');
+  }
+  if (source.paketId === targetPaketId) {
+    throw new HttpError(409, 'Paket tujuan sama dengan paket sumber', 'SAME_PAKET');
+  }
+
+  const target = await db.paket.findUnique({
+    where: { id: targetPaketId },
+    select: {
+      id: true, title: true, slug: true,
+      departureDate: true, returnDate: true,
+      kursiTotal: true, kursiTerisi: true,
+      status: true, deletedAt: true,
+      prices: { where: { kelas: targetKelas }, select: { priceIdr: true } },
+    },
+  });
+  if (!target || target.deletedAt || target.status === 'ARCHIVED') {
+    throw new HttpError(404, 'Paket tujuan tidak ditemukan / arsip', 'TARGET_PAKET_NOT_FOUND');
+  }
+  if (!target.prices || target.prices.length === 0) {
+    throw new HttpError(409, `Paket tujuan tidak menjual kelas ${targetKelas}`, 'TARGET_KELAS_NOT_OFFERED');
+  }
+
+  const newPaxCount = Math.max(1, Math.min(20, Number(targetPaxCount || source.paxCount)));
+  const seatsLeft = target.kursiTotal - target.kursiTerisi;
+  if (seatsLeft < newPaxCount) {
+    throw new HttpError(409, `Kursi tidak cukup di paket tujuan (sisa ${seatsLeft}, butuh ${newPaxCount})`, 'TARGET_FULL');
+  }
+
+  const pricePerPax = Number(target.prices[0].priceIdr?.toString?.() ?? target.prices[0].priceIdr) || 0;
+  const newTotalAmount = pricePerPax * newPaxCount;
+  const carriedPaid = Number(source.paidAmount?.toString?.() ?? source.paidAmount) || 0;
+
+  // New booking number scheme: re-use the public createBooking pattern
+  // by generating RP-YYYY-NNNNN. Retry on @unique collision.
+  const year = new Date().getFullYear();
+  const prefix = `RP-${year}-`;
+  let newBookingNo = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const count = await db.booking.count({ where: { bookingNo: { startsWith: prefix } } });
+    const candidate = `${prefix}${String(count + 1 + attempt).padStart(5, '0')}`;
+    const exists = await db.booking.findUnique({ where: { bookingNo: candidate }, select: { id: true } });
+    if (!exists) { newBookingNo = candidate; break; }
+  }
+  if (!newBookingNo) throw new HttpError(500, 'Gagal alokasi nomor booking baru', 'BOOKING_NO_ALLOC_FAILED');
+
+  // Status of new booking inferred from carried paidAmount vs new total
+  let newStatus = 'PENDING';
+  if (carriedPaid >= newTotalAmount) newStatus = 'LUNAS';
+  else if (carriedPaid > 0) {
+    // Mirrors payment.js transitionStatus: DP boundary is "any paid",
+    // PARTIAL is "more than DP minimum". We don't know the exact DP
+    // threshold here, so use DP_PAID for any partial — admin can adjust
+    // via the existing payment-record flow if needed.
+    newStatus = 'DP_PAID';
+  }
+
+  const noteAppend = `[Rescheduled from ${source.bookingNo} (${source.paket?.title || source.paketId})${reason ? ` — ${reason.slice(0, 200)}` : ''}]`;
+  const carriedNotes = source.notes
+    ? `${source.notes}\n\n${noteAppend}`
+    : noteAppend;
+
+  const now = new Date();
+  const { newBooking, updatedSource } = await db.$transaction(async (tx) => {
+    // Create the new booking carrying over identity + paid amount.
+    const created = await tx.booking.create({
+      data: {
+        bookingNo: newBookingNo,
+        paketId: target.id,
+        jemaahId: source.jemaahId, jemaahUserId: source.jemaahUserId,
+        agentId: source.agentId, agentSlugCap: source.agentSlugCap,
+        kelas: targetKelas, paxCount: newPaxCount,
+        totalAmount: String(newTotalAmount), paidAmount: String(carriedPaid),
+        currency: source.currency,
+        status: newStatus,
+        notes: carriedNotes,
+      },
+    });
+    // Source goes terminal with lineage pointer.
+    const updated = await tx.booking.update({
+      where: { id: source.id },
+      data: {
+        status: 'RESCHEDULED',
+        rescheduledToBookingId: created.id,
+        rescheduledAt: now,
+        rescheduledByEmail: actor?.email ?? null,
+        roomId: null, // free room slot — new booking will reassign on target paket
+      },
+    });
+    // Free source kursi pool, claim target.
+    await tx.paket.update({
+      where: { id: source.paketId },
+      data: { kursiTerisi: { decrement: source.paxCount } },
+    });
+    await tx.paket.update({
+      where: { id: target.id },
+      data: { kursiTerisi: { increment: newPaxCount } },
+    });
+    // Komisi: PENDING re-points to new booking (work that will earn out
+    // on the rescheduled trip); EARNED stays on source (agent earned for
+    // the original sale work — moving it would erase that history);
+    // PAID never touched.
+    await tx.komisi.updateMany({
+      where: { bookingId: source.id, status: 'PENDING' },
+      data: { bookingId: created.id },
+    });
+    return { newBooking: created, updatedSource: updated };
+  });
+
+  // Audit: one row on source (terminal transition) + one on target (creation).
+  await audit({
+    req, actor,
+    action: 'STATUS_CHANGE', entity: 'Booking', entityId: source.id,
+    before: { status: source.status, paketId: source.paketId, paxCount: source.paxCount },
+    after: {
+      status: 'RESCHEDULED',
+      rescheduledToBookingId: newBooking.id,
+      rescheduledToBookingNo: newBooking.bookingNo,
+      targetPaketId: target.id, targetKelas, newPaxCount,
+      paidCarried: carriedPaid,
+      reason: reason ? reason.slice(0, 500) : null,
+    },
+  });
+  await audit({
+    req, actor,
+    action: 'CREATE', entity: 'Booking', entityId: newBooking.id,
+    after: {
+      bookingNo: newBooking.bookingNo,
+      paketId: target.id, kelas: targetKelas, paxCount: newPaxCount,
+      totalAmount: newTotalAmount, paidAmount: carriedPaid,
+      status: newStatus,
+      rescheduledFromBookingId: source.id,
+      rescheduledFromBookingNo: source.bookingNo,
+    },
+  });
+
+  // Stage 339 — fire-and-forget notif fan-out (jemaah + agent)
+  try {
+    const { notifyBookingRescheduled } = await import('./notifications.js');
+    await notifyBookingRescheduled({
+      sourceBooking: {
+        id: source.id, bookingNo: source.bookingNo,
+        paketTitle: source.paket?.title,
+        jemaah: source.jemaah, jemaahUserId: source.jemaahUserId,
+        agentId: source.agentId,
+      },
+      newBooking: {
+        id: newBooking.id, bookingNo: newBooking.bookingNo,
+        paketTitle: target.title, paketSlug: target.slug,
+        departureDate: target.departureDate, returnDate: target.returnDate,
+        totalAmount: newTotalAmount, paidAmount: carriedPaid,
+        kelas: targetKelas, paxCount: newPaxCount,
+      },
+      reason, adminEmail: actor?.email,
+    });
+  } catch (err) {
+    console.warn('[rescheduleBooking] notif failed:', err?.message || err);
+  }
+
+  return { source: updatedSource, newBooking };
+}

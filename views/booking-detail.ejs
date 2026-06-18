@@ -1156,6 +1156,9 @@
           <% if (canTransfer) { %>
             <button type="button" id="open-transfer">↪ TRANSFER AGEN</button>
           <% } %>
+          <% if (typeof canReschedule !== 'undefined' && canReschedule) { %>
+            <button type="button" id="open-reschedule">⇄ RESCHEDULE</button>
+          <% } %>
           <% if (canCancel) { %>
             <button type="button" id="open-clone">⎘ CLONE</button>
           <% } %>
@@ -1338,6 +1341,145 @@
         <button type="submit" class="btn btn--primary">Konfirmasi Transfer</button>
       </div>
     </form>
+  </div>
+</div>
+<% } %>
+
+<%# Stage 338 — Reschedule modal. Same RBAC + open-button wiring as
+    transfer. Target paket dropdown pre-fetched (reschedulePaketChoices).
+    Kelas dropdown is populated dynamically based on the selected paket's
+    PaketHarga rows so admin can't pick a kelas the target doesn't offer. %>
+<% if (typeof canReschedule !== 'undefined' && canReschedule) { %>
+<div class="modal-overlay" id="reschedule-modal" aria-hidden="true">
+  <div class="modal">
+    <h2>Reschedule ke paket lain</h2>
+    <div class="sub-m">
+      <%= b.bookingNo %> · paket saat ini: <strong style="color:var(--gold-300);"><%= b.paket.title %></strong>
+    </div>
+
+    <div class="cancel-note" style="color:var(--ink-100);border-color:rgba(212,175,55,0.3);background:rgba(212,175,55,0.05);">
+      <strong style="color:var(--gold-300);">CATATAN:</strong><br>
+      • Booking lama jadi status <strong>RESCHEDULED</strong> (terminal) dengan pointer ke booking baru<br>
+      • <code>paidAmount</code> dipindahkan utuh ke booking baru — tidak ada gerakan uang<br>
+      • Komisi PENDING ikut booking baru; EARNED tetap di booking lama (work-attribution rule)<br>
+      • Komisi PAID/CANCELLED tidak disentuh · Kursi di paket lama otomatis bebas, paket baru kepakai<br>
+      • Notif EMAIL+WA otomatis ke jemaah; EMAIL ke agen (kalau ada)
+    </div>
+
+    <%
+      // Build a JSON map of paketId → {kelas, priceIdr}[] so the kelas
+      // dropdown can be populated inline by the dropdown's change handler.
+      const paketKelasMap = {};
+      (typeof reschedulePaketChoices !== 'undefined' ? reschedulePaketChoices : []).forEach(function(p) {
+        paketKelasMap[p.id] = p.prices.map(function(pr) {
+          return { kelas: pr.kelas, priceIdr: pr.priceIdr };
+        });
+      });
+    %>
+
+    <form method="POST" action="/admin/bookings/<%= b.id %>/reschedule">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <div class="field">
+        <label class="label" for="rs-paket">Paket tujuan *</label>
+        <select class="input" name="targetPaketId" id="rs-paket" required>
+          <option value="">— pilih paket baru —</option>
+          <% (typeof reschedulePaketChoices !== 'undefined' ? reschedulePaketChoices : []).forEach(function(p) { %>
+            <% const seatsLeft = p.kursiTotal - p.kursiTerisi; %>
+            <option value="<%= p.id %>" data-slug="<%= p.slug %>">
+              <%= p.title %> · <%= fmt.dateShort(p.departureDate) %> · sisa <%= seatsLeft %>/<%= p.kursiTotal %> kursi
+            </option>
+          <% }) %>
+        </select>
+        <% if (!reschedulePaketChoices || reschedulePaketChoices.length === 0) { %>
+          <div style="margin-top:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--ruby);">⚠ Tidak ada paket aktif lain yang available. Tambah paket lewat <a href="/admin/paket/new" style="color:var(--gold-300);">/admin/paket/new</a>.</div>
+        <% } %>
+      </div>
+
+      <div class="field">
+        <label class="label" for="rs-kelas">Kelas tujuan *</label>
+        <select class="input" name="targetKelas" id="rs-kelas" required disabled>
+          <option value="">— pilih paket dulu —</option>
+        </select>
+        <div id="rs-price-hint" style="margin-top:6px;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);"></div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="rs-pax">Pax *</label>
+        <input type="number" class="input" name="targetPaxCount" id="rs-pax" min="1" max="20" value="<%= b.paxCount %>" required>
+        <div style="margin-top:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);">Default = pax lama (<%= b.paxCount %>). Ubah kalau jumlah orang berubah.</div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="rs-reason">Alasan reschedule (opsional)</label>
+        <textarea class="input" id="rs-reason" name="reason" maxlength="2000" rows="3"
+                  placeholder="Mis. jemaah minta tunda karena kondisi keluarga, dst."></textarea>
+      </div>
+
+      <div class="cancel-note" style="border-color:rgba(212,175,55,0.3);background:rgba(212,175,55,0.05);">
+        <div id="rs-diff" style="font-family:var(--font-mono);font-size:11.5px;color:var(--cream-100);line-height:1.7;">Pilih paket + kelas untuk lihat perhitungan.</div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" id="reschedule-close">Batal</button>
+        <button type="submit" class="btn btn--primary">Konfirmasi Reschedule</button>
+      </div>
+    </form>
+
+    <script>
+      // Inline kelas + price calculator. The map is precomputed
+      // server-side so we don't need a fetch round-trip per dropdown change.
+      (function () {
+        const PAKET_KELAS = <%- JSON.stringify(paketKelasMap) %>;
+        const SOURCE_PAID = <%= Number(b.paidAmount?.toString?.() ?? b.paidAmount) || 0 %>;
+        const SOURCE_TOTAL = <%= Number(b.totalAmount?.toString?.() ?? b.totalAmount) || 0 %>;
+        const sel = document.getElementById('rs-paket');
+        const kelas = document.getElementById('rs-kelas');
+        const pax = document.getElementById('rs-pax');
+        const hint = document.getElementById('rs-price-hint');
+        const diff = document.getElementById('rs-diff');
+        function fmtRp(n) { return 'Rp ' + Math.round(n || 0).toLocaleString('id-ID'); }
+        function refresh() {
+          const paketId = sel.value;
+          const choices = PAKET_KELAS[paketId] || [];
+          // Repopulate kelas dropdown
+          kelas.innerHTML = '<option value="">— pilih kelas —</option>';
+          choices.forEach(function(c) {
+            const opt = document.createElement('option');
+            opt.value = c.kelas;
+            opt.textContent = c.kelas + ' · ' + fmtRp(Number(c.priceIdr));
+            opt.dataset.priceIdr = Number(c.priceIdr);
+            kelas.appendChild(opt);
+          });
+          kelas.disabled = choices.length === 0;
+          hint.textContent = choices.length === 0 && paketId ? '⚠ Paket tujuan belum punya harga ter-publish.' : '';
+          paint();
+        }
+        function paint() {
+          const opt = kelas.options[kelas.selectedIndex];
+          const priceIdr = opt && opt.dataset.priceIdr ? Number(opt.dataset.priceIdr) : 0;
+          const paxN = Math.max(1, Math.min(20, Number(pax.value) || 1));
+          if (!priceIdr) {
+            diff.textContent = 'Pilih paket + kelas untuk lihat perhitungan.';
+            return;
+          }
+          const newTotal = priceIdr * paxN;
+          const balance = Math.max(0, newTotal - SOURCE_PAID);
+          const balanceOldPaket = Math.max(0, SOURCE_TOTAL - SOURCE_PAID);
+          diff.innerHTML = [
+            'Total lama  : <strong>' + fmtRp(SOURCE_TOTAL) + '</strong> (sisa ' + fmtRp(balanceOldPaket) + ')',
+            'Total baru  : <strong>' + fmtRp(newTotal) + '</strong>',
+            'Dibayar     : <strong>' + fmtRp(SOURCE_PAID) + '</strong> (dipindah utuh)',
+            (newTotal > SOURCE_PAID
+              ? 'Sisa baru   : <strong style="color:var(--amber);">' + fmtRp(balance) + '</strong> (perlu cicilan lagi)'
+              : 'Status baru : <strong style="color:var(--emerald);">LUNAS</strong> (tagihan habis)'),
+          ].join('<br>');
+        }
+        sel.addEventListener('change', refresh);
+        kelas.addEventListener('change', paint);
+        pax.addEventListener('input', paint);
+      })();
+    </script>
   </div>
 </div>
 <% } %>
@@ -1741,11 +1883,27 @@
     });
   }
 
+  // Stage 338 — Reschedule modal
+  const rescheduleBtn = document.getElementById('open-reschedule');
+  const rescheduleModal = document.getElementById('reschedule-modal');
+  const rescheduleClose = document.getElementById('reschedule-close');
+  if (rescheduleBtn && rescheduleModal) {
+    rescheduleBtn.addEventListener('click', () => {
+      rescheduleModal.classList.add('is-open');
+      setTimeout(() => document.getElementById('rs-paket').focus(), 0);
+    });
+    rescheduleClose.addEventListener('click', () => rescheduleModal.classList.remove('is-open'));
+    rescheduleModal.addEventListener('click', (e) => {
+      if (e.target === rescheduleModal) rescheduleModal.classList.remove('is-open');
+    });
+  }
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (cancelModal) cancelModal.classList.remove('is-open');
       if (refundModal) refundModal.classList.remove('is-open');
       if (transferModal) transferModal.classList.remove('is-open');
+      if (rescheduleModal) rescheduleModal.classList.remove('is-open');
     }
   });
 

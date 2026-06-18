@@ -5,7 +5,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import { db } from '../lib/db.js';
-import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent, toggleBookingNotesPinned, declineCancelRequest, setBookingTags, BOOKING_TAG_PRESETS } from '../services/bookingAdmin.js';
+import { getBookingById, cancelBooking, updateBookingNotes, transferBookingAgent, toggleBookingNotesPinned, declineCancelRequest, setBookingTags, BOOKING_TAG_PRESETS, rescheduleBooking } from '../services/bookingAdmin.js';
 import { searchStaffForMention } from '../services/userAdmin.js';
 import { listIntentsForBooking, cancelStuckIntent } from '../services/paymentGateway.js';
 import { createBooking } from '../services/booking.js';
@@ -439,6 +439,34 @@ router.get(
     } catch (err) {
       console.warn('[booking-detail] help state failed:', err?.message || err);
     }
+    // Stage 338 — reschedule UI needs a target-paket dropdown. Same gate
+    // as cancel (CANCEL_ROLES + not-terminal). Cheap query — ACTIVE
+    // non-archived paket with future departureDate, excluding the
+    // source paket itself.
+    const canReschedule = CANCEL_ROLES.includes(req.user.role)
+      && !['CANCELLED', 'REFUNDED', 'RESCHEDULED'].includes(booking.status);
+    let reschedulePaketChoices = [];
+    if (canReschedule) {
+      try {
+        reschedulePaketChoices = await db.paket.findMany({
+          where: {
+            id: { not: booking.paketId },
+            deletedAt: null,
+            status: { in: ['ACTIVE', 'DRAFT'] },
+            departureDate: { gte: new Date() },
+          },
+          select: {
+            id: true, slug: true, title: true,
+            departureDate: true, kursiTotal: true, kursiTerisi: true,
+            prices: { select: { kelas: true, priceIdr: true } },
+          },
+          orderBy: { departureDate: 'asc' },
+          take: 50,
+        });
+      } catch (err) {
+        console.warn('[booking-detail] reschedule paket choices failed:', err?.message || err);
+      }
+    }
     res.render('booking-detail', {
       user: req.user, b: booking,
       canCancel, canRefund, canEditNotes, canTransfer, agents,
@@ -459,6 +487,8 @@ router.get(
       bookingAdjustments, adjustmentReasonCodes,
       // Stage 325 — SOS help request state
       helpState,
+      // Stage 338 — reschedule modal data
+      canReschedule, reschedulePaketChoices,
     });
   }),
 );
@@ -479,6 +509,33 @@ router.post(
       res.redirect(`/admin/bookings/${req.params.id}?ok=help_acked`);
     } catch (err) {
       const msg = err?.message || 'Gagal';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
+// Stage 338 — reschedule a booking to a new paket. Same CANCEL_ROLES gate
+// as cancel/transfer (terminal state change). Body: targetPaketId,
+// targetKelas, targetPaxCount (optional, defaults to source paxCount),
+// reason (optional, appended to source notes).
+router.post(
+  '/:id/reschedule',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const result = await rescheduleBooking({
+        req, actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        sourceBookingId: req.params.id,
+        targetPaketId: req.body?.targetPaketId,
+        targetKelas: req.body?.targetKelas,
+        targetPaxCount: req.body?.targetPaxCount ? Number(req.body.targetPaxCount) : null,
+        reason: req.body?.reason || null,
+      });
+      // Land admin on the NEW booking detail page — that's where the
+      // continuing workflow lives.
+      res.redirect(`/admin/bookings/${result.newBooking.id}?ok=rescheduled_from_${encodeURIComponent(req.params.id)}`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal reschedule';
       res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
     }
   }),

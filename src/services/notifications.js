@@ -949,6 +949,147 @@ export async function notifyRefundIssuedAgent({ booking, agent, amountIdr, parti
 }
 
 /**
+ * Stage 339 — booking reschedule fan-out. When admin reschedules a
+ * jemaah to a new paket, notify both jemaah (EMAIL + WA) and the agent
+ * (EMAIL only — agent gets enough channels via the dashboard).
+ *
+ * The carried paidAmount + new totalAmount lets jemaah see the balance
+ * carried over without re-checking. Best-effort: per-channel failure
+ * logs but doesn't abort the rest of the fan-out.
+ */
+export async function notifyBookingRescheduled({
+  sourceBooking, newBooking, reason, adminEmail,
+}) {
+  if (!sourceBooking || !newBooking) return { skipped: true, reason: 'missing_input' };
+  const j = sourceBooking.jemaah;
+  const balance = Math.max(0, (newBooking.totalAmount || 0) - (newBooking.paidAmount || 0));
+  const fmtRp = (n) => 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID');
+  const depStr = newBooking.departureDate
+    ? new Date(newBooking.departureDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '—';
+  const retStr = newBooking.returnDate
+    ? new Date(newBooking.returnDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '—';
+  const subjectJ = `Booking Anda dipindah ke ${newBooking.paketTitle} · ${newBooking.bookingNo}`;
+  const bodyJ = [
+    `Assalamu'alaikum ${j?.fullName || 'Jemaah'},`,
+    '',
+    `Booking ${sourceBooking.bookingNo} (${sourceBooking.paketTitle || 'paket sebelumnya'}) sudah resmi dipindah ke paket baru:`,
+    '',
+    `Booking baru : ${newBooking.bookingNo}`,
+    `Paket        : ${newBooking.paketTitle}`,
+    `Keberangkatan: ${depStr}`,
+    `Pulang       : ${retStr}`,
+    `Kelas/pax    : ${newBooking.kelas} · ${newBooking.paxCount} pax`,
+    '',
+    `Total baru   : ${fmtRp(newBooking.totalAmount)}`,
+    `Sudah dibayar: ${fmtRp(newBooking.paidAmount)} (dibawa dari booking lama)`,
+    balance > 0 ? `Sisa tagihan : ${fmtRp(balance)}` : `✓ Sudah LUNAS — siap berangkat`,
+    ...(reason ? ['', `Catatan: ${String(reason).slice(0, 500)}`] : []),
+    '',
+    `Detail booking: /saya/bookings/${newBooking.id}`,
+    '',
+    'Booking lama otomatis ditutup (status RESCHEDULED) — riwayat tetap tersimpan.',
+    '',
+    '— Religio Pro',
+  ].join('\n');
+
+  let enqueued = 0;
+  // Jemaah EMAIL
+  if (j?.email) {
+    try {
+      await enqueueNotification({
+        type: 'BOOKING_RESCHEDULED', channel: 'EMAIL',
+        recipientEmail: j.email,
+        recipientUserId: sourceBooking.jemaahUserId || null,
+        subject: subjectJ, body: bodyJ,
+        payload: {
+          kind: 'booking_rescheduled_jemaah',
+          sourceBookingNo: sourceBooking.bookingNo,
+          newBookingNo: newBooking.bookingNo,
+        },
+        relatedEntity: 'Booking', relatedEntityId: newBooking.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyBookingRescheduled] jemaah email failed:', err?.message || err);
+    }
+  }
+  // Jemaah WA — short summary (full body fits but WA chat looks better tight)
+  if (j?.phone) {
+    const bodyWa = [
+      `Booking Anda dipindah ke ${newBooking.paketTitle}.`,
+      `Baru: ${newBooking.bookingNo} · ${depStr}`,
+      `Sudah dibayar: ${fmtRp(newBooking.paidAmount)}${balance > 0 ? ` · Sisa: ${fmtRp(balance)}` : ' · LUNAS'}`,
+      `Detail: /saya/bookings/${newBooking.id}`,
+    ].join('\n');
+    try {
+      await enqueueNotification({
+        type: 'BOOKING_RESCHEDULED', channel: 'WA',
+        recipientPhone: j.phone,
+        recipientUserId: sourceBooking.jemaahUserId || null,
+        subject: subjectJ, body: bodyWa,
+        payload: {
+          kind: 'booking_rescheduled_jemaah',
+          sourceBookingNo: sourceBooking.bookingNo,
+          newBookingNo: newBooking.bookingNo,
+        },
+        relatedEntity: 'Booking', relatedEntityId: newBooking.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyBookingRescheduled] jemaah WA failed:', err?.message || err);
+    }
+  }
+  // Agent EMAIL (best-effort — silent when source has no agent / no contact)
+  if (sourceBooking.agentId) {
+    try {
+      const agent = await db.agentProfile.findUnique({
+        where: { id: sourceBooking.agentId },
+        select: {
+          displayName: true, slug: true,
+          user: { select: { id: true, email: true } },
+        },
+      });
+      if (agent?.user?.email) {
+        const subjectA = `Booking ${sourceBooking.bookingNo} di-reschedule ke ${newBooking.bookingNo}`;
+        const bodyA = [
+          `Halo ${agent.displayName || agent.slug || 'Agen'},`,
+          '',
+          `Booking ${sourceBooking.bookingNo} atas nama ${j?.fullName || '—'} dipindah ke paket baru:`,
+          '',
+          `Baru: ${newBooking.bookingNo} · ${newBooking.paketTitle} · ${depStr}`,
+          '',
+          'Komisi PENDING untuk booking ini sudah re-pointed ke booking baru.',
+          'Komisi EARNED tetap di booking lama (work-attribution rule).',
+          ...(reason ? ['', `Alasan: ${String(reason).slice(0, 500)}`] : []),
+          '',
+          `Detail di /agen (atau hubungi admin: ${adminEmail || 'admin@religio.pro'}).`,
+          '',
+          '— Religio Pro',
+        ].join('\n');
+        await enqueueNotification({
+          type: 'BOOKING_RESCHEDULED', channel: 'EMAIL',
+          recipientEmail: agent.user.email,
+          recipientUserId: agent.user.id || null,
+          subject: subjectA, body: bodyA,
+          payload: {
+            kind: 'booking_rescheduled_agent',
+            sourceBookingNo: sourceBooking.bookingNo,
+            newBookingNo: newBooking.bookingNo,
+          },
+          relatedEntity: 'Booking', relatedEntityId: newBooking.id,
+        });
+        enqueued += 1;
+      }
+    } catch (err) {
+      console.warn('[notifyBookingRescheduled] agent email failed:', err?.message || err);
+    }
+  }
+  return { enqueued };
+}
+
+/**
  * Stage 315 — fan-out NPS detractor alert to OWNER/SUPERADMIN/MANAJER_OPS
  * when a jemaah submits TripFeedback with score ≤ 4. KASIR excluded —
  * relationship recovery is ops/owner work, not cashier work.
