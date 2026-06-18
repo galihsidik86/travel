@@ -1415,6 +1415,123 @@
     </div>
   </form>
 
+  <%# Stage 347 — bulk reschedule panel. Outside the main paket form so
+      a confirm-typo doesn't trigger Save+Reschedule together. Only
+      renders when there's at least one active booking to move. %>
+  <% if (mode === 'edit' && typeof bulkReschedule !== 'undefined' && bulkReschedule && bulkReschedule.activeCount > 0) {
+       const okFlash = typeof flash !== 'undefined' && flash?.ok ? flash.ok : null;
+       const errFlash = typeof flash !== 'undefined' && flash?.err ? flash.err : null;
+       const bulkMatch = okFlash && okFlash.startsWith('bulk_moved_') ? okFlash.match(/bulk_moved_(\d+)_failed_(\d+)/) : null;
+  %>
+    <div style="margin-top:30px;padding:24px;border:1px solid var(--ruby);border-radius:var(--r-md);background:rgba(212,89,89,0.04);">
+      <h2 style="font-family:var(--font-display);font-size:20px;color:var(--ruby);margin:0 0 4px;letter-spacing:-0.01em;">⚠ Bulk reschedule</h2>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.04em;line-height:1.7;margin-bottom:16px;">
+        Pindahkan SEMUA <strong style="color:var(--ruby);"><%= bulkReschedule.activeCount %></strong> booking aktif dari paket ini ke paket lain dalam satu operasi.
+        Skenario tipikal: vendor gagal, visa batch ditolak, atau perubahan jadwal mendadak.
+        <br><br>
+        <strong style="color:var(--ruby);">PERILAKU:</strong>
+        Setiap booking di-reschedule individually (lineage tetap tercatat per row).
+        Komisi PENDING di-repoint, EARNED stays di booking lama, PAID tidak disentuh.
+        Kursi paket asal otomatis bebas, kursi target dipakai.
+        <strong>Pengangkutan paid amount utuh — tidak ada gerakan uang.</strong>
+        Jemaah dapat notif individual (EMAIL+WA); agen dapat ONE ringkasan email per agen (bukan N notif).
+      </div>
+
+      <% if (bulkMatch) { %>
+        <div style="padding:10px 14px;background:rgba(80,176,113,0.10);border:1px solid var(--emerald);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11.5px;color:var(--emerald);margin-bottom:14px;">
+          ✓ Bulk reschedule selesai · Moved: <%= bulkMatch[1] %> · Failed: <%= bulkMatch[2] %>
+        </div>
+      <% } %>
+      <% if (errFlash) { %>
+        <div style="padding:10px 14px;background:rgba(212,89,89,0.08);border:1px solid var(--ruby);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11.5px;color:var(--ruby);margin-bottom:14px;">
+          ✕ <%= errFlash %>
+        </div>
+      <% } %>
+
+      <% if (bulkReschedule.choices.length === 0) { %>
+        <div style="padding:14px;background:var(--ink-1000);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11.5px;color:var(--ink-200);">
+          Tidak ada paket aktif/draft lain yang bisa dijadikan target. Buat paket baru dulu di <a href="/admin/paket/new" style="color:var(--gold-300);">/admin/paket/new</a>.
+        </div>
+      <% } else { %>
+        <%
+          // Build per-paket kelas map for inline kelas-dropdown population
+          const bulkPaketKelasMap = {};
+          bulkReschedule.choices.forEach(function(p) {
+            bulkPaketKelasMap[p.id] = p.prices.map(function(pr) { return { kelas: pr.kelas, priceIdr: pr.priceIdr }; });
+          });
+        %>
+        <form method="POST" action="/admin/paket/<%= paket.slug %>/bulk-reschedule" id="bulk-reschedule-form" onsubmit="return confirm('Yakin pindahkan ' + <%= bulkReschedule.activeCount %> + ' booking ke paket baru? Tidak bisa di-undo.');">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;">
+            <div>
+              <label class="label" for="bulk-target">Paket target</label>
+              <select class="input" name="targetPaketId" id="bulk-target" required>
+                <option value="">— pilih paket —</option>
+                <% bulkReschedule.choices.forEach(function(p) { const sl = p.kursiTotal - p.kursiTerisi; %>
+                  <option value="<%= p.id %>"><%= p.title %> · <%= fmt.dateShort(p.departureDate) %> · sisa <%= sl %>/<%= p.kursiTotal %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="bulk-kelas">Kelas semua</label>
+              <select class="input" name="targetKelas" id="bulk-kelas" required disabled>
+                <option value="">— pilih paket dulu —</option>
+              </select>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);margin-top:4px;">Semua booking dipindah ke kelas ini di paket target.</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:12px;">
+            <label class="label" for="bulk-reason-code">Kategori alasan</label>
+            <select class="input" name="reasonCode" id="bulk-reason-code">
+              <option value="">— pilih kategori —</option>
+              <option value="PAKET_FULL">Paket asal penuh</option>
+              <option value="OPERATOR_INITIATED" selected>Inisiatif operator (vendor gagal, dll.)</option>
+              <option value="DOCUMENT_DELAY">Dokumen telat (visa batch reject)</option>
+              <option value="SCHEDULE_CONFLICT">Bentrok jadwal</option>
+              <option value="OTHER">Lainnya</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:12px;">
+            <label class="label" for="bulk-reason">Alasan singkat (akan dilampirkan ke setiap booking)</label>
+            <textarea class="input" name="reason" id="bulk-reason" rows="2" maxlength="500" placeholder="Mis. vendor catering bangkrut, semua dipindah ke paket berikutnya."></textarea>
+          </div>
+
+          <div style="margin-bottom:14px;padding:12px 14px;background:var(--ink-1000);border-left:3px solid var(--ruby);border-radius:var(--r-sm);">
+            <label style="display:block;font-family:var(--font-mono);font-size:10px;color:var(--ruby);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Konfirmasi (ketik <code style="color:var(--gold-300);background:var(--ink-900);padding:1px 6px;border-radius:3px;"><%= paket.slug %></code>)</label>
+            <input type="text" class="input" name="confirmSlug" required pattern="<%= paket.slug %>" placeholder="Ketik slug paket persis" autocomplete="off"
+                   style="font-family:var(--font-mono);font-size:13px;color:var(--ruby);">
+          </div>
+
+          <button type="submit" class="btn btn--danger" style="padding:12px 22px;">
+            ⚠ Bulk reschedule <%= bulkReschedule.activeCount %> booking
+          </button>
+        </form>
+
+        <script>
+          (function () {
+            const PAKET_KELAS = <%- JSON.stringify(bulkPaketKelasMap) %>;
+            const sel = document.getElementById('bulk-target');
+            const kelas = document.getElementById('bulk-kelas');
+            sel.addEventListener('change', function () {
+              const choices = PAKET_KELAS[sel.value] || [];
+              kelas.innerHTML = '<option value="">— pilih kelas —</option>';
+              choices.forEach(function (c) {
+                const opt = document.createElement('option');
+                opt.value = c.kelas;
+                opt.textContent = c.kelas + ' · Rp ' + Math.round(Number(c.priceIdr)).toLocaleString('id-ID');
+                kelas.appendChild(opt);
+              });
+              kelas.disabled = choices.length === 0;
+            });
+          })();
+        </script>
+      <% } %>
+    </div>
+  <% } %>
+
   <% if (mode === 'edit') { %>
     <form id="archive-form" method="POST" action="/admin/paket/<%= paket.slug %>/delete" style="display:none;"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form>
   <% } %>

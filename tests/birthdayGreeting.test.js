@@ -8,11 +8,14 @@ import {
 } from '../src/services/birthdayGreeting.js';
 
 // Build a birthday set to today (year matters less for the comparison —
-// service compares month + day, year is ignored).
+// service compares month + day in LOCAL time, year is ignored).
+// Use LOCAL setters not setUTC* — when local TZ is ahead of UTC,
+// UTC-midnight stamps land on the previous local day and the
+// service's `.getMonth()/.getDate()` (local) won't match.
 function birthdayToday(yearsAgo = 30) {
   const d = new Date();
-  d.setUTCFullYear(d.getUTCFullYear() - yearsAgo);
-  d.setUTCHours(0, 0, 0, 0);
+  d.setFullYear(d.getFullYear() - yearsAgo);
+  d.setHours(0, 0, 0, 0);
   return d;
 }
 

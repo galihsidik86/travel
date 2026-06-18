@@ -76,6 +76,53 @@ router.get(
   }),
 );
 
+// Stage 347 — bulk reschedule all bookings from this paket to another.
+// Requires "type slug to confirm" guard (form field `confirmSlug` must
+// match the source paket's slug). Refuses on any mismatch with a clear
+// flash so admin doesn't accidentally trigger a 30-booking move.
+router.post(
+  '/:slug/bulk-reschedule',
+  asyncHandler(async (req, res) => {
+    if ((req.body?.confirmSlug || '').trim() !== req.params.slug) {
+      return res.redirect(
+        `/admin/paket/${encodeURIComponent(req.params.slug)}/edit?err=` +
+        encodeURIComponent('Konfirmasi tidak match — ketik slug paket persis untuk confirm.'),
+      );
+    }
+    const { bulkRescheduleBookings } = await import('../services/bookingAdmin.js');
+    const { db } = await import('../lib/db.js');
+    const sourcePaket = await db.paket.findUnique({
+      where: { slug: req.params.slug },
+      select: { id: true },
+    });
+    if (!sourcePaket) {
+      return res.redirect(
+        `/admin/paket/${encodeURIComponent(req.params.slug)}/edit?err=` +
+        encodeURIComponent('Paket sumber tidak ditemukan'),
+      );
+    }
+    try {
+      const r = await bulkRescheduleBookings({
+        req, actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        sourcePaketId: sourcePaket.id,
+        targetPaketId: req.body?.targetPaketId,
+        targetKelas: req.body?.targetKelas,
+        reason: req.body?.reason || null,
+        reasonCode: req.body?.reasonCode || null,
+      });
+      res.redirect(
+        `/admin/paket/${encodeURIComponent(req.params.slug)}/edit?ok=` +
+        encodeURIComponent(`bulk_moved_${r.counts.moved}_failed_${r.counts.failed}`),
+      );
+    } catch (err) {
+      const msg = err?.message || 'Gagal bulk reschedule';
+      res.redirect(
+        `/admin/paket/${encodeURIComponent(req.params.slug)}/edit?err=` + encodeURIComponent(msg),
+      );
+    }
+  }),
+);
+
 router.post(
   '/:slug/waitlist/:id/promote',
   asyncHandler(async (req, res) => {
@@ -239,7 +286,7 @@ router.get(
     const { listPickups } = await import('../services/paketPickups.js');
     // Stage 278 — recent crew daily reports for admin visibility
     const { listPaketReports } = await import('../services/crewDailyReport.js');
-    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks, faqs, pickups, crewReportsBundle] = await Promise.all([
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks, faqs, pickups, crewReportsBundle, bulkRescheduleData] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
       db.agentProfile.findMany({
@@ -258,6 +305,39 @@ router.get(
       listPickups(paket.id),
       listPaketReports({ paketSlug: req.params.slug, limit: 20 })
         .catch((err) => { console.warn('[paket-edit] reports failed:', err?.message || err); return null; }),
+      // Stage 347 — bulk reschedule preview: count of non-terminal bookings
+      // + list of target paket candidates (ACTIVE/DRAFT future, not this one)
+      (async () => {
+        try {
+          const [activeCount, choices] = await Promise.all([
+            db.booking.count({
+              where: {
+                paketId: paket.id,
+                status: { notIn: ['CANCELLED', 'REFUNDED', 'RESCHEDULED'] },
+              },
+            }),
+            db.paket.findMany({
+              where: {
+                id: { not: paket.id },
+                deletedAt: null,
+                status: { in: ['ACTIVE', 'DRAFT'] },
+                departureDate: { gte: new Date() },
+              },
+              select: {
+                id: true, slug: true, title: true,
+                departureDate: true, kursiTotal: true, kursiTerisi: true,
+                prices: { select: { kelas: true, priceIdr: true } },
+              },
+              orderBy: { departureDate: 'asc' },
+              take: 50,
+            }),
+          ]);
+          return { activeCount, choices };
+        } catch (err) {
+          console.warn('[paket-edit] bulk reschedule preview failed:', err?.message || err);
+          return null;
+        }
+      })(),
     ]);
     res.render('paket-form', {
       user: req.user, mode: 'edit', paket: paketToForm(paket),
@@ -268,6 +348,9 @@ router.get(
       costLines, costCategories: COST_CATEGORIES, costCategoryLabel: getCategoryLabel,
       costBenchmarks, faqs, pickups,
       crewReports: crewReportsBundle?.reports || [],
+      // Stage 347 — bulk reschedule panel data
+      bulkReschedule: bulkRescheduleData,
+      flash: { ok: req.query.ok || null, err: req.query.err || null },
     });
   }),
 );

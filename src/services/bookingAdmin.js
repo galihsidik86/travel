@@ -717,6 +717,10 @@ export const RESCHEDULE_REASON_CODES = new Set([
 export async function rescheduleBooking({
   req, actor, sourceBookingId, targetPaketId, targetKelas,
   targetPaxCount = null, reason = null, reasonCode = null,
+  // S346 — when set, the per-agent notif from S339 is skipped so the
+  // S348 bulk path can fire ONE aggregated email per agent instead of
+  // N individual ones. Jemaah notif always fires regardless.
+  skipAgentNotif = false,
 }) {
   if (!sourceBookingId) throw new HttpError(400, 'sourceBookingId required', 'BAD_INPUT');
   if (!targetPaketId) throw new HttpError(400, 'targetPaketId required', 'BAD_INPUT');
@@ -910,6 +914,7 @@ export async function rescheduleBooking({
         kelas: targetKelas, paxCount: newPaxCount,
       },
       reason, adminEmail: actor?.email,
+      skipAgentNotif,
     });
   } catch (err) {
     console.warn('[rescheduleBooking] notif failed:', err?.message || err);
@@ -1046,4 +1051,163 @@ export async function declineRescheduleRequest({ req, actor, bookingId, reason }
   }
 
   return updated;
+}
+
+// Stage 346 — bulk reschedule. Moves all non-terminal bookings from
+// source paket to target paket. Operationally common when ops cancels
+// a paket (vendor failure, visa batch reject, etc.) and every jemaah
+// needs to move to a replacement.
+//
+// **Per-booking failure isolated** — one stuck booking doesn't abort
+// the whole batch; result.failed[] reports details so admin can retry
+// or handle manually.
+//
+// **Pre-check capacity** — refuses up front (`TARGET_INSUFFICIENT`) if
+// target paket can't fit all source bookings. Better to refuse than
+// half-fail and leave a mess.
+//
+// **Agent notif suppression** — per-booking agent notifs are skipped
+// (skipAgentNotif=true) so the S348 path can fire ONE aggregated email
+// per agent. Per-jemaah notifs always fire (each jemaah needs their
+// own info).
+export async function bulkRescheduleBookings({
+  req, actor, sourcePaketId, targetPaketId, targetKelas,
+  reason = null, reasonCode = null,
+}) {
+  if (!sourcePaketId) throw new HttpError(400, 'sourcePaketId required', 'BAD_INPUT');
+  if (!targetPaketId) throw new HttpError(400, 'targetPaketId required', 'BAD_INPUT');
+  if (!targetKelas) throw new HttpError(400, 'targetKelas required', 'BAD_INPUT');
+  if (sourcePaketId === targetPaketId) {
+    throw new HttpError(409, 'Source dan target paket sama', 'SAME_PAKET');
+  }
+
+  const sourcePaket = await db.paket.findUnique({
+    where: { id: sourcePaketId },
+    select: { id: true, slug: true, title: true },
+  });
+  if (!sourcePaket) throw new HttpError(404, 'Source paket tidak ditemukan', 'SOURCE_NOT_FOUND');
+
+  const targetPaket = await db.paket.findUnique({
+    where: { id: targetPaketId },
+    select: {
+      id: true, slug: true, title: true,
+      kursiTotal: true, kursiTerisi: true,
+      status: true, deletedAt: true,
+      prices: { where: { kelas: targetKelas }, select: { priceIdr: true } },
+    },
+  });
+  if (!targetPaket || targetPaket.deletedAt || targetPaket.status === 'ARCHIVED') {
+    throw new HttpError(404, 'Target paket tidak ditemukan / arsip', 'TARGET_NOT_FOUND');
+  }
+  if (!targetPaket.prices || targetPaket.prices.length === 0) {
+    throw new HttpError(409, `Target tidak menjual kelas ${targetKelas}`, 'TARGET_KELAS_NOT_OFFERED');
+  }
+
+  // Find all non-terminal bookings on source
+  const candidates = await db.booking.findMany({
+    where: {
+      paketId: sourcePaketId,
+      status: { notIn: ['CANCELLED', 'REFUNDED', 'RESCHEDULED'] },
+    },
+    select: { id: true, bookingNo: true, paxCount: true, agentId: true },
+  });
+  if (candidates.length === 0) {
+    return {
+      sourcePaket, targetPaket,
+      moved: [], skipped: [], failed: [],
+      counts: { total: 0, moved: 0, skipped: 0, failed: 0 },
+    };
+  }
+
+  // Pre-check capacity: sum of pax > target seats remaining → refuse
+  const totalPaxNeeded = candidates.reduce((acc, c) => acc + c.paxCount, 0);
+  const targetSeatsLeft = targetPaket.kursiTotal - targetPaket.kursiTerisi;
+  if (targetSeatsLeft < totalPaxNeeded) {
+    throw new HttpError(
+      409,
+      `Target paket tidak cukup kursi (sisa ${targetSeatsLeft}, butuh ${totalPaxNeeded} pax untuk ${candidates.length} booking)`,
+      'TARGET_INSUFFICIENT',
+    );
+  }
+
+  const moved = [];
+  const failed = [];
+  // Per-booking failure isolated — wrap in try/catch so one bad row
+  // doesn't abort the batch. Sequential (not Promise.all) since each
+  // rescheduleBooking touches kursi counts on both paket — concurrent
+  // updates could race the capacity guard.
+  for (const c of candidates) {
+    try {
+      const result = await rescheduleBooking({
+        req, actor,
+        sourceBookingId: c.id,
+        targetPaketId,
+        targetKelas,
+        targetPaxCount: c.paxCount,
+        reason: reason ? `[BULK: ${sourcePaket.slug} → ${targetPaket.slug}] ${reason}` : `[BULK: ${sourcePaket.slug} → ${targetPaket.slug}]`,
+        reasonCode,
+        skipAgentNotif: true, // S348 aggregates per-agent
+      });
+      moved.push({
+        sourceBookingNo: c.bookingNo,
+        newBookingNo: result.newBooking.bookingNo,
+        agentId: c.agentId,
+      });
+    } catch (err) {
+      failed.push({
+        sourceBookingNo: c.bookingNo,
+        agentId: c.agentId,
+        error: err?.message || 'unknown',
+      });
+      console.warn(`[bulkReschedule] ${c.bookingNo} failed:`, err?.message || err);
+    }
+  }
+
+  // S348 — aggregate per-agent notif + admin summary
+  if (moved.length > 0) {
+    try {
+      const { notifyBulkRescheduleAgents, notifyBulkRescheduleAdmins } = await import('./notifications.js');
+      await Promise.all([
+        notifyBulkRescheduleAgents({
+          moved, sourcePaket, targetPaket,
+          reason, adminEmail: actor?.email,
+        }),
+        notifyBulkRescheduleAdmins({
+          moved, failed, sourcePaket, targetPaket,
+          reason, adminEmail: actor?.email,
+        }),
+      ]);
+    } catch (err) {
+      console.warn('[bulkReschedule] aggregate notif failed:', err?.message || err);
+    }
+  }
+
+  // One audit row on source paket summarising the operation
+  await audit({
+    req, actor,
+    action: 'UPDATE', entity: 'Paket', entityId: sourcePaket.id,
+    before: null,
+    after: {
+      bulkReschedule: true,
+      sourcePaketSlug: sourcePaket.slug,
+      targetPaketSlug: targetPaket.slug,
+      targetKelas,
+      reasonCode,
+      reason: reason ? reason.slice(0, 500) : null,
+      movedCount: moved.length,
+      failedCount: failed.length,
+      totalCandidates: candidates.length,
+    },
+  });
+
+  return {
+    sourcePaket, targetPaket,
+    moved, skipped: [], failed,
+    counts: {
+      total: candidates.length,
+      moved: moved.length,
+      skipped: 0,
+      failed: failed.length,
+    },
+  };
 }

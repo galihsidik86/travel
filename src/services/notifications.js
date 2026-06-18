@@ -718,6 +718,148 @@ export async function notifyCancelRequestDeclined({ booking, declineReason, admi
 }
 
 /**
+ * Stage 348 — aggregate per-agent notif for bulk reschedule. Groups
+ * the `moved[]` rows by agentId, fires ONE EMAIL per affected agent
+ * listing all their bookings that moved. Avoids 20 individual emails
+ * flooding an agent's inbox when admin does a paket-level reschedule.
+ *
+ * Walk-in bookings (agentId=null) bucket together but get no notif
+ * (no agent to notify). Silent when no moved rows have an agent.
+ */
+export async function notifyBulkRescheduleAgents({
+  moved, sourcePaket, targetPaket, reason, adminEmail,
+}) {
+  if (!moved || moved.length === 0) return { enqueued: 0 };
+  // Group by agentId (skip walk-ins)
+  const byAgent = new Map();
+  for (const m of moved) {
+    if (!m.agentId) continue;
+    if (!byAgent.has(m.agentId)) byAgent.set(m.agentId, []);
+    byAgent.get(m.agentId).push(m);
+  }
+  if (byAgent.size === 0) return { enqueued: 0, skipped: 'all_walk_in' };
+
+  // Resolve agents in one batched query
+  const agents = await db.agentProfile.findMany({
+    where: { id: { in: [...byAgent.keys()] } },
+    select: {
+      id: true, slug: true, displayName: true,
+      user: { select: { id: true, email: true } },
+    },
+  });
+
+  let enqueued = 0;
+  for (const agent of agents) {
+    if (!agent.user?.email) continue;
+    const rows = byAgent.get(agent.id) || [];
+    if (rows.length === 0) continue;
+    const subject = `${rows.length} booking dipindah · ${sourcePaket.title} → ${targetPaket.title}`;
+    const body = [
+      `Halo ${agent.displayName || agent.slug || 'Agen'},`,
+      '',
+      `Admin baru saja menjalankan bulk reschedule dari paket "${sourcePaket.title}" ke "${targetPaket.title}".`,
+      `${rows.length} booking Anda ikut dipindah:`,
+      '',
+      ...rows.map((r) => `  • ${r.sourceBookingNo} → ${r.newBookingNo}`),
+      '',
+      'Komisi PENDING sudah re-pointed ke booking baru.',
+      'Komisi EARNED tetap di booking lama (work-attribution rule).',
+      ...(reason ? ['', `Alasan: ${String(reason).slice(0, 500)}`] : []),
+      '',
+      `Detail per booking di /agen. Hubungi admin (${adminEmail || 'admin@religio.pro'}) jika ada pertanyaan.`,
+      '',
+      '— Religio Pro',
+    ].join('\n');
+    try {
+      await enqueueNotification({
+        type: 'BOOKING_RESCHEDULED', channel: 'EMAIL',
+        recipientEmail: agent.user.email,
+        recipientUserId: agent.user.id || null,
+        subject, body,
+        payload: {
+          kind: 'bulk_reschedule_agent',
+          sourcePaketSlug: sourcePaket.slug,
+          targetPaketSlug: targetPaket.slug,
+          movedCount: rows.length,
+        },
+        relatedEntity: 'Paket', relatedEntityId: sourcePaket.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyBulkRescheduleAgents] failed:', err?.message || err);
+    }
+  }
+  return { enqueued, agentCount: agents.length };
+}
+
+/**
+ * Stage 348 — single summary email to admin tier after a bulk
+ * reschedule completes. Replaces the 20 separate per-booking
+ * notif spam admins would otherwise get; surfaces the moved +
+ * failed counts so admin can scan + drill into failures.
+ */
+export async function notifyBulkRescheduleAdmins({
+  moved, failed, sourcePaket, targetPaket, reason, adminEmail,
+}) {
+  const total = (moved?.length || 0) + (failed?.length || 0);
+  if (total === 0) return { enqueued: 0 };
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE', deletedAt: null, email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { enqueued: 0 };
+
+  const subject = `Bulk reschedule: ${moved.length}/${total} berhasil · ${sourcePaket.title} → ${targetPaket.title}`;
+  const body = [
+    'Halo tim Religio Pro,',
+    '',
+    `Bulk reschedule selesai:`,
+    `  • Source : ${sourcePaket.title} (${sourcePaket.slug})`,
+    `  • Target : ${targetPaket.title} (${targetPaket.slug})`,
+    `  • Moved  : ${moved.length} booking`,
+    `  • Failed : ${failed.length} booking`,
+    ...(reason ? ['', `Alasan: ${String(reason).slice(0, 500)}`] : []),
+    ...(failed.length > 0 ? [
+      '',
+      '— BOOKING YANG GAGAL (perlu manual handling)',
+      ...failed.map((f) => `  • ${f.sourceBookingNo}: ${f.error}`),
+    ] : []),
+    '',
+    `Dilakukan oleh: ${adminEmail || '—'}`,
+    `Detail per-booking: /admin/bookings → filter paket "${targetPaket.slug}"`,
+    '',
+    '— sistem Religio Pro',
+  ].join('\n');
+
+  let enqueued = 0;
+  for (const a of admins) {
+    try {
+      await enqueueNotification({
+        type: 'GENERIC', channel: 'EMAIL',
+        recipientEmail: a.email,
+        // Admin-targeted — no recipientUserId
+        subject, body,
+        payload: {
+          kind: 'bulk_reschedule_admin',
+          sourcePaketSlug: sourcePaket.slug,
+          targetPaketSlug: targetPaket.slug,
+          movedCount: moved.length,
+          failedCount: failed.length,
+        },
+        relatedEntity: 'Paket', relatedEntityId: sourcePaket.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyBulkRescheduleAdmins] failed:', err?.message || err);
+    }
+  }
+  return { enqueued };
+}
+
+/**
  * Stage 342 — jemaah-side reschedule request fan-out to admin tier.
  * Mirrors notifyCancelRequested. RESCHEDULE_REQUESTED notif type so
  * admins can opt-out independently from CANCEL_REQUESTED.
@@ -1083,6 +1225,11 @@ export async function notifyRefundIssuedAgent({ booking, agent, amountIdr, parti
  */
 export async function notifyBookingRescheduled({
   sourceBooking, newBooking, reason, adminEmail,
+  // S346 — bulk reschedule (S348) sets this so the per-booking agent
+  // notif is suppressed; the bulk path then fires one aggregated email
+  // per agent listing all their affected bookings. Jemaah notifs always
+  // fire regardless.
+  skipAgentNotif = false,
 }) {
   if (!sourceBooking || !newBooking) return { skipped: true, reason: 'missing_input' };
   const j = sourceBooking.jemaah;
@@ -1165,8 +1312,9 @@ export async function notifyBookingRescheduled({
       console.warn('[notifyBookingRescheduled] jemaah WA failed:', err?.message || err);
     }
   }
-  // Agent EMAIL (best-effort — silent when source has no agent / no contact)
-  if (sourceBooking.agentId) {
+  // Agent EMAIL (best-effort — silent when source has no agent / no contact).
+  // S346 — bulk path suppresses this in favour of S348 aggregated email.
+  if (sourceBooking.agentId && !skipAgentNotif) {
     try {
       const agent = await db.agentProfile.findUnique({
         where: { id: sourceBooking.agentId },
