@@ -47,6 +47,7 @@
     "job:send-birthday-greeting": "node --env-file-if-exists=.env src/jobs/send-birthday-greeting.js",
     "job:send-anniversary-reengage": "node --env-file-if-exists=.env src/jobs/send-anniversary-reengage.js",
     "job:send-trip-feedback-reminder": "node --env-file-if-exists=.env src/jobs/send-trip-feedback-reminder.js",
+    "job:send-detractor-escalate": "node --env-file-if-exists=.env src/jobs/send-detractor-escalate.js",
     "job:send-crew-daily-report-reminder": "node --env-file-if-exists=.env src/jobs/send-crew-daily-report-reminder.js",
     "job:send-crew-daily-report-missed": "node --env-file-if-exists=.env src/jobs/send-crew-daily-report-missed.js",
     "job:send-doc-expiring": "node --env-file-if-exists=.env src/jobs/send-doc-expiring.js",

@@ -454,6 +454,16 @@ router.post(
   }),
 );
 
+// Stage 318 — escalate detractor feedback older than 48h still NEW
+router.post(
+  '/send-detractor-escalate',
+  asyncHandler(async (_req, res) => {
+    const { escalateStaleDetractors } = await import('../services/detractorEscalate.js');
+    const result = await runJob('send-detractor-escalate', () => escalateStaleDetractors({}));
+    res.json(result);
+  }),
+);
+
 // Stage 291 — daily admin digest of stale inquiries
 router.post(
   '/send-inquiry-sla',

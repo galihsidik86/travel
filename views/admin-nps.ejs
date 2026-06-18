@@ -56,6 +56,7 @@
       <% [30, 90, 365, 730].forEach(function(d) { %>
         <a href="/admin/nps?days=<%= d %>" class="<%= days === d ? 'active' : '' %>"><%= d %> hari</a>
       <% }) %>
+      <a href="/admin/nps/detractors" style="margin-left:auto;color:var(--ruby);border-color:var(--ruby);">⚠ Detractor queue →</a>
     </div>
 
     <% if (nps.total === 0) { %>

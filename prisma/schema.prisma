@@ -175,6 +175,7 @@ enum NotificationType {
   ANNIVERSARY_REENGAGE // setahun pasca-umroh re-engagement, daily cron (Stage 308)
   TRIP_FEEDBACK_REMINDER // 60d post-return nudge to submit NPS feedback (Stage 312)
   NPS_DETRACTOR_ALERT // jemaah submitted score ≤4, fan-out to admin for relationship recovery (Stage 315)
+  NPS_DETRACTOR_ESCALATED // detractor sat 48h+ in NEW status, escalate to OWNER tier (Stage 318)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -697,8 +698,28 @@ model TripFeedback {
   comment     String?  @db.Text
   submittedAt DateTime @default(now())
 
+  // Stage 316 — detractor follow-up lifecycle. Only meaningful for
+  // detractor rows (score ≤6); promoters/passives stay NEW forever and
+  // the queue page filters them out. State machine: NEW → ACKED →
+  // RESOLVED | UNREACHABLE. No reverse transitions (re-engaging a
+  // resolved jemaah opens a new conversation, not a state revert).
+  followUpStatus     TripFeedbackFollowUpStatus @default(NEW)
+  followUpNote       String?                    @db.Text
+  followedUpAt       DateTime?
+  followedUpByEmail  String?                    @db.VarChar(190)
+  // Stage 318 — set-once escalation stamp. Mirrors S80 Incident pattern.
+  escalatedAt        DateTime?
+
   @@index([paketId, submittedAt])
   @@index([score, submittedAt])
+  @@index([followUpStatus, score])
+}
+
+enum TripFeedbackFollowUpStatus {
+  NEW         // not yet acked by admin (default for fresh rows)
+  ACKED       // admin saw + acknowledged, intends follow-up
+  RESOLVED    // admin contacted jemaah + situation closed
+  UNREACHABLE // admin tried but jemaah didn't respond (terminal)
 }
 
 // Stage 26 — paket waitlist. When kursi penuh, jemaah can leave name +

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — Detractor follow-up</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 32px; font-weight: 500; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.015em; }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 24px; }
+  .flash { padding: 10px 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; margin-bottom: 16px; }
+  .flash.ok { background: rgba(80,176,113,0.08); border: 1px solid var(--emerald); color: var(--emerald); }
+  .flash.err { background: rgba(212,89,89,0.08); border: 1px solid var(--ruby); color: var(--ruby); }
+  .kpi-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 20px; }
+  .kpi-card { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 14px; }
+  .kpi-card .lbl { font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .kpi-card .val { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); }
+  .kpi-card.ruby .val { color: var(--ruby); }
+  .kpi-card.amber .val { color: var(--amber); }
+  .kpi-card.emerald .val { color: var(--emerald); }
+  .filter-nav { display: flex; gap: 8px; font-family: var(--font-mono); font-size: 11px; margin-bottom: 18px; flex-wrap: wrap; }
+  .filter-nav a { color: var(--ink-200); text-decoration: none; padding: 6px 12px; border: 1px solid var(--hairline-soft); border-radius: 4px; }
+  .filter-nav a.active { color: var(--gold-300); border-color: var(--gold-300); }
+  .row-card { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 18px; margin-bottom: 14px; }
+  .row-card.new { border-left: 3px solid var(--ruby); }
+  .row-card.acked { border-left: 3px solid var(--amber); }
+  .row-card.resolved { border-left: 3px solid var(--emerald); opacity: 0.85; }
+  .row-card.unreachable { border-left: 3px solid var(--ink-300); opacity: 0.75; }
+  .row-card.escalated { box-shadow: 0 0 0 2px rgba(212,89,89,0.18); }
+  .row-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .row-head .score-box { font-family: var(--font-display); font-size: 32px; color: var(--ruby); min-width: 60px; text-align: center; }
+  .row-head .meta { flex: 1; min-width: 280px; }
+  .row-head .meta .name { font-family: var(--font-display); font-size: 16px; color: var(--cream-100); }
+  .row-head .meta .sub2 { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.04em; margin-top: 3px; }
+  .pill { display: inline-block; padding: 3px 8px; border-radius: 4px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; font-weight: 600; }
+  .pill.NEW { background: rgba(212,89,89,0.12); color: var(--ruby); }
+  .pill.ACKED { background: rgba(212,175,107,0.12); color: var(--gold-300); }
+  .pill.RESOLVED { background: rgba(80,176,113,0.12); color: var(--emerald); }
+  .pill.UNREACHABLE { background: rgba(150,150,150,0.12); color: var(--ink-200); }
+  .pill.AGE-old { background: rgba(212,89,89,0.12); color: var(--ruby); }
+  .pill.AGE-warn { background: rgba(212,175,107,0.12); color: var(--gold-300); }
+  .pill.ESC { background: rgba(212,89,89,0.18); color: var(--ruby); }
+  .quote { margin-top: 12px; padding: 10px 14px; background: var(--ink-1000); border-left: 2px solid var(--ink-300); font-family: var(--font-body); font-size: 13px; line-height: 1.5; color: var(--cream-100); }
+  .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .actions form { display: inline-block; }
+  .actions input.note { padding: 6px 8px; background: var(--ink-1000); border: 1px solid var(--hairline-soft); border-radius: 4px; color: var(--cream-100); font-family: var(--font-mono); font-size: 11px; width: 240px; }
+  .actions button { padding: 6px 12px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; cursor: pointer; background: transparent; }
+  .actions button.ack { border: 1px solid var(--gold-300); color: var(--gold-300); }
+  .actions button.resolve { border: 1px solid var(--emerald); color: var(--emerald); }
+  .actions button.unreachable { border: 1px solid var(--ink-300); color: var(--ink-200); }
+  .followup-meta { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--hairline-soft); font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); }
+  .followup-meta strong { color: var(--cream-100); }
+  .empty { padding: 60px; text-align: center; font-family: var(--font-mono); font-size: 13px; color: var(--ink-300); background: var(--ink-900); border-radius: var(--r-md); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/admin/nps">← /admin/nps</a> · DETRACTOR FOLLOW-UP</div>
+    <h1>Detractor recovery</h1>
+    <div class="sub">
+      Jemaah dengan skor 0-6. Hubungi dalam 24 jam — keluhan yang
+      tidak ditangani berisiko jadi review publik atau chargeback.
+      Status: NEW (belum ditangani) → ACKED (sudah dilihat) → RESOLVED / UNREACHABLE (terminal).
+    </div>
+
+    <% if (flash.ok) { %><div class="flash ok">✓ <%= flash.ok %></div><% } %>
+    <% if (flash.err) { %><div class="flash err">✕ <%= flash.err %></div><% } %>
+
+    <div class="kpi-strip">
+      <div class="kpi-card"><div class="lbl">Total</div><div class="val"><%= queue.counts.total %></div></div>
+      <div class="kpi-card ruby"><div class="lbl">NEW</div><div class="val"><%= queue.counts.NEW || 0 %></div></div>
+      <div class="kpi-card amber"><div class="lbl">ACKED</div><div class="val"><%= queue.counts.ACKED || 0 %></div></div>
+      <div class="kpi-card emerald"><div class="lbl">RESOLVED</div><div class="val"><%= queue.counts.RESOLVED || 0 %></div></div>
+      <div class="kpi-card"><div class="lbl">UNREACHABLE</div><div class="val"><%= queue.counts.UNREACHABLE || 0 %></div></div>
+      <div class="kpi-card ruby"><div class="lbl">Escalated</div><div class="val"><%= queue.counts.escalated %></div></div>
+    </div>
+
+    <div class="filter-nav">
+      <% [['OPEN', 'Aktif (NEW+ACKED)'], ['NEW', 'NEW'], ['ACKED', 'ACKED'], ['RESOLVED', 'RESOLVED'], ['UNREACHABLE', 'UNREACHABLE'], ['ALL', 'Semua']].forEach(function(opt) { %>
+        <a href="/admin/nps/detractors?status=<%= opt[0] %>" class="<%= status === opt[0] ? 'active' : '' %>"><%= opt[1] %></a>
+      <% }) %>
+    </div>
+
+    <% if (queue.rows.length === 0) { %>
+      <div class="empty">Tidak ada detractor di filter <%= status %>.</div>
+    <% } else {
+         queue.rows.forEach(function(r) {
+           const ageClass = r.ageHours > 48 ? 'AGE-old' : r.ageHours > 24 ? 'AGE-warn' : '';
+           const cardClass = r.followUpStatus.toLowerCase() + (r.escalatedAt ? ' escalated' : '');
+    %>
+      <div class="row-card <%= cardClass %>">
+        <div class="row-head">
+          <div class="score-box"><%= r.score %><span style="font-size:14px;color:var(--ink-300);">/10</span></div>
+          <div class="meta">
+            <div class="name">
+              <%= r.booking?.jemaah?.fullName || '(tanpa nama)' %>
+              · <%= r.paket?.title || '(paket terhapus)' %>
+            </div>
+            <div class="sub2">
+              <span class="pill <%= r.followUpStatus %>"><%= r.followUpStatus %></span>
+              <% if (ageClass) { %><span class="pill <%= ageClass %>"><%= r.ageHours %>h ago</span><% } %>
+              <% if (r.escalatedAt) { %><span class="pill ESC">ESCALATED</span><% } %>
+              · Booking <a href="/admin/bookings/<%= r.booking?.id %>" style="color:var(--gold-300);text-decoration:none;"><%= r.booking?.bookingNo || '—' %></a>
+              <% if (r.booking?.jemaah?.phone) { %>
+                · <a href="https://wa.me/<%= (r.booking.jemaah.phone || '').replace(/[^0-9]/g,'').replace(/^0/,'62') %>" target="_blank" rel="noopener" style="color:var(--emerald);text-decoration:none;">WA <%= r.booking.jemaah.phone %></a>
+              <% } %>
+              <% if (r.booking?.agent) { %>
+                · agen <%= r.booking.agent.displayName %>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <% if (r.comment) { %>
+          <div class="quote">"<%= r.comment %>"</div>
+        <% } else { %>
+          <div class="quote" style="color:var(--ink-300);font-style:italic;">(jemaah tidak menulis komentar)</div>
+        <% } %>
+
+        <% if (r.followUpNote || r.followedUpAt) { %>
+          <div class="followup-meta">
+            <strong>Tindak lanjut</strong> oleh <%= r.followedUpByEmail || '—' %>
+            · <%= r.followedUpAt ? fmt.dateLong(r.followedUpAt) : '—' %>
+            <% if (r.followUpNote) { %><br>Catatan: <em><%= r.followUpNote %></em><% } %>
+          </div>
+        <% } %>
+
+        <% if (r.followUpStatus !== 'RESOLVED' && r.followUpStatus !== 'UNREACHABLE') { %>
+          <div class="actions">
+            <% if (r.followUpStatus === 'NEW') { %>
+              <form method="POST" action="/admin/nps/detractors/<%= r.id %>/ack">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="text" class="note" name="note" placeholder="Catatan ack (opsional)" maxlength="2000">
+                <button type="submit" class="ack">✓ ACK (sudah lihat)</button>
+              </form>
+            <% } %>
+            <form method="POST" action="/admin/nps/detractors/<%= r.id %>/resolve" onsubmit="return this.note.value.trim().length >= 3 || (alert('Catatan resolve min 3 karakter'), false);">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="text" class="note" name="note" placeholder="Catatan resolve (wajib, min 3)" maxlength="2000" required>
+              <button type="submit" class="resolve">✓ RESOLVE</button>
+            </form>
+            <form method="POST" action="/admin/nps/detractors/<%= r.id %>/unreachable" onsubmit="return this.note.value.trim().length >= 3 || (alert('Catatan unreachable min 3 karakter'), false);">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="text" class="note" name="note" placeholder="Catatan unreachable (wajib)" maxlength="2000" required>
+              <button type="submit" class="unreachable">× UNREACHABLE</button>
+            </form>
+          </div>
+        <% } %>
+      </div>
+    <% }); } %>
+  </div>
+</body>
+</html>

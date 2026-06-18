@@ -16,9 +16,16 @@
 
 import { db } from '../lib/db.js';
 import { HttpError } from '../middleware/error.js';
+import { audit } from '../lib/audit.js';
 
 const MIN_SAMPLE = 5;
 const MAX_COMMENT_LEN = 2000;
+// S316 — only detractor rows (score ≤6) participate in the follow-up
+// workflow. Promoter/passive rows stay at NEW forever (filtered out of
+// the queue page; no admin action required).
+const DETRACTOR_THRESHOLD = 6;
+const FOLLOWUP_NOTE_MIN = 3;
+const FOLLOWUP_NOTE_MAX = 2000;
 
 function bucketFor(score) {
   if (score >= 9) return 'promoter';
@@ -222,4 +229,163 @@ export async function getNpsRollup({ days = 365, now = new Date(), minSample = M
   };
 }
 
-export { bucketFor, MIN_SAMPLE };
+// ── Stage 316: detractor follow-up lifecycle ─────────────────────
+
+/**
+ * Allowed status transitions. NEW can flow to ACKED or RESOLVED (skip
+ * ack when admin closes immediately); ACKED can flow to RESOLVED or
+ * UNREACHABLE. RESOLVED + UNREACHABLE are terminal.
+ */
+const ALLOWED_TRANSITIONS = {
+  NEW:         new Set(['ACKED', 'RESOLVED', 'UNREACHABLE']),
+  ACKED:       new Set(['RESOLVED', 'UNREACHABLE']),
+  RESOLVED:    new Set([]),
+  UNREACHABLE: new Set([]),
+};
+
+/**
+ * Internal: validate target status + run transition write + write
+ * audit row. Returns the updated row. Reused by ack/resolve/unreachable
+ * shorthand exports below.
+ *
+ * `noteRequired` controls whether followUpNote must be non-empty —
+ * RESOLVED + UNREACHABLE need a reason; ACKED is just acknowledgement.
+ */
+async function transitionFollowUp({
+  req, actor, feedbackId, toStatus, note, noteRequired = false,
+}) {
+  if (!feedbackId) throw new HttpError(400, 'feedbackId required', 'BAD_INPUT');
+  if (!ALLOWED_TRANSITIONS[toStatus]) {
+    throw new HttpError(400, 'Invalid target status', 'BAD_STATUS');
+  }
+  const trimmedNote = note == null ? null : String(note).trim().slice(0, FOLLOWUP_NOTE_MAX);
+  if (noteRequired && (!trimmedNote || trimmedNote.length < FOLLOWUP_NOTE_MIN)) {
+    throw new HttpError(400, `Catatan tindak lanjut minimal ${FOLLOWUP_NOTE_MIN} karakter`, 'NOTE_REQUIRED');
+  }
+  const before = await db.tripFeedback.findUnique({
+    where: { id: feedbackId },
+    select: {
+      id: true, score: true, followUpStatus: true,
+      followUpNote: true, followedUpAt: true, followedUpByEmail: true,
+      bookingId: true,
+    },
+  });
+  if (!before) throw new HttpError(404, 'Feedback tidak ditemukan', 'FEEDBACK_NOT_FOUND');
+  if (before.score > DETRACTOR_THRESHOLD) {
+    throw new HttpError(409, 'Hanya feedback detractor (skor ≤6) yang punya follow-up', 'NOT_DETRACTOR');
+  }
+  if (!ALLOWED_TRANSITIONS[before.followUpStatus].has(toStatus)) {
+    throw new HttpError(
+      409,
+      `Tidak bisa transisi dari ${before.followUpStatus} ke ${toStatus}`,
+      'BAD_TRANSITION',
+    );
+  }
+  const now = new Date();
+  const updated = await db.tripFeedback.update({
+    where: { id: feedbackId },
+    data: {
+      followUpStatus: toStatus,
+      // Preserve existing note when admin doesn't pass one (ACKED case);
+      // overwrite when they do (RESOLVED/UNREACHABLE supply a closing
+      // reason).
+      ...(trimmedNote != null ? { followUpNote: trimmedNote } : {}),
+      followedUpAt: now,
+      followedUpByEmail: actor?.email ?? null,
+    },
+  });
+  await audit({
+    req, actor,
+    action: 'STATUS_CHANGE',
+    entity: 'TripFeedback', entityId: updated.id,
+    before: {
+      followUpStatus: before.followUpStatus,
+      followUpNote: before.followUpNote,
+    },
+    after: {
+      followUpStatus: updated.followUpStatus,
+      followUpNote: updated.followUpNote,
+      bookingId: updated.bookingId,
+    },
+  });
+  return updated;
+}
+
+export async function ackDetractorFeedback({ req, actor, feedbackId, note = null }) {
+  return transitionFollowUp({ req, actor, feedbackId, toStatus: 'ACKED', note, noteRequired: false });
+}
+
+export async function resolveDetractorFeedback({ req, actor, feedbackId, note }) {
+  return transitionFollowUp({ req, actor, feedbackId, toStatus: 'RESOLVED', note, noteRequired: true });
+}
+
+export async function markDetractorUnreachable({ req, actor, feedbackId, note }) {
+  return transitionFollowUp({ req, actor, feedbackId, toStatus: 'UNREACHABLE', note, noteRequired: true });
+}
+
+/**
+ * Queue listing for /admin/nps/detractors. Filters to detractors only
+ * (score ≤ DETRACTOR_THRESHOLD). Optional `status` narrows to a single
+ * lifecycle state; default returns NEW + ACKED (active queue) so admin
+ * doesn't see resolved/unreachable noise.
+ *
+ * Returns rows with KPI counts so the page can render a strip without
+ * a second query.
+ */
+export async function listDetractorFeedback({
+  status = 'OPEN', limit = 100, now = new Date(),
+} = {}) {
+  // KPI counts: scan ALL detractor rows regardless of `status` filter so
+  // the strip is honest about the full queue state.
+  const allDetractors = await db.tripFeedback.findMany({
+    where: { score: { lte: DETRACTOR_THRESHOLD } },
+    select: {
+      id: true, followUpStatus: true, submittedAt: true, escalatedAt: true,
+    },
+  });
+  const counts = { total: allDetractors.length, NEW: 0, ACKED: 0, RESOLVED: 0, UNREACHABLE: 0, escalated: 0 };
+  for (const r of allDetractors) {
+    counts[r.followUpStatus] = (counts[r.followUpStatus] || 0) + 1;
+    if (r.escalatedAt) counts.escalated += 1;
+  }
+  const whereStatus = status === 'OPEN'
+    ? { in: ['NEW', 'ACKED'] }
+    : status === 'ALL'
+      ? undefined
+      : { equals: status };
+  const where = { score: { lte: DETRACTOR_THRESHOLD } };
+  if (whereStatus !== undefined) where.followUpStatus = whereStatus;
+  const rows = await db.tripFeedback.findMany({
+    where,
+    orderBy: [
+      // Open rows first (NEW then ACKED), then resolved/unreachable.
+      { followUpStatus: 'asc' },
+      { submittedAt: 'asc' }, // within bucket, oldest first (urgency)
+    ],
+    take: Math.max(1, Math.min(500, limit)),
+    select: {
+      id: true, score: true, comment: true, submittedAt: true,
+      followUpStatus: true, followUpNote: true,
+      followedUpAt: true, followedUpByEmail: true, escalatedAt: true,
+      booking: {
+        select: {
+          id: true, bookingNo: true,
+          jemaah: { select: { fullName: true, phone: true, email: true } },
+          agent: { select: { slug: true, displayName: true } },
+        },
+      },
+      paket: { select: { slug: true, title: true } },
+    },
+  });
+  // Attach ageHours so the view can colour rows.
+  const enriched = rows.map((r) => ({
+    ...r,
+    ageHours: Math.round(((now.getTime() - r.submittedAt.getTime()) / 3_600_000) * 10) / 10,
+  }));
+  return { rows: enriched, counts, status };
+}
+
+export {
+  bucketFor, MIN_SAMPLE, DETRACTOR_THRESHOLD,
+  ALLOWED_TRANSITIONS as DETRACTOR_TRANSITIONS,
+};

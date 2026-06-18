@@ -398,6 +398,75 @@ router.get(
   }),
 );
 
+// Stage 317 — detractor queue + lifecycle actions. View rights are
+// the same as the rest of /admin (3 admin roles via the router gate);
+// transitions are also admin-only (no KASIR — relationship recovery is
+// ops/owner work, mirrors S315 fan-out RBAC).
+router.get(
+  '/nps/detractors',
+  asyncHandler(async (req, res) => {
+    const allowed = new Set(['OPEN', 'NEW', 'ACKED', 'RESOLVED', 'UNREACHABLE', 'ALL']);
+    const status = allowed.has(req.query.status) ? req.query.status : 'OPEN';
+    const { listDetractorFeedback } = await import('../services/tripFeedback.js');
+    const queue = await listDetractorFeedback({ status });
+    res.render('admin-nps-detractors', {
+      user: req.user, queue, status,
+      flash: { ok: req.query.ok || null, err: req.query.err || null },
+    });
+  }),
+);
+
+router.post(
+  '/nps/detractors/:id/ack',
+  asyncHandler(async (req, res) => {
+    const { ackDetractorFeedback } = await import('../services/tripFeedback.js');
+    try {
+      await ackDetractorFeedback({
+        req, actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        feedbackId: req.params.id, note: req.body?.note || null,
+      });
+      res.redirect('/admin/nps/detractors?ok=acked');
+    } catch (err) {
+      const msg = err?.message || 'Gagal';
+      res.redirect('/admin/nps/detractors?err=' + encodeURIComponent(msg));
+    }
+  }),
+);
+
+router.post(
+  '/nps/detractors/:id/resolve',
+  asyncHandler(async (req, res) => {
+    const { resolveDetractorFeedback } = await import('../services/tripFeedback.js');
+    try {
+      await resolveDetractorFeedback({
+        req, actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        feedbackId: req.params.id, note: req.body?.note,
+      });
+      res.redirect('/admin/nps/detractors?ok=resolved');
+    } catch (err) {
+      const msg = err?.message || 'Gagal';
+      res.redirect('/admin/nps/detractors?err=' + encodeURIComponent(msg));
+    }
+  }),
+);
+
+router.post(
+  '/nps/detractors/:id/unreachable',
+  asyncHandler(async (req, res) => {
+    const { markDetractorUnreachable } = await import('../services/tripFeedback.js');
+    try {
+      await markDetractorUnreachable({
+        req, actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        feedbackId: req.params.id, note: req.body?.note,
+      });
+      res.redirect('/admin/nps/detractors?ok=unreachable');
+    } catch (err) {
+      const msg = err?.message || 'Gagal';
+      res.redirect('/admin/nps/detractors?err=' + encodeURIComponent(msg));
+    }
+  }),
+);
+
 // Stage 38 — refund drill-down. Either ?paket=<slug> or ?agent=<slug>
 // (use `kantor-pusat` for walk-ins). Days override via ?days=N.
 router.get(
