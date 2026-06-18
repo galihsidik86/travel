@@ -249,6 +249,16 @@
         </div>
       <% } %>
 
+      <%# Stage 330 — Ibadah counter shortcut (Thawaf + Sa'i). Only shown
+          when in-trip; client-side counters work offline. %>
+      <a href="/saya/ibadah" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:12px 14px;background:rgba(212,175,107,0.04);border:1px solid var(--gold-300);border-radius:var(--r-sm);text-decoration:none;color:var(--cream-100);">
+        <div>
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--gold-300);letter-spacing:0.14em;text-transform:uppercase;">Alat bantu ibadah</div>
+          <div style="font-family:var(--font-display);font-size:15px;color:var(--cream-100);margin-top:2px;">Penghitung Thawaf &amp; Sa'i</div>
+        </div>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.08em;text-transform:uppercase;">Buka →</span>
+      </a>
+
       <%# Stage 321 — SOS-light help request. Bottom sheet shown only
           when jemaah is in-trip (rendered inside the inTrip block). %>
       <div style="margin-top:16px;padding-top:14px;border-top:1px dashed rgba(212,175,107,0.2);">

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RELIGIO PRO — Penghitung Sa'i</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 18px 16px 100px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 24px; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 22px; line-height: 1.6; }
+  .counter-card {
+    background: linear-gradient(135deg, rgba(212,175,107,0.10), rgba(212,175,107,0.02));
+    border: 1px solid var(--gold-300);
+    border-radius: var(--r-md);
+    padding: 28px 22px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .counter-card .lbl { font-family: var(--font-mono); font-size: 10px; color: var(--gold-300); letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 10px; }
+  .counter-big {
+    font-family: var(--font-display);
+    font-size: 110px;
+    line-height: 1;
+    color: var(--cream-100);
+    margin: 4px 0;
+  }
+  .counter-big .of { font-family: var(--font-mono); font-size: 22px; color: var(--ink-200); margin-left: 4px; }
+  .counter-status { font-family: var(--font-mono); font-size: 11px; color: var(--ink-100); letter-spacing: 0.06em; margin-top: 4px; min-height: 16px; }
+  .counter-status.complete { color: var(--emerald); font-weight: 600; letter-spacing: 0.08em; }
+  /* Safa-Marwah travel direction visualisation */
+  .route {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center;
+    margin: 18px 0;
+  }
+  .route .marker {
+    background: var(--ink-900); border: 1px solid var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 14px 10px; text-align: center;
+    font-family: var(--font-display); font-size: 16px; color: var(--cream-100);
+  }
+  .route .marker .lbl { font-family: var(--font-mono); font-size: 9px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 4px; }
+  .route .marker.active { border-color: var(--gold-300); background: rgba(212,175,107,0.06); }
+  .route .marker.active .lbl { color: var(--gold-300); }
+  .route .arrow { font-family: var(--font-display); font-size: 28px; color: var(--gold-300); }
+  .ring {
+    width: 220px; height: 220px; border-radius: 50%;
+    border: 3px dashed rgba(212,175,107,0.45);
+    background: radial-gradient(circle at center, rgba(212,175,107,0.06), transparent 60%);
+    margin: 12px auto 16px;
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-size: 40px; color: var(--gold-300); text-align: center; line-height: 1.15;
+    cursor: pointer; user-select: none;
+    transition: transform 80ms ease, border-color 120ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ring:active { transform: scale(0.96); border-color: var(--gold-300); }
+  .ring.complete { background: radial-gradient(circle at center, rgba(80,176,113,0.10), transparent 60%); border-color: var(--emerald); color: var(--emerald); cursor: default; }
+  .ring-hint { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.06em; text-align: center; margin-top: -4px; margin-bottom: 16px; }
+  .doa {
+    background: var(--ink-900); border: 1px solid var(--hairline-soft);
+    border-radius: var(--r-sm); padding: 16px;
+    margin-bottom: 18px;
+  }
+  .doa .eyebrow { font-family: var(--font-mono); font-size: 10px; color: var(--gold-300); letter-spacing: 0.14em; text-transform: uppercase; }
+  .doa .arabic { font-family: 'Amiri', serif; font-size: 22px; color: var(--cream-100); text-align: right; direction: rtl; line-height: 2; margin: 10px 0; }
+  .doa .latin { font-family: var(--font-body); font-style: italic; font-size: 12.5px; color: var(--ink-100); margin-top: 4px; }
+  .doa .id { font-family: var(--font-body); font-size: 13px; color: var(--cream-100); margin-top: 8px; line-height: 1.55; }
+  .actions { display: flex; gap: 8px; }
+  .actions button { flex: 1; padding: 12px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; background: transparent; }
+  .actions .undo { border: 1px solid var(--ink-300); color: var(--ink-200); }
+  .actions .reset { border: 1px solid var(--ruby); color: var(--ruby); }
+  .offline-hint { margin-top: 14px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-300); letter-spacing: 0.04em; text-align: center; }
+</style>
+</head>
+<body class="has-m-tabs">
+  <div class="wrap">
+    <div class="crumb"><a href="/saya/ibadah">← /saya/ibadah</a> · SA'I</div>
+    <h1>Penghitung <em>Sa'i</em></h1>
+    <div class="sub">
+      Tap lingkaran setiap kali Anda tiba di Safa atau Marwah. 1 trip Safa→Marwah = 1 hitungan;
+      trip ke-7 berakhir di Marwah. Data tersimpan offline di perangkat ini.
+    </div>
+
+    <div class="counter-card">
+      <div class="lbl">Trip</div>
+      <div class="counter-big"><span id="count">0</span><span class="of">/7</span></div>
+      <div id="status" class="counter-status">Belum mulai · mulai dari Safa</div>
+    </div>
+
+    <div class="route">
+      <div class="marker" id="m-safa">
+        <div class="lbl">Mulai</div>
+        Safa
+      </div>
+      <div class="arrow" id="m-arrow">→</div>
+      <div class="marker" id="m-marwah">
+        <div class="lbl">Tujuan</div>
+        Marwah
+      </div>
+    </div>
+
+    <div id="ring" class="ring" role="button" tabindex="0" aria-label="Tap saat tiba">+</div>
+    <div class="ring-hint" id="ring-hint">TAP SAAT TIBA DI TUJUAN</div>
+
+    <div class="doa">
+      <div class="eyebrow">Doa di Safa &amp; Marwah</div>
+      <div class="arabic">إِنَّ الصَّفَا وَالْمَرْوَةَ مِنْ شَعَائِرِ اللَّهِ</div>
+      <div class="latin">Innash-shafā wal-marwata min sya'ā'irillāh</div>
+      <div class="id">"Sesungguhnya Shafa dan Marwah adalah sebagian dari syi'ar Allah."</div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="undo" id="undo-btn">↶ Batal 1</button>
+      <button type="button" class="reset" id="reset-btn">× Reset</button>
+    </div>
+    <div class="offline-hint">✓ Bekerja offline — data tersimpan lokal di perangkat Anda</div>
+  </div>
+
+  <script src="/shared/ibadah-counter.js"></script>
+  <script>
+    (function () {
+      const COUNTER_ID = 'sai';
+      const MAX = 7;
+      const $count = document.getElementById('count');
+      const $status = document.getElementById('status');
+      const $ring = document.getElementById('ring');
+      const $hint = document.getElementById('ring-hint');
+      const $undo = document.getElementById('undo-btn');
+      const $reset = document.getElementById('reset-btn');
+      const $safa = document.getElementById('m-safa');
+      const $marwah = document.getElementById('m-marwah');
+      const $arrow = document.getElementById('m-arrow');
+
+      function render(state) {
+        $count.textContent = state.putaran;
+        const complete = state.putaran >= MAX;
+        $ring.classList.toggle('complete', complete);
+        $status.classList.toggle('complete', complete);
+        // Trip N goes from one marker to the other; odd-numbered trips
+        // start at Safa, even at Marwah (Safa→Marwah=1, Marwah→Safa=2,
+        // Safa→Marwah=3, …, Safa→Marwah=7 ends at Marwah).
+        const nextTrip = state.putaran + 1;
+        const startAtSafa = (nextTrip % 2) === 1;
+        $safa.classList.toggle('active', !complete && startAtSafa);
+        $marwah.classList.toggle('active', !complete && !startAtSafa);
+        $arrow.textContent = startAtSafa ? '→' : '←';
+
+        if (complete) {
+          $ring.textContent = '✓';
+          $hint.textContent = '';
+          $status.textContent = 'Selesai · 7 trip tuntas';
+        } else if (state.putaran === 0) {
+          $ring.textContent = '+';
+          $hint.textContent = 'TAP SAAT TIBA DI MARWAH';
+          $status.textContent = 'Belum mulai · Safa → Marwah (trip 1)';
+        } else {
+          const toward = startAtSafa ? 'Marwah' : 'Safa';
+          const from = startAtSafa ? 'Safa' : 'Marwah';
+          $ring.innerHTML = '+<div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.08em;margin-top:6px;">trip ke-' + nextTrip + '</div>';
+          $hint.textContent = `TAP SAAT TIBA DI ${toward.toUpperCase()}`;
+          $status.textContent = `${from} → ${toward} (trip ${nextTrip})`;
+        }
+      }
+
+      async function init() {
+        try {
+          const s = await IbadahCounter.getCounter(COUNTER_ID);
+          render(s);
+        } catch (err) { console.warn(err); }
+      }
+
+      async function onTap() {
+        try {
+          const s = await IbadahCounter.tap(COUNTER_ID, { max: MAX });
+          render(s);
+          if (navigator.vibrate) navigator.vibrate(30);
+        } catch (err) { console.warn(err); }
+      }
+
+      $ring.addEventListener('click', onTap);
+      $ring.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onTap(); }
+      });
+      $undo.addEventListener('click', async () => {
+        if (!confirm('Kurangi 1 trip?')) return;
+        const s = await IbadahCounter.undo(COUNTER_ID);
+        render(s);
+      });
+      $reset.addEventListener('click', async () => {
+        if (!confirm('Reset ke 0?')) return;
+        const s = await IbadahCounter.reset(COUNTER_ID);
+        render(s);
+      });
+
+      init();
+    })();
+  </script>
+  <%- include('partials/mobile-tabs') %>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RELIGIO PRO — Ibadah</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 18px 100px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 18px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 24px; line-height: 1.6; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card {
+    display: block; text-decoration: none;
+    background: var(--ink-900); border: 1px solid var(--hairline-soft);
+    border-radius: var(--r-md); padding: 22px 18px;
+    transition: transform 80ms ease, border-color 120ms ease, background 120ms ease;
+  }
+  .card:active { transform: scale(0.98); }
+  .card:hover { border-color: var(--gold-300); background: rgba(212,175,107,0.04); }
+  .card .lbl { font-family: var(--font-mono); font-size: 10px; color: var(--gold-300); letter-spacing: 0.14em; text-transform: uppercase; }
+  .card .title { font-family: var(--font-display); font-size: 22px; color: var(--cream-100); margin: 6px 0 8px; letter-spacing: -0.01em; }
+  .card .desc { font-family: var(--font-body); font-size: 12.5px; color: var(--ink-100); line-height: 1.5; min-height: 38px; }
+  .card .state { margin-top: 12px; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.06em; }
+  .card .state.complete { color: var(--emerald); }
+  .card .progress-bar { height: 4px; background: var(--ink-700); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+  .card .progress-bar > div { height: 100%; background: var(--gold-300); transition: width 200ms ease; }
+  .info {
+    margin-top: 22px; padding: 14px 16px;
+    background: rgba(120,135,225,0.06); border: 1px solid var(--sapphire);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; color: var(--cream-100);
+    line-height: 1.6;
+  }
+  @media (max-width: 480px) {
+    .grid { grid-template-columns: 1fr; }
+    .card .desc { min-height: 0; }
+  }
+</style>
+</head>
+<body class="has-m-tabs">
+  <div class="wrap">
+    <div class="crumb"><a href="/saya">← /saya</a> · IBADAH</div>
+    <h1>Penghitung <em>ibadah</em></h1>
+    <div class="sub">
+      Hitung Thawaf &amp; Sa'i tanpa kehilangan count. Bekerja offline · data tersimpan di perangkat Anda.
+    </div>
+
+    <div class="grid">
+      <a href="/saya/ibadah/thawaf" class="card" id="thawaf-card">
+        <div class="lbl">7 putaran</div>
+        <div class="title">Thawaf</div>
+        <div class="desc">Mengelilingi Ka'bah 7 kali, dimulai &amp; berakhir di Hajar Aswad.</div>
+        <div class="state" id="thawaf-state">— belum ada data —</div>
+        <div class="progress-bar"><div id="thawaf-bar" style="width:0%"></div></div>
+      </a>
+      <a href="/saya/ibadah/sai" class="card" id="sai-card">
+        <div class="lbl">7 trip</div>
+        <div class="title">Sa'i</div>
+        <div class="desc">Berjalan antara Safa &amp; Marwah sebanyak 7 trip.</div>
+        <div class="state" id="sai-state">— belum ada data —</div>
+        <div class="progress-bar"><div id="sai-bar" style="width:0%"></div></div>
+      </a>
+    </div>
+
+    <div class="info">
+      <strong style="color:var(--sapphire);">Catatan:</strong> Penghitung ini adalah alat bantu — bukan pengganti niat &amp; doa yang dilantunkan
+      langsung. Pastikan Anda tetap fokus pada zikir &amp; bacaan selama ibadah berlangsung.
+    </div>
+  </div>
+
+  <script src="/shared/ibadah-counter.js"></script>
+  <script>
+    (async function () {
+      async function paint(id, $state, $bar, max, labels) {
+        try {
+          const s = await IbadahCounter.getCounter(id);
+          const complete = s.putaran >= max;
+          const pct = Math.min(100, Math.round((s.putaran / max) * 100));
+          $bar.style.width = pct + '%';
+          if (complete) {
+            $state.textContent = '✓ ' + labels.complete;
+            $state.classList.add('complete');
+          } else if (s.putaran === 0) {
+            $state.textContent = '— belum mulai —';
+          } else {
+            $state.textContent = `Berjalan · ${s.putaran}/${max} ${labels.unit}`;
+          }
+        } catch (err) { console.warn(err); }
+      }
+      paint('thawaf', document.getElementById('thawaf-state'), document.getElementById('thawaf-bar'), 7, { unit: 'putaran', complete: '7 putaran tuntas' });
+      paint('sai', document.getElementById('sai-state'), document.getElementById('sai-bar'), 7, { unit: 'trip', complete: '7 trip tuntas' });
+    })();
+  </script>
+  <%- include('partials/mobile-tabs') %>
+</body>
+</html>

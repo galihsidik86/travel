@@ -242,6 +242,26 @@ router.get(
   }),
 );
 
+// ── Stage 328-330: Ibadah counters (client-side IDB) ──────────
+router.get(
+  '/saya/ibadah',
+  asyncHandler(async (req, res) => {
+    res.render('jemaah-ibadah-hub', { user: req.user });
+  }),
+);
+router.get(
+  '/saya/ibadah/thawaf',
+  asyncHandler(async (req, res) => {
+    res.render('jemaah-ibadah-thawaf', { user: req.user });
+  }),
+);
+router.get(
+  '/saya/ibadah/sai',
+  asyncHandler(async (req, res) => {
+    res.render('jemaah-ibadah-sai', { user: req.user });
+  }),
+);
+
 // ── Profile editor ───────────────────────────────────────────
 router.get(
   '/saya/profile',
