@@ -242,6 +242,49 @@ router.post(
   }),
 );
 
+// Stage 336 — crew push subscribe/unsubscribe. Mirrors S93 jemaah
+// pattern. Crew router is mounted on /crew, so these resolve to
+// /crew/push/{config,subscribe,unsubscribe}. Same role-agnostic
+// webPush.js service — userId distinguishes crew vs admin/jemaah subs.
+router.get(
+  '/push/config',
+  asyncHandler(async (_req, res) => {
+    const { getPublicKey, getPushMode } = await import('../services/webPush.js');
+    res.json({ publicKey: getPublicKey(), mode: getPushMode() });
+  }),
+);
+
+router.post(
+  '/push/subscribe',
+  asyncHandler(async (req, res) => {
+    const { subscribePush } = await import('../services/webPush.js');
+    try {
+      const row = await subscribePush({
+        userId: req.user.id,
+        subscription: req.body?.subscription || req.body,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      res.json({ ok: true, id: row.id });
+    } catch (err) {
+      if (err.code === 'BAD_SUBSCRIPTION') {
+        return res.status(400).json({ error: { code: 'BAD_SUBSCRIPTION', message: err.message } });
+      }
+      throw err;
+    }
+  }),
+);
+
+router.post(
+  '/push/unsubscribe',
+  asyncHandler(async (req, res) => {
+    const { unsubscribePush } = await import('../services/webPush.js');
+    const endpoint = req.body?.endpoint || null;
+    const id = req.body?.id || null;
+    const r = await unsubscribePush({ endpoint, id, userId: req.user.id });
+    res.json(r);
+  }),
+);
+
 // Stage 326 — dedicated crew incident queue. Lists crew's own
 // incidents over past 30 days with status filter. Mobile-friendly
 // card layout. Linked from crew dashboard SOS history section.

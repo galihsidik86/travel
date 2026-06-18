@@ -10,9 +10,17 @@
 //
 // Cache busting: bump CACHE_VERSION to invalidate every entry on next activation.
 
-const CACHE_VERSION = 'rp-v4';
+const CACHE_VERSION = 'rp-v5';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
+// Stage 334 — cap HTML cache to prevent unbounded growth in long-running
+// PWA sessions. Eviction is FIFO (oldest entry first) when we exceed cap.
+const HTML_CACHE_MAX = 50;
+// Stage 334 — paths that get stale-while-revalidate (cache served first,
+// network refreshes in background). Critical for Saudi where signal is
+// flaky — network-first wait would make pages feel slow. Falls back to
+// network-first for other HTML paths (admin/crew where freshness matters).
+const SWR_PATH_PREFIXES = ['/saya/bookings/', '/saya/ibadah'];
 
 const PRECACHE_URLS = [
   '/shared/tokens.css',
@@ -66,6 +74,82 @@ function isHtmlGet(req, url) {
   return accept.includes('text/html');
 }
 
+// Stage 334 — HTML cache cap eviction. cache.keys() returns entries in
+// insertion order; deleting the first N until we're back under HTML_CACHE_MAX
+// is a passable FIFO approximation of LRU (true LRU would need timestamp
+// tracking per entry).
+async function capHtmlCache() {
+  try {
+    const cache = await caches.open(HTML_CACHE);
+    const keys = await cache.keys();
+    if (keys.length <= HTML_CACHE_MAX) return;
+    const overflow = keys.length - HTML_CACHE_MAX;
+    for (let i = 0; i < overflow; i++) {
+      await cache.delete(keys[i]);
+    }
+  } catch (_err) { /* silent — cache eviction is best-effort */ }
+}
+
+// Stage 334 — network-first with cache fallback (default for admin/crew
+// HTML where freshness matters more than speed). Falls back to offline
+// page when both network and cache miss.
+async function handleNetworkFirst(req) {
+  try {
+    const res = await fetch(req);
+    if (res.ok) {
+      const cache = await caches.open(HTML_CACHE);
+      await cache.put(req, res.clone());
+      capHtmlCache(); // fire-and-forget
+    }
+    return res;
+  } catch (_err) {
+    const cache = await caches.open(HTML_CACHE);
+    const cached = await cache.match(req);
+    if (cached) return tagCached(cached);
+    const offline = await caches.match('/shared/offline.html');
+    return offline || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+  }
+}
+
+// Stage 334 — stale-while-revalidate: return cache immediately (snappy),
+// refresh in background. Used for /saya/bookings/ + /saya/ibadah where
+// jemaah in flaky Saudi signal benefit from instant render. Cache-miss
+// falls through to network-first.
+async function handleSwr(req) {
+  const cache = await caches.open(HTML_CACHE);
+  const cached = await cache.match(req);
+  const refresh = fetch(req)
+    .then((res) => {
+      if (res.ok) {
+        cache.put(req, res.clone());
+        capHtmlCache();
+      }
+      return res;
+    })
+    .catch(() => null);
+  if (cached) {
+    // Don't await refresh — let it run in background. Returns immediately.
+    refresh.catch(() => {});
+    return tagCached(cached);
+  }
+  // No cache yet — fall through to network with offline fallback.
+  const res = await refresh;
+  if (res) return res;
+  const offline = await caches.match('/shared/offline.html');
+  return offline || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+}
+
+// Stage 334 — annotate cache-served responses with a header so client
+// JS can show a small "offline mode" indicator if desired. Headers on
+// cached Responses are read-only — clone with mutable Headers.
+function tagCached(res) {
+  const headers = new Headers(res.headers);
+  headers.set('X-SW-Cache', 'hit');
+  return new Response(res.body, {
+    status: res.status, statusText: res.statusText, headers,
+  });
+}
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const req = event.request;
@@ -88,25 +172,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML pages — network-first, cache fallback, offline page last.
+  // HTML pages — network-first by default, stale-while-revalidate for
+  // /saya/bookings/ + /saya/ibadah (S334) where snappy response under
+  // flaky signal matters more than freshness.
   if (isHtmlGet(req, url)) {
+    const useSwr = SWR_PATH_PREFIXES.some((p) => url.pathname.startsWith(p));
     event.respondWith(
-      (async () => {
-        try {
-          const res = await fetch(req);
-          if (res.ok) {
-            const cache = await caches.open(HTML_CACHE);
-            cache.put(req, res.clone());
-          }
-          return res;
-        } catch (_err) {
-          const cache = await caches.open(HTML_CACHE);
-          const cached = await cache.match(req);
-          if (cached) return cached;
-          const offline = await caches.match('/shared/offline.html');
-          return offline || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
-        }
-      })(),
+      useSwr
+        ? handleSwr(req)
+        : handleNetworkFirst(req),
     );
     return;
   }

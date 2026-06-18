@@ -259,6 +259,49 @@
         <span style="font-family:var(--font-mono);font-size:11px;color:var(--gold-300);letter-spacing:0.08em;text-transform:uppercase;">Buka →</span>
       </a>
 
+      <%# Stage 335 — push subscribe CTA. Rendered only when in-trip AND
+          push isn't already subscribed (Notification.permission !== 'granted').
+          Hidden by default; the inline JS below checks support + permission
+          state on load. Clicking triggers the existing S94 push-jemaah.js
+          enable() flow via the hidden #rp-push-enable button. %>
+      <div id="rp-push-cta-hero" style="display:none;margin-top:12px;padding:12px 14px;background:linear-gradient(135deg,rgba(80,176,113,0.10),rgba(80,176,113,0.02));border:1px solid var(--emerald);border-radius:var(--r-sm);align-items:center;justify-content:space-between;gap:12px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--emerald);letter-spacing:0.14em;text-transform:uppercase;">🔔 Push notif</div>
+          <div style="font-family:var(--font-display);font-size:14px;color:var(--cream-100);margin-top:2px;line-height:1.3;">Aktifkan notif tim</div>
+          <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-100);margin-top:3px;letter-spacing:0.04em;">Dapatkan ACK SOS + announce paket realtime di lock-screen.</div>
+        </div>
+        <button type="button" id="rp-push-cta-hero-btn" style="background:var(--emerald);color:var(--ink-1000);border:0;padding:10px 14px;border-radius:3px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-weight:600;flex-shrink:0;">Aktifkan</button>
+      </div>
+      <script>
+        (function () {
+          // Show CTA only if browser supports push + permission isn't granted.
+          // Hide entirely if Notification API missing or permission denied
+          // (re-prompting after denial just fails silently — annoying).
+          if (typeof Notification === 'undefined') return;
+          if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+          const perm = Notification.permission;
+          if (perm === 'granted' || perm === 'denied') return;
+          const cta = document.getElementById('rp-push-cta-hero');
+          if (!cta) return;
+          cta.style.display = 'flex';
+          const btn = document.getElementById('rp-push-cta-hero-btn');
+          btn.addEventListener('click', () => {
+            // Defer to S94 push-jemaah.js: it owns the VAPID + subscribe
+            // logic. We just trigger its enable button.
+            const target = document.getElementById('rp-push-enable');
+            if (target && typeof target.click === 'function') {
+              target.click();
+              // Hide the CTA optimistically — the canonical bar will
+              // repaint based on real subscribe outcome.
+              cta.style.display = 'none';
+            } else {
+              cta.style.opacity = '0.5';
+              setTimeout(() => location.reload(), 200);
+            }
+          });
+        })();
+      </script>
+
       <%# Stage 321 — SOS-light help request. Bottom sheet shown only
           when jemaah is in-trip (rendered inside the inTrip block). %>
       <div style="margin-top:16px;padding-top:14px;border-top:1px dashed rgba(212,175,107,0.2);">
