@@ -370,4 +370,127 @@ export async function ackJemaahHelpRequest({ req, actor, bookingId, message = ''
   return { booking, enqueued };
 }
 
+/**
+ * Stage 331 — admin queue for pending help requests across all bookings.
+ * Derived from the Notification table — no separate model needed.
+ *
+ * "Pending" = latest JEMAAH_HELP_REQUEST notif for a booking is newer
+ * than latest JEMAAH_HELP_ACK for the same booking (mirrors per-booking
+ * `getBookingHelpRequestState` logic but in aggregate).
+ *
+ * Returns rows sorted oldest-pending first (most urgent at top) +
+ * counts for the KPI strip + an `escalatedCount` for the panel header.
+ */
+export async function listPendingHelpRequests({ limit = 100, now = new Date() } = {}) {
+  // Pull recent help requests + acks. 90-day window is generous; help
+  // requests are short-lived (admin acks within hours typically) so
+  // anything older than 90d is almost certainly handled or
+  // historical noise.
+  const since = new Date(now.getTime() - 90 * 86_400_000);
+  const [requests, acks, escalations] = await Promise.all([
+    db.notification.findMany({
+      where: {
+        type: 'JEMAAH_HELP_REQUEST',
+        relatedEntity: 'Booking',
+        createdAt: { gte: since },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, createdAt: true, relatedEntityId: true, payload: true,
+      },
+    }),
+    db.notification.findMany({
+      where: {
+        type: 'JEMAAH_HELP_ACK',
+        relatedEntity: 'Booking',
+        createdAt: { gte: since },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, relatedEntityId: true, payload: true },
+    }),
+    db.notification.findMany({
+      where: {
+        type: 'JEMAAH_HELP_ESCALATED',
+        relatedEntity: 'Booking',
+        createdAt: { gte: since },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, relatedEntityId: true },
+    }),
+  ]);
+
+  // Reduce to per-booking latest of each type
+  const latestReq = new Map();
+  for (const r of requests) {
+    if (!latestReq.has(r.relatedEntityId)) latestReq.set(r.relatedEntityId, r);
+  }
+  const latestAck = new Map();
+  for (const a of acks) {
+    if (!latestAck.has(a.relatedEntityId)) latestAck.set(a.relatedEntityId, a);
+  }
+  const latestEsc = new Map();
+  for (const e of escalations) {
+    if (!latestEsc.has(e.relatedEntityId)) latestEsc.set(e.relatedEntityId, e);
+  }
+
+  // Pending = latest req newer than latest ack (or no ack at all)
+  const pendingIds = [];
+  for (const [bookingId, req] of latestReq.entries()) {
+    const ack = latestAck.get(bookingId);
+    if (!ack || ack.createdAt < req.createdAt) {
+      pendingIds.push(bookingId);
+    }
+  }
+  if (pendingIds.length === 0) {
+    return {
+      rows: [], counts: { pending: 0, escalated: 0, ackedRecently: 0 },
+    };
+  }
+
+  // Fetch the bookings + jemaah identity
+  const bookings = await db.booking.findMany({
+    where: { id: { in: pendingIds } },
+    select: {
+      id: true, bookingNo: true,
+      jemaah: { select: { fullName: true, phone: true, email: true } },
+      paket: { select: { slug: true, title: true } },
+    },
+  });
+  const byId = new Map(bookings.map((b) => [b.id, b]));
+
+  const rows = pendingIds
+    .map((id) => {
+      const req = latestReq.get(id);
+      const booking = byId.get(id);
+      if (!booking) return null;
+      const ageHours = Math.round(((now.getTime() - req.createdAt.getTime()) / 3_600_000) * 10) / 10;
+      return {
+        bookingId: id,
+        bookingNo: booking.bookingNo,
+        jemaah: booking.jemaah,
+        paket: booking.paket,
+        requestedAt: req.createdAt,
+        messagePreview: req.payload?.messagePreview || null,
+        ageHours,
+        escalated: latestEsc.has(id),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.requestedAt - b.requestedAt) // oldest first
+    .slice(0, limit);
+
+  // Count recent ACKs (last 24h) for the KPI strip
+  const last24h = new Date(now.getTime() - 24 * 3_600_000);
+  const ackedRecently = acks.filter((a) => a.createdAt >= last24h).length;
+
+  return {
+    rows,
+    counts: {
+      pending: rows.length,
+      escalated: rows.filter((r) => r.escalated).length,
+      ackedRecently,
+    },
+  };
+}
+
 export { MIN_MESSAGE_LEN, MAX_MESSAGE_LEN, COOLDOWN_MIN };

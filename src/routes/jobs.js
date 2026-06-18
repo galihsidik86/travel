@@ -464,6 +464,16 @@ router.post(
   }),
 );
 
+// Stage 332 — escalate jemaah help requests older than 2h still unacked
+router.post(
+  '/send-help-escalate',
+  asyncHandler(async (_req, res) => {
+    const { escalateStaleHelpRequests } = await import('../services/helpRequestEscalate.js');
+    const result = await runJob('send-help-escalate', () => escalateStaleHelpRequests({}));
+    res.json(result);
+  }),
+);
+
 // Stage 291 — daily admin digest of stale inquiries
 router.post(
   '/send-inquiry-sla',

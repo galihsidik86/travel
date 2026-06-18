@@ -398,6 +398,20 @@ router.get(
   }),
 );
 
+// Stage 331 — help requests queue derived from Notification table.
+// Lists bookings with pending JEMAAH_HELP_REQUEST > JEMAAH_HELP_ACK.
+// View rights same as /admin (3 admin roles via the router gate).
+// ACK actions still go through /admin/bookings/:id/help-ack (S325) so
+// the queue stays a triage surface, not a workflow tool.
+router.get(
+  '/help-requests',
+  asyncHandler(async (req, res) => {
+    const { listPendingHelpRequests } = await import('../services/jemaahHelpRequest.js');
+    const queue = await listPendingHelpRequests({});
+    res.render('admin-help-requests', { user: req.user, queue });
+  }),
+);
+
 // Stage 317 — detractor queue + lifecycle actions. View rights are
 // the same as the rest of /admin (3 admin roles via the router gate);
 // transitions are also admin-only (no KASIR — relationship recovery is

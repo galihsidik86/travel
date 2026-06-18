@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELIGIO PRO — SOS / Help requests</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 30px; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.015em; }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 24px; line-height: 1.6; }
+  .kpi-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .kpi-card { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 16px 18px; }
+  .kpi-card .lbl { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .kpi-card .val { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); }
+  .kpi-card.ruby .val { color: var(--ruby); }
+  .kpi-card.amber .val { color: var(--amber); }
+  .kpi-card.emerald .val { color: var(--emerald); }
+  .row-card { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 16px 18px; margin-bottom: 12px; border-left: 3px solid var(--ruby); }
+  .row-card.escalated { box-shadow: 0 0 0 2px rgba(212,89,89,0.18); }
+  .row-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .row-head .meta { flex: 1; min-width: 280px; }
+  .row-head .meta .name { font-family: var(--font-display); font-size: 16px; color: var(--cream-100); }
+  .row-head .meta .sub2 { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.04em; margin-top: 3px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; font-weight: 600; }
+  .pill.AGE-old { background: rgba(212,89,89,0.16); color: var(--ruby); }
+  .pill.AGE-warn { background: rgba(212,175,107,0.14); color: var(--gold-300); }
+  .pill.ESC { background: rgba(212,89,89,0.22); color: var(--ruby); }
+  .quote { margin-top: 10px; padding: 10px 14px; background: var(--ink-1000); border-left: 2px solid var(--ink-300); font-family: var(--font-body); font-size: 13px; color: var(--cream-100); line-height: 1.5; font-style: italic; }
+  .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 11px; }
+  .actions a { text-decoration: none; padding: 8px 14px; border-radius: 4px; letter-spacing: 0.06em; }
+  .actions a.ack { background: var(--ruby); color: var(--cream-100); font-weight: 600; }
+  .actions a.wa { background: transparent; border: 1px solid var(--emerald); color: var(--emerald); }
+  .actions a.detail { background: transparent; border: 1px solid var(--gold-300); color: var(--gold-300); }
+  .empty { padding: 60px; text-align: center; font-family: var(--font-mono); font-size: 13px; color: var(--ink-300); background: var(--ink-900); border-radius: var(--r-md); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/admin">← /admin</a> · HELP REQUESTS</div>
+    <h1>SOS &amp; Help requests</h1>
+    <div class="sub">
+      Permintaan bantuan dari jemaah dalam perjalanan yang belum di-ACK.
+      Klik booking untuk hubungi via WhatsApp atau detail booking untuk ACK + reply.
+      Help request yang sudah lewat 2 jam tanpa ACK ter-escalate ke OWNER.
+    </div>
+
+    <div class="kpi-strip">
+      <div class="kpi-card ruby"><div class="lbl">Pending</div><div class="val"><%= queue.counts.pending %></div></div>
+      <div class="kpi-card amber"><div class="lbl">Escalated</div><div class="val"><%= queue.counts.escalated %></div></div>
+      <div class="kpi-card emerald"><div class="lbl">ACK 24 jam terakhir</div><div class="val"><%= queue.counts.ackedRecently %></div></div>
+    </div>
+
+    <% if (queue.rows.length === 0) { %>
+      <div class="empty">✓ Tidak ada SOS yang menunggu.<br><span style="color:var(--ink-200);">Tim Anda merespon cepat.</span></div>
+    <% } else {
+         queue.rows.forEach(function(r) {
+           const ageClass = r.ageHours > 2 ? 'AGE-old' : r.ageHours > 1 ? 'AGE-warn' : '';
+           const cardClass = r.escalated ? 'escalated' : '';
+           const phoneDigits = (r.jemaah?.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '62');
+    %>
+      <div class="row-card <%= cardClass %>">
+        <div class="row-head">
+          <div class="meta">
+            <div class="name"><%= r.jemaah?.fullName || '(tanpa nama)' %> · <%= r.paket?.title || '(paket terhapus)' %></div>
+            <div class="sub2">
+              <span style="color:var(--ruby);font-weight:600;">PENDING</span>
+              <% if (ageClass) { %><span class="pill <%= ageClass %>"><%= r.ageHours %>h</span><% } %>
+              <% if (r.escalated) { %><span class="pill ESC">ESCALATED</span><% } %>
+              · Booking <%= r.bookingNo %>
+              · Diminta <%= fmt.dateLong(r.requestedAt) %>
+              <% if (r.jemaah?.phone) { %> · <%= r.jemaah.phone %><% } %>
+            </div>
+          </div>
+        </div>
+        <% if (r.messagePreview) { %>
+          <div class="quote">"<%= r.messagePreview %>"</div>
+        <% } else { %>
+          <div class="quote" style="color:var(--ink-300);">(tanpa preview pesan)</div>
+        <% } %>
+        <div class="actions">
+          <a href="/admin/bookings/<%= r.bookingId %>" class="detail">→ Detail booking + ACK</a>
+          <% if (phoneDigits) { %>
+            <a href="https://wa.me/<%= phoneDigits %>" target="_blank" rel="noopener" class="wa">📞 WhatsApp <%= r.jemaah.phone %></a>
+          <% } %>
+        </div>
+      </div>
+    <% }); } %>
+  </div>
+</body>
+</html>
