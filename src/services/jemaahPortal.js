@@ -32,13 +32,69 @@ export async function getMyDashboard(userId) {
       where: { jemaahUserId: userId },
       orderBy: { createdAt: 'desc' },
       include: {
-        paket: { select: { slug: true, title: true, departureDate: true } },
+        paket: { select: { slug: true, title: true, departureDate: true, returnDate: true } },
         jemaah: { select: { fullName: true, phone: true } },
         agent: { select: { displayName: true, slug: true } },
       },
     }),
   ]);
   return { profile, bookings };
+}
+
+/**
+ * Stage 320 — "Hari Ini" in-trip context. Returns a single object when
+ * the jemaah has a LUNAS booking whose paket window (departureDate to
+ * returnDate inclusive) covers today. Returns null otherwise so the
+ * caller can hide the hero cleanly (no empty-state waste).
+ *
+ * Day-number math is local-TZ floor so the trip-day boundary lands at
+ * midnight wall-clock, not UTC.
+ */
+export async function getInTripContext(userId, now = new Date()) {
+  if (!userId) return null;
+  // Cheap scan via the existing index on jemaahUserId; usually 1-3 LUNAS
+  // bookings per jemaah lifetime, the JS filter is fine.
+  const candidates = await db.booking.findMany({
+    where: { jemaahUserId: userId, status: 'LUNAS' },
+    select: {
+      id: true, bookingNo: true,
+      paket: {
+        select: {
+          id: true, slug: true, title: true,
+          departureDate: true, returnDate: true, durationDays: true,
+          days: {
+            orderBy: { dayNumber: 'asc' },
+            select: { dayNumber: true, title: true, description: true },
+          },
+        },
+      },
+    },
+  });
+  if (candidates.length === 0) return null;
+
+  const localMidnight = (d) => {
+    const x = new Date(d); x.setHours(0, 0, 0, 0); return x;
+  };
+  const today = localMidnight(now).getTime();
+  for (const b of candidates) {
+    const p = b.paket;
+    if (!p || !p.departureDate || !p.returnDate) continue;
+    const dep = localMidnight(p.departureDate).getTime();
+    const ret = localMidnight(p.returnDate).getTime();
+    if (today < dep || today > ret) continue;
+    // Compute trip day: depDate is Day 1.
+    const dayN = Math.floor((today - dep) / 86_400_000) + 1;
+    const total = Math.max(p.durationDays || 0, p.days.length);
+    const todayItinerary = p.days.find((d) => d.dayNumber === dayN) || null;
+    const nextItinerary = p.days.find((d) => d.dayNumber === dayN + 1) || null;
+    return {
+      booking: { id: b.id, bookingNo: b.bookingNo },
+      paket: { slug: p.slug, title: p.title, departureDate: p.departureDate, returnDate: p.returnDate },
+      dayN, total,
+      todayItinerary, nextItinerary,
+    };
+  }
+  return null;
 }
 
 /**

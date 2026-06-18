@@ -209,6 +209,117 @@
     </div>
   </div>
 
+  <%# Stage 320 — Hari Ini hero. Renders only when jemaah's LUNAS booking
+      is currently in-trip (today between departureDate + returnDate). %>
+  <% if (typeof inTrip !== 'undefined' && inTrip) { %>
+    <div style="padding:24px;margin-bottom:20px;background:linear-gradient(135deg,rgba(212,175,107,0.08),rgba(212,175,107,0.02));border:1px solid var(--gold-300);border-radius:var(--r-md);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--gold-300);letter-spacing:0.14em;text-transform:uppercase;">Hari ini · in-trip</div>
+          <div style="font-family:var(--font-display);font-size:28px;color:var(--cream-100);margin-top:4px;line-height:1.1;">
+            <em style="color:var(--gold-300);font-style:italic;">Hari ke-<%= inTrip.dayN %></em>
+            <span style="font-family:var(--font-mono);font-size:14px;color:var(--ink-200);"> dari <%= inTrip.total %></span>
+          </div>
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);margin-top:6px;letter-spacing:0.04em;">
+            <%= inTrip.paket.title %> · pulang <%= fmt.dateShort(inTrip.paket.returnDate) %>
+          </div>
+        </div>
+        <a href="/saya/bookings/<%= inTrip.booking.id %>" style="text-decoration:none;background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:8px 14px;border-radius:3px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;">
+          Detail booking
+        </a>
+      </div>
+
+      <% if (inTrip.todayItinerary) { %>
+        <div style="margin-top:16px;padding:14px 16px;background:var(--ink-1000);border-radius:var(--r-sm);border-left:3px solid var(--gold-300);">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.14em;text-transform:uppercase;">Agenda hari ini</div>
+          <div style="font-family:var(--font-display);font-size:16px;color:var(--cream-100);margin-top:4px;line-height:1.3;"><%= inTrip.todayItinerary.title %></div>
+          <% if (inTrip.todayItinerary.description) { %>
+            <div style="font-family:var(--font-body);font-size:13px;color:var(--ink-100);margin-top:6px;line-height:1.5;"><%= inTrip.todayItinerary.description %></div>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div style="margin-top:16px;padding:10px 14px;background:var(--ink-1000);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;color:var(--ink-300);font-style:italic;">
+          Tidak ada agenda terjadwal untuk hari ini.
+        </div>
+      <% } %>
+
+      <% if (inTrip.nextItinerary) { %>
+        <div style="margin-top:10px;padding:10px 14px;background:rgba(0,0,0,0.2);border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.04em;">
+          <span style="color:var(--ink-300);">Besok →</span> <%= inTrip.nextItinerary.title %>
+        </div>
+      <% } %>
+
+      <%# Stage 321 — SOS-light help request. Bottom sheet shown only
+          when jemaah is in-trip (rendered inside the inTrip block). %>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px dashed rgba(212,175,107,0.2);">
+        <button type="button" id="rp-help-toggle" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:10px 16px;border-radius:3px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;font-weight:600;">
+          🆘 Minta bantuan (SOS)
+        </button>
+        <div id="rp-help-form" style="display:none;margin-top:12px;padding:14px;background:rgba(212,89,89,0.06);border:1px solid var(--ruby);border-radius:var(--r-sm);">
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.04em;margin-bottom:10px;">
+            Pesan akan dikirim ke admin + crew yang dampingi. Tim akan menghubungi Anda via WA/telepon.
+          </div>
+          <textarea id="rp-help-msg" rows="3" maxlength="1000" placeholder="Apa yang terjadi? Lokasi sekarang?" style="width:100%;padding:8px 10px;background:var(--ink-1000);border:1px solid var(--hairline-soft);border-radius:3px;color:var(--cream-100);font-family:var(--font-body);font-size:13px;box-sizing:border-box;resize:vertical;line-height:1.5;"></textarea>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button type="button" id="rp-help-submit" style="background:var(--ruby);color:var(--cream-100);border:0;padding:10px 16px;border-radius:3px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-weight:600;flex:1;">
+              Kirim SOS
+            </button>
+            <button type="button" id="rp-help-cancel" style="background:transparent;border:1px solid var(--ink-300);color:var(--ink-200);padding:10px 16px;border-radius:3px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">
+              Batal
+            </button>
+          </div>
+          <div id="rp-help-status" style="margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);min-height:14px;"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        const toggle = document.getElementById('rp-help-toggle');
+        const form = document.getElementById('rp-help-form');
+        const cancel = document.getElementById('rp-help-cancel');
+        const submit = document.getElementById('rp-help-submit');
+        const msg = document.getElementById('rp-help-msg');
+        const status = document.getElementById('rp-help-status');
+        if (!toggle || !form) return;
+        toggle.addEventListener('click', () => {
+          form.style.display = 'block'; toggle.style.display = 'none';
+          msg.focus();
+        });
+        cancel.addEventListener('click', () => {
+          form.style.display = 'none'; toggle.style.display = 'block';
+          status.textContent = '';
+        });
+        submit.addEventListener('click', async () => {
+          const text = (msg.value || '').trim();
+          if (text.length < 5) { status.textContent = 'Pesan minimal 5 karakter.'; status.style.color = 'var(--ruby)'; return; }
+          submit.disabled = true; status.textContent = 'Mengirim…'; status.style.color = 'var(--ink-200)';
+          try {
+            const r = await fetch('/api/saya/help-request', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: text }),
+            });
+            const body = await r.json();
+            if (r.ok && body.ok) {
+              status.textContent = '✓ SOS terkirim ke ' + body.recipients + ' penerima. Tim akan menghubungi.';
+              status.style.color = 'var(--emerald)';
+              msg.value = '';
+              setTimeout(() => { form.style.display = 'none'; toggle.style.display = 'block'; status.textContent = ''; }, 4000);
+            } else {
+              status.textContent = '✕ ' + (body.message || 'Gagal');
+              status.style.color = 'var(--ruby)';
+            }
+          } catch (err) {
+            status.textContent = '✕ ' + (err.message || 'Network error');
+            status.style.color = 'var(--ruby)';
+          } finally {
+            submit.disabled = false;
+          }
+        });
+      })();
+    </script>
+  <% } %>
+
   <!-- Stage 94 — push toggle. Hidden by JS when browser doesn't support PushManager. -->
   <div class="panel push-panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
     <div id="rp-push-bar" style="display:none;align-items:center;gap:12px;flex:1;min-width:240px;">

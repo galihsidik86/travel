@@ -176,6 +176,7 @@ enum NotificationType {
   TRIP_FEEDBACK_REMINDER // 60d post-return nudge to submit NPS feedback (Stage 312)
   NPS_DETRACTOR_ALERT // jemaah submitted score ≤4, fan-out to admin for relationship recovery (Stage 315)
   NPS_DETRACTOR_ESCALATED // detractor sat 48h+ in NEW status, escalate to OWNER tier (Stage 318)
+  JEMAAH_HELP_REQUEST // in-trip jemaah submitted SOS-light help request, fan-out to admin + assigned crew (Stage 321)
   GENERIC // catch-all for ad-hoc notifs
 }
 

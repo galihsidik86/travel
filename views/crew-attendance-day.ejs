@@ -136,6 +136,7 @@
 </style>
 </head>
 <body data-screen-label="05 Crew · Attendance Day"
+      class="has-m-tabs"
       data-user-name="<%= user.fullName || user.email %>"
       data-paket-slug="<%= paket.slug %>"
       data-day-id="<%= day.id %>">
@@ -390,5 +391,6 @@
   })();
 </script>
 <%- include('partials/sos-fab', { paketSlug: paket.slug }) %>
+<%- include('partials/crew-mobile-tabs') %>
 </body>
 </html>

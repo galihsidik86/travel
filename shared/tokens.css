@@ -438,6 +438,9 @@ body {
 
   /* Reserve room at page-bottom so content isn't covered by the bar. */
   body.has-m-tabs { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  /* Stage 319 — hide redundant top-nav links in crew portal on mobile
+     since the bottom-nav covers Kontak + Notifikasi tabs. */
+  .c-topnav-link { display: none !important; }
 }
 
 /* ============================================================

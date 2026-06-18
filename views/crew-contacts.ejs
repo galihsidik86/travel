@@ -38,7 +38,7 @@
   .pagination a.disabled { color: var(--ink-200); border-color: var(--ink-200); pointer-events: none; }
 </style>
 </head>
-<body>
+<body class="has-m-tabs">
 
 <div class="wrap">
   <div class="topbar">
@@ -129,5 +129,7 @@
   <% } %>
 </div>
 
+<%- include('partials/sos-fab') %>
+<%- include('partials/crew-mobile-tabs') %>
 </body>
 </html>

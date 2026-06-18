@@ -93,11 +93,21 @@ router.use('/saya', requireAuth, requireRole('JEMAAH'));
 router.get(
   '/saya',
   asyncHandler(async (req, res) => {
-    const [data, unreadCount] = await Promise.all([
+    const [data, unreadCount, inTrip] = await Promise.all([
       getMyDashboard(req.user.id),
       countUnreadForUser(req.user.id),
+      // Stage 320 — Hari Ini hero context (null when pre-trip / post-trip)
+      (async () => {
+        try {
+          const { getInTripContext } = await import('../services/jemaahPortal.js');
+          return await getInTripContext(req.user.id);
+        } catch (err) {
+          console.warn('[saya] inTrip context failed:', err?.message || err);
+          return null;
+        }
+      })(),
     ]);
-    res.render('jemaah-portal', { user: req.user, ...data, unreadCount });
+    res.render('jemaah-portal', { user: req.user, ...data, unreadCount, inTrip });
   }),
 );
 
@@ -538,6 +548,31 @@ router.post(
       });
     }
     res.redirect(`/saya/bookings/${req.params.id}?testimonial=submitted`);
+  }),
+);
+
+// ── S321: Jemaah SOS-light help request ──────────────────────
+router.post(
+  '/api/saya/help-request',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    const { submitJemaahHelpRequest } = await import('../services/jemaahHelpRequest.js');
+    try {
+      const result = await submitJemaahHelpRequest({
+        req, actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        userId: req.user.id, message: req.body?.message,
+      });
+      res.json({
+        ok: true,
+        bookingNo: result.booking.bookingNo,
+        recipients: result.recipients,
+        enqueued: result.enqueued,
+      });
+    } catch (err) {
+      const status = err instanceof HttpError ? err.statusCode : 500;
+      const code = err instanceof HttpError ? err.code : 'SERVER_ERROR';
+      res.status(status).json({ ok: false, code, message: err?.message || 'Gagal' });
+    }
   }),
 );
 
