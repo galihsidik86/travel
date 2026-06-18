@@ -530,6 +530,7 @@ router.post(
         targetKelas: req.body?.targetKelas,
         targetPaxCount: req.body?.targetPaxCount ? Number(req.body.targetPaxCount) : null,
         reason: req.body?.reason || null,
+        reasonCode: req.body?.reasonCode || null,
       });
       // Land admin on the NEW booking detail page — that's where the
       // continuing workflow lives.

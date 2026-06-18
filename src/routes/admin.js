@@ -62,6 +62,16 @@ router.get(
         return null;
       }
     })();
+    // Stage 345 — reschedule analytics (best-effort)
+    const rescheduleAnalyticsPromise = (async () => {
+      try {
+        const { getRescheduleAnalytics } = await import('../services/rescheduleAnalytics.js');
+        return await getRescheduleAnalytics({ days: 90 });
+      } catch (err) {
+        console.warn('[admin] reschedule analytics failed:', err?.message || err);
+        return null;
+      }
+    })();
     // Stage 297 — adjustment ledger (best-effort)
     const adjustmentLedgerPromise = (async () => {
       try {
@@ -116,7 +126,7 @@ router.get(
         return null;
       }
     })();
-    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention, crewReportTally, addonRevenue, returningRollup, adjustmentLedger, agentCancelRefund] = await Promise.all([
+    const [manifestRaw, finance, bunking, paketRecap, myMentions, myTasks, networkForecast, groupAttention, crewReportTally, addonRevenue, returningRollup, adjustmentLedger, agentCancelRefund, rescheduleAnalytics] = await Promise.all([
       manifestSlug ? getManifestForPaket(manifestSlug) : Promise.resolve(null),
       getFinanceSummary(),
       bunkingSlug ? getBunkingForPaket(bunkingSlug) : Promise.resolve(null),
@@ -134,6 +144,7 @@ router.get(
       returningRollupPromise,
       adjustmentLedgerPromise,
       agentCancelRefundPromise,
+      rescheduleAnalyticsPromise,
     ]);
     // Destructure last entry — slightly less idiomatic but keeps the
     // Promise.all positional argument list intact.
@@ -191,6 +202,7 @@ router.get(
       returningRollup,
       adjustmentLedger,
       agentCancelRefund,
+      rescheduleAnalytics,
       activeTab: req.query.tab || 'overview',
       range,
     });
@@ -395,6 +407,19 @@ router.get(
     const { getNpsRollup } = await import('../services/tripFeedback.js');
     const nps = await getNpsRollup({ days });
     res.render('admin-nps', { user: req.user, nps, days });
+  }),
+);
+
+// Stage 343 — reschedule requests queue. Lists bookings with pending
+// rescheduleRequested=true sorted by age. ACK action stays on
+// /admin/bookings/:id (S341) via the S338 modal — this is a triage
+// surface, not a workflow tool. Same /admin RBAC gate.
+router.get(
+  '/reschedule-requests',
+  asyncHandler(async (req, res) => {
+    const { listPendingRescheduleRequests } = await import('../services/bookingAdmin.js');
+    const queue = await listPendingRescheduleRequests({});
+    res.render('admin-reschedule-requests', { user: req.user, queue });
   }),
 );
 

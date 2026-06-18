@@ -2546,6 +2546,87 @@
         </div>
       <% } %>
 
+      <!-- Stage 345 — reschedule analytics -->
+      <% if (typeof rescheduleAnalytics !== 'undefined' && rescheduleAnalytics && rescheduleAnalytics.total > 0) { %>
+        <div class="panel" style="margin-top:16px;border-left:3px solid var(--sapphire);">
+          <div class="panel__head">
+            <h3>⇄ Reschedule activity (<%= rescheduleAnalytics.days %> hari)</h3>
+            <span class="meta">
+              <strong style="color:var(--cream-100);"><%= rescheduleAnalytics.total %></strong> booking di-reschedule
+              · <a href="/admin/reschedule-requests" style="color:var(--gold-300);text-decoration:none;">queue pending →</a>
+            </span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px;">
+            <!-- Left column: per-paket flow -->
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Net flow per paket (top 10)</div>
+              <% if (rescheduleAnalytics.perPaket.length === 0) { %>
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-300);">—</div>
+              <% } else { %>
+                <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11px;">
+                  <thead><tr style="border-bottom:1px solid var(--hairline-soft);color:var(--ink-300);letter-spacing:0.06em;text-transform:uppercase;font-size:10px;">
+                    <th style="text-align:left;padding:6px 4px;">Paket</th>
+                    <th style="text-align:right;padding:6px 4px;">Out</th>
+                    <th style="text-align:right;padding:6px 4px;">In</th>
+                    <th style="text-align:right;padding:6px 4px;">Net</th>
+                  </tr></thead>
+                  <tbody>
+                    <% rescheduleAnalytics.perPaket.slice(0, 10).forEach(function(p) {
+                         const netColor = p.net > 0 ? 'var(--emerald)' : p.net < 0 ? 'var(--ruby)' : 'var(--ink-200)';
+                    %>
+                      <tr style="border-bottom:1px solid var(--hairline-soft);">
+                        <td style="padding:6px 4px;color:var(--cream-100);">
+                          <% if (p.paketSlug) { %>
+                            <a href="/admin/paket/<%= p.paketSlug %>/edit" style="color:var(--cream-100);text-decoration:none;border-bottom:1px dotted var(--ink-200);"><%= p.paketTitle %></a>
+                          <% } else { %><%= p.paketTitle %><% } %>
+                        </td>
+                        <td style="text-align:right;padding:6px 4px;color:<%= p.out > 0 ? 'var(--ruby)' : 'var(--ink-300)' %>;"><%= p.out %></td>
+                        <td style="text-align:right;padding:6px 4px;color:<%= p.in > 0 ? 'var(--emerald)' : 'var(--ink-300)' %>;"><%= p.in %></td>
+                        <td style="text-align:right;padding:6px 4px;color:<%= netColor %>;font-weight:600;"><%= p.net >= 0 ? '+' : '' %><%= p.net %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              <% } %>
+            </div>
+            <!-- Right column: per-reason + top pairs -->
+            <div>
+              <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Alasan</div>
+              <% if (rescheduleAnalytics.perReason.length === 0) { %>
+                <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-300);">—</div>
+              <% } else { %>
+                <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11px;margin-bottom:14px;">
+                  <tbody>
+                    <% rescheduleAnalytics.perReason.forEach(function(r) { %>
+                      <tr style="border-bottom:1px solid var(--hairline-soft);">
+                        <td style="padding:5px 4px;color:<%= r.code === '__UNSET__' ? 'var(--ink-300)' : 'var(--cream-100)' %>;<%= r.code === '__UNSET__' ? 'font-style:italic;' : '' %>"><%= r.label %></td>
+                        <td style="text-align:right;padding:5px 4px;color:var(--cream-100);"><%= r.count %></td>
+                        <td style="text-align:right;padding:5px 4px;color:var(--ink-200);"><%= r.sharePct %>%</td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              <% } %>
+
+              <% if (rescheduleAnalytics.topPairs.length > 0) { %>
+                <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Top source → target pairs</div>
+                <% rescheduleAnalytics.topPairs.forEach(function(p) { %>
+                  <div style="padding:6px 0;font-family:var(--font-mono);font-size:11px;color:var(--cream-100);border-bottom:1px solid var(--hairline-soft);">
+                    <%= p.sourcePaket?.title || '—' %>
+                    <span style="color:var(--gold-300);">→</span>
+                    <%= p.targetPaket?.title || '—' %>
+                    <span style="float:right;color:var(--ink-200);"><%= p.count %>×</span>
+                  </div>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+          <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);">
+            Net = in − out. Paket dengan net negatif besar = "leaky" (banyak jemaah pindah keluar). Kategorisasi dilakukan admin saat approve modal — yang tidak dikategorikan masuk "Belum dikategorikan".
+          </div>
+        </div>
+      <% } %>
+
       <!-- Stage 303 — per-agen cancel/refund rate -->
       <% if (typeof agentCancelRefund !== 'undefined' && agentCancelRefund && agentCancelRefund.rows && agentCancelRefund.rows.length > 0) {
            const acrTotals = agentCancelRefund.totals;

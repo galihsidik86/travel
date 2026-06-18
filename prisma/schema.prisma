@@ -73,6 +73,21 @@ enum BookingStatus {
   RESCHEDULED // S337 — source booking after a successful reschedule; terminal. Carries rescheduledToBookingId pointer to the new booking.
 }
 
+// Stage 344 — structured reschedule reason category. Picked from a
+// dropdown when admin approves the S338 modal; powers analytics
+// breakdown ("why do jemaah ask to move?"). Free-text reason stays
+// in source booking's notes for admin to grep.
+enum BookingRescheduleReason {
+  JEMAAH_REQUEST     // jemaah requested with personal reason
+  DOCUMENT_DELAY     // paspor/visa not ready in time
+  HEALTH             // medical issue with jemaah or family
+  FINANCIAL          // payment difficulties
+  PAKET_FULL         // paket they wanted was full, moved to next
+  SCHEDULE_CONFLICT  // hari libur, urusan keluarga, etc.
+  OPERATOR_INITIATED // admin moved jemaah for ops reasons (rare)
+  OTHER
+}
+
 // Stage 175 — structured cancel reason category. Picked from a
 // dropdown when admin cancels; powers analytics breakdown.
 enum BookingCancelReason {
@@ -1497,6 +1512,10 @@ model Booking {
   rescheduledFrom        Booking?  @relation("BookingReschedule")
   rescheduledAt          DateTime?
   rescheduledByEmail     String?   @db.VarChar(190)
+  // Stage 344 — structured reschedule reason. Optional (admin can skip)
+  // so historical RESCHEDULED rows (pre-S344) stay valid; null bucket
+  // shows as "Belum dikategorikan" in analytics.
+  rescheduleReasonCode   BookingRescheduleReason?
 
   // Stage 198 — voucher print history. Counter + lastAt stamp each
   // time streamVoucherPdf is invoked. Avoids a full history table.

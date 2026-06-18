@@ -1454,7 +1454,22 @@
       </div>
 
       <div class="field">
-        <label class="label" for="rs-reason">Alasan reschedule (opsional)</label>
+        <label class="label" for="rs-reason-code">Kategori alasan (opsional, untuk analitik)</label>
+        <select class="input" id="rs-reason-code" name="reasonCode">
+          <option value="">— pilih kategori —</option>
+          <option value="JEMAAH_REQUEST">Permintaan jemaah (urusan pribadi)</option>
+          <option value="DOCUMENT_DELAY">Dokumen telat (paspor/visa)</option>
+          <option value="HEALTH">Kondisi kesehatan</option>
+          <option value="FINANCIAL">Kesulitan finansial</option>
+          <option value="PAKET_FULL">Paket asli penuh, pindah ke berikutnya</option>
+          <option value="SCHEDULE_CONFLICT">Bentrok jadwal (libur, urusan keluarga)</option>
+          <option value="OPERATOR_INITIATED">Inisiatif operator (ops reason)</option>
+          <option value="OTHER">Lainnya</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label" for="rs-reason">Alasan reschedule (catatan bebas, opsional)</label>
         <textarea class="input" id="rs-reason" name="reason" maxlength="2000" rows="3"
                   placeholder="Mis. jemaah minta tunda karena kondisi keluarga, dst."><%= b.rescheduleRequested ? (b.rescheduleRequestReason || '') : '' %></textarea>
       </div>

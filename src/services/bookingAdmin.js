@@ -707,13 +707,30 @@ export async function declineCancelRequest({ req, actor, bookingId, reason }) {
 //
 // Same booking row stays around (status=RESCHEDULED) so the audit
 // timeline + analytics retain the original entry.
+// Stage 344 — allowed reschedule reason codes. Service-side allowlist
+// matches the Prisma enum; case-insensitive normalisation on input.
+export const RESCHEDULE_REASON_CODES = new Set([
+  'JEMAAH_REQUEST', 'DOCUMENT_DELAY', 'HEALTH', 'FINANCIAL',
+  'PAKET_FULL', 'SCHEDULE_CONFLICT', 'OPERATOR_INITIATED', 'OTHER',
+]);
+
 export async function rescheduleBooking({
   req, actor, sourceBookingId, targetPaketId, targetKelas,
-  targetPaxCount = null, reason = null,
+  targetPaxCount = null, reason = null, reasonCode = null,
 }) {
   if (!sourceBookingId) throw new HttpError(400, 'sourceBookingId required', 'BAD_INPUT');
   if (!targetPaketId) throw new HttpError(400, 'targetPaketId required', 'BAD_INPUT');
   if (!targetKelas) throw new HttpError(400, 'targetKelas required', 'BAD_INPUT');
+
+  // Stage 344 — validate optional reasonCode against the enum.
+  let normReasonCode = null;
+  if (reasonCode != null && reasonCode !== '') {
+    const code = String(reasonCode).trim().toUpperCase();
+    if (!RESCHEDULE_REASON_CODES.has(code)) {
+      throw new HttpError(400, `Reschedule reason code tidak valid: ${reasonCode}`, 'BAD_RESCHEDULE_REASON_CODE');
+    }
+    normReasonCode = code;
+  }
 
   const source = await db.booking.findUnique({
     where: { id: sourceBookingId },
@@ -817,6 +834,8 @@ export async function rescheduleBooking({
         rescheduledToBookingId: created.id,
         rescheduledAt: now,
         rescheduledByEmail: actor?.email ?? null,
+        // Stage 344 — structured reason category for analytics.
+        rescheduleReasonCode: normReasonCode,
         roomId: null, // free room slot — new booking will reassign on target paket
         rescheduleRequested: false,
         rescheduleRequestedAt: null,
@@ -856,6 +875,7 @@ export async function rescheduleBooking({
       targetPaketId: target.id, targetKelas, newPaxCount,
       paidCarried: carriedPaid,
       reason: reason ? reason.slice(0, 500) : null,
+      ...(normReasonCode ? { rescheduleReasonCode: normReasonCode } : {}),
     },
   });
   await audit({
@@ -896,6 +916,64 @@ export async function rescheduleBooking({
   }
 
   return { source: updatedSource, newBooking };
+}
+
+// Stage 343 — admin queue page for pending reschedule requests. Mirrors
+// S331 help-requests aggregation pattern. Lists bookings where
+// `rescheduleRequested=true` AND status is non-terminal, sorted oldest
+// first (most urgent at top). Per-row carries jemaah identity + paket +
+// preferred target + age + WhatsApp deep link.
+export async function listPendingRescheduleRequests({ limit = 200, now = new Date() } = {}) {
+  const bookings = await db.booking.findMany({
+    where: {
+      rescheduleRequested: true,
+      status: { notIn: ['CANCELLED', 'REFUNDED', 'RESCHEDULED'] },
+    },
+    orderBy: { rescheduleRequestedAt: 'asc' }, // oldest first
+    take: Math.max(1, Math.min(500, limit)),
+    select: {
+      id: true, bookingNo: true,
+      rescheduleRequestedAt: true, rescheduleRequestReason: true,
+      rescheduleRequestTargetPaketId: true,
+      jemaah: { select: { fullName: true, phone: true, email: true } },
+      paket: { select: { slug: true, title: true } },
+    },
+  });
+
+  // Resolve preferred target paket titles in one batched query (avoid N+1)
+  const targetIds = [...new Set(bookings.map((b) => b.rescheduleRequestTargetPaketId).filter(Boolean))];
+  let targetMap = new Map();
+  if (targetIds.length > 0) {
+    const targets = await db.paket.findMany({
+      where: { id: { in: targetIds } },
+      select: { id: true, slug: true, title: true, departureDate: true },
+    });
+    targetMap = new Map(targets.map((t) => [t.id, t]));
+  }
+
+  const rows = bookings.map((b) => ({
+    bookingId: b.id,
+    bookingNo: b.bookingNo,
+    jemaah: b.jemaah,
+    paket: b.paket,
+    requestedAt: b.rescheduleRequestedAt,
+    reason: b.rescheduleRequestReason,
+    targetPaket: b.rescheduleRequestTargetPaketId
+      ? (targetMap.get(b.rescheduleRequestTargetPaketId) || null)
+      : null,
+    ageHours: b.rescheduleRequestedAt
+      ? Math.round(((now.getTime() - b.rescheduleRequestedAt.getTime()) / 3_600_000) * 10) / 10
+      : null,
+  }));
+
+  return {
+    rows,
+    counts: {
+      pending: rows.length,
+      withTarget: rows.filter((r) => !!r.targetPaket).length,
+      noTarget: rows.filter((r) => !r.targetPaket).length,
+    },
+  };
 }
 
 // Stage 341 — admin declines a pending S340 reschedule request without
