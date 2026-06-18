@@ -430,6 +430,15 @@ router.get(
     } catch (err) {
       console.warn('[booking-detail] adjustments load failed:', err?.message || err);
     }
+    // Stage 325 — help request state (pending/acked + last preview).
+    // Determines whether the "ACK SOS" button + banner render.
+    let helpState = { pending: false };
+    try {
+      const { getBookingHelpRequestState } = await import('../services/jemaahHelpRequest.js');
+      helpState = await getBookingHelpRequestState({ bookingId: booking.id });
+    } catch (err) {
+      console.warn('[booking-detail] help state failed:', err?.message || err);
+    }
     res.render('booking-detail', {
       user: req.user, b: booking,
       canCancel, canRefund, canEditNotes, canTransfer, agents,
@@ -448,7 +457,30 @@ router.get(
       bookingAddons, addonCatalog,
       // Stage 295 — booking adjustments + reason allowlist
       bookingAdjustments, adjustmentReasonCodes,
+      // Stage 325 — SOS help request state
+      helpState,
     });
+  }),
+);
+
+// Stage 325 — admin acks jemaah's pending help request. CANCEL_ROLES
+// only — recovery is ops/owner work, not cashier (mirrors S321 fan-out
+// RBAC).
+router.post(
+  '/:id/help-ack',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    const { ackJemaahHelpRequest } = await import('../services/jemaahHelpRequest.js');
+    try {
+      await ackJemaahHelpRequest({
+        req, actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        bookingId: req.params.id, message: req.body?.message || '',
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=help_acked`);
+    } catch (err) {
+      const msg = err?.message || 'Gagal';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
   }),
 );
 

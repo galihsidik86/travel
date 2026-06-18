@@ -9,7 +9,7 @@ import {
   listAssignedPaket, getAssignedManifest, buildCrewManifestCsv,
   listAttendanceDays, getAttendanceGrid, setAttendanceMark,
 } from '../services/crewPortal.js';
-import { createIncident, listMyIncidents } from '../services/incidents.js';
+import { createIncident, listMyIncidents, listMyIncidentsPaginated } from '../services/incidents.js';
 // Stage 148 — reuse the role-agnostic helpers from jemaahPortal.
 import {
   listMyNotifications, listMyNotificationsPaginated,
@@ -239,6 +239,19 @@ router.post(
       notes: req.body?.notes,
     });
     res.redirect(`/crew/paket/${encodeURIComponent(req.params.slug)}/attendance/${req.params.dayId}?ok=saved`);
+  }),
+);
+
+// Stage 326 — dedicated crew incident queue. Lists crew's own
+// incidents over past 30 days with status filter. Mobile-friendly
+// card layout. Linked from crew dashboard SOS history section.
+router.get(
+  '/incidents',
+  asyncHandler(async (req, res) => {
+    const allowed = new Set(['ACTIVE', 'OPEN', 'ACKED', 'RESOLVED', 'ALL']);
+    const status = allowed.has(req.query.status) ? req.query.status : 'ACTIVE';
+    const queue = await listMyIncidentsPaginated(req.user.id, { status, days: 30 });
+    res.render('crew-incidents', { user: req.user, queue, status });
   }),
 );
 

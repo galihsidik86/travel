@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Crew · <%= user.fullName %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
-<%- include('partials/pwa-head') %>
+<%- include('partials/pwa-head', { pwaRole: 'crew' }) %>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
@@ -306,9 +306,15 @@
   <% } %>
 
   <% if (typeof myIncidents !== 'undefined' && myIncidents.length > 0) { %>
-    <h3 style="font-family: var(--font-display); font-size: 20px; font-weight: 500; color: var(--cream-100); margin: 32px 0 10px; letter-spacing: -0.015em;">
-      Riwayat alert Anda
-    </h3>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:32px 0 10px;gap:12px;flex-wrap:wrap;">
+      <h3 style="font-family: var(--font-display); font-size: 20px; font-weight: 500; color: var(--cream-100); margin: 0; letter-spacing: -0.015em;">
+        Riwayat alert Anda
+      </h3>
+      <%# Stage 326 — link to dedicated queue %>
+      <a href="/crew/incidents" style="font-family:var(--font-mono);font-size:10.5px;color:var(--gold-300);letter-spacing:0.08em;text-decoration:none;border:1px solid var(--gold-300);padding:6px 12px;border-radius:4px;">
+        Buka queue lengkap →
+      </a>
+    </div>
     <div style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; margin-bottom: 14px;">
       <%= myIncidents.length %> alert terakhir · status admin terlihat di sini setelah ditindaklanjuti
     </div>

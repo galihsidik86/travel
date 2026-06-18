@@ -1,0 +1,54 @@
+{
+  "name": "Religio Pro — Crew (Muthawwif)",
+  "short_name": "Religio Crew",
+  "description": "Workspace muthawwif Religio Pro — manifest, absensi, insiden lapangan, dan kontak ICE jemaah.",
+  "lang": "id",
+  "start_url": "/crew",
+  "scope": "/crew",
+  "id": "religio-pro-crew",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050403",
+  "theme_color": "#D4AF6B",
+  "categories": ["travel", "productivity"],
+  "icons": [
+    {
+      "src": "/shared/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/shared/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Manifest paket",
+      "short_name": "Manifest",
+      "url": "/crew",
+      "description": "Buka daftar jemaah & absensi"
+    },
+    {
+      "name": "Kontak jemaah",
+      "short_name": "Kontak",
+      "url": "/crew/contacts",
+      "description": "ICE + nomor jemaah satu paket"
+    },
+    {
+      "name": "Insiden saya",
+      "short_name": "Insiden",
+      "url": "/crew/incidents",
+      "description": "Queue insiden + status admin"
+    },
+    {
+      "name": "Notifikasi",
+      "short_name": "Notif",
+      "url": "/crew/notifications",
+      "description": "Inbox pemberitahuan"
+    }
+  ]
+}

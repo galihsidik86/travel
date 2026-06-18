@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Absensi Hari <%= day.dayNumber %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
-<%- include('partials/pwa-head') %>
+<%- include('partials/pwa-head', { pwaRole: 'crew' }) %>
 <script src="/shared/attendance-queue.js" defer></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }

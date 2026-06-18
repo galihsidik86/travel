@@ -1,8 +1,20 @@
-<link rel="manifest" href="/shared/manifest.webmanifest">
-<meta name="theme-color" content="#0A0908">
+<%# Stage 13 + S327 — PWA head fragment. Caller may pass `pwaRole`
+    via locals to pick the right manifest/branding ('jemaah' or 'crew').
+    Default 'jemaah' preserves prior behaviour. Other pages without
+    PWA flavour can omit the include entirely. %>
+<%
+  const _pwaRole = (typeof pwaRole !== 'undefined' && (pwaRole === 'crew' || pwaRole === 'jemaah'))
+    ? pwaRole
+    : 'jemaah';
+  const _manifest = _pwaRole === 'crew' ? '/shared/manifest-crew.webmanifest' : '/shared/manifest-jemaah.webmanifest';
+  const _theme = _pwaRole === 'crew' ? '#D4AF6B' : '#0A0908';
+  const _title = _pwaRole === 'crew' ? 'Religio Crew' : 'Religio Pro';
+%>
+<link rel="manifest" href="<%= _manifest %>">
+<meta name="theme-color" content="<%= _theme %>">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Religio Pro">
+<meta name="apple-mobile-web-app-title" content="<%= _title %>">
 <link rel="icon" type="image/svg+xml" href="/shared/icon.svg">
 <link rel="apple-touch-icon" href="/shared/icon.svg">
 <script src="/shared/pwa.js" defer></script>

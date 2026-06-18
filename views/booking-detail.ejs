@@ -357,6 +357,40 @@
         </div>
       <% } %>
 
+      <%# Stage 325 — pending SOS help request banner. Renders only when
+          a JEMAAH_HELP_REQUEST is unacked. Admin can ACK from here to
+          fire confirmation push + email back to jemaah. %>
+      <% if (typeof helpState !== 'undefined' && helpState && helpState.pending) { %>
+        <div style="background:rgba(212,89,89,0.10);border:1px solid var(--ruby);color:var(--cream-100);padding:14px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;line-height:1.7;margin-bottom:18px;">
+          <strong style="color:var(--ruby);font-size:13px;">🆘 SOS BELUM DI-ACK</strong> · <%= fmt.dateLong(helpState.lastRequestAt) %><br>
+          <% if (helpState.lastRequestPreview) { %>
+            Pesan jemaah: <em style="color:var(--cream-200);">"<%= helpState.lastRequestPreview %>"</em><br>
+          <% } %>
+          <span style="color:var(--ink-200);">Hubungi jemaah via WhatsApp, lalu klik tombol di bawah untuk konfirmasi ke jemaah bahwa tim sudah respon.</span>
+          <% if (canCancel) { %>
+            <form method="POST" action="/admin/bookings/<%= b.id %>/help-ack" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="text" name="message" maxlength="500"
+                     placeholder="Pesan ke jemaah (opsional)"
+                     style="flex:1 1 280px;min-width:180px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:6px 10px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+              <button type="submit" style="background:var(--ruby);border:0;color:var(--cream-100);padding:8px 18px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-weight:600;">
+                ✓ ACK SOS
+              </button>
+            </form>
+            <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">
+              Jemaah akan dapat push notif (PWA) + email + WA: "Tim sudah respon".
+            </div>
+          <% } %>
+        </div>
+      <% } else if (typeof helpState !== 'undefined' && helpState && helpState.ackedAt) { %>
+        <%# Most-recent help request acked — show passive confirmation %>
+        <div style="background:rgba(80,176,113,0.06);border:1px solid var(--emerald);color:var(--cream-100);padding:10px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;line-height:1.5;margin-bottom:18px;">
+          <span style="color:var(--emerald);">✓ SOS sudah di-ACK</span>
+          · <%= fmt.dateLong(helpState.ackedAt) %>
+          <% if (helpState.ackedByEmail) { %> · oleh <%= helpState.ackedByEmail %><% } %>
+        </div>
+      <% } %>
+
       <% if (b.cancelRequested) { %>
         <div style="background:rgba(201,147,59,0.08);border:1px solid var(--amber);color:var(--cream-100);padding:14px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;line-height:1.7;margin-bottom:18px;">
           <strong style="color:var(--amber);">PERMINTAAN PEMBATALAN DARI JEMAAH</strong> · <%= fmt.dateLong(b.cancelRequestedAt) %><br>

@@ -1,0 +1,48 @@
+{
+  "name": "Religio Pro — Jemaah",
+  "short_name": "Religio Jemaah",
+  "description": "Portal jemaah Religio Pro — booking, dokumen, agenda perjalanan, dan SOS.",
+  "lang": "id",
+  "start_url": "/saya",
+  "scope": "/saya",
+  "id": "religio-pro-jemaah",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050403",
+  "theme_color": "#0A0908",
+  "categories": ["travel", "lifestyle"],
+  "icons": [
+    {
+      "src": "/shared/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/shared/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Booking saya",
+      "short_name": "Booking",
+      "url": "/saya",
+      "description": "Lihat status booking + pembayaran"
+    },
+    {
+      "name": "Profil & dokumen",
+      "short_name": "Profil",
+      "url": "/saya/profile",
+      "description": "Edit profil + upload dokumen perjalanan"
+    },
+    {
+      "name": "Notifikasi",
+      "short_name": "Notif",
+      "url": "/saya/notifications",
+      "description": "Inbox pemberitahuan"
+    }
+  ]
+}

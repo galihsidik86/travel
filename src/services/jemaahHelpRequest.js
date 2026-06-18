@@ -195,4 +195,179 @@ export async function submitJemaahHelpRequest({ req, actor, userId, message, now
   return { booking, enqueued, recipients: recipients.length };
 }
 
+// ── Stage 325 — admin ACK loop ───────────────────────────────
+
+/**
+ * Returns the booking's pending-help-request state used by the admin UI:
+ *   { pending: bool, lastRequestAt, lastRequestPreview, ackedAt, ackedByEmail }
+ *
+ * Pending = latest JEMAAH_HELP_REQUEST is newer than latest JEMAAH_HELP_ACK.
+ * Used by /admin/bookings/:id to decide whether to show the "ACK SOS"
+ * button + by analytics surfaces.
+ */
+export async function getBookingHelpRequestState({ bookingId }) {
+  if (!bookingId) return { pending: false };
+  const [latestReq, latestAck] = await Promise.all([
+    db.notification.findFirst({
+      where: {
+        type: 'JEMAAH_HELP_REQUEST',
+        relatedEntity: 'Booking', relatedEntityId: bookingId,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, payload: true },
+    }),
+    db.notification.findFirst({
+      where: {
+        type: 'JEMAAH_HELP_ACK',
+        relatedEntity: 'Booking', relatedEntityId: bookingId,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, payload: true },
+    }),
+  ]);
+  if (!latestReq) return { pending: false };
+  const pending = !latestAck || latestAck.createdAt < latestReq.createdAt;
+  const preview = latestReq.payload?.messagePreview
+    || (typeof latestReq.payload === 'object' && latestReq.payload?.messagePreview)
+    || null;
+  return {
+    pending,
+    lastRequestAt: latestReq.createdAt,
+    lastRequestPreview: preview,
+    ackedAt: latestAck?.createdAt || null,
+    ackedByEmail: latestAck?.payload?.ackedByEmail || null,
+  };
+}
+
+/**
+ * Admin acknowledges a jemaah help request. Fires:
+ *   - One EMAIL + WA per channel to jemaah (confirms tim sudah respon)
+ *   - Push notif via S93 pushToUser (when jemaah has installed /saya PWA)
+ *   - Booking note append: [HELP-ACK <timestamp> by <admin>]
+ *   - Audit row
+ *
+ * Refuses (409 NO_PENDING_REQUEST) when there's no pending help request
+ * — admin shouldn't ack out of thin air. Idempotent re-ack ok within
+ * the loose semantics (multiple acks per request just stack the note +
+ * notifs, which is acceptable: admin reassuring jemaah twice is fine).
+ */
+export async function ackJemaahHelpRequest({ req, actor, bookingId, message = '' }) {
+  if (!bookingId) throw new HttpError(400, 'bookingId required', 'BAD_INPUT');
+  const booking = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true, bookingNo: true, jemaahUserId: true,
+      jemaah: { select: { fullName: true, phone: true, email: true } },
+      paket: { select: { title: true } },
+    },
+  });
+  if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+
+  const state = await getBookingHelpRequestState({ bookingId });
+  if (!state.pending) {
+    throw new HttpError(409, 'Tidak ada permintaan bantuan yang menunggu', 'NO_PENDING_REQUEST');
+  }
+
+  const trimmed = String(message || '').trim().slice(0, 500);
+  const firstName = (booking.jemaah?.fullName || 'Jemaah').split(/\s+/)[0];
+  const subject = `Tim sudah respon SOS Anda · ${booking.bookingNo}`;
+  const body = [
+    `Halo ${firstName},`,
+    '',
+    'Permintaan bantuan Anda sudah diterima dan tim Religio Pro sedang menangani.',
+    'Tim akan menghubungi Anda via WhatsApp atau telepon dalam beberapa menit.',
+    ...(trimmed ? ['', 'Catatan tim:', trimmed] : []),
+    '',
+    'Mohon stay tenang + jangan berpindah lokasi sampai tim tiba.',
+    '',
+    '— Religio Pro',
+  ].join('\n');
+
+  const { enqueueNotification } = await import('./notifications.js');
+  let enqueued = 0;
+  // EMAIL
+  if (booking.jemaah?.email) {
+    try {
+      await enqueueNotification({
+        type: 'JEMAAH_HELP_ACK', channel: 'EMAIL',
+        recipientEmail: booking.jemaah.email,
+        recipientUserId: booking.jemaahUserId || null,
+        subject, body,
+        payload: {
+          kind: 'jemaah_help_ack',
+          bookingNo: booking.bookingNo,
+          ackedByEmail: actor?.email || null,
+        },
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[helpAck] EMAIL failed:', err?.message || err);
+    }
+  }
+  // WA
+  if (booking.jemaah?.phone) {
+    try {
+      await enqueueNotification({
+        type: 'JEMAAH_HELP_ACK', channel: 'WA',
+        recipientPhone: booking.jemaah.phone,
+        recipientUserId: booking.jemaahUserId || null,
+        subject, body,
+        payload: {
+          kind: 'jemaah_help_ack',
+          bookingNo: booking.bookingNo,
+          ackedByEmail: actor?.email || null,
+        },
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[helpAck] WA failed:', err?.message || err);
+    }
+  }
+  // Push to jemaah's installed /saya PWA (S93). Best-effort — push failure
+  // never aborts the ack (email + WA are the load-bearing channels).
+  if (booking.jemaahUserId) {
+    try {
+      const { pushToUser } = await import('./webPush.js');
+      await pushToUser(booking.jemaahUserId, {
+        title: 'Tim sudah respon SOS Anda',
+        body: trimmed || 'Tim akan menghubungi Anda via WA/telepon.',
+        url: `/saya/bookings/${booking.id}`,
+        tag: `help-ack-${booking.id}`,
+        requireInteraction: false,
+      });
+    } catch (err) {
+      console.warn('[helpAck] push failed:', err?.message || err);
+    }
+  }
+
+  // Append a system note to booking
+  const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const noteAppend = `\n\n[HELP-ACK ${stamp}] by ${actor?.email || '—'}`
+    + (trimmed ? `: ${trimmed}` : '');
+  const existing = await db.booking.findUnique({
+    where: { id: booking.id }, select: { notes: true },
+  });
+  await db.booking.update({
+    where: { id: booking.id },
+    data: { notes: (existing?.notes || '') + noteAppend },
+  });
+
+  await audit({
+    req, actor,
+    action: 'UPDATE',
+    entity: 'JemaahHelpRequest', entityId: booking.id,
+    before: null,
+    after: {
+      bookingNo: booking.bookingNo,
+      ack: true,
+      message: trimmed,
+      enqueuedCount: enqueued,
+    },
+  });
+
+  return { booking, enqueued };
+}
+
 export { MIN_MESSAGE_LEN, MAX_MESSAGE_LEN, COOLDOWN_MIN };

@@ -229,6 +229,60 @@ export async function listMyIncidents(crewUserId, { limit = 20 } = {}) {
   });
 }
 
+/**
+ * Stage 326 — dedicated crew incident queue. Lists this crew's own
+ * incidents over the last `days` window (default 30) with optional
+ * `status` filter (NEW = OPEN+ACKED active queue, or specific values).
+ *
+ * Returns rows + KPI counts so the page renders a strip without a
+ * second query. Sort: status asc (OPEN first), then createdAt desc.
+ */
+export async function listMyIncidentsPaginated(crewUserId, {
+  status = 'ACTIVE', days = 30, limit = 200, now = new Date(),
+} = {}) {
+  if (!crewUserId) {
+    return {
+      rows: [],
+      counts: { total: 0, OPEN: 0, ACKED: 0, RESOLVED: 0 },
+      days, status,
+    };
+  }
+  const since = new Date(now.getTime() - days * 86_400_000);
+  // KPI counts over the full window (independent of `status` filter so
+  // the strip is honest about queue state).
+  const all = await db.incident.findMany({
+    where: { createdById: crewUserId, createdAt: { gte: since } },
+    select: { status: true },
+  });
+  const counts = { total: all.length, OPEN: 0, ACKED: 0, RESOLVED: 0 };
+  for (const r of all) counts[r.status] = (counts[r.status] || 0) + 1;
+
+  const where = { createdById: crewUserId, createdAt: { gte: since } };
+  if (status === 'ACTIVE') where.status = { in: ['OPEN', 'ACKED'] };
+  else if (status !== 'ALL') where.status = status;
+
+  const rows = await db.incident.findMany({
+    where,
+    orderBy: [
+      // OPEN < ACKED < RESOLVED alphabetically — good enough for queue ordering.
+      { status: 'asc' },
+      { createdAt: 'desc' },
+    ],
+    take: Math.max(1, Math.min(500, limit)),
+    include: {
+      paket: { select: { id: true, slug: true, title: true } },
+      ackedBy: { select: { fullName: true, email: true } },
+      resolvedBy: { select: { fullName: true, email: true } },
+    },
+  });
+  // Attach ageHours so the view can colour rows by recency.
+  const enriched = rows.map((r) => ({
+    ...r,
+    ageHours: Math.round(((now.getTime() - r.createdAt.getTime()) / 3_600_000) * 10) / 10,
+  }));
+  return { rows: enriched, counts, days, status };
+}
+
 export async function ackIncident({ req, adminUser, id }) {
   const cur = await db.incident.findUnique({ where: { id } });
   if (!cur) throw new HttpError(404, 'Insiden tidak ditemukan', 'NOT_FOUND');
