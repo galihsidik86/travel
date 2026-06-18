@@ -808,6 +808,8 @@ export async function rescheduleBooking({
       },
     });
     // Source goes terminal with lineage pointer.
+    // S340 — clear any pending reschedule request now that admin acted
+    // (implicit approval — no separate "approve request" endpoint).
     const updated = await tx.booking.update({
       where: { id: source.id },
       data: {
@@ -816,6 +818,10 @@ export async function rescheduleBooking({
         rescheduledAt: now,
         rescheduledByEmail: actor?.email ?? null,
         roomId: null, // free room slot — new booking will reassign on target paket
+        rescheduleRequested: false,
+        rescheduleRequestedAt: null,
+        rescheduleRequestReason: null,
+        rescheduleRequestTargetPaketId: null,
       },
     });
     // Free source kursi pool, claim target.
@@ -865,6 +871,7 @@ export async function rescheduleBooking({
     },
   });
 
+  // Continue after the transaction with notif fan-out
   // Stage 339 — fire-and-forget notif fan-out (jemaah + agent)
   try {
     const { notifyBookingRescheduled } = await import('./notifications.js');
@@ -889,4 +896,76 @@ export async function rescheduleBooking({
   }
 
   return { source: updatedSource, newBooking };
+}
+
+// Stage 341 — admin declines a pending S340 reschedule request without
+// actually rescheduling. Clears the 4 request fields + writes audit row
+// + fires GENERIC notif to jemaah explaining. Mirrors declineCancelRequest
+// pattern.
+export async function declineRescheduleRequest({ req, actor, bookingId, reason }) {
+  if (!reason || reason.trim().length < 3) {
+    throw new HttpError(400, 'Alasan tolak request wajib (min. 3 karakter)', 'DECLINE_REASON_REQUIRED');
+  }
+  const before = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true, bookingNo: true, status: true,
+      rescheduleRequested: true, rescheduleRequestedAt: true,
+      rescheduleRequestReason: true, rescheduleRequestTargetPaketId: true,
+      jemaahUserId: true, jemaahId: true,
+      jemaah: { select: { fullName: true, email: true, phone: true } },
+    },
+  });
+  if (!before) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+  const TERMINAL = new Set(['CANCELLED', 'REFUNDED', 'RESCHEDULED']);
+  if (TERMINAL.has(before.status)) {
+    throw new HttpError(409, `Booking sudah ${before.status}`, 'ALREADY_CLOSED');
+  }
+  if (!before.rescheduleRequested) {
+    throw new HttpError(409, 'Tidak ada permintaan reschedule yang menunggu', 'NO_PENDING_REQUEST');
+  }
+
+  const updated = await db.booking.update({
+    where: { id: bookingId },
+    data: {
+      rescheduleRequested: false,
+      rescheduleRequestedAt: null,
+      rescheduleRequestReason: null,
+      rescheduleRequestTargetPaketId: null,
+    },
+    select: { id: true, bookingNo: true, status: true },
+  });
+
+  await audit({
+    req, actor,
+    action: 'STATUS_CHANGE', entity: 'Booking', entityId: bookingId,
+    before: {
+      rescheduleRequested: true,
+      rescheduleRequestReason: before.rescheduleRequestReason,
+    },
+    after: {
+      rescheduleRequested: false,
+      rescheduleRequestDeclined: true,
+      declineReason: reason.trim(),
+      declinedBy: actor.email,
+    },
+  });
+
+  // Notify jemaah — best-effort, never abort the decline
+  try {
+    const { notifyRescheduleRequestDeclined } = await import('./notifications.js');
+    await notifyRescheduleRequestDeclined({
+      booking: {
+        id: before.id, bookingNo: before.bookingNo,
+        jemaahUserId: before.jemaahUserId,
+        jemaah: before.jemaah,
+      },
+      declineReason: reason.trim(),
+      adminEmail: actor.email,
+    });
+  } catch (err) {
+    console.warn('[declineRescheduleRequest] notif failed:', err?.message || err);
+  }
+
+  return updated;
 }

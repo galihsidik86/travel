@@ -181,6 +181,7 @@ enum NotificationType {
   JEMAAH_HELP_ACK // admin acknowledged jemaah's help request, confirmation push + inbox to jemaah (Stage 325)
   JEMAAH_HELP_ESCALATED // help request sat >2h unacked, escalation to OWNER tier (Stage 332)
   BOOKING_RESCHEDULED // admin moved jemaah from one paket to another → notify jemaah + agent (Stage 339)
+  RESCHEDULE_REQUESTED // jemaah submitted reschedule request → fan-out to admin tier (Stage 342)
   GENERIC // catch-all for ad-hoc notifs
 }
 
@@ -1476,6 +1477,15 @@ model Booking {
   cancelRequested     Boolean   @default(false)
   cancelRequestedAt   DateTime?
   cancelRequestReason String?   @db.Text
+
+  // Stage 340 — jemaah-initiated reschedule request. Mirrors the cancel-
+  // request pattern (5ff). Admin still has to approve via S337
+  // rescheduleBooking (modal pre-fills from these fields). Decline via
+  // S341 declineRescheduleRequest clears all four fields atomically.
+  rescheduleRequested            Boolean   @default(false)
+  rescheduleRequestedAt          DateTime?
+  rescheduleRequestReason        String?   @db.Text
+  rescheduleRequestTargetPaketId String?
 
   // Stage 337 — reschedule lineage. When admin moves a jemaah from one
   // paket to another, source booking goes to status=RESCHEDULED and

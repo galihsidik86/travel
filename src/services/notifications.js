@@ -718,6 +718,130 @@ export async function notifyCancelRequestDeclined({ booking, declineReason, admi
 }
 
 /**
+ * Stage 342 — jemaah-side reschedule request fan-out to admin tier.
+ * Mirrors notifyCancelRequested. RESCHEDULE_REQUESTED notif type so
+ * admins can opt-out independently from CANCEL_REQUESTED.
+ */
+export async function notifyRescheduleRequested({
+  booking, reason, targetPaketId, requestedByEmail,
+}) {
+  const admins = await db.user.findMany({
+    where: {
+      role: { in: ['OWNER', 'SUPERADMIN', 'MANAJER_OPS'] },
+      status: 'ACTIVE', deletedAt: null, email: { not: '' },
+    },
+    select: { email: true },
+  });
+  if (admins.length === 0) return { enqueued: 0 };
+
+  // Resolve optional target paket label (jemaah's preferred destination)
+  let targetPaketLabel = null;
+  if (targetPaketId) {
+    try {
+      const tp = await db.paket.findUnique({
+        where: { id: targetPaketId },
+        select: { title: true, departureDate: true },
+      });
+      if (tp) {
+        const dep = tp.departureDate ? new Date(tp.departureDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+        targetPaketLabel = `${tp.title} · berangkat ${dep}`;
+      }
+    } catch (err) { /* silent */ }
+  }
+
+  const subject = `Permintaan reschedule · ${booking.bookingNo}`;
+  const body = [
+    'Halo tim Religio Pro,',
+    '',
+    `Jemaah ${booking.jemaah?.fullName || '—'} (${booking.jemaah?.phone || '—'}) meminta reschedule booking ${booking.bookingNo}.`,
+    '',
+    `Paket saat ini: ${booking.paket?.title || '—'}`,
+    targetPaketLabel ? `Paket tujuan (preferensi jemaah): ${targetPaketLabel}` : 'Paket tujuan: belum dipilih jemaah — admin pilih saat proses.',
+    '',
+    '— ALASAN',
+    reason || '—',
+    '',
+    `Proses via /admin/bookings/${booking.id} → tombol ⇄ RESCHEDULE.`,
+    '',
+    '— sistem Religio Pro',
+  ].join('\n');
+
+  let enqueued = 0;
+  for (const a of admins) {
+    try {
+      await enqueueNotification({
+        type: 'RESCHEDULE_REQUESTED', channel: 'EMAIL',
+        recipientEmail: a.email,
+        // Admin-targeted — no recipientUserId per inbox rule
+        subject, body,
+        payload: {
+          kind: 'reschedule_requested',
+          bookingNo: booking.bookingNo,
+          targetPaketId,
+          requestedByEmail,
+        },
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+      });
+      enqueued += 1;
+    } catch (err) {
+      console.warn('[notifyRescheduleRequested] email failed:', err?.message || err);
+    }
+  }
+  return { enqueued };
+}
+
+/**
+ * Stage 341 — admin declined a jemaah reschedule request. Mirrors
+ * notifyCancelRequestDeclined. GENERIC type since the body is short
+ * + admin-specific (no template variant needed).
+ */
+export async function notifyRescheduleRequestDeclined({ booking, declineReason, adminEmail }) {
+  const j = booking?.jemaah;
+  if (!j || (!j.email && !j.phone)) return { skipped: true, reason: 'no_contact' };
+  const subject = `Permintaan reschedule ${booking.bookingNo} ditolak`;
+  const body = [
+    `Halo ${j.fullName || 'Jemaah'},`,
+    '',
+    `Permintaan reschedule untuk booking ${booking.bookingNo} TIDAK disetujui.`,
+    '',
+    `Alasan dari admin: ${declineReason}`,
+    '',
+    'Booking Anda tetap aktif di paket saat ini. Jika ingin mendiskusikan opsi',
+    `lain, silakan hubungi tim Religio Pro langsung (${adminEmail || 'admin@religio.pro'}).`,
+    '',
+    '— Religio Pro',
+  ].join('\n');
+  let enqueued = 0;
+  if (j.email) {
+    try {
+      await enqueueNotification({
+        type: 'GENERIC', channel: 'EMAIL',
+        recipientEmail: j.email,
+        recipientUserId: booking.jemaahUserId || null,
+        subject, body,
+        payload: { kind: 'reschedule_request_declined', bookingNo: booking.bookingNo },
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+      });
+      enqueued += 1;
+    } catch (err) { console.warn('[notifyRescheduleRequestDeclined] email failed:', err?.message || err); }
+  }
+  if (j.phone) {
+    try {
+      await enqueueNotification({
+        type: 'GENERIC', channel: 'WA',
+        recipientPhone: j.phone,
+        recipientUserId: booking.jemaahUserId || null,
+        subject, body,
+        payload: { kind: 'reschedule_request_declined', bookingNo: booking.bookingNo },
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+      });
+      enqueued += 1;
+    } catch (err) { console.warn('[notifyRescheduleRequestDeclined] WA failed:', err?.message || err); }
+  }
+  return { enqueued };
+}
+
+/**
  * Stage 281 — booking handover notif fan-out. Notifies BOTH old jemaah
  * ("transferred to X") and new jemaah ("you now have booking Y") on
  * the same event. New jemaah is just a freshly-spawned profile (no

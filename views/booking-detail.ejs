@@ -415,6 +415,46 @@
         </div>
       <% } %>
 
+      <%# Stage 341 — jemaah reschedule request banner. Mirror of cancel-
+          request banner. Approve = open the S337 reschedule modal (admin
+          fills target paket if jemaah didn't specify one). Decline =
+          inline POST. %>
+      <% if (b.rescheduleRequested) {
+           // Optional jemaah preference may have been specified
+           let preferredPaket = null;
+           if (b.rescheduleRequestTargetPaketId && typeof reschedulePaketChoices !== 'undefined') {
+             preferredPaket = reschedulePaketChoices.find(function(p) { return p.id === b.rescheduleRequestTargetPaketId; });
+           }
+      %>
+        <div style="background:rgba(120,135,225,0.08);border:1px solid var(--sapphire);color:var(--cream-100);padding:14px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:12px;line-height:1.7;margin-bottom:18px;">
+          <strong style="color:var(--sapphire);">PERMINTAAN RESCHEDULE DARI JEMAAH</strong> · <%= fmt.dateLong(b.rescheduleRequestedAt) %><br>
+          Alasan: <em style="color:var(--cream-200);"><%= b.rescheduleRequestReason %></em><br>
+          <% if (preferredPaket) { %>
+            Preferensi paket: <strong style="color:var(--gold-300);"><%= preferredPaket.title %></strong> · <%= fmt.dateShort(preferredPaket.departureDate) %><br>
+          <% } else if (b.rescheduleRequestTargetPaketId) { %>
+            <span style="color:var(--ink-200);">Preferensi paket: <em>(paket target tidak tersedia)</em></span><br>
+          <% } else { %>
+            <span style="color:var(--ink-200);">Jemaah belum memilih paket tujuan — admin pilih saat proses.</span><br>
+          <% } %>
+          <span style="color:var(--ink-200);">Konfirmasi dengan jemaah, lalu klik "⇄ RESCHEDULE" di kanan untuk memproses.</span>
+          <% if (canCancel) { %>
+            <details style="margin-top:10px;">
+              <summary style="cursor:pointer;color:var(--gold-300);font-family:var(--font-mono);font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">↳ Atau: Tolak permintaan ini</summary>
+              <form method="POST" action="/admin/bookings/<%= b.id %>/reschedule-request/decline" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="text" name="reason" required minlength="3" maxlength="500"
+                       placeholder="Alasan tolak (min 3 karakter)"
+                       style="flex:1 1 300px;min-width:200px;background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);padding:6px 10px;border-radius:3px;font-family:var(--font-mono);font-size:11px;">
+                <button type="submit" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:6px 16px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">
+                  ✕ Tolak request
+                </button>
+              </form>
+              <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);">Jemaah akan dapat email/WA dengan alasan ini. Booking tetap aktif di paket saat ini.</div>
+            </details>
+          <% } %>
+        </div>
+      <% } %>
+
       <%# Stage 221 — admin pickup setter. Walk-in / phone bookings don't
           have a /saya account so the jemaah self-pick path (S202) can't
           help; admin assigns the pickup directly from here. Only shows
@@ -1384,10 +1424,13 @@
         <label class="label" for="rs-paket">Paket tujuan *</label>
         <select class="input" name="targetPaketId" id="rs-paket" required>
           <option value="">— pilih paket baru —</option>
-          <% (typeof reschedulePaketChoices !== 'undefined' ? reschedulePaketChoices : []).forEach(function(p) { %>
-            <% const seatsLeft = p.kursiTotal - p.kursiTerisi; %>
-            <option value="<%= p.id %>" data-slug="<%= p.slug %>">
-              <%= p.title %> · <%= fmt.dateShort(p.departureDate) %> · sisa <%= seatsLeft %>/<%= p.kursiTotal %> kursi
+          <% (typeof reschedulePaketChoices !== 'undefined' ? reschedulePaketChoices : []).forEach(function(p) {
+               const seatsLeft = p.kursiTotal - p.kursiTerisi;
+               // S341 — pre-select the jemaah's preferred paket when present
+               const preselected = b.rescheduleRequested && b.rescheduleRequestTargetPaketId === p.id;
+          %>
+            <option value="<%= p.id %>" data-slug="<%= p.slug %>" <%= preselected ? 'selected' : '' %>>
+              <%= p.title %> · <%= fmt.dateShort(p.departureDate) %> · sisa <%= seatsLeft %>/<%= p.kursiTotal %> kursi<%= preselected ? ' (← preferensi jemaah)' : '' %>
             </option>
           <% }) %>
         </select>
@@ -1413,7 +1456,7 @@
       <div class="field">
         <label class="label" for="rs-reason">Alasan reschedule (opsional)</label>
         <textarea class="input" id="rs-reason" name="reason" maxlength="2000" rows="3"
-                  placeholder="Mis. jemaah minta tunda karena kondisi keluarga, dst."></textarea>
+                  placeholder="Mis. jemaah minta tunda karena kondisi keluarga, dst."><%= b.rescheduleRequested ? (b.rescheduleRequestReason || '') : '' %></textarea>
       </div>
 
       <div class="cancel-note" style="border-color:rgba(212,175,55,0.3);background:rgba(212,175,55,0.05);">

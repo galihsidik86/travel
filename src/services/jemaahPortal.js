@@ -612,6 +612,88 @@ export async function requestCancelByJemaah({ req, actor, userId, bookingId, rea
 }
 
 /**
+ * Stage 340 — jemaah-initiated reschedule request. Mirrors
+ * `requestCancelByJemaah` shape:
+ *   - Validates reason ≥3 chars
+ *   - Booking must be owned by user + not terminal
+ *   - One pending request at a time (no stacking)
+ *   - Optional `targetPaketId` preference (admin sees it in the modal
+ *     pre-fill but isn't bound by it)
+ *   - **No manifestClosesAt deadline check** — reschedule is the
+ *     opposite of cancel; jemaah late in the cycle still benefits from
+ *     a clean reschedule path (the admin still gates capacity/timing
+ *     via the S337 modal). Different from S147 cancel-deadline because
+ *     a reschedule doesn't release the kursi the way cancel does.
+ */
+export async function requestRescheduleByJemaah({
+  req, actor, userId, bookingId, reason, targetPaketId = null,
+}) {
+  if (!reason || reason.trim().length < 3) {
+    throw new HttpError(400, 'Alasan reschedule wajib (min. 3 karakter)', 'RESCHEDULE_REASON_REQUIRED');
+  }
+  const booking = await db.booking.findFirst({
+    where: { id: bookingId, jemaahUserId: userId },
+    select: {
+      id: true, bookingNo: true, status: true, rescheduleRequested: true,
+      paketId: true,
+      jemaah: { select: { fullName: true, phone: true, email: true } },
+      paket: { select: { title: true } },
+    },
+  });
+  if (!booking) throw new HttpError(404, 'Booking tidak ditemukan', 'BOOKING_NOT_FOUND');
+  const TERMINAL = new Set(['CANCELLED', 'REFUNDED', 'RESCHEDULED']);
+  if (TERMINAL.has(booking.status)) {
+    throw new HttpError(409, `Booking sudah ${booking.status}`, 'ALREADY_CLOSED');
+  }
+  if (booking.rescheduleRequested) {
+    throw new HttpError(409, 'Permintaan reschedule sebelumnya masih diproses admin', 'ALREADY_REQUESTED');
+  }
+  if (targetPaketId && targetPaketId === booking.paketId) {
+    throw new HttpError(409, 'Paket target sama dengan paket saat ini', 'SAME_PAKET');
+  }
+
+  const updated = await db.booking.update({
+    where: { id: bookingId },
+    data: {
+      rescheduleRequested: true,
+      rescheduleRequestedAt: new Date(),
+      rescheduleRequestReason: reason.trim(),
+      rescheduleRequestTargetPaketId: targetPaketId || null,
+    },
+  });
+  await audit({
+    req, actor,
+    action: 'STATUS_CHANGE', entity: 'Booking', entityId: bookingId,
+    before: { rescheduleRequested: false },
+    after: {
+      rescheduleRequested: true,
+      rescheduleRequestReason: reason.trim(),
+      rescheduleRequestTargetPaketId: targetPaketId || null,
+      bookingNo: booking.bookingNo,
+      requestedBy: actor.email,
+    },
+  });
+
+  // S342 — fire-and-forget notif fan-out to admin tier
+  try {
+    const { notifyRescheduleRequested } = await import('./notifications.js');
+    await notifyRescheduleRequested({
+      booking: {
+        id: booking.id, bookingNo: booking.bookingNo,
+        jemaah: booking.jemaah, paket: booking.paket,
+      },
+      reason: reason.trim(),
+      targetPaketId,
+      requestedByEmail: actor.email,
+    });
+  } catch (err) {
+    console.warn('[reschedule-request] notif failed:', err?.message || err);
+  }
+
+  return updated;
+}
+
+/**
  * Read-only notif inbox for a jemaah (5ll). Filters strictly on
  * `Notification.recipientUserId = userId` so admin/system rows never leak in.
  * Caps at 50 — UI is a "recent activity" feed, not a full archive.

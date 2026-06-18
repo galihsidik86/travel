@@ -978,6 +978,28 @@ router.post(
   }),
 );
 
+// Stage 341 — admin declines a jemaah's reschedule request. Distinct
+// from the /reschedule route (which approves + executes). Clears the
+// request flag + notifies jemaah back with admin's reason.
+router.post(
+  '/:id/reschedule-request/decline',
+  requireRole(...CANCEL_ROLES),
+  asyncHandler(async (req, res) => {
+    try {
+      const { declineRescheduleRequest } = await import('../services/bookingAdmin.js');
+      await declineRescheduleRequest({
+        req, actor: actorFrom(req),
+        bookingId: req.params.id,
+        reason: (req.body?.reason || '').toString(),
+      });
+      res.redirect(`/admin/bookings/${req.params.id}?ok=reschedule_request_declined`);
+    } catch (err) {
+      const msg = err.message || 'Gagal tolak request';
+      res.redirect(`/admin/bookings/${req.params.id}?err=${encodeURIComponent(msg)}`);
+    }
+  }),
+);
+
 // ── POST /admin/bookings/:id/intents/:intentId/cancel ────────
 // 5qq: cancel a stuck CREATED/PENDING PaymentIntent so a fresh one can be created.
 // SETTLED intents → refused (refund flow handles already-paid).

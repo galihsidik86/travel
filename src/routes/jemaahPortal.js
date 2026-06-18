@@ -442,6 +442,30 @@ router.post(
   }),
 );
 
+// Stage 340 — jemaah submits a reschedule request (admin still gates
+// via S337 rescheduleBooking modal).
+router.post(
+  '/api/saya/bookings/:id/request-reschedule',
+  ...requireJemaah,
+  asyncHandler(async (req, res) => {
+    const reason = (req.body?.reason || '').toString();
+    const targetPaketId = (req.body?.targetPaketId || '').toString() || null;
+    const { requestRescheduleByJemaah } = await import('../services/jemaahPortal.js');
+    try {
+      await requestRescheduleByJemaah({
+        req,
+        actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+        userId: req.user.id, bookingId: req.params.id, reason, targetPaketId,
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      const status = err instanceof HttpError ? err.statusCode : 500;
+      const code = err instanceof HttpError ? err.code : 'SERVER_ERROR';
+      res.status(status).json({ ok: false, code, message: err?.message || 'Gagal' });
+    }
+  }),
+);
+
 // Stage 72 — ICS calendar export. Jemaah drops departure into phone
 // calendar. Auth-gated (requires JEMAAH session) + getMyBooking enforces
 // jemaahUserId ownership so cross-user enumeration returns 404.
