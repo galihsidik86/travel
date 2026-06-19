@@ -10,7 +10,7 @@
 //
 // Cache busting: bump CACHE_VERSION to invalidate every entry on next activation.
 
-const CACHE_VERSION = 'rp-v7';
+const CACHE_VERSION = 'rp-v8';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 // Stage 334 — cap HTML cache to prevent unbounded growth in long-running
@@ -23,7 +23,10 @@ const HTML_CACHE_MAX = 50;
 // Stage 361 — added /crew/contacts so muthawwif can still pull the ICE
 // list (jemaah phone + emergency contact) when stuck in a hotel basement
 // or mountain pass without signal. Cache is the source of truth offline.
-const SWR_PATH_PREFIXES = ['/saya/bookings/', '/saya/ibadah', '/crew/contacts'];
+// Stage 364 — added /crew/paket/ (per-paket manifest with full jemaah
+// roster + room + dietary + tags) so crew can coordinate with the group
+// offline. Same flaky-signal scenario, same SWR posture.
+const SWR_PATH_PREFIXES = ['/saya/bookings/', '/saya/ibadah', '/crew/contacts', '/crew/paket/'];
 
 const PRECACHE_URLS = [
   '/shared/tokens.css',

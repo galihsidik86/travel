@@ -609,5 +609,19 @@
 <script src="/shared/push-jemaah.js" defer></script>
 <!-- Stage 355 — offline-aware SOS-light queue (IndexedDB-backed) -->
 <script src="/shared/sos-light-queue.js" defer></script>
+<%# Stage 366 — App Badging API. Paints the unread notif count on the
+    installed PWA's home screen icon (Chromium-based browsers + some
+    Android launchers; Safari ignores silently). Reads unreadCount that
+    /saya already loads for the topbar badge so no extra round-trip. %>
+<script>
+  (function () {
+    if (typeof navigator === 'undefined' || typeof navigator.setAppBadge !== 'function') return;
+    const n = Number('<%= typeof unreadCount !== "undefined" ? unreadCount : 0 %>') || 0;
+    try {
+      if (n > 0) navigator.setAppBadge(n).catch(() => {});
+      else navigator.clearAppBadge().catch(() => {});
+    } catch (_err) { /* silent — badge is best-effort */ }
+  })();
+</script>
 </body>
 </html>

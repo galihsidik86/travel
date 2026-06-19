@@ -78,6 +78,50 @@
       <div class="sub">
         <%= paket.slug %> · DEP <%= fmt.dateLong(paket.departureDate) %> · <%= paket.durationDays %> hari
       </div>
+      <%# Stage 364 — offline-aware sync badge. SW caches /crew/paket/:slug
+          via SWR so manifest survives offline visits. Badge shows last-synced
+          age from localStorage scoped per-paket (so each manifest tracks its
+          own freshness). Goes amber + warning copy when offline. %>
+      <div id="rp-manifest-sync" data-slug="<%= paket.slug %>" style="display:inline-block;margin-top:8px;padding:5px 11px;border:1px solid var(--ink-300);border-radius:3px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-300);letter-spacing:0.04em;">
+        — belum di-sync
+      </div>
+      <script>
+        (function () {
+          const el = document.getElementById('rp-manifest-sync');
+          if (!el) return;
+          const slug = el.getAttribute('data-slug') || 'unknown';
+          const KEY = 'rp_crew_manifest_last_sync__' + slug;
+          if (typeof navigator !== 'undefined' && navigator.onLine) {
+            try { localStorage.setItem(KEY, String(Date.now())); } catch (_e) { /* private mode */ }
+          }
+          function ago(ms) {
+            const sec = Math.round(ms / 1000);
+            if (sec < 60) return 'baru saja';
+            const min = Math.round(sec / 60);
+            if (min < 60) return min + ' menit lalu';
+            const hr = Math.round(min / 60);
+            if (hr < 24) return hr + ' jam lalu';
+            const d = Math.round(hr / 24);
+            return d + ' hari lalu';
+          }
+          const raw = localStorage.getItem(KEY);
+          const last = raw ? Number(raw) : 0;
+          const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+          if (isOffline && last > 0) {
+            el.textContent = '⚠ OFFLINE · manifest terakhir ' + ago(Date.now() - last);
+            el.style.color = 'var(--amber)';
+            el.style.borderColor = 'var(--amber)';
+          } else if (isOffline) {
+            el.textContent = '⚠ OFFLINE · belum pernah disinkron';
+            el.style.color = 'var(--ruby)';
+            el.style.borderColor = 'var(--ruby)';
+          } else if (last > 0) {
+            el.textContent = '✓ Sinkron ' + ago(Date.now() - last);
+            el.style.color = 'var(--emerald)';
+            el.style.borderColor = 'var(--emerald)';
+          }
+        })();
+      </script>
     </div>
     <div style="display:flex;gap:10px;">
       <%# 5ww: per-day attendance grid %>

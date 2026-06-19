@@ -96,6 +96,11 @@
   </div>
 
   <script src="/shared/ibadah-counter.js"></script>
+  <%# Stage 365 — Screen Wake Lock keeps display on during thawaf (7
+      putaran ≈ 25-40 min). Acquired on load, released when jemaah
+      leaves the page. Browsers that don't support wake-lock silently
+      no-op (counter still works without it). %>
+  <script src="/shared/screen-wake-lock.js"></script>
   <script>
     (function () {
       const COUNTER_ID = 'thawaf';
@@ -105,6 +110,17 @@
       const $ring = document.getElementById('ring');
       const $undo = document.getElementById('undo-btn');
       const $reset = document.getElementById('reset-btn');
+
+      // S365 — acquire wake lock on enter, release on pagehide.
+      // Use pagehide (not unload) — pagehide fires for bfcache too, so
+      // a jemaah who navigated back to the hub via browser back button
+      // doesn't keep the lock held in a detached page.
+      if (window.ScreenWakeLock) {
+        window.ScreenWakeLock.acquire();
+        window.addEventListener('pagehide', () => {
+          window.ScreenWakeLock.release();
+        });
+      }
 
       function render(state) {
         $count.textContent = state.putaran;

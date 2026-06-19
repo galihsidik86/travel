@@ -122,6 +122,10 @@
   </div>
 
   <script src="/shared/ibadah-counter.js"></script>
+  <%# Stage 365 — Screen Wake Lock keeps display on during sa'i (7 trips
+      Safa↔Marwah ≈ 30 min). Same posture as thawaf — silently no-op on
+      browsers without wake-lock support. %>
+  <script src="/shared/screen-wake-lock.js"></script>
   <script>
     (function () {
       const COUNTER_ID = 'sai';
@@ -135,6 +139,14 @@
       const $safa = document.getElementById('m-safa');
       const $marwah = document.getElementById('m-marwah');
       const $arrow = document.getElementById('m-arrow');
+
+      // S365 — acquire wake lock on enter, release on pagehide.
+      if (window.ScreenWakeLock) {
+        window.ScreenWakeLock.acquire();
+        window.addEventListener('pagehide', () => {
+          window.ScreenWakeLock.release();
+        });
+      }
 
       function render(state) {
         $count.textContent = state.putaran;

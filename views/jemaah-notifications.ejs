@@ -206,6 +206,16 @@
     <% } %>
   <% } %>
 </div>
+<%# Stage 366 — clear app badge on inbox visit. listMyNotificationsPaginated
+    + markAllReadForUser already runs server-side per S181, so by the time
+    this page loads the unread count IS zero. Clear the home-screen badge
+    to match. Best-effort — Safari + browsers without setAppBadge ignore. %>
+<script>
+  (function () {
+    if (typeof navigator === 'undefined' || typeof navigator.clearAppBadge !== 'function') return;
+    try { navigator.clearAppBadge().catch(() => {}); } catch (_err) { /* silent */ }
+  })();
+</script>
 <%- include('partials/mobile-tabs') %>
 </body>
 </html>
