@@ -87,6 +87,10 @@ export function createApp() {
   // Make formatters available to every template
   app.use((_req, res, next) => {
     res.locals.fmt = fmt;
+    // S354 — Religio Pro admin contact for the jemaah quick-contact panel.
+    // Defaults to null when unset; the view hides the buttons cleanly.
+    res.locals.publicAdminWa = env.PUBLIC_ADMIN_WA || null;
+    res.locals.publicAdminPhone = env.PUBLIC_ADMIN_PHONE || null;
     next();
   });
 

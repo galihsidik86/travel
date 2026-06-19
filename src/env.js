@@ -24,6 +24,12 @@ const Schema = z.object({
   // intents (with a synthetic snap token + a local /payments/midtrans/fake
   // redirect URL) so dev + smoke can exercise the full path without creds.
   PUBLIC_BASE_URL: z.string().url().optional(),
+  // S354 — Religio Pro admin contact surfaced in the jemaah quick-
+  // contact panel. WA number stored in `62…` format (no leading 0,
+  // no spaces — matches the Fonnte adapter convention). Both
+  // optional; missing values hide the corresponding button.
+  PUBLIC_ADMIN_WA: z.string().regex(/^\d{8,15}$/).optional(),
+  PUBLIC_ADMIN_PHONE: z.string().min(8).optional(),
   MIDTRANS_SERVER_KEY: z.string().min(1).optional(),
   MIDTRANS_CLIENT_KEY: z.string().min(1).optional(),
   MIDTRANS_PRODUCTION: z.coerce.boolean().default(false),

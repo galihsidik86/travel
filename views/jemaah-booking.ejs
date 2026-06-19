@@ -158,8 +158,47 @@
          style="color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
         ⇩ PDF
       </a>
+      <%# Stage 353 — Web Share API. Button hidden by default; the
+          inline script reveals it only when navigator.share exists
+          (avoids dead button on desktop browsers). Sharing payload
+          includes the public verify URL (signed via S197) so family
+          recipients can confirm authenticity. %>
+      <button type="button" id="rp-share-btn" style="display:none;background:transparent;color:var(--cream-100);border:1px solid var(--ink-100);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;">
+        📤 BAGIKAN
+      </button>
     </div>
   </div>
+
+  <script>
+    (function () {
+      // S353 — feature-detect navigator.share. iOS Safari 12+, Chrome
+      // Android 89+, others widely supported on mobile. Desktop browsers
+      // mostly lack it → button stays hidden (no dead control).
+      if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return;
+      const btn = document.getElementById('rp-share-btn');
+      if (!btn) return;
+      // Verify URL is server-built via S197 buildVerifyUrl so it carries
+      // the signed sig param. Falls back to a relative path when
+      // PUBLIC_BASE_URL isn't configured (dev mode).
+      <% const _shareUrl = (typeof verifyUrl !== 'undefined' && verifyUrl) ? verifyUrl : `/v/${b.id}`; %>
+      const verifyUrl = '<%- _shareUrl.startsWith('http') ? _shareUrl : '' %>' || (window.location.origin + '<%- _shareUrl %>');
+      btn.style.display = 'inline-block';
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.share({
+            title: 'Booking <%= b.bookingNo %> · <%= b.paket.title %>',
+            text: 'Booking saya di Religio Pro · <%= b.bookingNo %> · berangkat <%= fmt.dateShort(b.paket.departureDate) %>.',
+            url: verifyUrl,
+          });
+        } catch (err) {
+          // User cancelled share sheet — not an error worth surfacing
+          if (err && err.name !== 'AbortError') {
+            console.warn('[share] failed', err);
+          }
+        }
+      });
+    })();
+  </script>
 
   <%
     const total = Number(b.totalAmount?.toString?.() ?? b.totalAmount) || 0;
@@ -254,6 +293,57 @@
       <% } %>
     </div>
   <% } } %>
+
+  <%# Stage 354 — quick-contact action panel. Only renders when booking
+      is non-terminal AND at least one contact is available. tel: + wa.me/
+      buttons sized as big tap targets so in-trip jemaah can dial fast
+      without scrolling. %>
+  <%
+    function _digits(s) { return (s || '').replace(/[^0-9]/g, '').replace(/^0/, '62'); }
+    const _agentWaDigits = b.agent && b.agent.whatsapp ? _digits(b.agent.whatsapp) : null;
+    const _adminWa = typeof publicAdminWa !== 'undefined' && publicAdminWa ? publicAdminWa : null;
+    const _adminPhone = typeof publicAdminPhone !== 'undefined' && publicAdminPhone ? publicAdminPhone : null;
+    const _hasAnyContact = _agentWaDigits || _adminWa || _adminPhone;
+    const _isTerminal = ['CANCELLED', 'REFUNDED', 'RESCHEDULED'].includes(b.status);
+  %>
+  <% if (_hasAnyContact && !_isTerminal) { %>
+    <div class="panel" style="margin-bottom:18px;padding:18px;border:1px solid var(--gold-300);background:rgba(212,175,107,0.04);">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--gold-300);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:10px;">
+        ☎ Kontak cepat
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+        <% if (_agentWaDigits) { %>
+          <a href="https://wa.me/<%= _agentWaDigits %>" target="_blank" rel="noopener noreferrer"
+             style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;padding:14px 12px;background:rgba(80,176,113,0.10);border:1px solid var(--emerald);border-radius:6px;text-decoration:none;color:var(--cream-100);min-height:64px;">
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--emerald);letter-spacing:0.12em;text-transform:uppercase;">💬 WhatsApp Agen</span>
+            <span style="font-family:var(--font-display);font-size:14px;color:var(--cream-100);"><%= b.agent.displayName %></span>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);"><%= b.agent.whatsapp %></span>
+          </a>
+        <% } %>
+        <% if (_adminWa) { %>
+          <a href="https://wa.me/<%= _adminWa %>" target="_blank" rel="noopener noreferrer"
+             style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;padding:14px 12px;background:rgba(212,175,107,0.10);border:1px solid var(--gold-300);border-radius:6px;text-decoration:none;color:var(--cream-100);min-height:64px;">
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--gold-300);letter-spacing:0.12em;text-transform:uppercase;">💬 WhatsApp Admin</span>
+            <span style="font-family:var(--font-display);font-size:14px;color:var(--cream-100);">Religio Pro</span>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);">+<%= _adminWa %></span>
+          </a>
+        <% } %>
+        <% if (_adminPhone) { %>
+          <a href="tel:<%= _adminPhone %>"
+             style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;padding:14px 12px;background:rgba(120,135,225,0.10);border:1px solid var(--sapphire);border-radius:6px;text-decoration:none;color:var(--cream-100);min-height:64px;">
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--sapphire);letter-spacing:0.12em;text-transform:uppercase;">📞 Telepon Admin</span>
+            <span style="font-family:var(--font-display);font-size:14px;color:var(--cream-100);">Religio Pro</span>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);"><%= _adminPhone %></span>
+          </a>
+        <% } %>
+      </div>
+      <% if (!_agentWaDigits && (_adminWa || _adminPhone)) { %>
+        <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
+          Booking ini walk-in (tanpa agen). Untuk pertanyaan, hubungi admin Religio Pro langsung.
+        </div>
+      <% } %>
+    </div>
+  <% } %>
 
   <!-- Stage 69 — LUNAS jemaah can submit a testimonial. After-submit flash. -->
   <%

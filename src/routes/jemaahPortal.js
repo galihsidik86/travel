@@ -195,10 +195,20 @@ router.get(
     } catch (err) {
       console.warn('[jemaah-booking] readiness compute failed:', err?.message || err);
     }
+    // Stage 353 — signed verify URL for Web Share (family scans it
+    // to confirm authenticity). buildVerifyUrl uses PUBLIC_BASE_URL
+    // when set so the shared link works outside the dev origin.
+    let verifyUrl = null;
+    try {
+      const { buildVerifyUrl } = await import('../lib/voucherVerifyToken.js');
+      verifyUrl = buildVerifyUrl(booking.id);
+    } catch (err) {
+      console.warn('[jemaah-booking] buildVerifyUrl failed:', err?.message || err);
+    }
     res.render('jemaah-booking', {
       user: req.user, b: booking, activeIntent, announcements, pickups, activity,
       groupView, bookingAddons, addonCatalog, query: req.query,
-      readiness,
+      readiness, verifyUrl,
     });
   }),
 );

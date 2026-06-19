@@ -10,7 +10,7 @@
 //
 // Cache busting: bump CACHE_VERSION to invalidate every entry on next activation.
 
-const CACHE_VERSION = 'rp-v5';
+const CACHE_VERSION = 'rp-v6';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 // Stage 334 — cap HTML cache to prevent unbounded growth in long-running
@@ -191,6 +191,11 @@ self.addEventListener('fetch', (event) => {
 // ── Web Push (stage 17) ─────────────────────────────────────────────
 // Payload from server (webPush.pushToAdmins):
 //   { title, body, url, tag?, icon? }
+//
+// Stage 352 — in-app toast: when a same-origin client window is open
+// (visible OR background), postMessage so shared/in-app-toast.js can
+// render a contextual banner. Always also call showNotification per
+// browser policy (skipping it can revoke the push subscription).
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data?.text?.() ?? '' }; }
@@ -199,14 +204,22 @@ self.addEventListener('push', (event) => {
   const url = data.url || '/admin/incidents';
   const tag = data.tag || 'rp-incident';
   const icon = data.icon || '/shared/icon.svg';
-  event.waitUntil(
-    self.registration.showNotification(title, {
+  event.waitUntil((async () => {
+    // S352 — best-effort in-app toast message to open clients
+    try {
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const c of clients) {
+        c.postMessage({ kind: 'rp-push', title, body, url, tag, ts: Date.now() });
+      }
+    } catch (_err) { /* silent — system notification still fires */ }
+    // System notification (browser-policy required for push)
+    await self.registration.showNotification(title, {
       body, icon, tag,
       badge: '/shared/icon.svg',
       data: { url },
       requireInteraction: data.requireInteraction === true,
-    }),
-  );
+    });
+  })());
 });
 
 // Click → focus existing tab on the target URL, or open one.
