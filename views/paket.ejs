@@ -358,10 +358,44 @@
       <div>
         <span class="amount"><span class="from">Mulai</span>Rp <%= fmt.rpShort(minPrice) %></span>
       </div>
+      <%# Stage 356 — Web Share button. Hidden by default; JS feature-detect
+          flips it visible when navigator.share is available. Preserves
+          ?a=<agentSlug> attribution so referral credit follows the share. %>
+      <button type="button" id="rp-paket-share-btn" data-paket-slug="<%= p.slug %>" data-paket-title="<%= p.title %>" data-agent-slug="<%= agent ? agent.slug : '' %>" style="display:none;background:transparent;color:var(--gold-300);border:1px solid var(--gold-300);padding:6px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-right:8px;">📤 Bagikan</button>
       <a class="btn btn--primary btn--sm" href="#daftar">Pesan</a>
     </div>
   </div>
 </nav>
+<script>
+  // Stage 356 — Web Share API integration for paket landing. Feature-detected;
+  // hidden when navigator.share is absent (most desktop browsers). Native
+  // share sheet routes through WhatsApp / SMS / email / etc depending on OS.
+  // URL preserves the agent slug so referral attribution stays intact.
+  (function () {
+    if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return;
+    const btn = document.getElementById('rp-paket-share-btn');
+    if (!btn) return;
+    btn.style.display = 'inline-block';
+    btn.addEventListener('click', async () => {
+      const slug = btn.getAttribute('data-paket-slug');
+      const title = btn.getAttribute('data-paket-title') || 'Paket Religio Pro';
+      const agent = btn.getAttribute('data-agent-slug') || '';
+      const origin = window.location.origin;
+      const path = '/p/' + encodeURIComponent(slug) + (agent ? '?a=' + encodeURIComponent(agent) : '');
+      const shareUrl = origin + path;
+      try {
+        await navigator.share({
+          title: 'Religio Pro — ' + title,
+          text: 'Lihat paket umroh ' + title + ' di Religio Pro.',
+          url: shareUrl,
+        });
+      } catch (err) {
+        // AbortError = user dismissed; silent. Other errors logged but harmless.
+        if (err && err.name !== 'AbortError') console.warn('[paket-share]', err);
+      }
+    });
+  })();
+</script>
 
 <!-- HERO -->
 <section class="hero">

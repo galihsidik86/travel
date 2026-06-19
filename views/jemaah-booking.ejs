@@ -235,6 +235,71 @@
         </div>
       </div>
     </div>
+
+    <%# Stage 357 — pre-trip push subscribe CTA. Renders only when
+        Notification.permission === 'default' AND paket hasn't departed AND
+        status non-terminal. Mirrors S335 in-trip pattern but covers the
+        pre-trip window where readiness reminders (S351) + paket announcements
+        (S193) are most useful. Hidden when already granted/denied (re-prompt
+        on denied just annoys; granted state has its own toggle). Hidden
+        push-bar elements give push-jemaah.js its DOM contract; visible
+        emerald card proxies clicks to the enable button. %>
+    <div id="rp-pretrip-push" style="display:none;margin-bottom:18px;padding:16px 18px;background:rgba(74,143,109,0.08);border:1px solid var(--emerald);border-radius:var(--r-md);">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:240px;">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--emerald);letter-spacing:0.14em;text-transform:uppercase;font-weight:600;">🔔 Notifikasi instant</div>
+          <div style="font-family:var(--font-body);font-size:13px;color:var(--cream-100);margin-top:4px;line-height:1.45;">
+            Aktifkan supaya tidak ketinggalan pengingat dokumen + pengumuman dari tim sebelum berangkat.
+          </div>
+        </div>
+        <button type="button" id="rp-pretrip-push-cta" style="background:var(--emerald);color:var(--cream-100);border:0;padding:10px 18px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:600;">AKTIFKAN</button>
+      </div>
+    </div>
+
+    <%# Stage 357 — hidden push-bar DOM contract for push-jemaah.js to wire
+        into. Display:none keeps it out of the visible layout; the S357 CTA
+        above is what jemaah actually sees + interacts with. %>
+    <div id="rp-push-bar" style="display:none;">
+      <span id="rp-push-status"></span>
+      <button type="button" id="rp-push-enable"></button>
+      <button type="button" id="rp-push-disable"></button>
+    </div>
+
+    <script>
+      // Stage 357 — wire the pre-trip CTA: check permission state,
+      // proxy clicks to push-jemaah.js's hidden enable button, hide
+      // the CTA once permission is granted or denied.
+      (function () {
+        if (typeof window === 'undefined') return;
+        const card = document.getElementById('rp-pretrip-push');
+        const cta = document.getElementById('rp-pretrip-push-cta');
+        if (!card || !cta) return;
+        const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+        if (!supported) return; // card stays hidden
+        if (Notification.permission !== 'default') return; // already decided
+        async function alreadySubscribed() {
+          try {
+            const reg = await navigator.serviceWorker.getRegistration('/shared/sw.js')
+              || await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            return !!sub;
+          } catch (_e) { return false; }
+        }
+        alreadySubscribed().then((subbed) => {
+          if (subbed) return; // skip CTA — push-jemaah.js will paint state if shown
+          card.style.display = 'block';
+        });
+        cta.addEventListener('click', () => {
+          // Defer to push-jemaah.js: the hidden #rp-push-enable owns the
+          // VAPID subscribe + /api/saya/push/subscribe round-trip.
+          const hidden = document.getElementById('rp-push-enable');
+          if (hidden) hidden.click();
+          // Hide the CTA optimistically; if subscribe fails, jemaah can
+          // try again from /saya dashboard where the regular push bar lives.
+          setTimeout(() => { card.style.display = 'none'; }, 600);
+        });
+      })();
+    </script>
   <% } } %>
 
   <%# Stage 350 — doc readiness card. Same 8 checks as S23 admin checklist.
@@ -1254,5 +1319,9 @@
 </script>
 <% } %>
 <%- include('partials/mobile-tabs') %>
+<!-- Stage 357 — load push-jemaah.js so the hidden #rp-push-enable button
+     can drive the VAPID subscribe round-trip when jemaah taps the
+     pre-trip "AKTIFKAN" emerald CTA. -->
+<script src="/shared/push-jemaah.js" defer></script>
 </body>
 </html>
