@@ -288,6 +288,27 @@ router.get(
     res.render('jemaah-ibadah-sai', { user: req.user });
   }),
 );
+// Stage 370 — Wukuf timer (Arafah countdown)
+router.get(
+  '/saya/ibadah/wukuf',
+  asyncHandler(async (req, res) => {
+    res.render('jemaah-ibadah-wukuf', { user: req.user });
+  }),
+);
+// Stage 371 — Dhikr counter (tasbih, configurable target)
+router.get(
+  '/saya/ibadah/tasbih',
+  asyncHandler(async (req, res) => {
+    res.render('jemaah-ibadah-tasbih', { user: req.user });
+  }),
+);
+// Stage 372 — Jumrah counter (4 days × per-jamarat × 7 stones)
+router.get(
+  '/saya/ibadah/jumrah',
+  asyncHandler(async (req, res) => {
+    res.render('jemaah-ibadah-jumrah', { user: req.user });
+  }),
+);
 
 // ── Profile editor ───────────────────────────────────────────
 router.get(

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RELIGIO PRO — Tasbih</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 18px 100px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 18px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 20px; line-height: 1.6; }
+
+  .mode-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .mode-tab {
+    flex: 1; padding: 10px 14px; cursor: pointer;
+    background: transparent; color: var(--ink-100);
+    border: 1px solid var(--hairline-soft); border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .mode-tab.active { background: var(--gold-300); color: var(--ink-1000); border-color: var(--gold-300); font-weight: 600; }
+
+  .dzikir-label {
+    font-family: var(--font-display); font-size: 26px; color: var(--cream-100);
+    text-align: center; margin: 16px 0 4px; line-height: 1.2;
+  }
+  .dzikir-label em { font-style: italic; color: var(--gold-300); }
+  .dzikir-arabic {
+    font-family: 'Amiri', serif; font-size: 32px; color: var(--cream-100);
+    text-align: center; direction: rtl; margin: 8px 0 4px; line-height: 1.6;
+  }
+  .dzikir-meaning {
+    font-family: var(--font-body); font-style: italic; font-size: 13px;
+    color: var(--ink-100); text-align: center; margin-bottom: 18px;
+  }
+
+  .ring {
+    width: 240px; height: 240px; margin: 0 auto;
+    border-radius: 50%;
+    background: var(--ink-900); border: 2px solid var(--gold-300);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; user-select: none;
+    transition: transform 60ms ease, background 120ms ease;
+    box-shadow: 0 0 0 0 rgba(212,175,107,0.3);
+  }
+  .ring:active { transform: scale(0.96); background: rgba(212,175,107,0.08); box-shadow: 0 0 0 12px rgba(212,175,107,0.08); }
+  .ring.complete { border-color: var(--emerald); background: rgba(80,176,113,0.08); }
+  .ring .count { font-family: var(--font-display); font-size: 64px; color: var(--cream-100); line-height: 1; }
+  .ring .count em { font-style: italic; color: var(--gold-300); }
+  .ring.complete .count em { color: var(--emerald); }
+  .ring .of { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.08em; margin-top: 6px; }
+
+  .target-row { display: flex; gap: 8px; justify-content: center; margin: 18px 0 12px; flex-wrap: wrap; }
+  .target-btn {
+    padding: 6px 12px; min-width: 44px;
+    background: transparent; color: var(--ink-100);
+    border: 1px solid var(--hairline-soft); border-radius: var(--r-sm);
+    cursor: pointer; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em;
+  }
+  .target-btn.active { background: var(--ink-700); color: var(--cream-100); border-color: var(--gold-300); }
+
+  .progress-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 18px; }
+  .progress-cell {
+    padding: 10px 8px; background: var(--ink-900);
+    border: 1px solid var(--hairline-soft); border-radius: var(--r-sm);
+    text-align: center;
+  }
+  .progress-cell.active { border-color: var(--gold-300); background: rgba(212,175,107,0.06); }
+  .progress-cell.done { border-color: var(--emerald); background: rgba(80,176,113,0.06); }
+  .progress-cell .lbl { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-200); letter-spacing: 0.06em; text-transform: uppercase; }
+  .progress-cell .val { font-family: var(--font-display); font-size: 20px; color: var(--cream-100); margin-top: 4px; }
+  .progress-cell.done .val { color: var(--emerald); }
+
+  .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+  .btn {
+    padding: 10px 16px; min-height: 42px;
+    border-radius: var(--r-sm); cursor: pointer;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    background: transparent; color: var(--ink-100); border: 1px solid var(--hairline-soft);
+  }
+  .btn:hover { color: var(--cream-100); }
+
+  .offline-hint {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--emerald);
+    margin-top: 16px; letter-spacing: 0.04em; text-align: center;
+  }
+</style>
+</head>
+<body class="has-m-tabs">
+  <div class="wrap">
+    <div class="crumb"><a href="/saya/ibadah">← /ibadah</a> · TASBIH</div>
+    <h1>Penghitung <em>tasbih</em></h1>
+    <div class="sub">
+      Hitung dzikir tanpa kehilangan count. Pilih mode <strong>Pasca-shalat</strong>
+      untuk 33×SubhanAllah + 33×Alhamdulillah + 33×Allahu Akbar, atau <strong>Bebas</strong> untuk target lain.
+    </div>
+
+    <div class="mode-tabs">
+      <button type="button" class="mode-tab active" id="tab-standard" data-mode="standard">Pasca-shalat (33+33+33)</button>
+      <button type="button" class="mode-tab" id="tab-free" data-mode="free">Bebas</button>
+    </div>
+
+    <%# Standard 33+33+33 mode %>
+    <div id="mode-standard">
+      <div class="dzikir-label" id="std-label">Subhana<em>Allah</em></div>
+      <div class="dzikir-arabic" id="std-arabic">سُبْحَانَ اللَّهِ</div>
+      <div class="dzikir-meaning" id="std-meaning">"Maha Suci Allah"</div>
+      <div class="ring" id="std-ring" tabindex="0" role="button" aria-label="Tap untuk tasbih">
+        <div class="count"><em id="std-count">0</em></div>
+        <div class="of">of 33</div>
+      </div>
+      <div class="progress-grid">
+        <div class="progress-cell active" id="cell-0">
+          <div class="lbl">Subhana</div>
+          <div class="val" id="val-0">0 / 33</div>
+        </div>
+        <div class="progress-cell" id="cell-1">
+          <div class="lbl">Alhamdu</div>
+          <div class="val" id="val-1">0 / 33</div>
+        </div>
+        <div class="progress-cell" id="cell-2">
+          <div class="lbl">Akbar</div>
+          <div class="val" id="val-2">0 / 33</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn" id="std-undo">↶ Undo</button>
+        <button type="button" class="btn" id="std-reset">Reset semua</button>
+      </div>
+    </div>
+
+    <%# Free mode %>
+    <div id="mode-free" style="display:none;">
+      <div class="target-row">
+        <button type="button" class="target-btn" data-target="33">33</button>
+        <button type="button" class="target-btn active" data-target="100">100</button>
+        <button type="button" class="target-btn" data-target="500">500</button>
+        <button type="button" class="target-btn" data-target="1000">1000</button>
+        <button type="button" class="target-btn" data-target="custom">Lain…</button>
+      </div>
+      <div class="ring" id="free-ring" tabindex="0" role="button" aria-label="Tap untuk dzikir">
+        <div class="count"><em id="free-count">0</em></div>
+        <div class="of" id="free-of">of 100</div>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn" id="free-undo">↶ Undo</button>
+        <button type="button" class="btn" id="free-reset">Reset</button>
+      </div>
+    </div>
+
+    <div class="offline-hint">✓ Bekerja offline — data tersimpan lokal di perangkat Anda</div>
+  </div>
+
+  <script src="/shared/ibadah-counter.js"></script>
+  <%# Stage 365 wake lock + S367 persistent storage for the counter %>
+  <script src="/shared/screen-wake-lock.js"></script>
+  <script src="/shared/persist-storage.js"></script>
+  <script>
+    // S371 — Tasbih counter. Two modes:
+    //   Standard: SubhanAllah×33 → Alhamdulillah×33 → Allahu Akbar×33
+    //     Three independent counters via IbadahCounter ids
+    //     'tasbih_std_0', 'tasbih_std_1', 'tasbih_std_2'.
+    //   Free: configurable target, single counter id 'tasbih_free'.
+    //     Target persisted in localStorage so jemaah's choice survives reload.
+    (function () {
+      const DZIKIRS = [
+        { id: 'tasbih_std_0', label: 'Subhana<em>Allah</em>', arabic: 'سُبْحَانَ اللَّهِ', meaning: '"Maha Suci Allah"', target: 33, cellLabel: 'Subhana' },
+        { id: 'tasbih_std_1', label: 'Alhamdu<em>lillah</em>', arabic: 'الْحَمْدُ لِلَّهِ', meaning: '"Segala puji bagi Allah"', target: 33, cellLabel: 'Alhamdu' },
+        { id: 'tasbih_std_2', label: 'Allahu <em>Akbar</em>', arabic: 'اللَّهُ أَكْبَرُ', meaning: '"Allah Maha Besar"', target: 33, cellLabel: 'Akbar' },
+      ];
+
+      // ── Wake lock + persist (shared with other ibadah surfaces) ──
+      if (window.ScreenWakeLock) {
+        window.ScreenWakeLock.acquire();
+        window.addEventListener('pagehide', () => window.ScreenWakeLock.release());
+      }
+      function maybePersist() {
+        if (window.PersistStorage) window.PersistStorage.request({ reason: 'ibadah' }).catch(() => {});
+      }
+
+      // ── Mode tabs ──
+      const $modeStd = document.getElementById('mode-standard');
+      const $modeFree = document.getElementById('mode-free');
+      const $tabs = document.querySelectorAll('.mode-tab');
+      function setMode(m) {
+        $modeStd.style.display = m === 'standard' ? 'block' : 'none';
+        $modeFree.style.display = m === 'free' ? 'block' : 'none';
+        $tabs.forEach((t) => t.classList.toggle('active', t.getAttribute('data-mode') === m));
+        try { localStorage.setItem('rp_tasbih_mode', m); } catch (_e) {}
+      }
+      try {
+        const saved = localStorage.getItem('rp_tasbih_mode');
+        if (saved === 'free') setMode('free');
+      } catch (_e) {}
+      $tabs.forEach((t) => t.addEventListener('click', () => setMode(t.getAttribute('data-mode'))));
+
+      // ── Standard mode ──
+      const $stdLabel = document.getElementById('std-label');
+      const $stdArabic = document.getElementById('std-arabic');
+      const $stdMeaning = document.getElementById('std-meaning');
+      const $stdCount = document.getElementById('std-count');
+      const $stdRing = document.getElementById('std-ring');
+      let activeIdx = 0; // 0/1/2
+
+      async function paintStd() {
+        // Find first incomplete cell — that's active
+        let firstIncomplete = -1;
+        for (let i = 0; i < DZIKIRS.length; i++) {
+          const s = await IbadahCounter.getCounter(DZIKIRS[i].id);
+          const val = document.getElementById('val-' + i);
+          const cell = document.getElementById('cell-' + i);
+          val.textContent = s.putaran + ' / ' + DZIKIRS[i].target;
+          cell.classList.remove('active', 'done');
+          if (s.putaran >= DZIKIRS[i].target) {
+            cell.classList.add('done');
+          } else if (firstIncomplete === -1) {
+            firstIncomplete = i;
+            cell.classList.add('active');
+          }
+        }
+        activeIdx = firstIncomplete >= 0 ? firstIncomplete : DZIKIRS.length - 1;
+        const cur = DZIKIRS[activeIdx];
+        $stdLabel.innerHTML = cur.label;
+        $stdArabic.textContent = cur.arabic;
+        $stdMeaning.textContent = cur.meaning;
+        const curState = await IbadahCounter.getCounter(cur.id);
+        $stdCount.textContent = curState.putaran;
+        $stdRing.classList.toggle('complete', curState.putaran >= cur.target && firstIncomplete === -1);
+        // Update the "of N" text
+        $stdRing.querySelector('.of').textContent = 'of ' + cur.target;
+      }
+      async function tapStd() {
+        const cur = DZIKIRS[activeIdx];
+        const s = await IbadahCounter.tap(cur.id, { max: cur.target });
+        await paintStd();
+        if (navigator.vibrate) navigator.vibrate(20);
+        if (s.putaran === cur.target && activeIdx === DZIKIRS.length - 1) {
+          // All three done
+          if (navigator.vibrate) navigator.vibrate([60, 80, 60]); // longer haptic
+        }
+        maybePersist();
+      }
+      $stdRing.addEventListener('click', tapStd);
+      $stdRing.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tapStd(); } });
+      document.getElementById('std-undo').addEventListener('click', async () => {
+        const cur = DZIKIRS[activeIdx];
+        await IbadahCounter.undo(cur.id);
+        await paintStd();
+      });
+      document.getElementById('std-reset').addEventListener('click', async () => {
+        if (!confirm('Reset semua tasbih (3 dzikir)?')) return;
+        for (const d of DZIKIRS) await IbadahCounter.reset(d.id);
+        await paintStd();
+      });
+
+      // ── Free mode ──
+      const $freeCount = document.getElementById('free-count');
+      const $freeOf = document.getElementById('free-of');
+      const $freeRing = document.getElementById('free-ring');
+      let freeTarget = 100;
+      try {
+        const saved = parseInt(localStorage.getItem('rp_tasbih_free_target') || '100', 10);
+        if (Number.isFinite(saved) && saved >= 1) freeTarget = saved;
+      } catch (_e) {}
+      function paintFreeTargetButtons() {
+        document.querySelectorAll('.target-btn').forEach((b) => {
+          const t = b.getAttribute('data-target');
+          b.classList.toggle('active', t === 'custom' ? false : Number(t) === freeTarget);
+        });
+      }
+      paintFreeTargetButtons();
+      async function paintFree() {
+        const s = await IbadahCounter.getCounter('tasbih_free');
+        $freeCount.textContent = s.putaran;
+        $freeOf.textContent = 'of ' + freeTarget;
+        $freeRing.classList.toggle('complete', s.putaran >= freeTarget);
+      }
+      async function tapFree() {
+        const s = await IbadahCounter.tap('tasbih_free', { max: freeTarget });
+        await paintFree();
+        if (navigator.vibrate) navigator.vibrate(20);
+        if (s.putaran === freeTarget && navigator.vibrate) navigator.vibrate([60, 80, 60]);
+        maybePersist();
+      }
+      $freeRing.addEventListener('click', tapFree);
+      $freeRing.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tapFree(); } });
+      document.querySelectorAll('.target-btn').forEach((b) => {
+        b.addEventListener('click', async () => {
+          const t = b.getAttribute('data-target');
+          if (t === 'custom') {
+            const n = parseInt(prompt('Target dzikir (1-9999):') || '0', 10);
+            if (!Number.isFinite(n) || n < 1 || n > 9999) return;
+            freeTarget = n;
+          } else {
+            freeTarget = Number(t);
+          }
+          try { localStorage.setItem('rp_tasbih_free_target', String(freeTarget)); } catch (_e) {}
+          paintFreeTargetButtons();
+          // Auto-reset count when target changes (otherwise stale count > target is awkward)
+          await IbadahCounter.reset('tasbih_free');
+          await paintFree();
+        });
+      });
+      document.getElementById('free-undo').addEventListener('click', async () => {
+        await IbadahCounter.undo('tasbih_free');
+        await paintFree();
+      });
+      document.getElementById('free-reset').addEventListener('click', async () => {
+        if (!confirm('Reset hitungan?')) return;
+        await IbadahCounter.reset('tasbih_free');
+        await paintFree();
+      });
+
+      paintStd();
+      paintFree();
+    })();
+  </script>
+  <%- include('partials/mobile-tabs') %>
+</body>
+</html>

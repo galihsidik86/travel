@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RELIGIO PRO — Wukuf di Arafah</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 18px 100px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 18px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 24px; line-height: 1.6; }
+
+  .panel {
+    background: var(--ink-900); border: 1px solid var(--hairline-soft);
+    border-radius: var(--r-md); padding: 22px 20px; margin-bottom: 16px;
+  }
+  .panel.gold { border-color: var(--gold-300); background: linear-gradient(180deg, rgba(212,175,107,0.10), rgba(212,175,107,0.02)); }
+  .panel.emerald { border-color: var(--emerald); background: rgba(80,176,113,0.06); }
+
+  .phase-label {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--gold-300); letter-spacing: 0.16em; text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .phase-label.emerald { color: var(--emerald); }
+  .phase-label.amber { color: var(--amber); }
+
+  .big-time {
+    font-family: var(--font-display); font-size: 48px; color: var(--cream-100);
+    line-height: 1.05; letter-spacing: -0.02em; margin: 8px 0;
+  }
+  .big-time em { font-style: italic; color: var(--gold-300); }
+  .big-time.emerald em { color: var(--emerald); }
+  .big-time.amber em { color: var(--amber); }
+
+  .helper {
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--ink-100); letter-spacing: 0.04em; line-height: 1.6;
+    margin-top: 6px;
+  }
+
+  .field { margin-bottom: 14px; }
+  .field > label { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .field input[type="datetime-local"], .field input[type="time"] {
+    width: 100%; box-sizing: border-box;
+    background: var(--ink-1000); color: var(--cream-100);
+    border: 1px solid var(--hairline-soft); border-radius: var(--r-sm);
+    padding: 11px 12px; font-family: var(--font-mono); font-size: 14px;
+  }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .btn {
+    flex: 1 1 120px; min-height: 44px; padding: 10px 14px;
+    border-radius: var(--r-sm); cursor: pointer;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;
+    border: 1px solid;
+  }
+  .btn.primary { background: var(--gold-300); color: var(--ink-1000); border-color: var(--gold-300); }
+  .btn.ghost { background: transparent; color: var(--ink-100); border-color: var(--hairline-soft); }
+  .btn.ghost:hover { color: var(--cream-100); border-color: var(--ink-100); }
+
+  .info {
+    margin-top: 22px; padding: 14px 16px;
+    background: rgba(120,135,225,0.06); border: 1px solid var(--sapphire);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; color: var(--cream-100);
+    line-height: 1.6;
+  }
+
+  .offline-hint {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--emerald);
+    margin-top: 10px; letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body class="has-m-tabs">
+  <div class="wrap">
+    <div class="crumb"><a href="/saya/ibadah">← /ibadah</a> · WUKUF</div>
+    <h1>Wukuf di <em>Arafah</em></h1>
+    <div class="sub">
+      Rukun haji paling penting — wukuf di Arafah dimulai setelah Zhuhur 9 Dzulhijjah
+      sampai terbit fajar 10 Dzulhijjah. Atur waktu di bawah untuk countdown.
+    </div>
+
+    <%# Status panel — render swaps based on JS state (pre / during / done) %>
+    <div id="status-panel" class="panel">
+      <div class="phase-label" id="phase-label">Menyiapkan…</div>
+      <div class="big-time" id="big-time">—</div>
+      <div class="helper" id="helper">Memuat data dari penyimpanan lokal.</div>
+    </div>
+
+    <%# Setup form — collapsed once wukuf time set %>
+    <div class="panel" id="setup-panel">
+      <div class="phase-label">Atur waktu wukuf</div>
+      <div class="field" style="margin-top:14px;">
+        <label for="wukuf-start">Mulai wukuf (setelah Zhuhur 9 Dzulhijjah)</label>
+        <input type="datetime-local" id="wukuf-start" required>
+      </div>
+      <div class="field">
+        <label for="wukuf-end">Akhir wukuf (terbit fajar 10 Dzulhijjah)</label>
+        <input type="datetime-local" id="wukuf-end" required>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn primary" id="save-btn">Simpan</button>
+        <button type="button" class="btn ghost" id="clear-btn">Reset</button>
+      </div>
+      <div class="helper" style="margin-top:10px;">
+        Tip: tanya muthawwif untuk jam Zhuhur &amp; fajar di Mekkah/Arafah tahun ini.
+      </div>
+    </div>
+
+    <div class="info">
+      <strong style="color:var(--sapphire);">Catatan:</strong>
+      Fokus pada doa dan dzikir di Arafah — countdown ini hanya pengingat,
+      bukan pengganti niat &amp; ibadah Anda. Imam Bukhari: <em>"Haji adalah
+      Arafah."</em>
+    </div>
+    <div class="offline-hint">✓ Bekerja offline — data tersimpan lokal di perangkat Anda</div>
+  </div>
+
+  <script>
+    // S370 — Wukuf timer. Pure client-side state via localStorage (keys
+    // 'rp_wukuf_start' + 'rp_wukuf_end' as ISO strings). Tick every 30s
+    // to update countdown. Renders three phases:
+    //   - PRE: countdown to start
+    //   - DURING: progress + remaining time
+    //   - DONE: completed banner
+    (function () {
+      const KEY_START = 'rp_wukuf_start';
+      const KEY_END = 'rp_wukuf_end';
+      const $phase = document.getElementById('phase-label');
+      const $big = document.getElementById('big-time');
+      const $help = document.getElementById('helper');
+      const $statusPanel = document.getElementById('status-panel');
+      const $setupPanel = document.getElementById('setup-panel');
+      const $startIn = document.getElementById('wukuf-start');
+      const $endIn = document.getElementById('wukuf-end');
+      const $save = document.getElementById('save-btn');
+      const $clear = document.getElementById('clear-btn');
+
+      function read() {
+        try {
+          const s = localStorage.getItem(KEY_START);
+          const e = localStorage.getItem(KEY_END);
+          return { start: s ? new Date(s) : null, end: e ? new Date(e) : null };
+        } catch (_e) { return { start: null, end: null }; }
+      }
+      function write(start, end) {
+        try {
+          localStorage.setItem(KEY_START, start.toISOString());
+          localStorage.setItem(KEY_END, end.toISOString());
+        } catch (_e) { /* private mode */ }
+      }
+      function clear() {
+        try { localStorage.removeItem(KEY_START); localStorage.removeItem(KEY_END); } catch (_e) {}
+      }
+
+      // Format an absolute ms-duration into "Xh Ym" or "Xd Yh" depending on size.
+      function fmtDuration(ms) {
+        const total = Math.max(0, Math.floor(ms / 1000));
+        const days = Math.floor(total / 86400);
+        const hours = Math.floor((total % 86400) / 3600);
+        const minutes = Math.floor((total % 3600) / 60);
+        const seconds = total % 60;
+        if (days > 0) return days + 'h ' + hours + 'j';
+        if (hours > 0) return hours + 'j ' + minutes + 'm';
+        if (minutes > 0) return minutes + 'm ' + seconds + 'd';
+        return seconds + ' detik';
+      }
+      function fmtLocal(d) {
+        try {
+          return d.toLocaleString('id-ID', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+          });
+        } catch (_e) { return d.toString(); }
+      }
+
+      // Render appropriate phase
+      function render() {
+        const { start, end } = read();
+        if (!start || !end || isNaN(start) || isNaN(end)) {
+          // Not configured — only show setup
+          $statusPanel.style.display = 'none';
+          $setupPanel.style.display = 'block';
+          return;
+        }
+        $setupPanel.style.display = 'none';
+        $statusPanel.style.display = 'block';
+        const now = new Date();
+        if (now < start) {
+          // Pre — count down to start
+          $statusPanel.classList.remove('gold', 'emerald'); $statusPanel.classList.add('gold');
+          $phase.className = 'phase-label'; $phase.textContent = '⏳ MENUNGGU WUKUF';
+          $big.className = 'big-time'; $big.innerHTML = '<em>' + fmtDuration(start - now) + '</em> lagi';
+          $help.textContent = 'Wukuf dimulai ' + fmtLocal(start) + '. Berakhir ' + fmtLocal(end) + '.';
+        } else if (now < end) {
+          // During — show remaining
+          $statusPanel.classList.remove('gold', 'emerald'); $statusPanel.classList.add('emerald');
+          $phase.className = 'phase-label emerald'; $phase.textContent = '✓ WUKUF SEDANG BERLANGSUNG';
+          $big.className = 'big-time emerald'; $big.innerHTML = 'Sisa <em>' + fmtDuration(end - now) + '</em>';
+          $help.textContent = 'Berakhir ' + fmtLocal(end) + '. Maksimalkan doa & dzikir Anda — Imam Bukhari: "Haji adalah Arafah."';
+        } else {
+          // Done
+          $statusPanel.classList.remove('gold'); $statusPanel.classList.add('emerald');
+          $phase.className = 'phase-label emerald'; $phase.textContent = '✓ WUKUF SELESAI';
+          $big.className = 'big-time emerald'; $big.innerHTML = '<em>Barakallahu fiikum</em>';
+          $help.textContent = 'Wukuf selesai ' + fmtLocal(end) + '. Lanjutkan ke Muzdalifah & Mina.';
+        }
+      }
+
+      // Pre-fill setup form if data exists
+      const cur = read();
+      if (cur.start && !isNaN(cur.start)) {
+        // datetime-local needs YYYY-MM-DDTHH:MM in LOCAL time (no Z)
+        const toLocal = (d) => {
+          const off = d.getTimezoneOffset() * 60_000;
+          return new Date(d.getTime() - off).toISOString().slice(0, 16);
+        };
+        $startIn.value = toLocal(cur.start);
+        if (cur.end && !isNaN(cur.end)) $endIn.value = toLocal(cur.end);
+      }
+
+      $save.addEventListener('click', () => {
+        const s = $startIn.value ? new Date($startIn.value) : null;
+        const e = $endIn.value ? new Date($endIn.value) : null;
+        if (!s || isNaN(s) || !e || isNaN(e)) {
+          alert('Atur waktu mulai & akhir wukuf.');
+          return;
+        }
+        if (e <= s) {
+          alert('Waktu akhir harus setelah waktu mulai.');
+          return;
+        }
+        write(s, e);
+        render();
+      });
+      $clear.addEventListener('click', () => {
+        if (!confirm('Hapus pengaturan wukuf?')) return;
+        clear();
+        $startIn.value = '';
+        $endIn.value = '';
+        render();
+      });
+
+      render();
+      // Tick every 30s so countdown stays fresh without burning CPU.
+      setInterval(render, 30_000);
+    })();
+  </script>
+  <%- include('partials/mobile-tabs') %>
+</body>
+</html>

@@ -48,7 +48,8 @@
     <div class="crumb"><a href="/saya">← /saya</a> · IBADAH</div>
     <h1>Penghitung <em>ibadah</em></h1>
     <div class="sub">
-      Hitung Thawaf &amp; Sa'i tanpa kehilangan count. Bekerja offline · data tersimpan di perangkat Anda.
+      Hitung Thawaf, Sa'i, Tasbih, Jumrah, dan Wukuf — semua tanpa kehilangan
+      count. Bekerja offline · data tersimpan di perangkat Anda.
     </div>
 
     <div class="grid">
@@ -65,6 +66,29 @@
         <div class="desc">Berjalan antara Safa &amp; Marwah sebanyak 7 trip.</div>
         <div class="state" id="sai-state">— belum ada data —</div>
         <div class="progress-bar"><div id="sai-bar" style="width:0%"></div></div>
+      </a>
+      <%# Stage 370 — Wukuf timer card. State derived from localStorage. %>
+      <a href="/saya/ibadah/wukuf" class="card" id="wukuf-card">
+        <div class="lbl">9 Dzulhijjah</div>
+        <div class="title">Wukuf</div>
+        <div class="desc">Countdown ke wukuf di Arafah — rukun haji paling penting.</div>
+        <div class="state" id="wukuf-state">— belum diatur —</div>
+      </a>
+      <%# Stage 371 — Tasbih counter card. Standard 33+33+33 + Bebas mode. %>
+      <a href="/saya/ibadah/tasbih" class="card" id="tasbih-card">
+        <div class="lbl">33+33+33</div>
+        <div class="title">Tasbih</div>
+        <div class="desc">SubhanAllah · Alhamdulillah · Allahu Akbar pasca-shalat.</div>
+        <div class="state" id="tasbih-state">— belum mulai —</div>
+        <div class="progress-bar"><div id="tasbih-bar" style="width:0%"></div></div>
+      </a>
+      <%# Stage 372 — Jumrah counter card. 4 hari × per-jamarat × 7 batu. %>
+      <a href="/saya/ibadah/jumrah" class="card" id="jumrah-card">
+        <div class="lbl">7 × 7 batu</div>
+        <div class="title">Jumrah</div>
+        <div class="desc">Pelontaran 10–13 Dzulhijjah · 70 batu total dalam 4 hari.</div>
+        <div class="state" id="jumrah-state">— belum mulai —</div>
+        <div class="progress-bar"><div id="jumrah-bar" style="width:0%"></div></div>
       </a>
     </div>
 
@@ -123,6 +147,76 @@
       }
       paint('thawaf', document.getElementById('thawaf-state'), document.getElementById('thawaf-bar'), 7, { unit: 'putaran', complete: '7 putaran tuntas' });
       paint('sai', document.getElementById('sai-state'), document.getElementById('sai-bar'), 7, { unit: 'trip', complete: '7 trip tuntas' });
+
+      // S370 — Wukuf state from localStorage
+      try {
+        const $w = document.getElementById('wukuf-state');
+        const s = localStorage.getItem('rp_wukuf_start');
+        const e = localStorage.getItem('rp_wukuf_end');
+        if (s && e) {
+          const start = new Date(s); const end = new Date(e); const now = new Date();
+          if (now < start) {
+            const ms = start - now;
+            const days = Math.floor(ms / 86_400_000);
+            const hrs = Math.floor((ms % 86_400_000) / 3_600_000);
+            $w.textContent = '⏳ ' + (days > 0 ? days + 'h ' + hrs + 'j' : hrs + 'j') + ' lagi';
+          } else if (now < end) {
+            $w.textContent = '✓ Sedang berlangsung';
+            $w.classList.add('complete');
+          } else {
+            $w.textContent = '✓ Selesai · barakallahu fiikum';
+            $w.classList.add('complete');
+          }
+        }
+      } catch (_e) { /* localStorage may be private-mode */ }
+
+      // S371 — Tasbih state (standard 33+33+33 totals)
+      try {
+        const $t = document.getElementById('tasbih-state');
+        const $tb = document.getElementById('tasbih-bar');
+        const states = await Promise.all([
+          IbadahCounter.getCounter('tasbih_std_0'),
+          IbadahCounter.getCounter('tasbih_std_1'),
+          IbadahCounter.getCounter('tasbih_std_2'),
+        ]);
+        const total = states.reduce((sum, x) => sum + x.putaran, 0);
+        const TARGET = 99;
+        const pct = Math.min(100, Math.round((total / TARGET) * 100));
+        $tb.style.width = pct + '%';
+        if (total >= TARGET) {
+          $t.textContent = '✓ 99 dzikir tuntas';
+          $t.classList.add('complete');
+        } else if (total === 0) {
+          $t.textContent = '— belum mulai —';
+        } else {
+          $t.textContent = 'Berjalan · ' + total + '/' + TARGET + ' dzikir';
+        }
+      } catch (err) { console.warn(err); }
+
+      // S372 — Jumrah state (total across 4 days)
+      try {
+        const $j = document.getElementById('jumrah-state');
+        const $jb = document.getElementById('jumrah-bar');
+        const ids = [
+          'jumrah_10_aqaba',
+          'jumrah_11_sughra', 'jumrah_11_wustha', 'jumrah_11_aqaba',
+          'jumrah_12_sughra', 'jumrah_12_wustha', 'jumrah_12_aqaba',
+          'jumrah_13_sughra', 'jumrah_13_wustha', 'jumrah_13_aqaba',
+        ];
+        const states = await Promise.all(ids.map((id) => IbadahCounter.getCounter(id)));
+        const total = states.reduce((sum, x) => sum + x.putaran, 0);
+        const TARGET = 70;
+        const pct = Math.min(100, Math.round((total / TARGET) * 100));
+        $jb.style.width = pct + '%';
+        if (total >= TARGET) {
+          $j.textContent = '✓ 70 batu tuntas (4 hari)';
+          $j.classList.add('complete');
+        } else if (total === 0) {
+          $j.textContent = '— belum mulai —';
+        } else {
+          $j.textContent = 'Berjalan · ' + total + '/' + TARGET + ' batu';
+        }
+      } catch (err) { console.warn(err); }
     })();
   </script>
   <%- include('partials/mobile-tabs') %>

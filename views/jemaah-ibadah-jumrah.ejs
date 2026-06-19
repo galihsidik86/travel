@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RELIGIO PRO — Pelontaran Jumrah</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 18px 100px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 18px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 20px; line-height: 1.6; }
+
+  .day-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 18px; }
+  .day-tab {
+    padding: 10px 6px; cursor: pointer;
+    background: transparent; color: var(--ink-100);
+    border: 1px solid var(--hairline-soft); border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+    text-align: center;
+  }
+  .day-tab .label { display: block; font-size: 9.5px; color: var(--ink-200); margin-top: 2px; }
+  .day-tab.active { background: var(--gold-300); color: var(--ink-1000); border-color: var(--gold-300); font-weight: 600; }
+  .day-tab.active .label { color: var(--ink-1000); }
+  .day-tab.done { border-color: var(--emerald); }
+  .day-tab.done::after { content: ' ✓'; color: var(--emerald); }
+
+  .jamarat-list { display: grid; gap: 10px; }
+  .jamarat-card {
+    background: var(--ink-900); border: 1px solid var(--hairline-soft);
+    border-radius: var(--r-md); padding: 16px 18px;
+  }
+  .jamarat-card.complete { border-color: var(--emerald); background: rgba(80,176,113,0.05); }
+  .jamarat-head {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .jamarat-name {
+    font-family: var(--font-display); font-size: 19px; color: var(--cream-100);
+  }
+  .jamarat-name em { font-style: italic; color: var(--gold-300); }
+  .jamarat-meta {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.05em;
+  }
+  .jamarat-pips {
+    display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0;
+  }
+  .pip {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid var(--hairline-soft); background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-300);
+  }
+  .pip.thrown { background: var(--gold-300); border-color: var(--gold-300); color: var(--ink-1000); font-weight: 700; }
+  .jamarat-card.complete .pip.thrown { background: var(--emerald); border-color: var(--emerald); color: var(--cream-100); }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+  .btn {
+    padding: 9px 14px; min-height: 40px;
+    border-radius: var(--r-sm); cursor: pointer;
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    border: 1px solid;
+  }
+  .btn.primary { background: var(--gold-300); color: var(--ink-1000); border-color: var(--gold-300); font-weight: 600; }
+  .btn.ghost { background: transparent; color: var(--ink-100); border-color: var(--hairline-soft); }
+  .btn.ghost:hover { color: var(--cream-100); border-color: var(--ink-100); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .day-summary {
+    margin-top: 16px; padding: 12px 14px;
+    background: rgba(212,175,107,0.05);
+    border: 1px solid rgba(212,175,107,0.3); border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; color: var(--cream-100);
+    letter-spacing: 0.04em;
+  }
+  .day-summary.complete { border-color: var(--emerald); background: rgba(80,176,113,0.06); }
+
+  .info {
+    margin-top: 22px; padding: 14px 16px;
+    background: rgba(120,135,225,0.06); border: 1px solid var(--sapphire);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; color: var(--cream-100);
+    line-height: 1.6;
+  }
+
+  .offline-hint {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--emerald);
+    margin-top: 12px; letter-spacing: 0.04em; text-align: center;
+  }
+</style>
+</head>
+<body class="has-m-tabs">
+  <div class="wrap">
+    <div class="crumb"><a href="/saya/ibadah">← /ibadah</a> · JUMRAH</div>
+    <h1>Pelontaran <em>jumrah</em></h1>
+    <div class="sub">
+      Hari Idul Adha &amp; tasyrik (10–13 Dzulhijjah). Hari pertama: hanya
+      Jumrah Aqaba (7 batu). Hari 11–13: tiga jamarat berurutan
+      Sughra → Wustha → Aqaba (7 batu × 3 = 21 batu).
+    </div>
+
+    <div class="day-tabs" id="day-tabs">
+      <button type="button" class="day-tab active" data-day="10">10 Dzulhijjah<span class="label">Idul Adha</span></button>
+      <button type="button" class="day-tab" data-day="11">11 Dzulhijjah<span class="label">Tasyrik 1</span></button>
+      <button type="button" class="day-tab" data-day="12">12 Dzulhijjah<span class="label">Tasyrik 2</span></button>
+      <button type="button" class="day-tab" data-day="13">13 Dzulhijjah<span class="label">Tasyrik 3</span></button>
+    </div>
+
+    <div class="jamarat-list" id="jamarat-list"></div>
+
+    <div class="day-summary" id="day-summary">— belum mulai —</div>
+
+    <div class="info">
+      <strong style="color:var(--sapphire);">Urutan:</strong>
+      10 Dzulhijjah cuma Aqaba (Kubra). 11–13 Dzulhijjah berurutan dari
+      Sughra (yang dekat masjid Khaif) → Wustha → Aqaba. Tiap jamarat
+      dilempar 7 batu dengan takbir.
+    </div>
+    <div class="offline-hint">✓ Bekerja offline — data tersimpan lokal di perangkat Anda</div>
+  </div>
+
+  <script src="/shared/ibadah-counter.js"></script>
+  <script src="/shared/screen-wake-lock.js"></script>
+  <script src="/shared/persist-storage.js"></script>
+  <script>
+    // S372 — Jumrah counter. State per-day per-jamarat via IbadahCounter
+    // with ids 'jumrah_<day>_<jamarat>'. Day 10 has only aqaba; days 11-13
+    // have sughra/wustha/aqaba (in this throwing order).
+    (function () {
+      const DAYS = {
+        10: [{ id: 'aqaba', name: 'Jumrah <em>Aqaba</em> (Kubra)', desc: 'Jamarat besar — lokasi paling dekat Mekkah' }],
+        11: [
+          { id: 'sughra', name: 'Jumrah <em>Sughra</em>', desc: 'Lempar pertama — dekat Masjid Khaif' },
+          { id: 'wustha', name: 'Jumrah <em>Wustha</em>', desc: 'Lempar kedua — di tengah' },
+          { id: 'aqaba', name: 'Jumrah <em>Aqaba</em> (Kubra)', desc: 'Lempar ketiga — paling besar' },
+        ],
+        12: [
+          { id: 'sughra', name: 'Jumrah <em>Sughra</em>', desc: 'Lempar pertama' },
+          { id: 'wustha', name: 'Jumrah <em>Wustha</em>', desc: 'Lempar kedua' },
+          { id: 'aqaba', name: 'Jumrah <em>Aqaba</em> (Kubra)', desc: 'Lempar ketiga' },
+        ],
+        13: [
+          { id: 'sughra', name: 'Jumrah <em>Sughra</em>', desc: 'Lempar pertama' },
+          { id: 'wustha', name: 'Jumrah <em>Wustha</em>', desc: 'Lempar kedua' },
+          { id: 'aqaba', name: 'Jumrah <em>Aqaba</em> (Kubra)', desc: 'Lempar ketiga' },
+        ],
+      };
+      const MAX = 7;
+
+      if (window.ScreenWakeLock) {
+        window.ScreenWakeLock.acquire();
+        window.addEventListener('pagehide', () => window.ScreenWakeLock.release());
+      }
+      function maybePersist() {
+        if (window.PersistStorage) window.PersistStorage.request({ reason: 'ibadah' }).catch(() => {});
+      }
+
+      let currentDay = 10;
+      const $list = document.getElementById('jamarat-list');
+      const $summary = document.getElementById('day-summary');
+      const $tabs = document.querySelectorAll('.day-tab');
+
+      function counterId(day, jam) { return 'jumrah_' + day + '_' + jam; }
+
+      async function renderTabs() {
+        for (const t of $tabs) {
+          const day = Number(t.getAttribute('data-day'));
+          const jamarat = DAYS[day];
+          let totalDone = 0;
+          for (const j of jamarat) {
+            const s = await IbadahCounter.getCounter(counterId(day, j.id));
+            totalDone += s.putaran;
+          }
+          const total = jamarat.length * MAX;
+          t.classList.toggle('done', totalDone >= total && total > 0);
+        }
+      }
+
+      async function renderDay() {
+        $list.innerHTML = '';
+        const jamarat = DAYS[currentDay];
+        let totalThrown = 0;
+        let totalAvailable = 0;
+        for (let idx = 0; idx < jamarat.length; idx++) {
+          const j = jamarat[idx];
+          const s = await IbadahCounter.getCounter(counterId(currentDay, j.id));
+          totalThrown += s.putaran;
+          totalAvailable += MAX;
+
+          const card = document.createElement('div');
+          card.className = 'jamarat-card' + (s.putaran >= MAX ? ' complete' : '');
+
+          // Determine if this card is "unlocked" — for days 11-13 you should
+          // throw in sequence. Block taps on later jamarat until earlier ones
+          // are complete. (Pure UX hint; jemaah can still undo if they tapped
+          // out of order.)
+          let isLocked = false;
+          if (idx > 0 && currentDay !== 10) {
+            const prev = await IbadahCounter.getCounter(counterId(currentDay, jamarat[idx - 1].id));
+            if (prev.putaran < MAX) isLocked = true;
+          }
+
+          let pipsHtml = '';
+          for (let i = 1; i <= MAX; i++) {
+            pipsHtml += '<div class="pip ' + (i <= s.putaran ? 'thrown' : '') + '">' + i + '</div>';
+          }
+          card.innerHTML = `
+            <div class="jamarat-head">
+              <div>
+                <div class="jamarat-name">${j.name}</div>
+                <div class="jamarat-meta">${j.desc}</div>
+              </div>
+              <div class="jamarat-meta">${s.putaran} / ${MAX}</div>
+            </div>
+            <div class="jamarat-pips">${pipsHtml}</div>
+            <div class="btn-row">
+              <button type="button" class="btn primary" data-action="throw" ${isLocked || s.putaran >= MAX ? 'disabled' : ''}>+ Lempar batu</button>
+              <button type="button" class="btn ghost" data-action="undo" ${s.putaran <= 0 ? 'disabled' : ''}>↶ Undo</button>
+              <button type="button" class="btn ghost" data-action="reset">Reset</button>
+            </div>
+          `;
+          card.querySelector('[data-action="throw"]').addEventListener('click', async () => {
+            await IbadahCounter.tap(counterId(currentDay, j.id), { max: MAX });
+            if (navigator.vibrate) navigator.vibrate(25);
+            maybePersist();
+            await renderDay();
+            await renderTabs();
+          });
+          card.querySelector('[data-action="undo"]').addEventListener('click', async () => {
+            await IbadahCounter.undo(counterId(currentDay, j.id));
+            await renderDay();
+            await renderTabs();
+          });
+          card.querySelector('[data-action="reset"]').addEventListener('click', async () => {
+            if (!confirm('Reset ' + j.name.replace(/<[^>]+>/g, '') + ' di hari ini?')) return;
+            await IbadahCounter.reset(counterId(currentDay, j.id));
+            await renderDay();
+            await renderTabs();
+          });
+
+          $list.appendChild(card);
+        }
+        const fullyDone = totalThrown >= totalAvailable && totalAvailable > 0;
+        $summary.classList.toggle('complete', fullyDone);
+        $summary.textContent = fullyDone
+          ? '✓ Tuntas hari ini · ' + totalThrown + ' batu (' + jamarat.length + ' jamarat)'
+          : 'Progres hari ini: ' + totalThrown + ' / ' + totalAvailable + ' batu';
+      }
+
+      $tabs.forEach((t) => {
+        t.addEventListener('click', () => {
+          $tabs.forEach((x) => x.classList.remove('active'));
+          t.classList.add('active');
+          currentDay = Number(t.getAttribute('data-day'));
+          renderDay();
+        });
+      });
+
+      renderTabs();
+      renderDay();
+    })();
+  </script>
+  <%- include('partials/mobile-tabs') %>
+</body>
+</html>
