@@ -2441,6 +2441,58 @@
         </div>
       <% } %>
 
+      <%# Stage 360 — PWA install funnel KPI. Renders only when there's at
+          least one event in the window (no real-estate waste on a fresh
+          deploy with zero telemetry). Two flow paths shown:
+          Android/Desktop (PROMPT_SHOWN → PROMPT_ACCEPTED) + iOS (HINT_SHOWN
+          → INSTALLED approximation). LOW SAMPLE badge dims the rates
+          when total events < 5. %>
+      <% if (typeof pwaInstallFunnel !== 'undefined' && pwaInstallFunnel) {
+           const pif = pwaInstallFunnel;
+           const totalEvents = Object.values(pif.counts).reduce((a, b) => a + b, 0);
+           if (totalEvents > 0) {
+             const accColor = pif.acceptanceRate == null ? 'ink-200'
+                            : pif.acceptanceRate >= 30 ? 'emerald'
+                            : pif.acceptanceRate >= 10 ? 'gold-300' : 'ruby';
+             const iosColor = pif.iosCompletionRate == null ? 'ink-200'
+                            : pif.iosCompletionRate >= 15 ? 'emerald'
+                            : pif.iosCompletionRate >= 5 ? 'gold-300' : 'ruby';
+      %>
+        <div class="panel" style="margin-top:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;">
+            <h3 style="margin:0;">PWA install funnel <span class="meta" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;">· <%= pif.days %>D</span></h3>
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;">
+              <%= totalEvents %> EVENT<% if (pif.lowSample) { %> · <strong style="color:var(--amber);">LOW SAMPLE</strong><% } %>
+            </span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:14px;">
+            <div style="padding:14px;background:rgba(255,255,255,0.02);border-radius:var(--r-sm);">
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">ANDROID / DESKTOP · NATIVE PROMPT</div>
+              <div style="font-family:var(--font-display);font-size:32px;color:var(--<%= accColor %>);line-height:1;">
+                <%= pif.acceptanceRate == null ? '—' : pif.acceptanceRate %><% if (pif.acceptanceRate != null) { %><span style="font-size:18px;color:var(--ink-200);"> %</span><% } %>
+              </div>
+              <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:4px;letter-spacing:0.04em;">
+                <%= pif.counts.PROMPT_ACCEPTED %> accepted / <%= pif.counts.PROMPT_SHOWN %> shown
+                <% if (pif.counts.PROMPT_DISMISSED > 0) { %> · <%= pif.counts.PROMPT_DISMISSED %> dismissed<% } %>
+              </div>
+            </div>
+            <div style="padding:14px;background:rgba(255,255,255,0.02);border-radius:var(--r-sm);">
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">IOS · ADD-TO-HOME-SCREEN HINT</div>
+              <div style="font-family:var(--font-display);font-size:32px;color:var(--<%= iosColor %>);line-height:1;">
+                <%= pif.iosCompletionRate == null ? '—' : pif.iosCompletionRate %><% if (pif.iosCompletionRate != null) { %><span style="font-size:18px;color:var(--ink-200);"> %</span><% } %>
+              </div>
+              <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:4px;letter-spacing:0.04em;">
+                ~<%= pif.iosInstalled %> installed / <%= pif.counts.IOS_HINT_SHOWN %> hint shown
+                <% if (pif.counts.IOS_HINT_DISMISSED > 0) { %> · <%= pif.counts.IOS_HINT_DISMISSED %> dismissed<% } %>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;line-height:1.5;">
+            iOS rate approximates via window.appinstalled (Safari can't observe the actual Add-to-Home tap). Total installed: <%= pif.counts.INSTALLED %>.
+          </div>
+        </div>
+      <% } } %>
+
       <% const km_a = analytics.komisiMonthly;
          const km_maxKom = Math.max(1, ...km_a.map((m) => Math.max(m.earned, m.paid)));
          const km_totalEarned = km_a.reduce((a, m) => a + m.earned, 0);

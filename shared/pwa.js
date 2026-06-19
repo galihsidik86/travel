@@ -16,12 +16,39 @@
       });
   });
 
+  // Stage 360 — install funnel telemetry. Fire-and-forget POST to
+  // /api/pwa/install-event. CSRF token auto-attached by shared/csrf.js
+  // fetch monkey-patch. Failures swallowed silently (telemetry never
+  // breaks the page). Path kind derived from URL prefix so admin can
+  // slice by surface: /saya = jemaah, /crew = crew, /admin = admin,
+  // anything else (including /p/:slug) = public.
+  function pathKind() {
+    const p = window.location.pathname || '';
+    if (p.startsWith('/saya')) return 'jemaah';
+    if (p.startsWith('/crew')) return 'crew';
+    if (p.startsWith('/admin')) return 'admin';
+    if (p.startsWith('/agen')) return 'agen';
+    return 'public';
+  }
+  function trackInstallEvent(event) {
+    try {
+      fetch('/api/pwa/install-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event, kind: pathKind() }),
+        credentials: 'same-origin',
+        keepalive: true, // survive page unload (e.g. when fired from beforeinstallprompt then user navigates)
+      }).catch(() => { /* silent — telemetry must not break UX */ });
+    } catch (_err) { /* fetch construction failed somehow — silent */ }
+  }
+
   // Capture the install prompt so we can fire it from a user gesture later.
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
     document.body.dataset.pwaInstallable = '1';
+    trackInstallEvent('PROMPT_SHOWN'); // S360
   });
 
   // Expose a tiny API so any view can wire a "Pasang aplikasi" button:
@@ -35,12 +62,15 @@
     const choice = await deferredPrompt.userChoice;
     deferredPrompt = null;
     delete document.body.dataset.pwaInstallable;
+    // S360 — funnel completion. choice.outcome is 'accepted' or 'dismissed'.
+    trackInstallEvent(choice?.outcome === 'accepted' ? 'PROMPT_ACCEPTED' : 'PROMPT_DISMISSED');
     btn.dispatchEvent(new CustomEvent('pwa:choice', { bubbles: true, detail: choice }));
   });
 
   // Auto-hide install affordances after the app is already installed.
   window.addEventListener('appinstalled', () => {
     delete document.body.dataset.pwaInstallable;
+    trackInstallEvent('INSTALLED'); // S360 — confirms install actually completed
   });
 
   // ── iOS install hint ─────────────────────────────────────────────
@@ -136,6 +166,7 @@
     function dismiss() {
       wrap.classList.remove('is-visible');
       try { localStorage.setItem('rp_ios_install_hint_dismissed', '1'); } catch { /* ignore */ }
+      trackInstallEvent('IOS_HINT_DISMISSED'); // S360
       setTimeout(() => wrap.remove(), 320);
     }
     wrap.querySelector('.close').addEventListener('click', dismiss);
@@ -143,6 +174,7 @@
     document.body.appendChild(wrap);
     // Animate in after the next frame so the transition fires
     requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('is-visible')));
+    trackInstallEvent('IOS_HINT_SHOWN'); // S360 — funnel denominator for iOS path
   }
 
   function maybeShowIosHint() {

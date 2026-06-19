@@ -81,10 +81,25 @@
         <% } else { %>
           <div class="quote" style="color:var(--ink-300);">(tanpa preview pesan)</div>
         <% } %>
+        <%# Stage 358 — GPS location surfaced when SOS submission captured it. %>
+        <% if (r.location && r.location.latitude != null && r.location.longitude != null) { %>
+          <div style="margin:6px 0;padding:6px 10px;background:rgba(212,175,107,0.06);border-left:2px solid var(--gold-300);font-family:var(--font-mono);font-size:11px;border-radius:0 3px 3px 0;">
+            <span style="color:var(--gold-300);">📍 GPS:</span>
+            <%= r.location.latitude.toFixed(6) %>, <%= r.location.longitude.toFixed(6) %>
+            <% if (r.location.accuracyMeters) { %> · ±<%= r.location.accuracyMeters %>m<% } %>
+          </div>
+        <% } %>
         <div class="actions">
           <a href="/admin/bookings/<%= r.bookingId %>" class="detail">→ Detail booking + ACK</a>
           <% if (phoneDigits) { %>
             <a href="https://wa.me/<%= phoneDigits %>" target="_blank" rel="noopener" class="wa">📞 WhatsApp <%= r.jemaah.phone %></a>
+          <% } %>
+          <%# Stage 358 — Maps deep link in the actions row %>
+          <% if (r.location && r.location.latitude != null && r.location.longitude != null) { %>
+            <a href="https://maps.google.com/?q=<%= r.location.latitude %>,<%= r.location.longitude %>"
+               target="_blank" rel="noopener" class="wa" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);">
+              📍 Buka di Maps
+            </a>
           <% } %>
         </div>
       </div>

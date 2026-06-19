@@ -43,6 +43,7 @@ import agentPublicRouter, { agentLeaderboardRouter } from './routes/agentPublic.
 import emailClickRedirectRouter from './routes/emailClickRedirect.js';
 import voucherVerifyRouter from './routes/voucherVerify.js';
 import pushRouter from './routes/push.js';
+import pwaInstallRouter from './routes/pwaInstall.js';
 import waitlistRouter from './routes/waitlist.js';
 import paymentsRouter from './routes/payments.js';
 import paymentGatewayRouter from './routes/paymentGateway.js';
@@ -128,6 +129,8 @@ export function createApp() {
   app.use('/api/admin/push', pushRouter);
   app.use('/api/bunking', bunkingRouter);
   app.use('/api/jemaah', jemaahDocsRouter);
+  // Stage 360 — PWA install funnel telemetry. optionalAuth, anonymous-friendly.
+  app.use('/api/pwa', pwaInstallRouter);
 
   // Browser auth (HTML form, cookie-based)
   app.use('/', authWebRouter);

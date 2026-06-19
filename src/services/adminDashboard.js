@@ -428,6 +428,15 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] breakEvenOverview failed:', err?.message || err);
   }
 
+  // Stage 360 — PWA install funnel (30d acceptance rate + iOS completion).
+  let pwaInstallFunnel = null;
+  try {
+    const { getPwaInstallFunnel } = await import('./pwaInstallFunnel.js');
+    pwaInstallFunnel = await getPwaInstallFunnel();
+  } catch (err) {
+    console.warn('[admin-overview] pwaInstallFunnel failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -453,6 +462,7 @@ export async function getAdminOverview(opts = {}) {
     bookingTagRollup,
     networkRevenueForecast,
     breakEvenOverview,
+    pwaInstallFunnel,
     emailCtr,
     analytics: {
       funnel: globalFunnel,

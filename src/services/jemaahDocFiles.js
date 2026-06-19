@@ -116,6 +116,63 @@ export async function uploadMyDocFile({ req, actor, userId, docId, file }) {
   return updated;
 }
 
+// Stage 359 — list of doc types the readiness card surfaces as "missing".
+// Mirrors the S223 default required-docs set; admin paket-edit can narrow
+// per-paket via Paket.requiredDocs but the quick-upload endpoint accepts
+// the full set so jemaah can upload PASSPORT + any required doc from one
+// surface. Validated here (not at the schema layer) because the route
+// accepts the type as a URL param, not request body.
+const QUICK_UPLOAD_TYPES = new Set([
+  'PASSPORT', 'VISA_UMROH', 'VACCINE_MENINGITIS', 'HEALTH_CERT',
+  'MANASIK_CERT', 'MARRIAGE_CERT', 'FAMILY_CARD', 'OTHER',
+]);
+
+/**
+ * Stage 359 — one-shot photo/file upload keyed by doc TYPE rather than
+ * doc ID. Jemaah taps "📸 Foto" from the readiness card's "yang masih
+ * kurang" list; we resolve their profile, upsert a JemaahDocument row
+ * for (jemaahId, type), then defer to `uploadMyDocFile` for the actual
+ * file move + status transition + admin notif.
+ *
+ * Why a separate entry point: the existing `uploadMyDocFile` requires
+ * a known docId, which doesn't exist for a doc the jemaah has never
+ * tracked before. The readiness card needs "PASSPORT not present →
+ * upload PASSPORT" to work in one tap.
+ */
+export async function quickUploadMyDocByType({ req, actor, userId, type, file }) {
+  if (!QUICK_UPLOAD_TYPES.has(type)) {
+    throw new HttpError(400, `Tipe dokumen tidak valid: ${type}`, 'BAD_DOC_TYPE');
+  }
+  if (!file) throw new HttpError(400, 'File wajib di-upload', 'FILE_REQUIRED');
+
+  // Resolve jemaah profile owned by this user. We need the jemaahId for
+  // the upsert key; JemaahProfile.userId is @unique so this is a single
+  // findUnique hit. Profile-not-found is degenerate (JEMAAH role without
+  // a profile shouldn't exist post-S5p), but defensive nonetheless.
+  const profile = await db.jemaahProfile.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (!profile) {
+    throw new HttpError(404, 'Profil jemaah tidak ditemukan', 'PROFILE_NOT_FOUND');
+  }
+
+  // Upsert the doc row. If it already exists with a file, we don't touch
+  // status/refs here — uploadMyDocFile (below) handles the status
+  // transition + stale-thumb cleanup. If it didn't exist, we create it
+  // in PENDING so uploadMyDocFile bumps it to SUBMITTED on save.
+  const doc = await db.jemaahDocument.upsert({
+    where: { jemaahId_type: { jemaahId: profile.id, type } },
+    update: {},
+    create: { jemaahId: profile.id, type, status: 'PENDING' },
+    select: { id: true },
+  });
+
+  // Defer to the canonical upload path — single source of truth for
+  // file move, thumb generation, status transitions, admin notif.
+  return uploadMyDocFile({ req, actor, userId, docId: doc.id, file });
+}
+
 /**
  * Remove the file attachment (keeps the doc row + refNumber/notes).
  * Refuses on VERIFIED docs — staff verdict is a soft lock (same rule as

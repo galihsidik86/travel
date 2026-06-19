@@ -341,15 +341,98 @@
           ✓ Semua dokumen siap. Anda bisa fokus menyiapkan mental dan ibadah.
         </div>
       <% } else { %>
+        <%# Stage 359 — per-row 📸 quick-upload button beside each missing
+            check that maps to an uploadable doc type. Tapping fires a
+            hidden <input type="file" capture="environment"> so phones open
+            the native camera (or file picker on desktop). On submit, POST
+            via FormData to /api/saya/documents/quick-upload/:type which
+            upserts the doc row + attaches the file in one server call.
+            Reload on success so the readiness card re-paints with the new
+            check ticked off. Checks without a direct doc type (roomAssigned,
+            emergencyContact) get no upload button. %>
+        <%
+          const CHECK_TO_DOC_TYPE = {
+            passportPresent: 'PASSPORT',
+            passportValid: 'PASSPORT',
+            visaUmroh: 'VISA_UMROH',
+            vaccineMeningitis: 'VACCINE_MENINGITIS',
+            healthCert: 'HEALTH_CERT',
+            manasikCert: 'MANASIK_CERT',
+            marriageCert: 'MARRIAGE_CERT',
+            familyCard: 'FAMILY_CARD',
+            otherDoc: 'OTHER',
+          };
+        %>
         <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.04em;margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase;">Yang masih kurang:</div>
-        <ul style="margin:0;padding-left:18px;font-family:var(--font-mono);font-size:12.5px;color:var(--cream-100);line-height:1.7;">
-          <% missing.forEach(function(key) { %>
-            <li><%= checkLabels[key] || key %></li>
+        <ul style="margin:0;padding-left:0;list-style:none;font-family:var(--font-mono);font-size:12.5px;color:var(--cream-100);line-height:1.5;">
+          <% missing.forEach(function(key) { const docType = CHECK_TO_DOC_TYPE[key]; %>
+            <li style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.04);">
+              <span>• <%= checkLabels[key] || key %></span>
+              <% if (docType) { %>
+                <button type="button"
+                        class="rp-quick-upload-trigger"
+                        data-doc-type="<%= docType %>"
+                        style="background:var(--emerald);color:var(--cream-100);border:0;padding:5px 10px;border-radius:3px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-weight:600;flex-shrink:0;">
+                  📸 Foto
+                </button>
+              <% } %>
+            </li>
           <% }) %>
         </ul>
+        <%# Hidden file input shared by all quick-upload triggers. capture=environment
+            opens rear camera on phones; accept lets jemaah also pick a PDF saved offline. %>
+        <input type="file" id="rp-quick-upload-input"
+               accept="image/*,application/pdf" capture="environment"
+               style="display:none;">
+        <div id="rp-quick-upload-status" style="margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);min-height:14px;"></div>
+        <script>
+          (function () {
+            const input = document.getElementById('rp-quick-upload-input');
+            const statusEl = document.getElementById('rp-quick-upload-status');
+            const triggers = document.querySelectorAll('.rp-quick-upload-trigger');
+            if (!input || !triggers.length) return;
+            let activeType = null;
+            triggers.forEach((btn) => {
+              btn.addEventListener('click', () => {
+                activeType = btn.getAttribute('data-doc-type');
+                input.value = ''; // reset so picking the same file twice still fires change
+                input.click();
+              });
+            });
+            input.addEventListener('change', async () => {
+              if (!activeType) return;
+              const file = input.files && input.files[0];
+              if (!file) return;
+              statusEl.textContent = 'Mengunggah ' + activeType + '…';
+              statusEl.style.color = 'var(--ink-200)';
+              const fd = new FormData();
+              fd.append('file', file, file.name);
+              try {
+                const r = await fetch('/api/saya/documents/quick-upload/' + encodeURIComponent(activeType), {
+                  method: 'POST',
+                  body: fd,
+                  // CSRF auto-attached by shared/csrf.js fetch monkey-patch
+                });
+                if (!r.ok) {
+                  const body = await r.json().catch(() => ({}));
+                  statusEl.textContent = '✕ ' + (body.message || 'Gagal upload (' + r.status + ')');
+                  statusEl.style.color = 'var(--ruby)';
+                  return;
+                }
+                statusEl.textContent = '✓ ' + activeType + ' terkirim. Mengulang halaman…';
+                statusEl.style.color = 'var(--emerald)';
+                // Reload so the readiness card re-paints with the new doc accounted for.
+                setTimeout(() => { window.location.reload(); }, 1200);
+              } catch (err) {
+                statusEl.textContent = '✕ ' + (err.message || 'Network error');
+                statusEl.style.color = 'var(--ruby)';
+              }
+            });
+          })();
+        </script>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
           <a href="/saya/profile" style="background:var(--gold-300);color:var(--ink-1000);padding:8px 14px;border-radius:3px;text-decoration:none;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;font-weight:600;text-transform:uppercase;">
-            Lengkapi di profil →
+            Edit detail di profil →
           </a>
           <% if (missing.includes('roomAssigned')) { %>
             <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);align-self:center;letter-spacing:0.04em;">(kamar diatur admin, bukan jemaah)</span>

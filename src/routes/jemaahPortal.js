@@ -22,7 +22,7 @@ import {
 import { DOC_TYPES, DOC_STATUSES, DOC_PILL } from '../services/jemaahDocs.js';
 import { META as JEMAAH_META } from '../services/jemaahAdmin.js';
 import {
-  uploadMyDocFile, deleteMyDocFile, getMyDocFileMeta,
+  uploadMyDocFile, deleteMyDocFile, getMyDocFileMeta, quickUploadMyDocByType,
 } from '../services/jemaahDocFiles.js';
 import { uploadSingleDoc } from '../middleware/docUpload.js';
 
@@ -632,12 +632,16 @@ router.post(
       const result = await submitJemaahHelpRequest({
         req, actor: { id: req.user.id, email: req.user.email, role: req.user.role },
         userId: req.user.id, message: req.body?.message,
+        // S358 — best-effort geolocation captured by the SOS form. Service
+        // sanitises + drops invalid shapes; missing/null is fine.
+        location: req.body?.location || null,
       });
       res.json({
         ok: true,
         bookingNo: result.booking.bookingNo,
         recipients: result.recipients,
         enqueued: result.enqueued,
+        location: result.location || null,
       });
     } catch (err) {
       const status = err instanceof HttpError ? err.statusCode : 500;
@@ -713,6 +717,23 @@ router.post(
       req,
       actor: { id: req.user.id, email: req.user.email, role: req.user.role },
       userId: req.user.id, docId: req.params.docId, file: req.file,
+    });
+    res.status(201).json({ doc });
+  }),
+);
+
+// Stage 359 — one-tap upload keyed by doc TYPE (not docId) for the
+// readiness card on /saya/bookings/:id. Wraps quickUploadMyDocByType
+// which upserts the doc row if absent then delegates to uploadMyDocFile.
+router.post(
+  '/api/saya/documents/quick-upload/:type',
+  ...requireJemaah,
+  uploadSingleDoc,
+  asyncHandler(async (req, res) => {
+    const doc = await quickUploadMyDocByType({
+      req,
+      actor: { id: req.user.id, email: req.user.email, role: req.user.role },
+      userId: req.user.id, type: req.params.type, file: req.file,
     });
     res.status(201).json({ doc });
   }),

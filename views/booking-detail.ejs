@@ -366,6 +366,24 @@
           <% if (helpState.lastRequestPreview) { %>
             Pesan jemaah: <em style="color:var(--cream-200);">"<%= helpState.lastRequestPreview %>"</em><br>
           <% } %>
+          <%# Stage 358 — GPS deep link to Google Maps. Renders only when
+              jemaah's SOS submission carried a captured location (browser
+              permission granted + within 5s timeout). %>
+          <% if (helpState.location && helpState.location.latitude != null && helpState.location.longitude != null) { %>
+            <div style="margin:6px 0;padding:8px 10px;background:rgba(255,255,255,0.04);border-left:2px solid var(--ruby);border-radius:0 3px 3px 0;">
+              <span style="color:var(--gold-300);">📍 Lokasi GPS:</span>
+              <a href="https://maps.google.com/?q=<%= helpState.location.latitude %>,<%= helpState.location.longitude %>"
+                 target="_blank" rel="noopener"
+                 style="color:var(--gold-300);text-decoration:underline;font-weight:600;">
+                Buka di Google Maps →
+              </a>
+              <br>
+              <span style="color:var(--ink-200);font-size:10.5px;">
+                <%= helpState.location.latitude.toFixed(6) %>, <%= helpState.location.longitude.toFixed(6) %>
+                <% if (helpState.location.accuracyMeters) { %> · akurasi ±<%= helpState.location.accuracyMeters %>m<% } %>
+              </span>
+            </div>
+          <% } %>
           <span style="color:var(--ink-200);">Hubungi jemaah via WhatsApp, lalu klik tombol di bawah untuk konfirmasi ke jemaah bahwa tim sudah respon.</span>
           <% if (canCancel) { %>
             <form method="POST" action="/admin/bookings/<%= b.id %>/help-ack" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">

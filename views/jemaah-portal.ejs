@@ -342,35 +342,76 @@
           form.style.display = 'none'; toggle.style.display = 'block';
           status.textContent = '';
         });
+        // S358 — best-effort geolocation. Wait at most GEO_TIMEOUT_MS for
+        // GPS lock; if the user denied permission OR the browser timed out,
+        // resolve to null so the SOS still fires without blocking. We DON'T
+        // ask permission until the SOS button is tapped — pre-asking would
+        // train users to deny by default, defeating the purpose.
+        const GEO_TIMEOUT_MS = 5000;
+        function getGeolocation() {
+          return new Promise((resolve) => {
+            if (typeof navigator === 'undefined' || !navigator.geolocation) {
+              resolve(null); return;
+            }
+            let settled = false;
+            const timer = setTimeout(() => {
+              if (settled) return;
+              settled = true; resolve(null);
+            }, GEO_TIMEOUT_MS);
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                if (settled) return;
+                settled = true; clearTimeout(timer);
+                resolve({
+                  latitude: pos.coords.latitude,
+                  longitude: pos.coords.longitude,
+                  accuracy: pos.coords.accuracy,
+                });
+              },
+              () => {
+                if (settled) return;
+                settled = true; clearTimeout(timer);
+                resolve(null);
+              },
+              { enableHighAccuracy: true, timeout: GEO_TIMEOUT_MS, maximumAge: 30_000 },
+            );
+          });
+        }
         // S355 — offline-aware SOS submit. If navigator.onLine is false OR
         // the fetch throws, queue locally via SosLightQueue + show "queued"
         // banner. Auto-flush replays on `online` event + interval tick.
-        async function tryDirectSend(text) {
+        async function tryDirectSend(text, location) {
           const r = await fetch('/api/saya/help-request', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text }),
+            body: JSON.stringify({ message: text, location }),
           });
           const body = await r.json();
           return { ok: r.ok && body.ok, body };
         }
-        async function queueOffline(text) {
+        async function queueOffline(text, location) {
           if (!window.SosLightQueue) throw new Error('queue unavailable');
           await window.SosLightQueue.enqueue({
             url: '/api/saya/help-request',
-            payload: { message: text },
+            payload: { message: text, location }, // S358 — location survives the queue
             label: 'sos-light',
           });
         }
         submit.addEventListener('click', async () => {
           const text = (msg.value || '').trim();
           if (text.length < 5) { status.textContent = 'Pesan minimal 5 karakter.'; status.style.color = 'var(--ruby)'; return; }
-          submit.disabled = true; status.textContent = 'Mengirim…'; status.style.color = 'var(--ink-200)';
+          submit.disabled = true;
+          // S358 — capture GPS first (5s max, never blocks SOS). Tell jemaah
+          // the SOS is being prepared so 5s wait isn't a confusing silence.
+          status.textContent = 'Mengambil lokasi…'; status.style.color = 'var(--ink-200)';
+          const location = await getGeolocation();
+          status.textContent = 'Mengirim…';
           // S355: skip the network if browser already knows we're offline.
           if (typeof navigator !== 'undefined' && navigator.onLine === false) {
             try {
-              await queueOffline(text);
-              status.textContent = '⏱ Queued (offline) — akan dikirim saat signal balik.';
+              await queueOffline(text, location);
+              status.textContent = '⏱ Queued (offline) — akan dikirim saat signal balik.'
+                + (location ? ' (📍 lokasi disertakan)' : '');
               status.style.color = 'var(--gold-300)';
               msg.value = '';
               setTimeout(() => { form.style.display = 'none'; toggle.style.display = 'block'; status.textContent = ''; }, 5000);
@@ -383,9 +424,10 @@
             return;
           }
           try {
-            const { ok, body } = await tryDirectSend(text);
+            const { ok, body } = await tryDirectSend(text, location);
             if (ok) {
-              status.textContent = '✓ SOS terkirim ke ' + body.recipients + ' penerima. Tim akan menghubungi.';
+              status.textContent = '✓ SOS terkirim ke ' + body.recipients + ' penerima. Tim akan menghubungi.'
+                + (location ? ' (📍 lokasi disertakan)' : '');
               status.style.color = 'var(--emerald)';
               msg.value = '';
               setTimeout(() => { form.style.display = 'none'; toggle.style.display = 'block'; status.textContent = ''; }, 4000);
@@ -396,7 +438,7 @@
           } catch (err) {
             // Network blew up mid-send → queue + tell jemaah.
             try {
-              await queueOffline(text);
+              await queueOffline(text, location);
               status.textContent = '⏱ Gagal kirim langsung — queued, akan retry otomatis.';
               status.style.color = 'var(--gold-300)';
               msg.value = '';

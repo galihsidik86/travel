@@ -58,11 +58,30 @@ async function findInTripBooking(userId, now = new Date()) {
  *   409 NOT_IN_TRIP — no active in-trip booking found for this user
  *   429 RATE_LIMITED — prior help request within COOLDOWN_MIN
  */
-export async function submitJemaahHelpRequest({ req, actor, userId, message, now = new Date() }) {
+// Stage 358 — sanitise a best-effort geolocation payload from the SOS form.
+// Browsers return { latitude, longitude, accuracy }; we accept the same
+// shape, validate ranges + drop garbage so payload stays clean. Returns
+// null on any failure — geolocation is opt-in (jemaah may decline the
+// permission prompt) so missing data must never block the SOS.
+function normaliseLocation(loc) {
+  if (!loc || typeof loc !== 'object') return null;
+  const lat = Number(loc.latitude);
+  const lng = Number(loc.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  const out = { latitude: lat, longitude: lng };
+  const acc = Number(loc.accuracy);
+  if (Number.isFinite(acc) && acc > 0) out.accuracyMeters = Math.round(acc);
+  return out;
+}
+
+export async function submitJemaahHelpRequest({ req, actor, userId, message, location = null, now = new Date() }) {
   const trimmed = String(message || '').trim().slice(0, MAX_MESSAGE_LEN);
   if (trimmed.length < MIN_MESSAGE_LEN) {
     throw new HttpError(400, `Pesan bantuan minimal ${MIN_MESSAGE_LEN} karakter`, 'BAD_MESSAGE');
   }
+  // S358 — best-effort geolocation. Missing/invalid → null, no error.
+  const loc = normaliseLocation(location);
   const booking = await findInTripBooking(userId, now);
   if (!booking) {
     throw new HttpError(409, 'Hanya jemaah dalam perjalanan yang bisa kirim SOS', 'NOT_IN_TRIP');
@@ -119,6 +138,16 @@ export async function submitJemaahHelpRequest({ req, actor, userId, message, now
   const { enqueueNotification } = await import('./notifications.js');
   const j = booking.jemaah;
   const subject = `🆘 Bantuan diminta · ${j?.fullName || 'jemaah'} · ${booking.paket.title}`;
+  // S358 — inline lokasi line + Maps deep link when GPS captured. Drops
+  // cleanly when location absent (jemaah declined the prompt or the
+  // capture timed out — admin still gets the SOS, just without GPS).
+  const locLines = loc ? [
+    '',
+    '— LOKASI (GPS jemaah)',
+    `Koordinat : ${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}`,
+    `Akurasi   : ±${loc.accuracyMeters || '?'} m`,
+    `Maps      : https://maps.google.com/?q=${loc.latitude},${loc.longitude}`,
+  ] : [];
   const body = [
     `Jemaah dalam perjalanan menekan tombol SOS-light.`,
     '',
@@ -130,6 +159,7 @@ export async function submitJemaahHelpRequest({ req, actor, userId, message, now
     '',
     '— PESAN',
     trimmed,
+    ...locLines,
     '',
     'Mohon hubungi jemaah sesegera mungkin via WA/telepon.',
     '',
@@ -156,6 +186,8 @@ export async function submitJemaahHelpRequest({ req, actor, userId, message, now
             bookingNo: booking.bookingNo,
             jemaahName: j?.fullName, jemaahPhone: j?.phone,
             messagePreview: trimmed.slice(0, 200),
+            // S358 — admin SOS banner reads this to render the Maps link
+            location: loc,
           },
           relatedEntity: 'Booking', relatedEntityId: booking.id,
         });
@@ -189,10 +221,12 @@ export async function submitJemaahHelpRequest({ req, actor, userId, message, now
       message: trimmed,
       recipientCount: recipients.length,
       enqueuedCount: enqueued,
+      // S358 — durable audit of location attached to this SOS
+      location: loc,
     },
   });
 
-  return { booking, enqueued, recipients: recipients.length };
+  return { booking, enqueued, recipients: recipients.length, location: loc };
 }
 
 // ── Stage 325 — admin ACK loop ───────────────────────────────
@@ -230,10 +264,15 @@ export async function getBookingHelpRequestState({ bookingId }) {
   const preview = latestReq.payload?.messagePreview
     || (typeof latestReq.payload === 'object' && latestReq.payload?.messagePreview)
     || null;
+  // S358 — extract location from the latest request's payload so admin
+  // SOS banner can render the Maps deep link.
+  const location = (latestReq.payload && typeof latestReq.payload === 'object')
+    ? (latestReq.payload.location || null) : null;
   return {
     pending,
     lastRequestAt: latestReq.createdAt,
     lastRequestPreview: preview,
+    location,
     ackedAt: latestAck?.createdAt || null,
     ackedByEmail: latestAck?.payload?.ackedByEmail || null,
   };
@@ -464,6 +503,8 @@ export async function listPendingHelpRequests({ limit = 100, now = new Date() } 
       const booking = byId.get(id);
       if (!booking) return null;
       const ageHours = Math.round(((now.getTime() - req.createdAt.getTime()) / 3_600_000) * 10) / 10;
+      const reqLocation = (req.payload && typeof req.payload === 'object')
+        ? (req.payload.location || null) : null;
       return {
         bookingId: id,
         bookingNo: booking.bookingNo,
@@ -471,6 +512,7 @@ export async function listPendingHelpRequests({ limit = 100, now = new Date() } 
         paket: booking.paket,
         requestedAt: req.createdAt,
         messagePreview: req.payload?.messagePreview || null,
+        location: reqLocation, // S358
         ageHours,
         escalated: latestEsc.has(id),
       };
