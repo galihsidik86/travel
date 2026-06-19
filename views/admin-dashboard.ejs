@@ -2493,6 +2493,123 @@
         </div>
       <% } } %>
 
+      <%# Stage 385 — LTV by acquisition channel. Hidden when no jemaah
+          tracked in window. Shows per-channel jemaah count, LTV, repeat
+          rate. Renders gold-bordered with sample-size dim for low-sample. %>
+      <% if (typeof ltvByChannel !== 'undefined' && ltvByChannel && ltvByChannel.rows.length > 0) { %>
+        <div class="panel" style="margin-top:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;">
+            <h3 style="margin:0;">LTV per channel akuisisi <span class="meta" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;">· <%= ltvByChannel.months %>BLN</span></h3>
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;">
+              <%= ltvByChannel.totals.jemaahCount %> JEMAAH · LTV RATA <strong style="color:var(--gold-300);">Rp <%= fmt.rpShort(ltvByChannel.totals.avgLtvIdr) %></strong>
+            </span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11.5px;margin-top:14px;">
+            <thead>
+              <tr style="border-bottom:var(--hairline);color:var(--ink-200);">
+                <th style="text-align:left;padding:8px;font-size:10px;letter-spacing:0.1em;">Channel</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">Jemaah</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">LTV avg</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">Conv %</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">Repeat %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% ltvByChannel.rows.slice(0, 15).forEach((r) => { %>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.03);<%= r.lowSample ? 'opacity:0.55;' : '' %>">
+                  <td style="padding:8px;color:var(--cream-100);"><%= r.label %><% if (r.lowSample) { %> <span style="color:var(--amber);font-size:9px;">(low sample)</span><% } %></td>
+                  <td style="padding:8px;text-align:right;color:var(--cream-100);"><%= r.jemaahCount %></td>
+                  <td style="padding:8px;text-align:right;color:var(--gold-300);font-weight:600;">Rp <%= fmt.rpShort(r.avgRevenuePerJemaahIdr) %></td>
+                  <td style="padding:8px;text-align:right;color:var(--cream-100);"><%= r.conversionRatePct == null ? '—' : r.conversionRatePct + '%' %></td>
+                  <td style="padding:8px;text-align:right;color:var(--cream-100);"><%= r.repeatRatePct == null ? '—' : r.repeatRatePct + '%' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <div style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
+            Channel ditentukan oleh first-touch booking (UTM &gt; agen &gt; direct). Low-sample (&lt; <%= ltvByChannel.minSample %> jemaah) ditampilkan dimmed.
+          </div>
+        </div>
+      <% } %>
+
+      <%# Stage 386 — Break-even season comparison. Renders only when
+          there's at least one paket with a previous-season chain. %>
+      <% if (typeof breakEvenSeason !== 'undefined' && breakEvenSeason && breakEvenSeason.rows.length > 0) { %>
+        <div class="panel" style="margin-top:24px;">
+          <h3 style="margin:0;">Break-even per season <span class="meta" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;">· paket × season sebelumnya</span></h3>
+          <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11.5px;margin-top:14px;">
+            <thead>
+              <tr style="border-bottom:var(--hairline);color:var(--ink-200);">
+                <th style="text-align:left;padding:8px;font-size:10px;letter-spacing:0.1em;">Paket</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">Sekarang</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">Season lalu</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% breakEvenSeason.rows.slice(0, 8).forEach((r) => {
+                   const dColor = r.pctFaster == null ? 'ink-300'
+                                : r.pctFaster > 0 ? 'emerald'
+                                : r.pctFaster < 0 ? 'ruby' : 'ink-200';
+              %>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+                  <td style="padding:8px;color:var(--cream-100);">
+                    <a href="/admin/paket/<%= r.paket.slug %>/edit" style="color:var(--gold-300);text-decoration:none;"><%= r.paket.title %></a>
+                  </td>
+                  <td style="padding:8px;text-align:right;color:var(--cream-100);">
+                    <%= r.current.brokeEven ? r.current.daysToBreakEven + 'h' : (r.current.lowSample ? '— (low)' : '— belum') %>
+                  </td>
+                  <td style="padding:8px;text-align:right;color:var(--ink-200);">
+                    <%= r.previous && r.previous.brokeEven ? r.previous.daysToBreakEven + 'h' : '—' %>
+                  </td>
+                  <td style="padding:8px;text-align:right;color:var(--<%= dColor %>);font-weight:600;">
+                    <%= r.pctFaster == null ? '—' : (r.pctFaster > 0 ? '▲ ' + r.pctFaster + '% faster' : r.pctFaster < 0 ? '▼ ' + Math.abs(r.pctFaster) + '% slower' : '=') %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <div style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
+            "Sekarang" = paket sekarang vs paket yang di-clone darinya (S18 paket clone lineage). Minimal <%= breakEvenSeason.minLunas %> LUNAS untuk hitung break-even.
+          </div>
+        </div>
+      <% } %>
+
+      <%# Stage 387 — Agent efficiency (revenue per lead-hour). Hidden when no
+          agents have any leads in the window. %>
+      <% if (typeof agentEfficiency !== 'undefined' && agentEfficiency && agentEfficiency.rows.length > 0) { %>
+        <div class="panel" style="margin-top:24px;">
+          <h3 style="margin:0;">Efisiensi agen <span class="meta" style="font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.12em;">· revenue per lead-hour · <%= agentEfficiency.months %>BLN</span></h3>
+          <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11.5px;margin-top:14px;">
+            <thead>
+              <tr style="border-bottom:var(--hairline);color:var(--ink-200);">
+                <th style="text-align:left;padding:8px;font-size:10px;letter-spacing:0.1em;">Agen</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">Leads</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">Conv %</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">Avg jam → LUNAS</th>
+                <th style="text-align:right;padding:8px;font-size:10px;letter-spacing:0.1em;">Rp / lead-hour</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% agentEfficiency.rows.slice(0, 12).forEach((r) => { %>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.03);<%= r.lowSample ? 'opacity:0.5;' : '' %>">
+                  <td style="padding:8px;color:var(--cream-100);">
+                    <a href="/admin/users?role=AGEN&q=<%= encodeURIComponent(r.slug) %>" style="color:var(--gold-300);text-decoration:none;"><%= r.displayName %></a>
+                  </td>
+                  <td style="padding:8px;text-align:right;color:var(--cream-100);"><%= r.totalLeads %> · <%= r.lunasLeads %> LUNAS</td>
+                  <td style="padding:8px;text-align:right;color:var(--cream-100);"><%= r.conversionRatePct == null ? '—' : r.conversionRatePct + '%' %></td>
+                  <td style="padding:8px;text-align:right;color:var(--ink-100);"><%= r.avgHoursLeadToLunas == null ? '—' : r.avgHoursLeadToLunas + 'j' %></td>
+                  <td style="padding:8px;text-align:right;color:var(--gold-300);font-weight:600;"><%= r.revenuePerLeadHourIdr == null ? '—' : 'Rp ' + fmt.rpShort(r.revenuePerLeadHourIdr) %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <div style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.04em;">
+            Lead-hour = jam dari created lead → LUNAS booking-nya. Revenue/lead-hour menjawab "berapa Rupiah dihasilkan tiap jam pipeline yang agen tanam". Low-sample (&lt; <%= agentEfficiency.minSample %> LUNAS) dimmed.
+          </div>
+        </div>
+      <% } %>
+
       <% const km_a = analytics.komisiMonthly;
          const km_maxKom = Math.max(1, ...km_a.map((m) => Math.max(m.earned, m.paid)));
          const km_totalEarned = km_a.reduce((a, m) => a + m.earned, 0);

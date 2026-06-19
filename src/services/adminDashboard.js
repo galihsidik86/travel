@@ -437,6 +437,33 @@ export async function getAdminOverview(opts = {}) {
     console.warn('[admin-overview] pwaInstallFunnel failed:', err?.message || err);
   }
 
+  // Stage 385 — LTV by acquisition channel (12-month window)
+  let ltvByChannel = null;
+  try {
+    const { getLtvByChannel } = await import('./ltvByChannel.js');
+    ltvByChannel = await getLtvByChannel({ months: 12 });
+  } catch (err) {
+    console.warn('[admin-overview] ltvByChannel failed:', err?.message || err);
+  }
+
+  // Stage 386 — Break-even season comparison (paket × clonedFrom chain)
+  let breakEvenSeason = null;
+  try {
+    const { getBreakEvenSeasonComparison } = await import('./breakEvenSeason.js');
+    breakEvenSeason = await getBreakEvenSeasonComparison({ limit: 10 });
+  } catch (err) {
+    console.warn('[admin-overview] breakEvenSeason failed:', err?.message || err);
+  }
+
+  // Stage 387 — Agent efficiency (revenue per lead-hour)
+  let agentEfficiency = null;
+  try {
+    const { getAgentEfficiency } = await import('./agentEfficiency.js');
+    agentEfficiency = await getAgentEfficiency({ months: 6 });
+  } catch (err) {
+    console.warn('[admin-overview] agentEfficiency failed:', err?.message || err);
+  }
+
   return {
     kpis,
     recentActivity,
@@ -463,6 +490,9 @@ export async function getAdminOverview(opts = {}) {
     networkRevenueForecast,
     breakEvenOverview,
     pwaInstallFunnel,
+    ltvByChannel,
+    breakEvenSeason,
+    agentEfficiency,
     emailCtr,
     analytics: {
       funnel: globalFunnel,
