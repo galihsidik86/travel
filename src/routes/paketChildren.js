@@ -329,6 +329,44 @@ router.delete(
   }),
 );
 
+// ── Stage 374: Vendor / hotel / emergency contact CRUD ───────
+router.post(
+  '/:slug/vendor-contacts',
+  asyncHandler(async (req, res) => {
+    const { createVendorContact } = await import('../services/crewVendorContacts.js');
+    const paket = await db.paket.findUnique({ where: { slug: req.params.slug }, select: { id: true } });
+    if (!paket) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+    const row = await createVendorContact({
+      req, actor: actorFrom(req), paketId: paket.id, input: req.body,
+    });
+    res.status(201).json({ contact: row });
+  }),
+);
+router.patch(
+  '/:slug/vendor-contacts/:id',
+  asyncHandler(async (req, res) => {
+    const { updateVendorContact } = await import('../services/crewVendorContacts.js');
+    const paket = await db.paket.findUnique({ where: { slug: req.params.slug }, select: { id: true } });
+    if (!paket) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+    const row = await updateVendorContact({
+      req, actor: actorFrom(req), paketId: paket.id, id: req.params.id, input: req.body,
+    });
+    res.json({ contact: row });
+  }),
+);
+router.delete(
+  '/:slug/vendor-contacts/:id',
+  asyncHandler(async (req, res) => {
+    const { deleteVendorContact } = await import('../services/crewVendorContacts.js');
+    const paket = await db.paket.findUnique({ where: { slug: req.params.slug }, select: { id: true } });
+    if (!paket) throw new HttpError(404, 'Paket tidak ditemukan', 'PAKET_NOT_FOUND');
+    const result = await deleteVendorContact({
+      req, actor: actorFrom(req), paketId: paket.id, id: req.params.id,
+    });
+    res.json(result);
+  }),
+);
+
 // ── Stage 283: Add-on catalog CRUD ───────────────────────────
 router.post(
   '/:slug/addons',

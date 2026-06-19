@@ -859,6 +859,143 @@
         </script>
       <% } %>
 
+      <%# Stage 374 — Vendor / hotel / emergency contact CRUD panel. Edit-mode only.
+          JSON-driven (POST /api/paket/:slug/vendor-contacts etc) so admin can
+          add hotel front desk, bus charter, ambulance, KBRI, clinic, etc.
+          per-paket. Crew sees these on /crew/paket/:slug as tel:/wa.me links. %>
+      <% if (mode === 'edit' && typeof vendorContacts !== 'undefined') { %>
+        <div class="panel" style="margin-top:24px;">
+          <h3>📒 Kontak vendor &amp; darurat (<%= vendorContacts.length %>)</h3>
+          <div class="helper" style="margin-bottom:12px;">
+            Crew tap untuk telepon langsung saat di lapangan — hotel, bus,
+            ambulans, KBRI. Setidaknya isi Telepon ATAU WhatsApp; alamat opsional.
+          </div>
+          <div id="vc-list">
+            <% if (vendorContacts.length === 0) { %>
+              <p class="helper" style="color:var(--ink-200); font-style:italic;">Belum ada kontak. Tambah di bawah.</p>
+            <% } else { %>
+              <table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
+                <thead>
+                  <tr style="border-bottom:var(--hairline);">
+                    <th style="text-align:left; padding:6px; font-family:var(--font-mono); font-size:10px; color:var(--ink-200); letter-spacing:0.1em; text-transform:uppercase;">Kategori</th>
+                    <th style="text-align:left; padding:6px; font-family:var(--font-mono); font-size:10px; color:var(--ink-200); letter-spacing:0.1em; text-transform:uppercase;">Label</th>
+                    <th style="text-align:left; padding:6px; font-family:var(--font-mono); font-size:10px; color:var(--ink-200); letter-spacing:0.1em; text-transform:uppercase;">Telepon</th>
+                    <th style="text-align:left; padding:6px; font-family:var(--font-mono); font-size:10px; color:var(--ink-200); letter-spacing:0.1em; text-transform:uppercase;">WhatsApp</th>
+                    <th style="text-align:left; padding:6px; font-family:var(--font-mono); font-size:10px; color:var(--ink-200); letter-spacing:0.1em; text-transform:uppercase;">Sort</th>
+                    <th style="text-align:right; padding:6px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% vendorContacts.forEach((c) => { %>
+                    <tr data-vc-id="<%= c.id %>" style="border-bottom: 1px dashed rgba(255,255,255,0.04);">
+                      <td style="padding:6px;">
+                        <select data-field="category" class="input" style="padding:4px 6px; font-size:11px;">
+                          <% vendorCategories.forEach((cat) => { %>
+                            <option value="<%= cat %>" <%= c.category === cat ? 'selected' : '' %>><%= vendorCategoryLabels[cat] %></option>
+                          <% }) %>
+                        </select>
+                      </td>
+                      <td style="padding:6px;"><input data-field="label" class="input" style="padding:4px 6px; font-size:11px;" value="<%= c.label %>"></td>
+                      <td style="padding:6px;"><input data-field="phone" class="input" style="padding:4px 6px; font-size:11px;" value="<%= c.phone || '' %>" placeholder="+62 / +966"></td>
+                      <td style="padding:6px;"><input data-field="whatsapp" class="input" style="padding:4px 6px; font-size:11px;" value="<%= c.whatsapp || '' %>" placeholder="+62 / +966"></td>
+                      <td style="padding:6px; width:60px;"><input data-field="sortOrder" class="input" type="number" style="padding:4px 6px; font-size:11px;" value="<%= c.sortOrder %>" min="0" max="9999"></td>
+                      <td style="padding:6px; text-align:right; white-space:nowrap;">
+                        <button type="button" class="btn" data-action="save" style="background:var(--gold-300); color:var(--ink-1000); padding:5px 10px; font-size:10px; border:0; border-radius:3px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.08em;">Simpan</button>
+                        <button type="button" class="btn" data-action="delete" style="background:transparent; color:var(--ruby); padding:5px 8px; font-size:10px; border:1px solid var(--ruby); border-radius:3px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.08em;">×</button>
+                      </td>
+                    </tr>
+                    <tr data-vc-extra="<%= c.id %>">
+                      <td colspan="6" style="padding:0 6px 6px;">
+                        <input data-field="address" class="input" style="width:100%; padding:4px 6px; font-size:11px; margin-bottom:4px;" value="<%= c.address || '' %>" placeholder="Alamat (opsional)">
+                        <textarea data-field="notes" class="input" rows="1" style="width:100%; padding:4px 6px; font-size:11px;" placeholder="Catatan (opsional)"><%= c.notes || '' %></textarea>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            <% } %>
+          </div>
+          <details>
+            <summary style="cursor:pointer; font-family:var(--font-mono); font-size:11px; color:var(--gold-300); letter-spacing:0.08em;">+ Tambah kontak baru</summary>
+            <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 2fr; gap:8px; align-items:start;">
+              <select id="vc-new-category" class="input" style="font-size:11px;">
+                <% vendorCategories.forEach((cat) => { %>
+                  <option value="<%= cat %>"><%= vendorCategoryLabels[cat] %></option>
+                <% }) %>
+              </select>
+              <input id="vc-new-label" class="input" style="font-size:11px;" placeholder="Label (mis. 'Hotel Andalus Madinah · Front Desk')">
+              <input id="vc-new-phone" class="input" style="font-size:11px;" placeholder="Telepon (mis. +966 9 …)">
+              <input id="vc-new-whatsapp" class="input" style="font-size:11px;" placeholder="WhatsApp">
+              <input id="vc-new-address" class="input" style="grid-column:1/-1; font-size:11px;" placeholder="Alamat (opsional)">
+              <textarea id="vc-new-notes" class="input" rows="1" style="grid-column:1/-1; font-size:11px;" placeholder="Catatan (opsional)"></textarea>
+            </div>
+            <button type="button" id="vc-add-btn" class="btn" style="margin-top:8px; background:var(--gold-300); color:var(--ink-1000); padding:7px 14px; font-size:11px; border:0; border-radius:3px; cursor:pointer; font-family:var(--font-mono); letter-spacing:0.08em;">+ Tambah</button>
+            <span id="vc-err" style="color:var(--ruby); font-family:var(--font-mono); font-size:11px; margin-left:10px;"></span>
+          </details>
+        </div>
+        <script>
+        (function () {
+          const slug = '<%= paket.slug %>';
+          function showErr(msg) {
+            const el = document.getElementById('vc-err');
+            if (el) { el.textContent = msg; setTimeout(() => { el.textContent = ''; }, 4000); }
+          }
+          // Add
+          document.getElementById('vc-add-btn')?.addEventListener('click', async () => {
+            const body = {
+              category: document.getElementById('vc-new-category').value,
+              label: document.getElementById('vc-new-label').value.trim(),
+              phone: document.getElementById('vc-new-phone').value.trim(),
+              whatsapp: document.getElementById('vc-new-whatsapp').value.trim(),
+              address: document.getElementById('vc-new-address').value.trim(),
+              notes: document.getElementById('vc-new-notes').value.trim(),
+            };
+            const r = await fetch('/api/paket/' + slug + '/vendor-contacts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            if (r.ok) window.location.reload();
+            else { const j = await r.json().catch(() => ({})); showErr(j?.error?.message || 'Gagal'); }
+          });
+          // Save / delete per row
+          document.querySelectorAll('tr[data-vc-id]').forEach((tr) => {
+            const id = tr.getAttribute('data-vc-id');
+            const extra = document.querySelector('tr[data-vc-extra="' + id + '"]');
+            tr.querySelector('[data-action="save"]')?.addEventListener('click', async () => {
+              const fieldOf = (sel) => {
+                const el = tr.querySelector('[data-field="' + sel + '"]')
+                  || (extra && extra.querySelector('[data-field="' + sel + '"]'));
+                return el ? el.value.trim() : '';
+              };
+              const body = {
+                category: fieldOf('category'),
+                label: fieldOf('label'),
+                phone: fieldOf('phone'),
+                whatsapp: fieldOf('whatsapp'),
+                address: fieldOf('address'),
+                notes: fieldOf('notes'),
+                sortOrder: fieldOf('sortOrder'),
+              };
+              const r = await fetch('/api/paket/' + slug + '/vendor-contacts/' + id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              });
+              if (r.ok) window.location.reload();
+              else { const j = await r.json().catch(() => ({})); showErr(j?.error?.message || 'Gagal'); }
+            });
+            tr.querySelector('[data-action="delete"]')?.addEventListener('click', async () => {
+              if (!confirm('Hapus kontak ini?')) return;
+              const r = await fetch('/api/paket/' + slug + '/vendor-contacts/' + id, { method: 'DELETE' });
+              if (r.ok) window.location.reload();
+              else { const j = await r.json().catch(() => ({})); showErr(j?.error?.message || 'Gagal'); }
+            });
+          });
+        })();
+        </script>
+      <% } %>
+
       <!-- Stage 61 — ads spend (ROI input) -->
       <div class="grid-2">
         <div class="field">

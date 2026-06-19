@@ -7,7 +7,10 @@
 </button>
 
 <dialog id="sos-modal" class="sos-modal">
-  <form method="POST" action="/crew/sos" class="sos-form" id="sos-form">
+  <%# Stage 373 — multipart so optional photo evidence (e.g. injury, broken
+      bus, food poisoning) can attach. The route handler tolerates a missing
+      file part for offline-queued replays (S368 queue serialises text only). %>
+  <form method="POST" action="/crew/sos" class="sos-form" id="sos-form" enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <% if (typeof paketSlug !== 'undefined' && paketSlug) { %>
       <input type="hidden" name="paketSlug" value="<%= paketSlug %>">
@@ -44,6 +47,19 @@
       <span>Apa yang terjadi? (singkat)</span>
       <textarea name="message" maxlength="2000" rows="4"
                 placeholder="Mis. 'Bu Khadijah pingsan di pelataran Masjid Bilal, kondisi sadar tapi lemah, perlu ambulans.'"></textarea>
+    </label>
+
+    <%# Stage 373 — photo evidence. capture="environment" opens rear camera
+        on phones, falls back to picker on desktop. accept restricts to
+        images (matches incidentStorage allowlist). Optional — text-only
+        SOS still goes through; the form post drops the empty file gracefully. %>
+    <label class="sos-field">
+      <span>Foto evidence (opsional)</span>
+      <input type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment"
+             style="background:var(--ink-1000); color:var(--cream-100); border:1px solid var(--hairline-soft); border-radius:var(--r-sm); padding:8px 10px; font-family:inherit; font-size:12.5px;">
+      <small id="sos-photo-warn" style="display:none; color:var(--amber); font-family:var(--font-mono); font-size:10.5px; margin-top:2px;">
+        ⚠ Offline — foto tidak ter-queue; teks SOS tetap terkirim, ulangi foto saat online.
+      </small>
     </label>
 
     <div class="sos-modal__actions">
@@ -159,17 +175,38 @@
         url: '/crew/sos', payload, label: 'crew-sos',
       });
     }
+    // Stage 373 — warn jemaah upfront when they attach a photo while offline.
+    // We can't reliably queue Blobs in the S368 IDB store today; queued
+    // replays will be text-only.
+    const $photoInput = form.querySelector('input[name="photo"]');
+    const $photoWarn = document.getElementById('sos-photo-warn');
+    function updatePhotoWarn() {
+      if (!$photoWarn || !$photoInput) return;
+      const hasFile = $photoInput.files && $photoInput.files.length > 0;
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      $photoWarn.style.display = (hasFile && offline) ? 'block' : 'none';
+    }
+    if ($photoInput) $photoInput.addEventListener('change', updatePhotoWarn);
+    window.addEventListener('online', updatePhotoWarn);
+    window.addEventListener('offline', updatePhotoWarn);
+
     form.addEventListener('submit', async (ev) => {
       // Always intercept — we route through fetch so we can fall back to
       // the queue on network failure (which the regular form POST can't do).
       ev.preventDefault();
+      // S373 — keep both: text payload (for offline queue / fallback) and
+      // FormData (for online multipart with photo).
       const fd = new FormData(form);
       const payload = {};
-      for (const [k, v] of fd.entries()) payload[k] = String(v);
+      for (const [k, v] of fd.entries()) {
+        if (typeof v === 'string') payload[k] = v;
+        // File entries are dropped from `payload` — only the text fields
+        // make it into the offline queue; the file goes via FormData online.
+      }
       const sendBtn = form.querySelector('.sos-modal__send');
       const dialog = document.getElementById('sos-modal');
       if (sendBtn) sendBtn.disabled = true;
-      // Offline → queue immediately.
+      // Offline → queue immediately. Photo (if any) is dropped — user was warned.
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
         try {
           await queueOffline(payload);
@@ -183,14 +220,14 @@
         }
         return;
       }
-      // Online → direct POST. On failure, queue.
+      // Online → multipart POST (photo included if attached).
       try {
         const res = await fetch('/crew/sos', {
           method: 'POST',
           credentials: 'same-origin',
           redirect: 'follow',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams(payload),
+          // No explicit Content-Type — browser sets multipart boundary automatically
+          body: fd,
         });
         if (res.ok || res.redirected || res.status === 429) {
           if (dialog) dialog.close();
@@ -201,9 +238,10 @@
           throw new Error('HTTP ' + res.status);
         }
       } catch (err) {
+        // Network blew up mid-send → queue text payload (no photo).
         try {
           await queueOffline(payload);
-          alert('⏱ Gagal kirim langsung — queued, akan retry otomatis.');
+          alert('⏱ Gagal kirim langsung — queued (tanpa foto), akan retry otomatis.');
           if (dialog) dialog.close();
           form.reset();
         } catch (qErr) {

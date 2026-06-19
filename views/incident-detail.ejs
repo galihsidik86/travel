@@ -160,6 +160,26 @@
       <div class="l" style="font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px;">Pesan dari crew</div>
       <div class="message-block"><%= incident.message || '(tidak ada pesan tambahan)' %></div>
     </div>
+
+    <%# Stage 373 — photo evidence (S373). Hidden when no photo attached
+        (most pre-S373 incidents won't have one). Click image to open in
+        new tab at full size for admin to zoom on injury, broken equipment,
+        etc. %>
+    <% if (incident.photoPath) { %>
+      <div style="margin-top:18px;">
+        <div class="l" style="font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px;">📷 Foto evidence dari crew</div>
+        <a href="/admin/incidents/<%= incident.id %>/photo" target="_blank" rel="noopener" style="display:block; max-width: 480px;">
+          <img src="/admin/incidents/<%= incident.id %>/photo" alt="Incident photo"
+               style="display:block; width: 100%; max-width: 480px; border: 1px solid var(--hairline-soft); border-radius: var(--r-sm); background: var(--ink-1000);">
+        </a>
+        <div style="font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); margin-top: 6px; letter-spacing: 0.04em;">
+          <%= incident.photoName || 'photo' %>
+          <% if (incident.photoSize) { %> · <%= Math.round(incident.photoSize / 1024) %> KB<% } %>
+          <% if (incident.photoUploadedAt) { %> · diupload <%= fmt.date(incident.photoUploadedAt) %><% } %>
+          · <a href="/admin/incidents/<%= incident.id %>/photo" target="_blank" rel="noopener" style="color: var(--gold-300);">buka asli ↗</a>
+        </div>
+      </div>
+    <% } %>
   </div>
 
   <%

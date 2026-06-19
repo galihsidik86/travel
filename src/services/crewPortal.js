@@ -144,7 +144,17 @@ export async function getAssignedManifest({ userId, slug }) {
     return b.paxCount - a.paxCount;
   });
 
-  return { ...paket, bookings: enriched, dietarySummary, pickupSummary };
+  // Stage 374 — vendor / hotel / emergency contact book.
+  // Read-only for crew; admin authors per-paket on paket-edit form.
+  let vendorContacts = [];
+  try {
+    const { listVendorContacts } = await import('./crewVendorContacts.js');
+    vendorContacts = await listVendorContacts(paket.id);
+  } catch (err) {
+    console.warn('[crew-manifest] vendorContacts load failed:', err?.message || err);
+  }
+
+  return { ...paket, bookings: enriched, dietarySummary, pickupSummary, vendorContacts };
 }
 
 // ─── 5ww: per-day attendance ────────────────────────────────

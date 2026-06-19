@@ -79,11 +79,15 @@ router.get(
   }),
 );
 
-// SOS / incident report. Form-encoded POST so the static <form> works without
-// JS too. Returns redirect with ?sos=sent for the success banner; JSON
+// SOS / incident report. Multipart form so optional photo upload works
+// (S373); falls back gracefully when no file part is present (S368
+// offline-queued replays use urlencoded, no photo).
+// Returns redirect with ?sos=sent for the success banner; JSON
 // caller can read the resulting Location header for the page redirect.
+const { uploadIncidentPhoto } = await import('../middleware/incidentPhotoUpload.js');
 router.post(
   '/sos',
+  uploadIncidentPhoto,
   asyncHandler(async (req, res) => {
     const incident = await createIncident({
       req,
@@ -94,6 +98,7 @@ router.post(
         message: req.body?.message || null,
         locationLabel: req.body?.locationLabel || null,
       },
+      file: req.file || null,
     });
     res.redirect(`/crew?sos=sent&id=${encodeURIComponent(incident.id)}`);
   }),

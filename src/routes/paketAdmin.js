@@ -284,9 +284,12 @@ router.get(
     const { listFaqs } = await import('../services/paketFaqs.js');
     // Stage 196 — pickup points
     const { listPickups } = await import('../services/paketPickups.js');
+    // Stage 374 — vendor / hotel / emergency contact book
+    const { listVendorContacts, CATEGORY_LABELS: vendorCategoryLabels, VENDOR_CATEGORIES }
+      = await import('../services/crewVendorContacts.js');
     // Stage 278 — recent crew daily reports for admin visibility
     const { listPaketReports } = await import('../services/crewDailyReport.js');
-    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks, faqs, pickups, crewReportsBundle, bulkRescheduleData] = await Promise.all([
+    const [availableCrew, assignedCrew, availableAgents, paketOverrides, profitability, breakEven, abBreakdown, viewTrend, costLines, costBenchmarks, faqs, pickups, vendorContacts, crewReportsBundle, bulkRescheduleData] = await Promise.all([
       listAvailableCrew(),
       listAssignedCrewForPaket(req.params.slug),
       db.agentProfile.findMany({
@@ -303,6 +306,7 @@ router.get(
       getCostBenchmarks({ paketId: paket.id }),
       listFaqs(paket.id),
       listPickups(paket.id),
+      listVendorContacts(paket.id),
       listPaketReports({ paketSlug: req.params.slug, limit: 20 })
         .catch((err) => { console.warn('[paket-edit] reports failed:', err?.message || err); return null; }),
       // Stage 347 — bulk reschedule preview: count of non-terminal bookings
@@ -347,6 +351,7 @@ router.get(
       profitability, breakEven, abBreakdown, viewTrend,
       costLines, costCategories: COST_CATEGORIES, costCategoryLabel: getCategoryLabel,
       costBenchmarks, faqs, pickups,
+      vendorContacts, vendorCategoryLabels, vendorCategories: VENDOR_CATEGORIES,
       crewReports: crewReportsBundle?.reports || [],
       // Stage 347 — bulk reschedule panel data
       bulkReschedule: bulkRescheduleData,

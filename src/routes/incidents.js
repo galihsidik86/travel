@@ -71,4 +71,27 @@ router.post(
   }),
 );
 
+// Stage 373 — admin photo download. Inline so browsers render directly.
+// 404 (not 403) on missing photo to avoid leaking which incidents do/don't
+// have evidence attached based on response code.
+router.get(
+  '/:id/photo',
+  asyncHandler(async (req, res) => {
+    const incident = await getIncident(req.params.id);
+    if (!incident || !incident.photoPath) {
+      throw new HttpError(404, 'Foto tidak ditemukan', 'NO_PHOTO');
+    }
+    const { absFromRel } = await import('../lib/incidentStorage.js');
+    const abs = absFromRel(incident.photoPath);
+    res.type(incident.photoMime || 'image/jpeg');
+    res.setHeader('Content-Disposition', `inline; filename="${incident.photoName || 'photo.jpg'}"`);
+    res.sendFile(abs, (err) => {
+      if (err) {
+        console.warn('[incidents] photo send failed:', err?.message || err);
+        if (!res.headersSent) res.status(404).send('Photo not available');
+      }
+    });
+  }),
+);
+
 export default router;

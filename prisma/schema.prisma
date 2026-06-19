@@ -647,6 +647,7 @@ model Paket {
   faqs            PaketFaq[]
   announcements   PaketAnnouncement[]
   pickups         PaketPickup[]
+  vendorContacts  CrewVendorContact[]
   addons          PaketAddon[]
   webhooks        Webhook[]          @relation("WebhookPaket")
   tripFeedback    TripFeedback[]
@@ -1349,6 +1350,16 @@ model Incident {
   // never clear this stamp — once escalated, always escalated.
   escalatedAt  DateTime?
 
+  // Stage 373 — photo evidence captured with the SOS submission. Stored
+  // under private/incidents/<incidentId>/<sanitized>.<ext>; download
+  // route serves it inline to admin. Null on the offline-queued submits
+  // (S368 queue doesn't carry blobs; crew can resubmit photo later).
+  photoPath        String?   @db.VarChar(500)
+  photoName        String?   @db.VarChar(255)
+  photoSize        Int?
+  photoMime        String?   @db.VarChar(100)
+  photoUploadedAt  DateTime?
+
   createdAt DateTime @default(now())
 
   @@index([status, createdAt])
@@ -1972,6 +1983,40 @@ model PaketPickup {
   bookings   Booking[]
 
   @@index([paketId])
+}
+
+// Stage 374 — per-paket vendor / hotel / emergency contact book. Crew
+// in the field need the hotel front desk, bus charter, ambulance, KBRI,
+// and clinic numbers AT LEAST as much as jemaah ICE contacts. Stored
+// per-paket since vendor mix changes per trip (different hotel in
+// Madinah, different bus charter). Admin authors on paket-edit; crew
+// reads from /crew/paket/:slug — tel:/wa.me deep links so one-tap call.
+model CrewVendorContact {
+  id        String   @id @default(cuid())
+  paketId   String
+  paket     Paket    @relation(fields: [paketId], references: [id], onDelete: Cascade)
+  category  VendorContactCategory
+  label     String   @db.VarChar(120)
+  phone     String?  @db.VarChar(30)
+  whatsapp  String?  @db.VarChar(30)
+  address   String?  @db.VarChar(500)
+  notes     String?  @db.Text
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([paketId, category])
+}
+
+enum VendorContactCategory {
+  HOTEL
+  BUS
+  AMBULANCE
+  CLINIC
+  EMBASSY
+  RESTAURANT
+  GUIDE
+  OTHER
 }
 
 // Stage 283 — per-paket add-on catalog. Admin curates optional extras

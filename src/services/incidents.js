@@ -98,7 +98,7 @@ async function resolvePaketForCrew(crewUserId, slug) {
  * Fan-out (admin notif) is fire-and-forget after the row write commits —
  * a notif insert failure must not abort the SOS being recorded.
  */
-export async function createIncident({ req, crewUser, input }) {
+export async function createIncident({ req, crewUser, input, file = null }) {
   if (!crewUser || crewUser.role !== 'MUTHAWWIF') {
     throw new HttpError(403, 'Hanya crew (MUTHAWWIF) yang dapat mengirim insiden', 'FORBIDDEN');
   }
@@ -128,13 +128,60 @@ export async function createIncident({ req, crewUser, input }) {
     include: { paket: { select: { title: true, slug: true } } },
   });
 
+  // Stage 373 — photo evidence (best-effort). If multer attached a file
+  // to the request, move it into private/incidents/<id>/. We do this
+  // AFTER the row insert so the path can include the incident id and so
+  // a failed move never blocks the SOS row landing (the row is the
+  // load-bearing artifact; the photo is supplementary evidence).
+  if (file) {
+    try {
+      const { moveIncidentPhoto, ALLOWED_INCIDENT_PHOTO_MIME, MAX_INCIDENT_PHOTO_BYTES, sanitiseBasename }
+        = await import('../lib/incidentStorage.js');
+      if (!ALLOWED_INCIDENT_PHOTO_MIME.has(file.mimetype)) {
+        throw new Error('Mime tidak diizinkan: ' + file.mimetype);
+      }
+      if (file.size > MAX_INCIDENT_PHOTO_BYTES) {
+        throw new Error('Foto terlalu besar');
+      }
+      const relPath = await moveIncidentPhoto({
+        tmpPath: file.path,
+        incidentId: incident.id,
+        originalName: file.originalname,
+        mime: file.mimetype,
+        previousRel: null,
+      });
+      await db.incident.update({
+        where: { id: incident.id },
+        data: {
+          photoPath: relPath,
+          photoName: sanitiseBasename(file.originalname),
+          photoSize: file.size,
+          photoMime: file.mimetype,
+          photoUploadedAt: new Date(),
+        },
+      });
+      incident.photoPath = relPath;
+      incident.photoName = sanitiseBasename(file.originalname);
+      incident.photoSize = file.size;
+      incident.photoMime = file.mimetype;
+      incident.photoUploadedAt = new Date();
+    } catch (err) {
+      // Don't abort — log + leave the row without a photo. Crew can re-upload later.
+      console.warn('[incidents] photo attach failed:', err?.message || err);
+    }
+  }
+
   await audit({
     req,
     actor: { id: crewUser.id, email: crewUser.email, role: crewUser.role },
     action: 'CREATE',
     entity: 'Incident',
     entityId: incident.id,
-    after: { type: incident.type, paketSlug: incident.paket?.slug ?? null },
+    after: {
+      type: incident.type,
+      paketSlug: incident.paket?.slug ?? null,
+      photoAttached: !!incident.photoPath,
+    },
   });
 
   // Fire-and-forget admin fan-out
