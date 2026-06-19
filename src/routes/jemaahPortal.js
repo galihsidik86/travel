@@ -320,6 +320,26 @@ router.get(
     res.render('jemaah-ibadah-jumrah', { user: req.user });
   }),
 );
+// Stage 382 — UU PDP consent receipt PDF
+router.get(
+  '/saya/consent-receipt.pdf',
+  asyncHandler(async (req, res) => {
+    const { getConsentReceiptData, streamConsentReceiptPdf } = await import('../services/consentReceipt.js');
+    const receipt = await getConsentReceiptData(req.user.id);
+    if (!receipt) throw new HttpError(404, 'Receipt tidak ditemukan', 'NOT_FOUND');
+    await streamConsentReceiptPdf(receipt, res);
+  }),
+);
+// Stage 384 — UU PDP privacy dashboard (consolidated consent state,
+// data held, retention policy, action links).
+router.get(
+  '/saya/privasi',
+  asyncHandler(async (req, res) => {
+    const { getJemaahPrivacyDashboard } = await import('../services/jemaahPrivacy.js');
+    const data = await getJemaahPrivacyDashboard(req.user.id);
+    res.render('jemaah-privacy', { user: req.user, ...data });
+  }),
+);
 // Stage 376 — Qibla compass (geolocation + device orientation)
 router.get(
   '/saya/ibadah/qibla',

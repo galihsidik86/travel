@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RELIGIO PRO — Privasi & Data Saya</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 18px 100px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 18px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 20px; line-height: 1.6; }
+
+  .panel {
+    background: var(--ink-900); border: 1px solid var(--hairline-soft);
+    border-radius: var(--r-md); padding: 18px 20px; margin-bottom: 16px;
+  }
+  .panel.gold { border-color: var(--gold-300); background: rgba(212,175,107,0.04); }
+  .panel.emerald { border-color: var(--emerald); background: rgba(80,176,113,0.04); }
+  .panel.ruby { border-color: var(--ruby); background: rgba(212,89,89,0.04); }
+  .panel h3 {
+    font-family: var(--font-display); font-size: 18px; color: var(--cream-100);
+    margin: 0 0 10px; letter-spacing: -0.01em;
+  }
+  .panel h3 em { font-style: italic; color: var(--gold-300); }
+  .panel .meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.06em; }
+
+  .kv-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-family: var(--font-mono); font-size: 12px; border-bottom: 1px dashed rgba(255,255,255,0.04); }
+  .kv-row:last-child { border-bottom: 0; }
+  .kv-row .k { color: var(--ink-200); }
+  .kv-row .v { color: var(--cream-100); font-weight: 600; }
+  .kv-row .v.green { color: var(--emerald); }
+  .kv-row .v.red { color: var(--ruby); }
+
+  .btn-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 12px; }
+  @media (min-width: 520px) { .btn-grid { grid-template-columns: 1fr 1fr; } }
+  .btn {
+    display: block; padding: 12px 16px; text-align: center;
+    border-radius: var(--r-sm); cursor: pointer; text-decoration: none;
+    font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;
+    background: transparent; color: var(--ink-100); border: 1px solid var(--hairline-soft);
+  }
+  .btn.primary { background: var(--gold-300); color: var(--ink-1000); border-color: var(--gold-300); }
+  .btn.danger { background: transparent; color: var(--ruby); border-color: var(--ruby); }
+  .btn:hover { opacity: 0.88; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; }
+  table th { text-align: left; padding: 6px 8px; color: var(--ink-200); font-weight: 500; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: var(--hairline-soft); }
+  table td { padding: 8px; color: var(--cream-100); border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: top; line-height: 1.6; }
+
+  .delete-form details { background: rgba(212,89,89,0.05); padding: 14px; border-radius: var(--r-sm); border: 1px solid rgba(212,89,89,0.3); }
+  .delete-form summary { cursor: pointer; color: var(--ruby); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; font-weight: 600; }
+  .delete-form textarea { width: 100%; box-sizing: border-box; background: var(--ink-1000); color: var(--cream-100); border: 1px solid var(--hairline-soft); padding: 8px 10px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; margin-top: 10px; min-height: 80px; }
+  .delete-form button[type="submit"] { background: var(--ruby); color: var(--cream-100); border: 0; padding: 10px 16px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; margin-top: 8px; font-weight: 600; }
+
+  .request-row { padding: 10px 12px; background: var(--ink-1000); border-radius: var(--r-sm); margin-bottom: 6px; font-family: var(--font-mono); font-size: 11.5px; color: var(--cream-100); }
+  .request-row .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; margin-right: 8px; }
+  .badge.PENDING { background: rgba(201,147,59,0.15); color: var(--amber); }
+  .badge.APPROVED { background: rgba(80,176,113,0.15); color: var(--emerald); }
+  .badge.DECLINED { background: rgba(212,89,89,0.15); color: var(--ruby); }
+</style>
+</head>
+<body class="has-m-tabs">
+  <div class="wrap">
+    <div class="crumb"><a href="/saya">← /saya</a> · PRIVASI &amp; DATA SAYA</div>
+    <h1>Privasi &amp; <em>data Anda</em></h1>
+    <div class="sub">
+      Halaman ini menjabarkan: apa yang kami simpan tentang Anda, siapa yang bisa melihatnya, berapa lama disimpan, dan bagaimana Anda menggunakan hak-hak Anda berdasarkan UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi (UU PDP).
+    </div>
+
+    <% if (!user) { %>
+      <div class="panel">Profil jemaah tidak ditemukan.</div>
+    <% } else { %>
+
+    <%# 1. Current consent state %>
+    <div class="panel emerald">
+      <h3>1. Persetujuan komunikasi Anda</h3>
+      <div class="meta" style="margin-bottom:8px;">Bisa diubah kapan saja di <a href="/saya/profile" style="color:var(--gold-300);">/saya/profile</a></div>
+      <% function fmtConsent(given, given_at, withdrawn_at) {
+           if (given) return given_at
+             ? '✓ Diberikan sejak ' + new Date(given_at).toLocaleDateString('id-ID')
+             : '✓ Diberikan';
+           return withdrawn_at
+             ? '✗ Ditarik ' + new Date(withdrawn_at).toLocaleDateString('id-ID')
+             : '✗ Tidak diberikan';
+         } %>
+      <div class="kv-row">
+        <span class="k">📱 WhatsApp transaksional</span>
+        <span class="v <%= profile.notifWa ? 'green' : 'red' %>"><%= fmtConsent(profile.notifWa, profile.notifWaConsentAt, profile.notifWaWithdrawnAt) %></span>
+      </div>
+      <div class="kv-row">
+        <span class="k">📧 Email transaksional</span>
+        <span class="v <%= profile.notifEmail ? 'green' : 'red' %>"><%= profile.notifEmail ? '✓ Diberikan' : '✗ Tidak diberikan' %></span>
+      </div>
+      <div class="kv-row">
+        <span class="k">💌 Komunikasi engagement (ucapan, re-engage)</span>
+        <span class="v <%= profile.notifEngagement ? 'green' : 'red' %>"><%= profile.notifEngagement ? '✓ Diberikan' : '✗ Tidak diberikan' %></span>
+      </div>
+    </div>
+
+    <%# 2. Data we hold about you %>
+    <div class="panel">
+      <h3>2. Data yang kami simpan tentang Anda</h3>
+      <div class="kv-row">
+        <span class="k">Akun dibuat</span>
+        <span class="v"><%= new Date(user.createdAt).toLocaleString('id-ID') %></span>
+      </div>
+      <div class="kv-row">
+        <span class="k">Login terakhir</span>
+        <span class="v"><%= user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString('id-ID') : '—' %></span>
+      </div>
+      <div class="kv-row">
+        <span class="k">Profil identitas (NIK, paspor, alamat)</span>
+        <span class="v"><%= [profile.nik && 'NIK', profile.passportNo && 'paspor', profile.address && 'alamat'].filter(Boolean).join(' + ') || '— belum diisi' %></span>
+      </div>
+      <div class="kv-row">
+        <span class="k">Booking</span>
+        <span class="v"><%= dataHeld.bookingCount %> baris</span>
+      </div>
+      <div class="kv-row">
+        <span class="k">File dokumen</span>
+        <span class="v"><%= dataHeld.docCount %> file</span>
+      </div>
+      <div class="kv-row">
+        <span class="k">Riwayat notifikasi</span>
+        <span class="v"><%= dataHeld.notifCount %> baris</span>
+      </div>
+    </div>
+
+    <%# 3. Who else can see %>
+    <div class="panel">
+      <h3>3. Siapa yang bisa melihat data Anda</h3>
+      <div class="meta" style="margin-bottom:10px;">Akses dibatasi sesuai peran (separation of duties)</div>
+      <table>
+        <thead>
+          <tr><th>Peran</th><th>Akses</th></tr>
+        </thead>
+        <tbody>
+          <% accessTiers.forEach((t) => { %>
+            <tr><td style="color:var(--gold-300);font-weight:600;"><%= t.role %></td><td><%= t.access %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <%# 4. Retention %>
+    <div class="panel">
+      <h3>4. Kebijakan retensi data</h3>
+      <table>
+        <thead>
+          <tr><th>Jenis data</th><th>Lama disimpan</th><th>Catatan</th></tr>
+        </thead>
+        <tbody>
+          <% retention.forEach((r) => { %>
+            <tr>
+              <td style="color:var(--gold-300);"><%= r.label %></td>
+              <td><%= r.window %></td>
+              <td style="color:var(--ink-200);font-size:10.5px;"><%= r.notes %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <%# 5. Exercise your rights %>
+    <div class="panel gold">
+      <h3>5. Hak Anda — gunakan kapan saja</h3>
+      <div class="btn-grid">
+        <a class="btn" href="/saya/consent-receipt.pdf" target="_blank" rel="noopener">
+          ⇩ Bukti persetujuan (PDF)
+        </a>
+        <a class="btn primary" href="/saya/data-export.zip">
+          📦 Download semua data (ZIP)
+        </a>
+        <a class="btn" href="/saya/profile">
+          ✎ Edit profil / ubah persetujuan
+        </a>
+        <a class="btn" href="mailto:privasi@religio.pro?subject=Pertanyaan%20privasi">
+          ✉ Email tim privasi
+        </a>
+      </div>
+    </div>
+
+    <%# 6. Deletion request %>
+    <div class="panel ruby delete-form">
+      <h3>6. Permintaan penghapusan akun</h3>
+      <div class="meta" style="margin-bottom:8px;">
+        Pasal 8 UU PDP — Anda berhak meminta penghapusan data pribadi.
+        Riwayat pembayaran tetap disimpan untuk kewajiban akuntansi.
+      </div>
+
+      <% if (deletionRequests.length > 0) { %>
+        <div style="margin-bottom:12px;">
+          <% deletionRequests.forEach((r) => { %>
+            <div class="request-row">
+              <span class="badge <%= r.status %>"><%= r.status %></span>
+              Diajukan <%= new Date(r.requestedAt).toLocaleString('id-ID') %>
+              <% if (r.decidedAt) { %> · Diputuskan <%= new Date(r.decidedAt).toLocaleString('id-ID') %><% } %>
+              <div style="color:var(--ink-200);margin-top:4px;font-size:10.5px;">
+                Alasan: "<%= r.requestReason %>"
+                <% if (r.decisionReason) { %><br>Catatan tim: "<%= r.decisionReason %>"<% } %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <% const hasPending = deletionRequests.some((r) => r.status === 'PENDING'); %>
+      <% if (hasPending) { %>
+        <div class="meta">Permintaan PENDING Anda sedang ditinjau tim. Anda akan mendapat email saat ada keputusan.</div>
+      <% } else { %>
+        <details>
+          <summary>+ Ajukan permintaan penghapusan akun</summary>
+          <form method="POST" action="/saya/data-deletion-request">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label style="display:block;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.06em;margin-top:8px;">
+              Alasan permintaan (minimal 10 karakter)
+            </label>
+            <textarea name="requestReason" required minlength="10" maxlength="2000" placeholder="Mis. 'Saya ingin keluar dari sistem karena tidak akan booking lagi'"></textarea>
+            <button type="submit">Kirim permintaan</button>
+          </form>
+        </details>
+      <% } %>
+    </div>
+
+    <%# 7. Controller info %>
+    <div class="panel">
+      <h3>7. Pengendali data (Data Controller)</h3>
+      <div class="kv-row"><span class="k">Nama</span><span class="v">PT Religio Pro Tour &amp; Travel</span></div>
+      <div class="kv-row"><span class="k">Email privasi</span><span class="v">privasi@religio.pro</span></div>
+      <div class="kv-row"><span class="k">Telepon</span><span class="v">+62 21 0000 0000</span></div>
+      <div class="kv-row"><span class="k">Alamat</span><span class="v">Jakarta, Indonesia</span></div>
+    </div>
+
+    <% } %>
+  </div>
+  <%- include('partials/mobile-tabs') %>
+</body>
+</html>

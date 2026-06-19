@@ -357,14 +357,21 @@
   </form>
 
   <%# Stage 239 — UU PDP data export. Outside the form so the click
-      doesn't trigger profile submit. %>
+      doesn't trigger profile submit. Stage 384 — link to consolidated
+      privacy dashboard at /saya/privasi. %>
   <div class="panel" style="margin-top:24px;background:rgba(212,175,55,0.03);border:1px solid var(--gold-300);">
     <h3>Hak portabilitas data (UU PDP)</h3>
     <p class="sub" style="margin-top:0;">Anda berhak menyalin semua data Anda yang kami simpan. Tombol ini mengunduh ZIP berisi profil, booking, pembayaran, dokumen (file + metadata), dan riwayat notifikasi.</p>
-    <a href="/saya/data-export.zip"
-       style="display:inline-block;background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:8px 16px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;">
-      ⇩ Unduh data saya (ZIP)
-    </a>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="/saya/data-export.zip"
+         style="display:inline-block;background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:8px 16px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;">
+        ⇩ Unduh data saya (ZIP)
+      </a>
+      <a href="/saya/privasi"
+         style="display:inline-block;background:var(--gold-300);color:var(--ink-1000);border:1px solid var(--gold-300);padding:8px 16px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;font-weight:600;">
+        🔒 Privasi &amp; data saya
+      </a>
+    </div>
   </div>
 
   <%# Stage 240 — Right to be forgotten (UU PDP article 8). %>
