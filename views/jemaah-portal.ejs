@@ -401,6 +401,12 @@
           const text = (msg.value || '').trim();
           if (text.length < 5) { status.textContent = 'Pesan minimal 5 karakter.'; status.style.color = 'var(--ruby)'; return; }
           submit.disabled = true;
+          // S367 — durability ask on first SOS submit. If the SOS gets
+          // queued (offline path), losing the IDB store would silently
+          // drop a life-safety message. Best-effort; failure ignored.
+          if (window.PersistStorage) {
+            window.PersistStorage.request({ reason: 'sos' }).catch(() => {});
+          }
           // S358 — capture GPS first (5s max, never blocks SOS). Tell jemaah
           // the SOS is being prepared so 5s wait isn't a confusing silence.
           status.textContent = 'Mengambil lokasi…'; status.style.color = 'var(--ink-200)';
@@ -609,6 +615,8 @@
 <script src="/shared/push-jemaah.js" defer></script>
 <!-- Stage 355 — offline-aware SOS-light queue (IndexedDB-backed) -->
 <script src="/shared/sos-light-queue.js" defer></script>
+<!-- Stage 367 — persistent storage opt-in (durability protection for IDB) -->
+<script src="/shared/persist-storage.js" defer></script>
 <%# Stage 366 — App Badging API. Paints the unread notif count on the
     installed PWA's home screen icon (Chromium-based browsers + some
     Android launchers; Safari ignores silently). Reads unreadCount that

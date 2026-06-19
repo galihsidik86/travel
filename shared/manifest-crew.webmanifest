@@ -27,6 +27,12 @@
   ],
   "shortcuts": [
     {
+      "name": "SOS Crew",
+      "short_name": "SOS",
+      "url": "/crew?sos=1",
+      "description": "Buka modal laporan insiden darurat"
+    },
+    {
       "name": "Manifest paket",
       "short_name": "Manifest",
       "url": "/crew",

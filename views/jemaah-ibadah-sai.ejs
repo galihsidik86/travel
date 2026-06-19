@@ -126,6 +126,8 @@
       Safa↔Marwah ≈ 30 min). Same posture as thawaf — silently no-op on
       browsers without wake-lock support. %>
   <script src="/shared/screen-wake-lock.js"></script>
+  <%# Stage 367 — Persistent Storage opt-in (durability for IDB counter state) %>
+  <script src="/shared/persist-storage.js"></script>
   <script>
     (function () {
       const COUNTER_ID = 'sai';
@@ -191,6 +193,10 @@
           const s = await IbadahCounter.tap(COUNTER_ID, { max: MAX });
           render(s);
           if (navigator.vibrate) navigator.vibrate(30);
+          // S367 — ask for durability protection on first tap.
+          if (window.PersistStorage) {
+            window.PersistStorage.request({ reason: 'ibadah' }).catch(() => {});
+          }
         } catch (err) { console.warn(err); }
       }
 

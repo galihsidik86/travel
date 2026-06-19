@@ -7,7 +7,7 @@
 </button>
 
 <dialog id="sos-modal" class="sos-modal">
-  <form method="POST" action="/crew/sos" class="sos-form">
+  <form method="POST" action="/crew/sos" class="sos-form" id="sos-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <% if (typeof paketSlug !== 'undefined' && paketSlug) { %>
       <input type="hidden" name="paketSlug" value="<%= paketSlug %>">
@@ -114,4 +114,133 @@
     background: var(--ruby); color: var(--cream-100); border: 0;
   }
   .sos-modal__send:hover { background: #C46259; }
+  /* Stage 368 — queued-incidents badge on the FAB. Mirrors the SOS-light
+     "N queued" affordance from S355 so crew see pending replays. */
+  .sos-fab__queued {
+    position: absolute; top: -4px; right: -4px;
+    min-width: 22px; height: 22px; padding: 0 6px;
+    background: var(--amber); color: var(--ink-1000);
+    border-radius: 11px; font-family: var(--font-mono); font-size: 11px;
+    font-weight: 700; line-height: 22px; text-align: center;
+    border: 2px solid var(--ink-1000);
+  }
 </style>
+
+<%# Stage 368 — offline-aware crew incident queue. Captures /crew/sos
+    POSTs when navigator.onLine === false OR fetch throws mid-send.
+    Auto-flush replays on `online` event + 30s tick. Server-side rate
+    limit (S137) makes replays naturally idempotent — 429 treated as
+    success (already-handled). %>
+<script src="/shared/crew-incident-queue.js" defer></script>
+<script>
+  (function () {
+    const form = document.getElementById('sos-form');
+    const fab = document.querySelector('.sos-fab');
+    if (!form) return;
+    // Append a "N queued" badge to the FAB so crew know about pending replays.
+    let queuedBadge = null;
+    function paintBadge(n) {
+      if (!fab) return;
+      if (n > 0) {
+        if (!queuedBadge) {
+          queuedBadge = document.createElement('span');
+          queuedBadge.className = 'sos-fab__queued';
+          fab.appendChild(queuedBadge);
+        }
+        queuedBadge.textContent = String(n);
+      } else if (queuedBadge) {
+        queuedBadge.remove();
+        queuedBadge = null;
+      }
+    }
+    async function queueOffline(payload) {
+      if (!window.CrewIncidentQueue) throw new Error('queue unavailable');
+      await window.CrewIncidentQueue.enqueue({
+        url: '/crew/sos', payload, label: 'crew-sos',
+      });
+    }
+    form.addEventListener('submit', async (ev) => {
+      // Always intercept — we route through fetch so we can fall back to
+      // the queue on network failure (which the regular form POST can't do).
+      ev.preventDefault();
+      const fd = new FormData(form);
+      const payload = {};
+      for (const [k, v] of fd.entries()) payload[k] = String(v);
+      const sendBtn = form.querySelector('.sos-modal__send');
+      const dialog = document.getElementById('sos-modal');
+      if (sendBtn) sendBtn.disabled = true;
+      // Offline → queue immediately.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        try {
+          await queueOffline(payload);
+          alert('⏱ Queued (offline) — akan dikirim saat signal balik.');
+          if (dialog) dialog.close();
+          form.reset();
+        } catch (qErr) {
+          alert('✕ Gagal queue: ' + (qErr.message || 'storage error'));
+        } finally {
+          if (sendBtn) sendBtn.disabled = false;
+        }
+        return;
+      }
+      // Online → direct POST. On failure, queue.
+      try {
+        const res = await fetch('/crew/sos', {
+          method: 'POST',
+          credentials: 'same-origin',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(payload),
+        });
+        if (res.ok || res.redirected || res.status === 429) {
+          if (dialog) dialog.close();
+          form.reset();
+          // Reload to surface admin redirect banner (?sos=sent) if any.
+          window.location.href = '/crew?sos=sent';
+        } else {
+          throw new Error('HTTP ' + res.status);
+        }
+      } catch (err) {
+        try {
+          await queueOffline(payload);
+          alert('⏱ Gagal kirim langsung — queued, akan retry otomatis.');
+          if (dialog) dialog.close();
+          form.reset();
+        } catch (qErr) {
+          alert('✕ ' + (err.message || 'Network error'));
+        }
+      } finally {
+        if (sendBtn) sendBtn.disabled = false;
+      }
+    });
+    // Auto-flush + badge paint
+    if (window.CrewIncidentQueue) {
+      window.CrewIncidentQueue.startAutoFlush({
+        intervalMs: 30_000,
+        onChange: async () => {
+          const n = await window.CrewIncidentQueue.countPending();
+          paintBadge(n);
+        },
+      });
+    }
+    // Stage 369 — PWA shortcut deep-link. Android long-press crew icon
+    // → "SOS Crew" opens /crew?sos=1. Auto-open the SOS modal so crew
+    // can submit in one tap. Strips ?sos=1 from URL so reload doesn't
+    // keep re-opening. iOS ignores manifest shortcuts (no surface there).
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('sos') === '1') {
+        const dialog = document.getElementById('sos-modal');
+        if (dialog && typeof dialog.showModal === 'function') {
+          dialog.showModal();
+          // Focus the type select so keyboard users can tab immediately.
+          const typeSel = dialog.querySelector('select[name="type"]');
+          if (typeSel) typeSel.focus();
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.delete('sos');
+        window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+      }
+    } catch (_err) { /* silent — auto-open is a convenience */ }
+  })();
+</script>

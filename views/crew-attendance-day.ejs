@@ -7,6 +7,8 @@
 <link rel="stylesheet" href="/shared/tokens.css">
 <%- include('partials/pwa-head', { pwaRole: 'crew' }) %>
 <script src="/shared/attendance-queue.js" defer></script>
+<!-- Stage 367 — persistent storage opt-in (IDB durability) -->
+<script src="/shared/persist-storage.js" defer></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 980px; margin: 0 auto; padding: 32px 40px 80px; }
@@ -343,6 +345,13 @@
 
         // Optimistic UI: flip label immediately
         updateRowFromSubmit(form, present, notes);
+
+        // S367 — ask for durability protection on first attendance mark.
+        // Crew may rely on the queue to survive a multi-hour signal outage
+        // on a mountain pass; eviction mid-trip would silently drop marks.
+        if (window.PersistStorage) {
+          window.PersistStorage.request({ reason: 'attendance' }).catch(() => {});
+        }
 
         if (!navigator.onLine) {
           // Queue right away — no point trying fetch when navigator says offline.

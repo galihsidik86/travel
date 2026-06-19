@@ -101,6 +101,8 @@
       leaves the page. Browsers that don't support wake-lock silently
       no-op (counter still works without it). %>
   <script src="/shared/screen-wake-lock.js"></script>
+  <%# Stage 367 — Persistent Storage opt-in (durability for IDB counter state) %>
+  <script src="/shared/persist-storage.js"></script>
   <script>
     (function () {
       const COUNTER_ID = 'thawaf';
@@ -153,6 +155,11 @@
           render(s);
           // Haptic feedback on supported devices
           if (navigator.vibrate) navigator.vibrate(30);
+          // S367 — ask for durability protection on first tap so the
+          // counter state can't be evicted mid-thawaf. Best-effort.
+          if (window.PersistStorage) {
+            window.PersistStorage.request({ reason: 'ibadah' }).catch(() => {});
+          }
         } catch (err) { console.warn(err); }
       }
 
