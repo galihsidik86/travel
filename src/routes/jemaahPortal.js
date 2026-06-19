@@ -93,7 +93,7 @@ router.use('/saya', requireAuth, requireRole('JEMAAH'));
 router.get(
   '/saya',
   asyncHandler(async (req, res) => {
-    const [data, unreadCount, inTrip] = await Promise.all([
+    const [data, unreadCount, inTrip, welcome] = await Promise.all([
       getMyDashboard(req.user.id),
       countUnreadForUser(req.user.id),
       // Stage 320 — Hari Ini hero context (null when pre-trip / post-trip)
@@ -106,8 +106,19 @@ router.get(
           return null;
         }
       })(),
+      // Stage 379 — onboarding welcome checklist. Best-effort; failure
+      // logs but never breaks the dashboard render.
+      (async () => {
+        try {
+          const { getJemaahWelcomeChecklist } = await import('../services/jemaahWelcomeChecklist.js');
+          return await getJemaahWelcomeChecklist(req.user.id);
+        } catch (err) {
+          console.warn('[saya] welcome checklist failed:', err?.message || err);
+          return null;
+        }
+      })(),
     ]);
-    res.render('jemaah-portal', { user: req.user, ...data, unreadCount, inTrip });
+    res.render('jemaah-portal', { user: req.user, ...data, unreadCount, inTrip, welcome });
   }),
 );
 

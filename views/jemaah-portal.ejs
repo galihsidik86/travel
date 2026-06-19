@@ -209,6 +209,86 @@
     </div>
   </div>
 
+  <%# Stage 379 — Onboarding welcome checklist. Renders only when jemaah
+      has at least one incomplete item AND hasn't dismissed the card.
+      Item 4 (PWA install) is checked client-side via display-mode:standalone
+      + Notification.permission so the server-side score under-counts.
+      The card auto-hides via JS when score=4/4 OR jemaah taps "Sembunyikan".
+      Stale (>30d account) cards still render; dismiss is durable. %>
+  <% if (typeof welcome !== 'undefined' && welcome) { %>
+    <div id="rp-welcome-card" style="display:none;margin-bottom:18px;padding:18px 20px;background:linear-gradient(180deg,rgba(80,176,113,0.06),rgba(80,176,113,0.01));border:1px solid var(--emerald);border-radius:var(--r-md);">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--emerald);letter-spacing:0.14em;text-transform:uppercase;font-weight:600;">
+          🌟 Mulai siapkan keberangkatan Anda
+        </div>
+        <button type="button" id="rp-welcome-dismiss" style="background:transparent;border:0;color:var(--ink-200);cursor:pointer;font-family:var(--font-mono);font-size:10px;letter-spacing:0.06em;">✕ Sembunyikan</button>
+      </div>
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--cream-100);margin:4px 0 10px;line-height:1.3;">
+        <em id="rp-welcome-score" style="color:var(--emerald);font-style:italic;">…</em> dari 4 langkah selesai
+      </div>
+      <div style="height:6px;background:var(--ink-1000);border-radius:3px;overflow:hidden;margin-bottom:12px;">
+        <div id="rp-welcome-bar" style="height:100%;width:0%;background:var(--emerald);transition:width 240ms ease;"></div>
+      </div>
+      <ul id="rp-welcome-items" style="margin:0;padding:0;list-style:none;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);line-height:1.6;">
+        <% welcome.items.forEach(function(item) { %>
+          <li data-key="<%= item.key %>" data-done="<%= item.done === true ? '1' : (item.done === false ? '0' : '') %>"
+              style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.04);">
+            <span><span class="rp-welcome-icon" style="margin-right:6px;"><%= item.done === true ? '✓' : '○' %></span><%= item.label %></span>
+            <% if (item.link) { %>
+              <a href="<%= item.link %>" style="color:var(--gold-300);text-decoration:none;font-size:10.5px;letter-spacing:0.06em;">Buka →</a>
+            <% } %>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+    <script>
+      // S379 — paint PWA installation client-side (display-mode:standalone
+      // or iOS standalone), then compute overall score and hide card when
+      // 4/4 done OR jemaah previously dismissed.
+      (function () {
+        const KEY = 'rp_welcome_dismissed';
+        const card = document.getElementById('rp-welcome-card');
+        if (!card) return;
+        let dismissed = false;
+        try { dismissed = localStorage.getItem(KEY) === '1'; } catch (_e) {}
+        if (dismissed) return; // card stays display:none
+
+        // Detect PWA install
+        const isStandalone =
+          (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+          || window.navigator.standalone === true;
+        const pwaItem = card.querySelector('li[data-key="pwa"]');
+        if (pwaItem) {
+          pwaItem.setAttribute('data-done', isStandalone ? '1' : '0');
+          const icon = pwaItem.querySelector('.rp-welcome-icon');
+          if (icon) icon.textContent = isStandalone ? '✓' : '○';
+        }
+
+        // Compute score from all items
+        const items = card.querySelectorAll('li[data-key]');
+        let done = 0;
+        items.forEach((li) => {
+          if (li.getAttribute('data-done') === '1') {
+            done += 1;
+            // Visual: dim completed rows so jemaah focuses on remaining
+            li.style.opacity = '0.55';
+          }
+        });
+        const total = items.length;
+        document.getElementById('rp-welcome-score').textContent = done;
+        document.getElementById('rp-welcome-bar').style.width = Math.round(done / total * 100) + '%';
+
+        // 100% done? auto-stay-hidden (card already display:none); else reveal.
+        if (done < total) card.style.display = 'block';
+
+        document.getElementById('rp-welcome-dismiss').addEventListener('click', () => {
+          try { localStorage.setItem(KEY, '1'); } catch (_e) {}
+          card.style.display = 'none';
+        });
+      })();
+    </script>
+  <% } %>
+
   <%# Stage 320 — Hari Ini hero. Renders only when jemaah's LUNAS booking
       is currently in-trip (today between departureDate + returnDate). %>
   <% if (typeof inTrip !== 'undefined' && inTrip) { %>

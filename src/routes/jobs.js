@@ -484,6 +484,16 @@ router.post(
   }),
 );
 
+// Stage 380 — daily 7d-post-register first-booking nudge
+router.post(
+  '/send-first-booking-nudge',
+  asyncHandler(async (_req, res) => {
+    const { sendFirstBookingNudges } = await import('../services/firstBookingNudge.js');
+    const result = await runJob('send-first-booking-nudge', () => sendFirstBookingNudges({}));
+    res.json(result);
+  }),
+);
+
 // Stage 291 — daily admin digest of stale inquiries
 router.post(
   '/send-inquiry-sla',

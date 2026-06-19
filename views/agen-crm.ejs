@@ -539,6 +539,52 @@
         }
       %>
 
+      <%# Stage 381 — first-deal coaching for agents with 0 LUNAS yet.
+          Service returns null once first LUNAS lands so the card auto-
+          retires for experienced agents. 3 actionable tips. %>
+      <% if (typeof firstDealCoaching !== 'undefined' && firstDealCoaching && firstDealCoaching.isNewAgent) {
+           const _staleCount = firstDealCoaching.staleColdCount || 0;
+           const _agentSlug = firstDealCoaching.agentSlug || '';
+      %>
+        <div style="margin-bottom:18px;padding:16px 18px;background:linear-gradient(180deg,rgba(80,176,113,0.06),rgba(80,176,113,0.01));border:1px solid var(--emerald);border-left-width:3px;border-radius:var(--r-md);">
+          <div style="font-family:var(--font-mono);font-size:10px;color:var(--emerald);letter-spacing:0.14em;text-transform:uppercase;font-weight:600;margin-bottom:4px;">
+            🌱 First-deal coaching · belum ada LUNAS
+          </div>
+          <div style="font-family:var(--font-display);font-size:16px;color:var(--cream-100);margin-bottom:10px;line-height:1.4;">
+            3 langkah cepat untuk closing pertama Anda
+          </div>
+          <ol style="margin:0;padding-left:18px;font-family:var(--font-mono);font-size:12px;color:var(--cream-100);line-height:1.7;">
+            <li style="margin-bottom:6px;">
+              <strong style="color:var(--gold-300);">Bagikan marketing kit</strong> ke WA pribadi/grup keluarga.
+              <% if (_agentSlug) { %>
+                Setiap paket sudah punya link auto-attribution (<code style="background:var(--ink-1000);padding:1px 4px;border-radius:2px;font-size:10.5px;">?a=<%= _agentSlug %></code>) →
+              <% } %>
+              <a href="/agen?tab=marketing" style="color:var(--gold-300);">buka tab Marketing →</a>
+            </li>
+            <li style="margin-bottom:6px;">
+              <strong style="color:var(--gold-300);">Follow-up COLD leads dalam 24 jam.</strong>
+              <% if (_staleCount > 0) { %>
+                <span style="color:var(--ruby);">Anda punya <%= _staleCount %> lead overdue</span> →
+                <a href="/agen?tab=leads" style="color:var(--gold-300);">cek kanban →</a>
+              <% } else if (firstDealCoaching.coldLeadCount > 0) { %>
+                Anda punya <%= firstDealCoaching.coldLeadCount %> cold lead — set follow-up date →
+                <a href="/agen?tab=leads" style="color:var(--gold-300);">buka kanban →</a>
+              <% } else { %>
+                Mulai dengan menambah lead manual (form pojok kanan atas kanban).
+              <% } %>
+            </li>
+            <li>
+              <strong style="color:var(--gold-300);">Mulai dari lingkaran terdekat.</strong>
+              Keluarga, teman dekat, rekan kerja — orang yang sudah percaya Anda.
+              Komisi pertama paling cepat datang dari sini.
+            </li>
+          </ol>
+          <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.04em;">
+            Card ini otomatis hilang setelah LUNAS pertama Anda.
+          </div>
+        </div>
+      <% } %>
+
       <%# Stage 267 — "Hari ini" follow-up widget. Hidden when empty. %>
       <% if (typeof todayLeads !== 'undefined' && todayLeads && todayLeads.total > 0) { %>
         <div style="margin-bottom:18px;padding:14px 18px;background:rgba(212,175,55,0.06);border:1px solid var(--gold-300);border-left-width:3px;border-radius:var(--r-md);">

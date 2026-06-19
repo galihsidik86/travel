@@ -50,6 +50,7 @@
     "job:send-detractor-escalate": "node --env-file-if-exists=.env src/jobs/send-detractor-escalate.js",
     "job:send-help-escalate": "node --env-file-if-exists=.env src/jobs/send-help-escalate.js",
     "job:send-predeparture-readiness": "node --env-file-if-exists=.env src/jobs/send-predeparture-readiness.js",
+    "job:send-first-booking-nudge": "node --env-file-if-exists=.env src/jobs/send-first-booking-nudge.js",
     "job:send-crew-daily-report-reminder": "node --env-file-if-exists=.env src/jobs/send-crew-daily-report-reminder.js",
     "job:send-crew-daily-report-missed": "node --env-file-if-exists=.env src/jobs/send-crew-daily-report-missed.js",
     "job:send-doc-expiring": "node --env-file-if-exists=.env src/jobs/send-doc-expiring.js",
