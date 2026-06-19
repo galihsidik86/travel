@@ -10,7 +10,7 @@
 //
 // Cache busting: bump CACHE_VERSION to invalidate every entry on next activation.
 
-const CACHE_VERSION = 'rp-v8';
+const CACHE_VERSION = 'rp-v9';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 // Stage 334 — cap HTML cache to prevent unbounded growth in long-running
@@ -69,6 +69,17 @@ function isStaticAsset(url) {
   return url.pathname.startsWith('/shared/')
     || url.pathname.startsWith('/uploads/')
     || /\.(?:css|js|svg|png|jpg|jpeg|webp|ico|woff2?)$/i.test(url.pathname);
+}
+
+// Stage 378 — voucher PDF cache. Per-jemaah artifact at
+// /saya/bookings/<id>/voucher.pdf — when jemaah opens the booking detail
+// while online, we opportunistically pre-fetch + cache the PDF. Cache-first
+// on later requests so it survives signal loss at Saudi airport check-in.
+// Separate cache key so the per-PDF lifetime is independent of HTML cache.
+const VOUCHER_CACHE = `${CACHE_VERSION}-voucher`;
+function isVoucherPdf(url) {
+  if (url.origin !== self.location.origin) return false;
+  return /^\/saya\/bookings\/[^/]+\/voucher\.pdf$/.test(url.pathname);
 }
 
 function isHtmlGet(req, url) {
@@ -173,6 +184,34 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(() => null);
         return cached || (await fetchAndStore) || new Response('', { status: 504 });
+      })(),
+    );
+    return;
+  }
+
+  // Stage 378 — voucher PDF: cache-first, opportunistic background refresh.
+  // Per-jemaah artifact; freshness matters less than offline availability
+  // (jemaah at Saudi airport with no signal needs to show voucher).
+  if (isVoucherPdf(url) && req.method === 'GET') {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(VOUCHER_CACHE);
+        const cached = await cache.match(req);
+        const refresh = fetch(req)
+          .then((res) => {
+            if (res.ok) cache.put(req, res.clone());
+            return res;
+          })
+          .catch(() => null);
+        if (cached) {
+          // Don't await refresh — background update for next time.
+          refresh.catch(() => {});
+          return tagCached(cached);
+        }
+        const res = await refresh;
+        return res || new Response('Voucher tidak tersedia offline. Sambungkan internet.', {
+          status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
       })(),
     );
     return;

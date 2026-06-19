@@ -90,6 +90,21 @@
         <div class="state" id="jumrah-state">— belum mulai —</div>
         <div class="progress-bar"><div id="jumrah-bar" style="width:0%"></div></div>
       </a>
+      <%# Stage 376 — Qibla compass card. State derived live from device. %>
+      <a href="/saya/ibadah/qibla" class="card">
+        <div class="lbl">Arah ka'bah</div>
+        <div class="title">Qibla</div>
+        <div class="desc">Kompas penunjuk arah kiblat — geolokasi + sensor orientasi ponsel.</div>
+        <div class="state">— buka untuk aktifkan —</div>
+      </a>
+      <%# Stage 377 — Prayer time schedule card. State painted with next-prayer
+          on page load via inline script below. %>
+      <a href="/saya/ibadah/jadwal-shalat" class="card" id="jadwal-card">
+        <div class="lbl">5 waktu</div>
+        <div class="title">Jadwal Shalat</div>
+        <div class="desc">Perkiraan jadwal 5 shalat berdasar lokasi GPS Anda.</div>
+        <div class="state" id="jadwal-state">— buka untuk hitung —</div>
+      </a>
     </div>
 
     <%# Stage 333 — daily doa widget. Pure client-side; cycled by

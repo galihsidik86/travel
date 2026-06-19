@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RELIGIO PRO — Jadwal Shalat</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 540px; margin: 0 auto; padding: 24px 18px 100px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 18px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 20px; line-height: 1.6; }
+
+  .next-panel {
+    background: linear-gradient(180deg, rgba(212,175,107,0.10), rgba(212,175,107,0.02));
+    border: 1px solid var(--gold-300); border-radius: var(--r-md); padding: 22px 20px; margin-bottom: 16px;
+  }
+  .next-label { font-family: var(--font-mono); font-size: 10px; color: var(--gold-300); letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 6px; }
+  .next-name { font-family: var(--font-display); font-size: 32px; color: var(--cream-100); line-height: 1.1; }
+  .next-name em { font-style: italic; color: var(--gold-300); }
+  .next-time { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 8px 0 4px; }
+  .next-delta { font-family: var(--font-mono); font-size: 12px; color: var(--ink-100); letter-spacing: 0.04em; }
+
+  .schedule {
+    background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md);
+    overflow: hidden;
+  }
+  .row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; border-bottom: 1px solid var(--hairline-soft);
+  }
+  .row:last-child { border-bottom: 0; }
+  .row.next { background: rgba(212,175,107,0.06); }
+  .row.passed { opacity: 0.55; }
+  .row .name {
+    font-family: var(--font-display); font-size: 18px; color: var(--cream-100);
+  }
+  .row .name em { font-style: italic; color: var(--gold-300); }
+  .row .time {
+    font-family: var(--font-mono); font-size: 18px; color: var(--cream-100); letter-spacing: 0.04em;
+  }
+  .row.next .time { color: var(--gold-300); font-weight: 700; }
+  .row .sub-info { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-300); letter-spacing: 0.04em; margin-top: 2px; }
+
+  .field { margin: 14px 0; }
+  .field label { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .field select {
+    width: 100%; box-sizing: border-box;
+    background: var(--ink-1000); color: var(--cream-100);
+    border: 1px solid var(--hairline-soft); border-radius: var(--r-sm);
+    padding: 10px 12px; font-family: var(--font-mono); font-size: 13px;
+  }
+
+  .btn { padding: 10px 16px; min-height: 42px; border-radius: var(--r-sm); cursor: pointer;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;
+    background: var(--gold-300); color: var(--ink-1000); border: 1px solid var(--gold-300); margin-top: 10px; }
+  .btn.ghost { background: transparent; color: var(--ink-100); border-color: var(--hairline-soft); }
+
+  .panel { background: var(--ink-900); border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 16px 18px; margin-top: 16px; }
+  .helper { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-200); letter-spacing: 0.04em; margin-top: 6px; line-height: 1.6; }
+
+  .info {
+    margin-top: 18px; padding: 12px 14px;
+    background: rgba(120,135,225,0.06); border: 1px solid var(--sapphire);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; color: var(--cream-100); line-height: 1.6;
+  }
+</style>
+</head>
+<body class="has-m-tabs">
+  <div class="wrap">
+    <div class="crumb"><a href="/saya/ibadah">← /ibadah</a> · JADWAL SHALAT</div>
+    <h1>Jadwal <em>shalat</em></h1>
+    <div class="sub">
+      Perkiraan waktu 5 shalat berdasarkan lokasi GPS Anda. Verifikasi dengan
+      jadwal masjid setempat — di Saudi gunakan jadwal Umm al-Qura resmi
+      (Al-Haram menggunakan adzan masjid sebagai patokan utama).
+    </div>
+
+    <div class="next-panel" id="next-panel" style="display:none;">
+      <div class="next-label">Shalat berikutnya</div>
+      <div class="next-name" id="next-name">—</div>
+      <div class="next-time" id="next-time">—</div>
+      <div class="next-delta" id="next-delta">—</div>
+    </div>
+
+    <div class="panel" id="setup-panel">
+      <div class="helper" id="status-text">Mengambil lokasi…</div>
+      <button type="button" class="btn" id="refresh-btn" style="display:none;">↻ Refresh lokasi</button>
+    </div>
+
+    <div class="schedule" id="schedule" style="display:none;"></div>
+
+    <div class="panel">
+      <div class="field">
+        <label for="method-select">Metode hitung</label>
+        <select id="method-select">
+          <option value="MWL">Muslim World League (default)</option>
+          <option value="MAKKAH">Umm al-Qura (Saudi)</option>
+          <option value="ISNA">ISNA (North America)</option>
+          <option value="EGYPT">Egyptian General Authority</option>
+          <option value="KARACHI">Karachi (Pakistan/India)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="madhab-select">Asar (madzhab)</label>
+        <select id="madhab-select">
+          <option value="shafi">Shafi'i / Maliki / Hanbali (mayoritas Indonesia)</option>
+          <option value="hanafi">Hanafi (Pakistan/India/Turkey)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="info">
+      <strong style="color:var(--sapphire);">Catatan:</strong>
+      Jadwal di-hitung di perangkat Anda — bekerja offline setelah halaman dimuat.
+      Untuk akurasi maksimal di Saudi, ikuti adzan masjid. Untuk akurasi maksimal
+      di Indonesia, sandingkan dengan jadwal Kemenag Kabupaten Anda.
+    </div>
+  </div>
+
+  <script src="/shared/prayer-times.js"></script>
+  <script>
+    // S377 — render prayer schedule + next-prayer countdown.
+    // Auto-refresh next-prayer panel every 30s.
+    (function () {
+      const $next = document.getElementById('next-panel');
+      const $nextName = document.getElementById('next-name');
+      const $nextTime = document.getElementById('next-time');
+      const $nextDelta = document.getElementById('next-delta');
+      const $schedule = document.getElementById('schedule');
+      const $status = document.getElementById('status-text');
+      const $refresh = document.getElementById('refresh-btn');
+      const $method = document.getElementById('method-select');
+      const $madhab = document.getElementById('madhab-select');
+
+      let loc = null; // { lat, lng, accuracy }
+
+      try {
+        const savedMethod = localStorage.getItem('rp_pt_method');
+        const savedMadhab = localStorage.getItem('rp_pt_madhab');
+        if (savedMethod) $method.value = savedMethod;
+        if (savedMadhab) $madhab.value = savedMadhab;
+      } catch (_e) {}
+
+      function fmtDelta(min) {
+        const sign = min >= 0 ? '' : '−';
+        const abs = Math.abs(min);
+        const h = Math.floor(abs / 60);
+        const m = abs % 60;
+        if (h > 0) return sign + h + 'j ' + m + 'm lagi';
+        return sign + m + ' menit lagi';
+      }
+
+      function render() {
+        if (!loc) return;
+        const tzOffsetHours = -(new Date().getTimezoneOffset() / 60);
+        const times = window.PrayerTimes.computeTimes({
+          date: new Date(), lat: loc.lat, lng: loc.lng,
+          tzOffsetHours, method: $method.value, madhab: $madhab.value,
+        });
+        const np = window.PrayerTimes.nextPrayer(times);
+        if (np) {
+          $next.style.display = 'block';
+          $nextName.innerHTML = '<em>' + np.label + '</em>';
+          $nextTime.textContent = np.hm;
+          $nextDelta.textContent = fmtDelta(np.deltaMinutes);
+        }
+
+        // Render full schedule
+        const ORDER = [
+          { name: 'fajr', label: 'Subuh' },
+          { name: 'sunrise', label: 'Syuruq' },
+          { name: 'dhuhr', label: 'Zhuhur' },
+          { name: 'asr', label: 'Ashar' },
+          { name: 'maghrib', label: 'Maghrib' },
+          { name: 'isha', label: 'Isya' },
+        ];
+        const now = new Date();
+        const nowH = now.getHours() + now.getMinutes() / 60;
+        $schedule.innerHTML = '';
+        $schedule.style.display = 'block';
+        ORDER.forEach((p) => {
+          const t = times.hours[p.name];
+          const hm = times.hm[p.name];
+          const passed = (t != null && t < nowH);
+          const isNext = np && np.name === p.name && !passed;
+          const row = document.createElement('div');
+          row.className = 'row' + (isNext ? ' next' : '') + (passed ? ' passed' : '');
+          row.innerHTML = `
+            <div>
+              <div class="name"><em>${p.label}</em>${p.name === 'sunrise' ? ' <span style="color:var(--ink-300);font-size:11px;">(bukan shalat)</span>' : ''}</div>
+            </div>
+            <div class="time">${hm}</div>
+          `;
+          $schedule.appendChild(row);
+        });
+      }
+
+      function loadLocation() {
+        if (!navigator.geolocation) {
+          $status.textContent = 'Browser tidak support geolocation';
+          $status.style.color = 'var(--ruby)';
+          return;
+        }
+        $status.textContent = 'Mengambil lokasi…';
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            loc = {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+            };
+            $status.innerHTML = '✓ ' + loc.lat.toFixed(3) + ', ' + loc.lng.toFixed(3) + ' (±' + Math.round(loc.accuracy) + 'm)';
+            $status.style.color = 'var(--emerald)';
+            $refresh.style.display = 'inline-block';
+            render();
+          },
+          (err) => {
+            $status.textContent = '✕ Lokasi gagal: ' + (err.message || 'denied');
+            $status.style.color = 'var(--ruby)';
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+        );
+      }
+
+      $method.addEventListener('change', () => {
+        try { localStorage.setItem('rp_pt_method', $method.value); } catch (_e) {}
+        render();
+      });
+      $madhab.addEventListener('change', () => {
+        try { localStorage.setItem('rp_pt_madhab', $madhab.value); } catch (_e) {}
+        render();
+      });
+      $refresh.addEventListener('click', loadLocation);
+
+      loadLocation();
+      // Re-render every 30s so countdown stays fresh
+      setInterval(render, 30_000);
+    })();
+  </script>
+  <%- include('partials/mobile-tabs') %>
+</body>
+</html>

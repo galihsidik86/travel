@@ -309,6 +309,20 @@ router.get(
     res.render('jemaah-ibadah-jumrah', { user: req.user });
   }),
 );
+// Stage 376 — Qibla compass (geolocation + device orientation)
+router.get(
+  '/saya/ibadah/qibla',
+  asyncHandler(async (req, res) => {
+    res.render('jemaah-ibadah-qibla', { user: req.user });
+  }),
+);
+// Stage 377 — Prayer time schedule (5 daily prayers)
+router.get(
+  '/saya/ibadah/jadwal-shalat',
+  asyncHandler(async (req, res) => {
+    res.render('jemaah-ibadah-jadwal', { user: req.user });
+  }),
+);
 
 // ── Profile editor ───────────────────────────────────────────
 router.get(

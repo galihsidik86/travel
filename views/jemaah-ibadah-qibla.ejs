@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RELIGIO PRO — Qibla</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<%- include('partials/pwa-head') %>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 540px; margin: 0 auto; padding: 24px 18px 100px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 18px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 6px; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 24px; line-height: 1.6; }
+
+  /* Compass */
+  .compass-wrap {
+    position: relative; width: min(320px, 84vw); aspect-ratio: 1/1;
+    margin: 20px auto; display: flex; align-items: center; justify-content: center;
+  }
+  .compass-ring {
+    position: absolute; inset: 0;
+    border: 2px solid var(--gold-300);
+    border-radius: 50%;
+    background: radial-gradient(circle at center, rgba(212,175,107,0.04), rgba(20,18,15,0.6));
+  }
+  .compass-marks {
+    position: absolute; inset: 8px;
+    border-radius: 50%;
+  }
+  .mark {
+    position: absolute; left: 50%; top: 0; transform-origin: 50% 156px;
+    width: 1px; height: 14px; background: var(--ink-300); transform: translateX(-50%);
+  }
+  .mark.cardinal { background: var(--gold-300); height: 18px; width: 2px; }
+  .compass-label {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em;
+  }
+  .compass-label.north { top: 14px; color: var(--ruby); font-weight: 700; }
+  .compass-label.south { bottom: 14px; }
+  .compass-label.east  { right: 12px; top: 50%; transform: translateY(-50%); }
+  .compass-label.west  { left: 12px; top: 50%; transform: translateY(-50%); }
+
+  /* Qibla needle — rotates relative to compass */
+  .needle-host {
+    position: absolute; inset: 0;
+    transition: transform 200ms ease-out;
+    will-change: transform;
+  }
+  .needle {
+    position: absolute; left: 50%; top: 50%;
+    width: 6px; height: 42%;
+    background: linear-gradient(to top, transparent 0%, transparent 6%, var(--emerald) 6%, var(--emerald) 100%);
+    transform-origin: 50% 100%;
+    transform: translate(-50%, -100%);
+    border-radius: 3px 3px 0 0;
+    box-shadow: 0 0 10px rgba(80,176,113,0.4);
+  }
+  .needle::after {
+    content: '🕋'; position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+    font-size: 20px;
+  }
+  .center-dot {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--gold-300); box-shadow: 0 0 8px rgba(212,175,107,0.6);
+    z-index: 2;
+  }
+
+  /* Status panels */
+  .panel {
+    background: var(--ink-900); border: 1px solid var(--hairline-soft);
+    border-radius: var(--r-md); padding: 16px 18px; margin-top: 16px;
+  }
+  .panel.gold { border-color: var(--gold-300); background: rgba(212,175,107,0.04); }
+  .panel.ruby { border-color: var(--ruby); background: rgba(212,89,89,0.05); }
+
+  .kv-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-family: var(--font-mono); font-size: 12px; }
+  .kv-row .k { color: var(--ink-200); }
+  .kv-row .v { color: var(--cream-100); font-weight: 600; }
+
+  .btn {
+    display: inline-block; padding: 10px 16px; border-radius: var(--r-sm); cursor: pointer;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;
+    background: var(--gold-300); color: var(--ink-1000); border: 1px solid var(--gold-300); margin-top: 10px;
+  }
+  .btn.ghost { background: transparent; color: var(--ink-100); border-color: var(--hairline-soft); }
+
+  .info {
+    margin-top: 18px; padding: 12px 14px;
+    background: rgba(120,135,225,0.06); border: 1px solid var(--sapphire);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px; color: var(--cream-100); line-height: 1.6;
+  }
+</style>
+</head>
+<body class="has-m-tabs">
+  <div class="wrap">
+    <div class="crumb"><a href="/saya/ibadah">← /ibadah</a> · QIBLA</div>
+    <h1>Arah <em>Qibla</em></h1>
+    <div class="sub">
+      Pegang ponsel datar (sejajar lantai). Panah hijau menunjuk arah Ka'bah.
+      Akurat dalam ±5°; verifikasi dengan tanda kiblat di hotel/masjid jika ragu.
+    </div>
+
+    <div class="compass-wrap">
+      <div class="compass-ring"></div>
+      <div class="compass-marks" id="marks"></div>
+      <div class="compass-label north">N</div>
+      <div class="compass-label south">S</div>
+      <div class="compass-label east">E</div>
+      <div class="compass-label west">W</div>
+      <div class="needle-host" id="needle-host"><div class="needle"></div></div>
+      <div class="center-dot"></div>
+    </div>
+
+    <div class="panel" id="status-panel">
+      <div class="kv-row"><span class="k">Status:</span><span class="v" id="status">Menyiapkan…</span></div>
+      <div class="kv-row"><span class="k">Lokasi Anda:</span><span class="v" id="my-loc">—</span></div>
+      <div class="kv-row"><span class="k">Bearing ke Ka'bah:</span><span class="v" id="qibla-bearing">—</span></div>
+      <div class="kv-row"><span class="k">Heading device:</span><span class="v" id="device-heading">—</span></div>
+      <button type="button" id="enable-orientation" class="btn" style="display:none;">Aktifkan kompas</button>
+      <button type="button" id="refresh-loc" class="btn ghost" style="display:none;">Refresh lokasi</button>
+    </div>
+
+    <div class="info">
+      <strong style="color:var(--sapphire);">Cara baca:</strong>
+      Jika panah hijau menunjuk lurus ke atas, Anda menghadap kiblat. Putar tubuh
+      sampai panah lurus. Di area dengan logam besar (lemari besi, beton bertulang)
+      kompas bisa meleset — pindah ke area terbuka jika hasilnya aneh.
+    </div>
+  </div>
+
+  <script>
+    // S376 — Qibla compass. Pure client-side.
+    // Algorithm:
+    //   1. Get user lat/lng via geolocation.
+    //   2. Compute initial bearing from user → Ka'bah (21.4225°N, 39.8262°E)
+    //      using great-circle formula (atan2 of haversine-derived vectors).
+    //   3. Read device compass heading via DeviceOrientationEvent
+    //      ('compassheading' for iOS, computed from alpha for others).
+    //   4. Rotate needle by (qiblaBearing - deviceHeading) so a vertical
+    //      needle = facing qibla.
+    //
+    // iOS 13+ requires DeviceOrientationEvent.requestPermission() to be
+    // called from a user gesture — that's why the "Aktifkan kompas" button.
+    (function () {
+      const KAABA_LAT = 21.4225;
+      const KAABA_LNG = 39.8262;
+      const $status = document.getElementById('status');
+      const $myLoc = document.getElementById('my-loc');
+      const $qiblaBearing = document.getElementById('qibla-bearing');
+      const $deviceHeading = document.getElementById('device-heading');
+      const $needleHost = document.getElementById('needle-host');
+      const $enableBtn = document.getElementById('enable-orientation');
+      const $refreshBtn = document.getElementById('refresh-loc');
+      const $statusPanel = document.getElementById('status-panel');
+      const $marks = document.getElementById('marks');
+
+      // Render 36 tick marks (every 10°)
+      for (let i = 0; i < 36; i++) {
+        const m = document.createElement('div');
+        m.className = 'mark' + (i % 9 === 0 ? ' cardinal' : '');
+        m.style.transform = 'translateX(-50%) rotate(' + (i * 10) + 'deg)';
+        $marks.appendChild(m);
+      }
+
+      let qiblaBearing = null; // 0..360 from true north
+      let currentHeading = 0;
+
+      function deg(x) { return x * 180 / Math.PI; }
+      function rad(x) { return x * Math.PI / 180; }
+
+      function computeBearing(lat, lng) {
+        const phi1 = rad(lat);
+        const phi2 = rad(KAABA_LAT);
+        const dLng = rad(KAABA_LNG - lng);
+        const y = Math.sin(dLng) * Math.cos(phi2);
+        const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLng);
+        let b = deg(Math.atan2(y, x));
+        return (b + 360) % 360;
+      }
+
+      function paintNeedle() {
+        if (qiblaBearing == null) return;
+        // Rotate needle host by (qibla - heading). Standard convention:
+        // 0deg = up (north), increases clockwise.
+        const rot = qiblaBearing - currentHeading;
+        $needleHost.style.transform = 'rotate(' + rot + 'deg)';
+      }
+
+      function fmtBearing(b) {
+        return b.toFixed(1) + '° (' + cardinalLabel(b) + ')';
+      }
+      function cardinalLabel(b) {
+        const dirs = ['U', 'TL', 'T', 'TG', 'S', 'BD', 'B', 'BL'];
+        return dirs[Math.round(b / 45) % 8];
+      }
+
+      function loadLocation() {
+        if (!navigator.geolocation) {
+          $status.textContent = 'Browser tidak support geolocation';
+          $status.style.color = 'var(--ruby)';
+          return;
+        }
+        $status.textContent = 'Mengambil lokasi…';
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            qiblaBearing = computeBearing(latitude, longitude);
+            $myLoc.textContent = latitude.toFixed(4) + ', ' + longitude.toFixed(4) + ' (±' + Math.round(accuracy) + 'm)';
+            $qiblaBearing.textContent = fmtBearing(qiblaBearing);
+            $status.textContent = '✓ Lokasi OK · arahkan ponsel datar';
+            $status.style.color = 'var(--emerald)';
+            paintNeedle();
+            // Now try device orientation
+            initOrientation();
+            $refreshBtn.style.display = 'inline-block';
+          },
+          (err) => {
+            $status.textContent = '✕ Lokasi gagal: ' + (err.message || 'denied');
+            $status.style.color = 'var(--ruby)';
+            $statusPanel.classList.add('ruby');
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+        );
+      }
+
+      function handleOrientation(ev) {
+        // iOS: webkitCompassHeading is heading in degrees from north (0..360, clockwise)
+        // Other: alpha is rotation around z-axis (0..360, counter-clockwise from screen north when device flat)
+        let heading = null;
+        if (typeof ev.webkitCompassHeading === 'number') {
+          heading = ev.webkitCompassHeading;
+        } else if (typeof ev.alpha === 'number') {
+          // Standard: 360 - alpha gives clockwise-from-north
+          heading = (360 - ev.alpha) % 360;
+        }
+        if (heading == null) return;
+        currentHeading = heading;
+        $deviceHeading.textContent = heading.toFixed(0) + '°';
+        paintNeedle();
+      }
+
+      function initOrientation() {
+        if (typeof DeviceOrientationEvent === 'undefined') {
+          $deviceHeading.textContent = 'tidak didukung';
+          return;
+        }
+        // iOS 13+ requires explicit permission via user gesture
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          $enableBtn.style.display = 'inline-block';
+          $enableBtn.addEventListener('click', async () => {
+            try {
+              const perm = await DeviceOrientationEvent.requestPermission();
+              if (perm === 'granted') {
+                window.addEventListener('deviceorientation', handleOrientation, true);
+                $enableBtn.style.display = 'none';
+              } else {
+                $deviceHeading.textContent = 'izin ditolak';
+              }
+            } catch (err) {
+              $deviceHeading.textContent = 'gagal aktif';
+            }
+          });
+        } else {
+          // Android Chrome: just listen
+          window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+          window.addEventListener('deviceorientation', handleOrientation, true);
+        }
+      }
+
+      $refreshBtn.addEventListener('click', loadLocation);
+      loadLocation();
+    })();
+  </script>
+  <%- include('partials/mobile-tabs') %>
+</body>
+</html>

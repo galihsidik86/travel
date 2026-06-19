@@ -154,10 +154,15 @@
          style="color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
         🖨 CETAK
       </a>
-      <a href="/saya/bookings/<%= b.id %>/voucher.pdf"
+      <a href="/saya/bookings/<%= b.id %>/voucher.pdf" id="rp-voucher-link"
          style="color:var(--gold-300);text-decoration:none;border:1px solid var(--gold-300);padding:6px 14px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;">
         ⇩ PDF
       </a>
+      <%# Stage 378 — offline cache status pill. JS paints "✓ tersimpan
+          offline" emerald when the SW voucher cache has the PDF, or "⇣
+          siap simpan offline" amber otherwise (with auto-precache on
+          first visit). Hidden if SW isn't registered. %>
+      <span id="rp-voucher-cache-pill" style="display:none;font-family:var(--font-mono);font-size:10px;padding:5px 10px;border-radius:var(--r-sm);letter-spacing:0.08em;align-self:center;"></span>
       <%# Stage 353 — Web Share API. Button hidden by default; the
           inline script reveals it only when navigator.share exists
           (avoids dead button on desktop browsers). Sharing payload
@@ -197,6 +202,81 @@
           }
         }
       });
+    })();
+  </script>
+
+  <%# Stage 378 — voucher PDF offline precache + status pill.
+      SW (v9+) intercepts /saya/bookings/<id>/voucher.pdf with cache-first
+      semantics. We trigger a fetch on first visit so the cache warms BEFORE
+      jemaah needs the voucher offline at Saudi airport check-in. The pill
+      reflects whether the PDF is already in the SW cache so jemaah see
+      "✓ tersimpan offline" confidence indicator. %>
+  <script>
+    (function () {
+      const pill = document.getElementById('rp-voucher-cache-pill');
+      if (!pill) return;
+      if (typeof navigator === 'undefined' || !navigator.serviceWorker || !('caches' in window)) return;
+      const pdfUrl = '/saya/bookings/<%= b.id %>/voucher.pdf';
+      function paintReady() {
+        pill.style.display = 'inline-block';
+        pill.style.background = 'rgba(80,176,113,0.10)';
+        pill.style.color = 'var(--emerald)';
+        pill.style.border = '1px solid var(--emerald)';
+        pill.textContent = '✓ tersimpan offline';
+      }
+      function paintPending() {
+        pill.style.display = 'inline-block';
+        pill.style.background = 'rgba(201,147,59,0.08)';
+        pill.style.color = 'var(--amber)';
+        pill.style.border = '1px solid var(--amber)';
+        pill.textContent = '⇣ menyimpan…';
+      }
+      function paintFail() {
+        pill.style.display = 'inline-block';
+        pill.style.background = 'transparent';
+        pill.style.color = 'var(--ink-200)';
+        pill.style.border = '1px dashed var(--ink-300)';
+        pill.textContent = '— belum tersimpan';
+      }
+      async function checkCache() {
+        try {
+          // Walk all caches looking for the voucher PDF. SW puts it under
+          // a CACHE_VERSION-prefixed name (rp-vN-voucher); we don't know
+          // N at compile time so just scan.
+          const names = await caches.keys();
+          for (const n of names) {
+            if (!n.includes('voucher')) continue;
+            const c = await caches.open(n);
+            const hit = await c.match(pdfUrl);
+            if (hit) return true;
+          }
+          return false;
+        } catch (_err) { return false; }
+      }
+      async function init() {
+        // First check if already cached (returning visitor)
+        if (await checkCache()) { paintReady(); return; }
+        // Not cached — fire a background fetch (SW will intercept + cache).
+        // Skip if offline (no point trying); pill stays muted.
+        if (navigator.onLine === false) { paintFail(); return; }
+        paintPending();
+        try {
+          // HEAD instead of GET? No — voucher.pdf doesn't support HEAD; do GET.
+          // We don't need the body, but the SW caches the response.
+          const res = await fetch(pdfUrl, { credentials: 'same-origin', cache: 'reload' });
+          if (res.ok) {
+            // Give the SW a beat to finish put() before we re-check
+            setTimeout(async () => {
+              if (await checkCache()) paintReady();
+              else paintFail();
+            }, 500);
+          } else {
+            paintFail();
+          }
+        } catch (_err) { paintFail(); }
+      }
+      // Wait for SW to be ready so the fetch is intercepted
+      navigator.serviceWorker.ready.then(init).catch(() => paintFail());
     })();
   </script>
 
