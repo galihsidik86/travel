@@ -474,6 +474,16 @@ router.post(
   }),
 );
 
+// Stage 351 — daily H-7 pre-departure readiness reminder
+router.post(
+  '/send-predeparture-readiness',
+  asyncHandler(async (_req, res) => {
+    const { sendReadinessReminders } = await import('../services/predepartureReadinessReminder.js');
+    const result = await runJob('send-predeparture-readiness', () => sendReadinessReminders({}));
+    res.json(result);
+  }),
+);
+
 // Stage 291 — daily admin digest of stale inquiries
 router.post(
   '/send-inquiry-sla',

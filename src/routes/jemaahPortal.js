@@ -182,7 +182,24 @@ router.get(
     } catch (err) {
       console.warn('[jemaah-booking] addons load failed:', err?.message || err);
     }
-    res.render('jemaah-booking', { user: req.user, b: booking, activeIntent, announcements, pickups, activity, groupView, bookingAddons, addonCatalog, query: req.query });
+    // Stage 350 — compute readiness card for the pre-trip panel.
+    // Best-effort: failure just hides the panel.
+    let readiness = null;
+    try {
+      const { computeReadinessForBooking, resolveRequiredDocs } = await import('../services/preDepartureChecklist.js');
+      readiness = computeReadinessForBooking({
+        booking,
+        departureDate: booking.paket.departureDate,
+        requiredDocs: resolveRequiredDocs(booking.paket.requiredDocs),
+      });
+    } catch (err) {
+      console.warn('[jemaah-booking] readiness compute failed:', err?.message || err);
+    }
+    res.render('jemaah-booking', {
+      user: req.user, b: booking, activeIntent, announcements, pickups, activity,
+      groupView, bookingAddons, addonCatalog, query: req.query,
+      readiness,
+    });
   }),
 );
 

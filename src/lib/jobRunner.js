@@ -106,6 +106,7 @@ export const EXPECTED_INTERVAL_MS = {
   'send-trip-feedback-reminder': 24 * 60 * 60_000, // daily (Stage 312)
   'send-detractor-escalate': 24 * 60 * 60_000, // daily (Stage 318)
   'send-help-escalate': 60 * 60_000, // hourly — SOS escalation is time-critical (Stage 332)
+  'send-predeparture-readiness': 24 * 60 * 60_000, // daily (Stage 351)
   'send-crew-daily-report-reminder': 24 * 60 * 60_000, // daily evening (Stage 279)
   'send-crew-daily-report-missed': 24 * 60 * 60_000, // daily morning (Stage 279)
   'auto-publish-paket': 24 * 60 * 60_000, // daily (Stage 227)

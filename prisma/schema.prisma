@@ -197,6 +197,7 @@ enum NotificationType {
   JEMAAH_HELP_ESCALATED // help request sat >2h unacked, escalation to OWNER tier (Stage 332)
   BOOKING_RESCHEDULED // admin moved jemaah from one paket to another → notify jemaah + agent (Stage 339)
   RESCHEDULE_REQUESTED // jemaah submitted reschedule request → fan-out to admin tier (Stage 342)
+  PREDEPARTURE_READINESS_REMINDER // H-7 nudge to jemaah whose doc readiness < 100% (Stage 351)
   GENERIC // catch-all for ad-hoc notifs
 }
 

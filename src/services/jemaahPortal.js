@@ -788,6 +788,8 @@ export async function getMyBooking(userId, bookingId) {
           manifestClosesAt: true, waGroupUrl: true,
           // Stage 322 — itinerary timeline on jemaah booking detail
           days: { orderBy: { dayNumber: 'asc' }, select: { dayNumber: true, title: true, description: true } },
+          // Stage 350 — required docs list drives the jemaah readiness card
+          requiredDocs: true,
         },
       },
       jemaah: { include: { documents: { orderBy: { type: 'asc' } } } },

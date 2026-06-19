@@ -79,6 +79,17 @@ function docStatus(documents, type) {
   return row?.status ?? null;
 }
 
+/**
+ * Stage 350 — exported for jemaah-side use. Takes a fully-loaded booking
+ * (with `jemaah.documents` + `room` + paket info on parent) + the paket
+ * departureDate + requiredDocs list, returns the same {checks, score,
+ * tier} shape the admin view uses. Single-row variant of the bulk
+ * `getPreDepartureChecklist` flow.
+ */
+export function computeReadinessForBooking({ booking, departureDate, requiredDocs }) {
+  return computeRow(booking, departureDate, requiredDocs);
+}
+
 function computeRow(booking, departureDate, requiredDocs) {
   const j = booking.jemaah;
   const docs = j.documents || [];
