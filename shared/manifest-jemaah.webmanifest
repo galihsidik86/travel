@@ -27,6 +27,12 @@
   ],
   "shortcuts": [
     {
+      "name": "SOS Cepat",
+      "short_name": "SOS",
+      "url": "/saya?sos=1",
+      "description": "Kirim permintaan bantuan darurat ke admin + crew"
+    },
+    {
       "name": "Booking saya",
       "short_name": "Booking",
       "url": "/saya",

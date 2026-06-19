@@ -50,6 +50,54 @@
   <h1>Kontak <em>jemaah</em></h1>
   <p class="sub">Daftar jemaah aktif di semua paket yang Anda damping. Termasuk nomor darurat (ICE).</p>
 
+  <%# Stage 361 — offline-aware sync badge. SW now caches /crew/contacts via
+      SWR so this page works offline (last cached version served). Badge
+      shows "last synced" age from localStorage so crew knows if the data
+      they're looking at is fresh. Goes amber + warning copy when offline. %>
+  <div id="rp-contacts-sync" style="display:inline-block;padding:6px 12px;margin-bottom:14px;border:1px solid var(--ink-300);border-radius:3px;font-family:var(--font-mono);font-size:11px;color:var(--ink-300);letter-spacing:0.04em;">
+    — belum di-sync
+  </div>
+  <script>
+    (function () {
+      const KEY = 'rp_crew_contacts_last_sync';
+      // Update timestamp on every successful online page load. SWR may have
+      // served cached HTML even when online, but a fresh network request is
+      // happening in the background — so "online + page rendered" ≈ "we'll
+      // have fresh data by next visit" which is the signal that matters.
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try { localStorage.setItem(KEY, String(Date.now())); } catch (_e) { /* private mode */ }
+      }
+      function ago(ms) {
+        const sec = Math.round(ms / 1000);
+        if (sec < 60) return 'baru saja';
+        const min = Math.round(sec / 60);
+        if (min < 60) return min + ' menit lalu';
+        const hr = Math.round(min / 60);
+        if (hr < 24) return hr + ' jam lalu';
+        const d = Math.round(hr / 24);
+        return d + ' hari lalu';
+      }
+      const badge = document.getElementById('rp-contacts-sync');
+      if (!badge) return;
+      const raw = localStorage.getItem(KEY);
+      const last = raw ? Number(raw) : 0;
+      const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (isOffline && last > 0) {
+        badge.textContent = '⚠ OFFLINE · data terakhir ' + ago(Date.now() - last);
+        badge.style.color = 'var(--amber)';
+        badge.style.borderColor = 'var(--amber)';
+      } else if (isOffline) {
+        badge.textContent = '⚠ OFFLINE · belum pernah disinkron';
+        badge.style.color = 'var(--ruby)';
+        badge.style.borderColor = 'var(--ruby)';
+      } else if (last > 0) {
+        badge.textContent = '✓ Sinkron ' + ago(Date.now() - last);
+        badge.style.color = 'var(--emerald)';
+        badge.style.borderColor = 'var(--emerald)';
+      }
+    })();
+  </script>
+
   <form method="GET" action="/crew/contacts" class="search-bar">
     <input type="text" name="q" placeholder="Cari nama, telepon, atau bookingNo…" value="<%= q || '' %>" autofocus>
     <button type="submit">Cari</button>

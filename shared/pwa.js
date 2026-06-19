@@ -16,6 +16,76 @@
       });
   });
 
+  // Stage 362 — SW update prompt. Our install handler calls skipWaiting()
+  // immediately, so on every CACHE_VERSION bump the new SW takes over via
+  // clients.claim() — but the currently-rendered page is still HTML from
+  // the OLD SW's cache. Without a reload, the user keeps seeing stale UI
+  // (sometimes for days, until they happen to close all tabs).
+  //
+  // We use `controllerchange` to detect "a new SW just took over". Skip
+  // the first-ever install (controller was null → v1, not an update),
+  // then on subsequent controller swaps render a gold-bordered banner
+  // with a single "Refresh sekarang" action that reloads.
+  let hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) {
+      hadController = true; // first-install — record + no banner
+      return;
+    }
+    showSwUpdateBanner();
+  });
+  function showSwUpdateBanner() {
+    if (document.getElementById('rp-sw-update')) return; // dedupe
+    const style = document.createElement('style');
+    style.textContent = `
+      #rp-sw-update {
+        position: fixed; left: 12px; right: 12px;
+        top: calc(12px + env(safe-area-inset-top, 0px));
+        z-index: 71;
+        background: rgba(20, 18, 15, 0.96);
+        -webkit-backdrop-filter: blur(14px) saturate(140%);
+        backdrop-filter: blur(14px) saturate(140%);
+        border: 1px solid var(--gold-300, #D4AF6B);
+        border-radius: 10px;
+        padding: 12px 14px;
+        color: var(--cream-100, #F4EEDE);
+        font-family: var(--font-mono, "JetBrains Mono"), monospace;
+        font-size: 12px; line-height: 1.45;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+        display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+        max-width: 480px; margin: 0 auto;
+        transform: translateY(-140%);
+        transition: transform 280ms cubic-bezier(.22,1,.36,1);
+      }
+      #rp-sw-update.is-visible { transform: translateY(0); }
+      #rp-sw-update .lbl { color: var(--gold-300, #D4AF6B); font-weight: 600; letter-spacing: 0.04em; }
+      #rp-sw-update button {
+        font-family: inherit; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+        padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;
+      }
+      #rp-sw-update .refresh { background: var(--gold-300, #D4AF6B); color: var(--ink-1000, #0A0908); border: 0; }
+      #rp-sw-update .close { background: transparent; color: var(--ink-200, #B8AF9D); border: 1px solid var(--ink-700, #4A4338); }
+    `;
+    document.head.appendChild(style);
+    const wrap = document.createElement('div');
+    wrap.id = 'rp-sw-update';
+    wrap.setAttribute('role', 'status');
+    wrap.innerHTML = `
+      <span><span class="lbl">🔄 Versi baru aktif.</span> Refresh untuk muat ulang.</span>
+      <button type="button" class="refresh">Refresh</button>
+      <button type="button" class="close" aria-label="Tutup">×</button>
+    `;
+    wrap.querySelector('.refresh').addEventListener('click', () => {
+      window.location.reload();
+    });
+    wrap.querySelector('.close').addEventListener('click', () => {
+      wrap.classList.remove('is-visible');
+      setTimeout(() => wrap.remove(), 320);
+    });
+    document.body.appendChild(wrap);
+    requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('is-visible')));
+  }
+
   // Stage 360 — install funnel telemetry. Fire-and-forget POST to
   // /api/pwa/install-event. CSRF token auto-attached by shared/csrf.js
   // fetch monkey-patch. Failures swallowed silently (telemetry never

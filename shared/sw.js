@@ -10,7 +10,7 @@
 //
 // Cache busting: bump CACHE_VERSION to invalidate every entry on next activation.
 
-const CACHE_VERSION = 'rp-v6';
+const CACHE_VERSION = 'rp-v7';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 // Stage 334 — cap HTML cache to prevent unbounded growth in long-running
@@ -20,7 +20,10 @@ const HTML_CACHE_MAX = 50;
 // network refreshes in background). Critical for Saudi where signal is
 // flaky — network-first wait would make pages feel slow. Falls back to
 // network-first for other HTML paths (admin/crew where freshness matters).
-const SWR_PATH_PREFIXES = ['/saya/bookings/', '/saya/ibadah'];
+// Stage 361 — added /crew/contacts so muthawwif can still pull the ICE
+// list (jemaah phone + emergency contact) when stuck in a hotel basement
+// or mountain pass without signal. Cache is the source of truth offline.
+const SWR_PATH_PREFIXES = ['/saya/bookings/', '/saya/ibadah', '/crew/contacts'];
 
 const PRECACHE_URLS = [
   '/shared/tokens.css',

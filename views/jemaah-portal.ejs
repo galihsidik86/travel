@@ -467,6 +467,23 @@
             },
           });
         }
+        // Stage 363 — PWA shortcut deep-link: when jemaah long-presses the
+        // home icon and taps "🆘 SOS Cepat", browser opens /saya?sos=1.
+        // Auto-open the SOS bottom sheet + scroll into view + focus the
+        // textarea so jemaah can type one-handed in panic. Best-effort —
+        // pre-trip jemaah (no inTrip block rendered) just gets a no-op
+        // since the toggle button doesn't exist on the page.
+        try {
+          const sosParam = new URLSearchParams(window.location.search).get('sos');
+          if (sosParam === '1' && toggle && form) {
+            toggle.click(); // mirrors a manual tap — reveals the form
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Strip ?sos=1 from URL so a reload doesn't keep re-opening.
+            const url = new URL(window.location.href);
+            url.searchParams.delete('sos');
+            window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+          }
+        } catch (_err) { /* silent — auto-open is a convenience, not load-bearing */ }
       })();
     </script>
   <% } %>

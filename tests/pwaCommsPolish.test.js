@@ -6,7 +6,8 @@ import { promises as fs } from 'node:fs';
 
 test('S352 — sw.js push handler posts message to clients + bumps CACHE_VERSION', async () => {
   const src = await fs.readFile('./shared/sw.js', 'utf8');
-  assert.match(src, /CACHE_VERSION = 'rp-v6'/, 'CACHE_VERSION bumped to v6');
+  // Version may have bumped further (S361 → v7); just assert >= v6.
+  assert.match(src, /CACHE_VERSION = 'rp-v(?:[6-9]|\d{2,})'/, 'CACHE_VERSION at v6 or higher');
   // SW posts message to clients with kind:rp-push
   assert.match(src, /kind: 'rp-push'/);
   assert.match(src, /clients\.matchAll/);
