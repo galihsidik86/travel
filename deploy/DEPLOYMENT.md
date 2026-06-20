@@ -62,7 +62,9 @@ history. If audit volume becomes a problem, archive to cold storage
 | `MIDTRANS_SERVER_KEY` / `MIDTRANS_CLIENT_KEY` / `MIDTRANS_PRODUCTION` | gateway live mode | when Midtrans is live |
 | `FONNTE_TOKEN` / `FONNTE_BASE_URL` | WA delivery (Indonesian provider) | when WA is live |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` / `SMTP_SECURE` | email delivery | when email is live |
-| `PUBLIC_BASE_URL` | absolute URL used in notification deep links | recommended |
+| `VAPID_PUBLIC` / `VAPID_PRIVATE` / `VAPID_CONTACT` | Web Push delivery (Stage 17/93). Generate with `npm run vapid:generate`. Without these, push fan-out logs to console only (admin/jemaah/crew don't receive push notifications). | when push is live |
+| `PUBLIC_ADMIN_WA` / `PUBLIC_ADMIN_PHONE` | Stage 354 quick-contact panel fallback when jemaah's assigned agent has no WA. Both optional; panel hides gracefully if unset. | optional |
+| `PUBLIC_BASE_URL` | absolute URL used in notification deep links, voucher QR (S195), Web Share (S353), email click tracking (S77) | recommended |
 
 Without `MIDTRANS_SERVER_KEY`, the gateway runs in fake mode (local
 `/payments/midtrans/fake` handler simulates webhooks — fine for staging,
@@ -73,6 +75,22 @@ logger — notif rows still queue + dispatch (status SENT), but nothing
 actually delivers. The boot banner logs `[notif] WA sender = Fonnte` /
 `[notif] EMAIL sender = SMTP <host>` only when the credentials are
 present, so a missing line tells you you're still on console.
+
+Without `VAPID_PUBLIC`, push fan-outs (admin SOS, jemaah payment, crew
+ack, paket announcements) log to console instead of delivering. Boot
+log `[push] sender = web-push` confirms VAPID is wired; `[push] sender
+= console (VAPID_PUBLIC absent)` means push is in fake mode.
+
+### Pre-deploy readiness check
+
+After populating `.env`, verify env + DB + filesystem before starting:
+
+```bash
+sudo -u religio NODE_ENV=production npm run prod:check
+```
+
+Exits 0 when ready; lists blockers (red ✗) + warnings (yellow !) when
+not. Run after every env change before restarting the web process.
 
 ## 4. Run the web server
 
@@ -222,15 +240,38 @@ sudo systemctl restart religio-pro-web
 # timers auto-pick up the new code on next fire — no restart needed
 ```
 
+## Web Push (VAPID) setup
+
+Web Push (admin SOS · jemaah booking events · crew incidents · paket
+announcements) requires VAPID keys. Generate once per environment:
+
+```bash
+npm run vapid:generate
+```
+
+Copy the three `VAPID_*` lines into `.env`, then restart the web
+process. Verify by tapping "AKTIFKAN" on the push toggle in `/admin/incidents`
+or `/saya` — you should see a browser permission prompt, then the boot
+log changes from `[push] sender = console` to `[push] sender = web-push`.
+
+Same keys work for jemaah (S94), admin (S17), and crew (S336) subscribers —
+they all use the same `pushToUser` / `pushToAdmins` fan-out which reads
+the single VAPID config.
+
+When you rotate keys, existing subscriptions become invalid; clients
+will get 404/410 from the push gateway and the dispatcher auto-scrubs
+the dead rows from `PushSubscription` (see `webPush.js`).
+
 ## Future work
 
-- **Mobile crew/jemaah apps** — `screens/crew-app.html` + `screens/jemaah-app.html`
-  are still static mockups. SOS/chat from the crew mockup is the next
-  deliberate follow-up.
-- **Per-paket × per-agent komisi matrix** — currently the rate chain is
-  per-agent OR per-paket. A `AgentPaketKomisi(agentId, paketId, rate)` join
-  table would let "ahmad-w gets 15% on VVIP only" without code changes.
-- **Server-side document thumbnails** — `/saya/profile` + `/admin/jemaah` doc
-  panels render full images scaled by CSS. Fine at current 8 MB cap + typical
-  per-jemaah doc counts; if it ever becomes a bottleneck, add `sharp`/`jimp`
-  cached thumbs at `private/docs/<jemaahId>/thumbs/`.
+This section is intentionally short — the codebase is feature-complete
+for an MVP umroh agency. Recommended next focus: **run for 1-3 paket
+cycles with real users** and prioritize from observed behavior.
+
+- **Real-user feedback loop** — instrument the existing analytics
+  (S48 PaketView, S60 view sparkline, S121 ApiRequestLog, S360 install
+  funnel) and review weekly to find friction.
+- **Performance audit** — slow-query log on production DB after 1 month
+  of real traffic; profile any endpoint > 800ms p95.
+- **Accessibility pass** — keyboard navigation, screen-reader labels,
+  ARIA live regions on dynamic content (notifications, SOS form).

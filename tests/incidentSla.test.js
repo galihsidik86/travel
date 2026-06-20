@@ -38,7 +38,12 @@ test('getIncidentSlaReport: bucketing + percentiles', async (t) => {
 
   // Create 3 incidents in the SAME week (last week), with varying ack/resolve
   // latencies, so we can assert percentile + counts deterministically.
-  const lastWeekMid = new Date(Date.now() - 5 * MS_PER_DAY);
+  // Anchor to last week's Wednesday (regardless of today's day-of-week) to
+  // avoid the "5 days ago" pitfall: when today is Sat-Sun, 5d ago lands
+  // in the CURRENT week which getIncidentSlaReport excludes.
+  const today = new Date();
+  const startOfThisWeek = startOfWeekMonday(today);
+  const lastWeekMid = new Date(startOfThisWeek.getTime() - 5 * MS_PER_DAY); // Wed of last week
   const inc1 = await db.incident.create({
     data: {
       type: 'SOS', message: 'i1', createdById: crew.id,

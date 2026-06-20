@@ -14,6 +14,8 @@
     "db:reset": "prisma migrate reset",
     "db:seed": "node --env-file-if-exists=.env prisma/seed.js",
     "db:studio": "prisma studio",
+    "vapid:generate": "node scripts/generate-vapid.js",
+    "prod:check": "node --env-file-if-exists=.env scripts/prod-check.js",
     "test": "node --test --test-concurrency=1 --env-file-if-exists=.env tests/*.test.js",
     "test:watch": "node --test --test-concurrency=1 --watch --env-file-if-exists=.env tests/*.test.js",
     "job:expire-docs": "node --env-file-if-exists=.env src/jobs/expire-docs.js",

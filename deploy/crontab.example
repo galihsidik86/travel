@@ -4,86 +4,182 @@
 # `/srv/religio-pro` with the actual deploy path and `religio` with the
 # Unix user that owns the deployment.
 #
-# Cadence rationale:
-#   - expire-docs:        daily (document expiry is day-granularity)
-#   - expire-intents:     every 10m (Snap sessions ~1h; "stuck for a few
-#                         minutes past expiry" is fine)
-#   - send-notifications: every 2m (near-real-time delivery; the
-#                         in-process worker handles this when the server
-#                         runs, but production deploys set
-#                         NOTIF_WORKER_DISABLED=true and let cron drive)
-#   - send-daily-digest:  daily 07:00 (OWNER reads yesterday's activity
-#                         summary over morning coffee; aggregates from the
-#                         same sources as /admin, no separate counters)
-#   - prune:              weekly (bounded-growth pass on Notification,
-#                         JobRun, failed PaymentIntent. AuditLog +
-#                         Payment + Booking are NEVER pruned. See
-#                         src/services/retention.js for windows.)
+# IMPORTANT: when using cron to drive notifs, set
+#   NOTIF_WORKER_DISABLED=true
+# in `.env` so the in-process worker doesn't double-dispatch.
 #
-# Environment: each row uses the absolute Node binary path so PATH need
-# not be set. The job scripts use --env-file-if-exists=.env which reads
-# the .env in the working directory.
+# The complete list of expected jobs is declared in
+# `src/lib/jobRunner.js → EXPECTED_INTERVAL_MS`. `/api/health` flags any
+# job whose last successful run is older than 2× the declared interval —
+# missing entries here will show up as "degraded" within ~2 days.
+#
+# Scheduling note: morning jobs are staggered at 5-min intervals (06:30 →
+# 10:15) to avoid stampede on a single DB / SMTP relay. Adjust to suit
+# your timezone — the times below are LOCAL TIME on the host (cron honors
+# /etc/timezone). Owner-tier digests are clustered around 07:00-07:30 so
+# OWNER reads everything over morning coffee.
 #
 # Format: m  h  dom  mon  dow  user  command
 
 SHELL=/bin/bash
 MAILTO=""
 
-# Daily 00:30 — sweep overdue JemaahDocument rows → EXPIRED
-30 0  * * *   religio  cd /srv/religio-pro && npm run job:expire-docs        >> /var/log/religio/expire-docs.log    2>&1
+# ══════════════════════════════════════════════════════════════════════
+# HIGH-FREQUENCY (every 2-15 min) — keep the queue draining + SOS hot
+# ══════════════════════════════════════════════════════════════════════
 
-# Every 10 minutes — sweep abandoned PaymentIntent rows → EXPIRED
-*/10 * * * *  religio  cd /srv/religio-pro && npm run job:expire-intents     >> /var/log/religio/expire-intents.log 2>&1
+# Every 2 min — dispatch PENDING + retry-due FAILED notifications
+*/2  * * * *  religio  cd /srv/religio-pro && npm run job:send-notifications     >> /var/log/religio/notif.log               2>&1
 
-# Every 2 minutes — dispatch PENDING + retry-due FAILED notifications
-*/2  * * * *  religio  cd /srv/religio-pro && npm run job:send-notifications >> /var/log/religio/notif.log          2>&1
+# Every 2 min — retry PENDING webhook deliveries (S109)
+*/2  * * * *  religio  cd /srv/religio-pro && npm run job:retry-webhooks         >> /var/log/religio/webhook-retry.log       2>&1
 
-# Every 15 minutes — escalate unacked OPEN incidents past 60min to OWNER tier (Stage 80)
-*/15 * * * *  religio  cd /srv/religio-pro && npm run job:send-incident-escalate >> /var/log/religio/incident-escalate.log 2>&1
+# Every 10 min — sweep abandoned PaymentIntent rows → EXPIRED
+*/10 * * * *  religio  cd /srv/religio-pro && npm run job:expire-intents         >> /var/log/religio/expire-intents.log      2>&1
 
-# Every 2 minutes — retry PENDING webhook deliveries (Stage 109). Exponential backoff 1m/5m/30m/2h/12h.
-*/2 * * * *   religio  cd /srv/religio-pro && npm run job:retry-webhooks >> /var/log/religio/webhook-retry.log 2>&1
+# Every 15 min — escalate unacked OPEN incidents past 60min to OWNER (S80)
+*/15 * * * *  religio  cd /srv/religio-pro && npm run job:send-incident-escalate >> /var/log/religio/incident-escalate.log   2>&1
 
-# Daily 07:00 — fan out yesterday's activity digest to ACTIVE OWNER users (Stage 27)
-0  7  * * *   religio  cd /srv/religio-pro && npm run job:send-daily-digest  >> /var/log/religio/digest.log         2>&1
+# Hourly at :17 — escalate stuck jemaah SOS-light help requests (S332)
+17 *  * * *   religio  cd /srv/religio-pro && npm run job:send-help-escalate     >> /var/log/religio/help-escalate.log       2>&1
 
-# Daily 08:00 — nudge each agen about their stalled WARM/COLD leads (Stage 46)
-0  8  * * *   religio  cd /srv/religio-pro && npm run job:send-stalled-leads >> /var/log/religio/stalled-leads.log 2>&1
+# ══════════════════════════════════════════════════════════════════════
+# OVERNIGHT BATCH (00:30 → 03:00) — housekeeping + backups
+# ══════════════════════════════════════════════════════════════════════
 
-# Daily 08:30 — anomaly alert when paket views drop ≥50% vs 7d avg (Stage 53)
-30 8  * * *   religio  cd /srv/religio-pro && npm run job:send-traffic-anomaly >> /var/log/religio/traffic-anomaly.log 2>&1
+# 00:30 — sweep overdue JemaahDocument rows → EXPIRED
+30 0  * * *   religio  cd /srv/religio-pro && npm run job:expire-docs            >> /var/log/religio/expire-docs.log         2>&1
 
-# Daily 09:00 — overdue task escalation (Stage 96). 48h grace + 7d dedup per recipient.
-0  9  * * *   religio  cd /srv/religio-pro && npm run job:send-task-overdue >> /var/log/religio/task-overdue.log 2>&1
+# 01:15 — mysqldump + gzip + 14-day rotation (see deploy/backup.example.sh)
+15 1  * * *   religio  /srv/religio-pro/deploy/backup.sh                         >> /var/log/religio/backup.log              2>&1
 
-# Daily 08:45 — landing slow alert when p95 latency > 800ms (Stage 58)
-45 8  * * *   religio  cd /srv/religio-pro && npm run job:send-landing-slow >> /var/log/religio/landing-slow.log 2>&1
+# 02:00 — auto-cancel PENDING bookings unpaid > 14d (S237)
+0  2  * * *   religio  cd /srv/religio-pro && npm run job:auto-cancel-stale-pending >> /var/log/religio/auto-cancel.log     2>&1
 
-# Monday 07:05 — weekly Mon-Sun recap to ACTIVE OWNER users (Stage 33)
-# Fires 5 min after the daily so they arrive in order: daily first, then weekly.
-5  7  * * 1   religio  cd /srv/religio-pro && npm run job:send-weekly-digest >> /var/log/religio/weekly.log         2>&1
+# 02:15 — flag agents dormant > 60d (S185)
+15 2  * * *   religio  cd /srv/religio-pro && npm run job:scan-agent-dormancy    >> /var/log/religio/agent-dormancy.log      2>&1
 
-# Monday 07:10 — per-agent weekly recap to each ACTIVE AGEN (Stage 36)
-# Fires after the OWNER weekly so leadership reads theirs first.
-10 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-agent-weekly-digest >> /var/log/religio/agent-weekly.log 2>&1
+# 02:30 — detect no-shows from departed paket with zero attendance (S144)
+30 2  * * *   religio  cd /srv/religio-pro && npm run job:detect-no-shows        >> /var/log/religio/no-shows.log            2>&1
 
-# Monday 07:15 — payout reminder to admins (agents with EARNED ≥ Rp 1M) (Stage 37)
-# Closes the loop: agent digest at 07:10 lets agents see their komisi pile up; this
-# tells admins WHICH agents are overdue. Silent on weeks where no agent crosses the threshold.
-15 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-payout-reminder >> /var/log/religio/payout-reminder.log 2>&1
+# 02:45 — backfill auto-tags (LANSIA / PERTAMA / KELUARGA) on new signals (S232-234)
+45 2  * * *   religio  cd /srv/religio-pro && npm run job:backfill-auto-tags     >> /var/log/religio/auto-tags.log           2>&1
 
-# Monday 07:20 — per-crew (MUTHAWWIF) weekly recap + upcoming trip prep (Stage 65)
-20 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-crew-weekly-digest >> /var/log/religio/crew-weekly.log 2>&1
+# 03:00 — auto-publish DRAFT paket whose publishedAt elapsed (S227)
+0  3  * * *   religio  cd /srv/religio-pro && npm run job:auto-publish-paket     >> /var/log/religio/auto-publish.log        2>&1
 
-# Monday 07:23 — API key scope-down digest (Stage 124). 30d window.
-23 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-api-scope-down >> /var/log/religio/api-scope-down.log 2>&1
+# ══════════════════════════════════════════════════════════════════════
+# DAILY OWNER + ADMIN DIGESTS (06:30 → 10:15)
+# Staggered 5min apart to avoid SMTP/DB stampede.
+# ══════════════════════════════════════════════════════════════════════
 
-# Monday 07:25 — incident SLA breach alert for the previous full Mon-Sun week (Stage 87)
-# Silent on healthy weeks; fires only when at least one (type, metric) p95 crosses the budget.
-25 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-incident-sla-alert >> /var/log/religio/incident-sla.log 2>&1
+# 06:30 — manifest close nudge for jemaah on paket closing soon (S141)
+30 6  * * *   religio  cd /srv/religio-pro && npm run job:send-manifest-close    >> /var/log/religio/manifest-close.log      2>&1
 
-# Nightly 01:15 — mysqldump + gzip + 14-day rotation. See deploy/backup.example.sh.
-15 1  * * *   religio  /srv/religio-pro/deploy/backup.sh                     >> /var/log/religio/backup.log         2>&1
+# 07:00 — yesterday's activity digest to ACTIVE OWNER (S27)
+0  7  * * *   religio  cd /srv/religio-pro && npm run job:send-daily-digest      >> /var/log/religio/daily-digest.log        2>&1
 
-# Weekly Sunday 02:30 — retention sweep (bound notif + jobrun + failed-intent rows)
-30 2  * * 0   religio  cd /srv/religio-pro && npm run job:prune              >> /var/log/religio/prune.log          2>&1
+# 07:30 — payment reminders to jemaah with outstanding balance (S172)
+30 7  * * *   religio  cd /srv/religio-pro && npm run job:send-payment-reminder  >> /var/log/religio/payment-reminder.log    2>&1
+
+# 07:35 — overdue installment digest to admins (S272)
+35 7  * * *   religio  cd /srv/religio-pro && npm run job:send-installment-overdue-digest >> /var/log/religio/installment-overdue.log 2>&1
+
+# 07:40 — pickup choice reminder for jemaah on near-departing paket (S219)
+40 7  * * *   religio  cd /srv/religio-pro && npm run job:send-pickup-reminder   >> /var/log/religio/pickup-reminder.log     2>&1
+
+# 07:45 — expiring document warning to jemaah (S173)
+45 7  * * *   religio  cd /srv/religio-pro && npm run job:send-doc-expiring      >> /var/log/religio/doc-expiring.log        2>&1
+
+# 07:50 — passport renewal reminder (≤90d to expiry) (S203)
+50 7  * * *   religio  cd /srv/religio-pro && npm run job:send-passport-renewal  >> /var/log/religio/passport-renewal.log    2>&1
+
+# 07:55 — H-7 pre-departure readiness reminder (S351)
+55 7  * * *   religio  cd /srv/religio-pro && npm run job:send-predeparture-readiness >> /var/log/religio/predeparture.log    2>&1
+
+# 08:00 — stalled hot-leads digest per agen (S46)
+0  8  * * *   religio  cd /srv/religio-pro && npm run job:send-stalled-leads     >> /var/log/religio/stalled-leads.log       2>&1
+
+# 08:05 — first-booking nudge for jemaah registered ≥7d ago with no bookings (S380)
+5  8  * * *   religio  cd /srv/religio-pro && npm run job:send-first-booking-nudge >> /var/log/religio/first-booking-nudge.log 2>&1
+
+# 08:10 — post-departure re-engage (30d after return) (S293)
+10 8  * * *   religio  cd /srv/religio-pro && npm run job:send-post-departure-reengage >> /var/log/religio/post-departure.log 2>&1
+
+# 08:15 — one-year anniversary re-engage (365d after return) (S308)
+15 8  * * *   religio  cd /srv/religio-pro && npm run job:send-anniversary-reengage >> /var/log/religio/anniversary.log     2>&1
+
+# 08:20 — birthday greeting to jemaah whose birthDate matches today (S307)
+20 8  * * *   religio  cd /srv/religio-pro && npm run job:send-birthday-greeting >> /var/log/religio/birthday.log            2>&1
+
+# 08:30 — traffic anomaly alert (paket views dropped ≥50%) (S53)
+30 8  * * *   religio  cd /srv/religio-pro && npm run job:send-traffic-anomaly   >> /var/log/religio/traffic-anomaly.log     2>&1
+
+# 08:45 — landing speed alert (p95 > 800ms) (S58)
+45 8  * * *   religio  cd /srv/religio-pro && npm run job:send-landing-slow      >> /var/log/religio/landing-slow.log        2>&1
+
+# 08:50 — crew daily report missed digest (morning report on yesterday's gaps) (S279)
+50 8  * * *   religio  cd /srv/religio-pro && npm run job:send-crew-daily-report-missed >> /var/log/religio/crew-report-missed.log 2>&1
+
+# 09:00 — overdue task escalation (48h grace + 7d per-recipient dedup) (S96)
+0  9  * * *   religio  cd /srv/religio-pro && npm run job:send-task-overdue      >> /var/log/religio/task-overdue.log        2>&1
+
+# 09:15 — trip feedback (NPS) reminder 60d post-return (S312)
+15 9  * * *   religio  cd /srv/religio-pro && npm run job:send-trip-feedback-reminder >> /var/log/religio/trip-feedback.log  2>&1
+
+# 09:30 — detractor (NPS ≤6) follow-up escalation (S318)
+30 9  * * *   religio  cd /srv/religio-pro && npm run job:send-detractor-escalate >> /var/log/religio/detractor-escalate.log 2>&1
+
+# 09:45 — doc verification SLA digest (>48h SUBMITTED docs awaiting verify) (S276)
+45 9  * * *   religio  cd /srv/religio-pro && npm run job:send-doc-verify-sla    >> /var/log/religio/doc-verify-sla.log      2>&1
+
+# 10:00 — public inquiry SLA digest (>24h stale inquiries) (S291)
+0  10 * * *   religio  cd /srv/religio-pro && npm run job:send-inquiry-sla       >> /var/log/religio/inquiry-sla.log         2>&1
+
+# 10:15 — statement unread nudge (S163) — agents who haven't opened recent komisi statements
+15 10 * * *   religio  cd /srv/religio-pro && npm run job:send-statement-unread-nudge >> /var/log/religio/statement-unread.log 2>&1
+
+# 19:00 — crew daily report reminder (evening, before crew sleeps) (S279)
+0  19 * * *   religio  cd /srv/religio-pro && npm run job:send-crew-daily-report-reminder >> /var/log/religio/crew-report-reminder.log 2>&1
+
+# ══════════════════════════════════════════════════════════════════════
+# MONDAY MORNING — WEEKLY DIGESTS (07:05 → 07:30)
+# Owner first, then agen, then crew. Closing with health/scope-down digests.
+# ══════════════════════════════════════════════════════════════════════
+
+# 07:05 — owner weekly Mon-Sun digest (S33)
+5  7  * * 1   religio  cd /srv/religio-pro && npm run job:send-weekly-digest      >> /var/log/religio/weekly-digest.log      2>&1
+
+# 07:10 — per-agen weekly recap (S36)
+10 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-agent-weekly-digest >> /var/log/religio/agent-weekly.log      2>&1
+
+# 07:15 — payout reminder for agents with EARNED ≥ Rp 1M (S37)
+15 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-payout-reminder    >> /var/log/religio/payout-reminder.log    2>&1
+
+# 07:20 — per-crew (MUTHAWWIF) weekly recap (S65)
+20 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-crew-weekly-digest >> /var/log/religio/crew-weekly.log        2>&1
+
+# 07:22 — per-crew dietary brief for paket departing in 14d (S213)
+22 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-crew-dietary-brief >> /var/log/religio/crew-dietary.log       2>&1
+
+# 07:23 — API key scope-down digest (S124)
+23 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-api-scope-down     >> /var/log/religio/api-scope-down.log     2>&1
+
+# 07:25 — incident SLA breach alert for the previous full week (S87)
+25 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-incident-sla-alert >> /var/log/religio/incident-sla.log       2>&1
+
+# 07:30 — webhook delivery health digest (S129)
+30 7  * * 1   religio  cd /srv/religio-pro && npm run job:send-webhook-health     >> /var/log/religio/webhook-health.log     2>&1
+
+# ══════════════════════════════════════════════════════════════════════
+# WEEKLY + MONTHLY + YEARLY HOUSEKEEPING
+# ══════════════════════════════════════════════════════════════════════
+
+# Sunday 02:30 — retention sweep (Notification + JobRun + failed-intent bounds)
+30 2  * * 0   religio  cd /srv/religio-pro && npm run job:prune                  >> /var/log/religio/prune.log              2>&1
+
+# 1st of month 02:30 — generate previous-month komisi statements per agent (S150)
+30 2  1 * *   religio  cd /srv/religio-pro && npm run job:generate-komisi-statements >> /var/log/religio/komisi-statements.log 2>&1
+
+# Jan 5 02:30 — annual recap email per agent (S158)
+30 2  5 1 *   religio  cd /srv/religio-pro && npm run job:send-agent-annual-recap >> /var/log/religio/annual-recap.log       2>&1

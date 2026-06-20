@@ -404,6 +404,10 @@ Default port is `3001` (set in `.env`) because something else owns `3000` on thi
 
 `npm run db:reset` runs `prisma migrate reset` — **destructive**: drops the schema, re-runs every migration, and re-seeds. Never invoke without confirming with the user.
 
+**Production helpers:**
+- `npm run vapid:generate` — emits VAPID public/private keypair for Web Push (S17/S93). Copy the 3 `VAPID_*` lines into `.env` + restart; boot log flips from `[push] sender = console` to `[push] sender = web-push`.
+- `npm run prod:check` — production-readiness audit. Verifies required env vars present, `COOKIE_SECURE=true` in prod, optional integrations declared, IDB-write dirs exist (`private/docs/`, `private/voucher-cache/`, `private/incidents/`), DB reachable + Prisma migrations applied, `NOTIF_WORKER_DISABLED=true` when running under cron. Exits 0 if ready / 1 if blockers. Run after every env change before restarting the web process.
+
 Tests run via Node's built-in `node:test` (zero deps, ships with Node ≥ 18). `npm test` runs `tests/*.test.js`; `npm run test:watch` re-runs on file change. New tests go in `tests/` as `<topic>.test.js`. Shared fixtures + cleanup hooks live in `tests/_helpers.js` — use `tempJemaah(t, tag)` / `tempPaket(t, tag, {dayCount})` / `tempBooking({...})`, all registered with `t.after()` so they're scoped per-test. Tests share the dev DB but isolate by unique `makeTag()` prefixes — never assert on global counts (seed rows exist), always filter by tag.
 
 Older `scripts/smoke-*.js` are ad-hoc smoke runners predating `node:test` — they still work standalone (`node scripts/smoke-XX.js`) but new coverage should be written as `tests/*.test.js`. Migrating the legacy smokes is incremental, not a flag-day.
