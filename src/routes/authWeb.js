@@ -24,7 +24,8 @@ function redirectForRole(role) {
   if (role === 'AGEN') return '/agen';
   if (role === 'JEMAAH') return '/saya';
   if (role === 'MUTHAWWIF') return '/crew';  // 5oo
-  if (['OWNER', 'SUPERADMIN', 'MANAJER_OPS', 'KASIR'].includes(role)) return '/admin';
+  if (role === 'KASIR') return '/admin/bookings';
+  if (['OWNER', 'SUPERADMIN', 'MANAJER_OPS'].includes(role)) return '/admin';
   return '/';
 }
 
