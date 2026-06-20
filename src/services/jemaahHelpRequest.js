@@ -198,6 +198,36 @@ export async function submitJemaahHelpRequest({ req, actor, userId, message, loc
     }
   }
 
+  // Web push fan-out — real-time toast on installed PWA. Mirrors the
+  // admin-incident pushToAdmins pattern (S17) for jemaah SOS so crew
+  // and admin get the alert immediately even if EMAIL/WA queue lags.
+  // SOS-tagged so SW handler keeps the notification sticky (S352).
+  // Best-effort: push failure logs but never aborts the SOS write.
+  try {
+    const { pushToUser } = await import('./webPush.js');
+    const adminIds = new Set(admins.map((a) => a.id));
+    const pushTitle = `🆘 SOS dari ${j?.fullName || 'jemaah'}`;
+    const pushBody = trimmed.slice(0, 140);
+    const pushTag = `sos-${booking.id}`;
+    const crewSlug = booking.paket?.slug;
+    for (const u of recipients) {
+      const isAdmin = adminIds.has(u.id);
+      const url = isAdmin
+        ? '/admin/help-requests'
+        : (crewSlug ? `/crew/paket/${crewSlug}` : '/crew');
+      try {
+        await pushToUser(u.id, {
+          title: pushTitle, body: pushBody, url,
+          tag: pushTag, requireInteraction: true,
+        });
+      } catch (err) {
+        console.warn(`[jemaahHelpRequest] push failed for ${u.email || u.id}:`, err?.message || err);
+      }
+    }
+  } catch (err) {
+    console.warn('[jemaahHelpRequest] push fan-out skipped:', err?.message || err);
+  }
+
   // Append a system note to the booking so admin sees it in the
   // timeline. Idempotent across the cooldown window because the
   // cooldown guard above blocks rapid re-submission.
