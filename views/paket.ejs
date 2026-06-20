@@ -363,7 +363,7 @@
       <%# Stage 356 — Web Share button. Hidden by default; JS feature-detect
           flips it visible when navigator.share is available. Preserves
           ?a=<agentSlug> attribution so referral credit follows the share. %>
-      <button type="button" id="rp-paket-share-btn" data-paket-slug="<%= p.slug %>" data-paket-title="<%= p.title %>" data-agent-slug="<%= agent ? agent.slug : '' %>" style="display:none;background:transparent;color:var(--gold-300);border:1px solid var(--gold-300);padding:6px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-right:8px;">📤 Bagikan</button>
+      <button type="button" id="rp-paket-share-btn" data-paket-slug="<%= paket.slug %>" data-paket-title="<%= paket.title %>" data-agent-slug="<%= agent ? agent.slug : '' %>" style="display:none;background:transparent;color:var(--gold-300);border:1px solid var(--gold-300);padding:6px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-right:8px;">📤 Bagikan</button>
       <a class="btn btn--primary btn--sm" href="#daftar">Pesan</a>
     </div>
   </div>
