@@ -5,15 +5,15 @@
 #   sudo systemctl reload caddy
 #
 # Caddy auto-issues Let's Encrypt cert on first request — make sure
-# DNS A-record `religio.sosmart.com → 202.134.242.202` is set + propagated
+# DNS A-record `religio.sosmartpro.com → 202.134.242.202` is set + propagated
 # BEFORE reloading Caddy. Check with:
-#   nslookup religio.sosmart.com 8.8.8.8
+#   nslookup religio.sosmartpro.com 8.8.8.8
 #
 # App listens on 127.0.0.1:3000 (set PORT=3000 in .env). Caddy
 # forwards Host + X-Forwarded-* headers so Express's `trust proxy 1`
 # can read the real client IP + scheme.
 
-religio.sosmart.com {
+religio.sosmartpro.com {
 	# Optional: rate-limit basic abuse (relies on caddy-ratelimit plugin)
 	# Skip unless you've built Caddy with the plugin.
 	# rate_limit {

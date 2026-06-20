@@ -4,7 +4,7 @@
 # Usage (as root):
 #   wget https://raw.githubusercontent.com/galihsidik86/travel/main/deploy/install.sh
 #   chmod +x install.sh
-#   DOMAIN=religio.sosmart.com DB_PASSWORD=<strong-pw> ./install.sh
+#   DOMAIN=religio.sosmartpro.com DB_PASSWORD=<strong-pw> ./install.sh
 #
 # What it does:
 #   1. Update apt + install Node 20, MariaDB, Caddy, git, curl, certbot
@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-DOMAIN="${DOMAIN:-religio.sosmart.com}"
+DOMAIN="${DOMAIN:-religio.sosmartpro.com}"
 DEPLOY_USER="${DEPLOY_USER:-religio}"
 DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/religio-pro}"
 REPO_URL="${REPO_URL:-https://github.com/galihsidik86/travel.git}"
@@ -186,7 +186,7 @@ chmod +x "$DEPLOY_ROOT/deploy/backup.sh"
 chown "$DEPLOY_USER:$DEPLOY_USER" "$DEPLOY_ROOT/deploy/backup.sh"
 
 log "8c/8 — Caddyfile"
-sed "s|religio.sosmart.com|$DOMAIN|g" "$DEPLOY_ROOT/deploy/Caddyfile.example" > /etc/caddy/Caddyfile
+sed "s|religio.sosmartpro.com|$DOMAIN|g" "$DEPLOY_ROOT/deploy/Caddyfile.example" > /etc/caddy/Caddyfile
 systemctl reload caddy
 
 # ── Final: prod:check + status ─────────────────────────────────
