@@ -181,13 +181,22 @@ export function createApp() {
   app.use('/admin/data-deletion-requests', dataDeletionRequestsRouter);
   app.use('/admin', adminRouter);
 
-  // Static — existing design package (index.html, screens/, shared/, uploads/)
+  // Static — existing design package (index.html, screens/, shared/, uploads/).
+  // setHeaders adds `Service-Worker-Allowed: /` to shared/sw.js so the PWA SW
+  // can claim root scope despite living under /shared/ — without this, push
+  // notifications, offline cache, and stale-while-revalidate all silently fail
+  // because the SW only controls /shared/* URLs.
   app.use(
     express.static(projectRoot, {
       dotfiles: 'deny',
       index: 'index.html',
       extensions: ['html'],
       maxAge: isDev ? 0 : '1d',
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('sw.js')) {
+          res.setHeader('Service-Worker-Allowed', '/');
+        }
+      },
     }),
   );
 

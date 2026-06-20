@@ -46,3 +46,8 @@ memory/
 
 # Generated presentation captures (re-runnable via scripts/build-presentation.js)
 presentation/screenshots/*.png
+
+# Playwright artifacts (re-runnable via `npx playwright test`)
+test-results/
+playwright-report/
+playwright/.cache/
