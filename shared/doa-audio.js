@@ -90,5 +90,91 @@
     return voicesCache.some((v) => v.lang && v.lang.toLowerCase().startsWith('ar'));
   }
 
-  global.DoaAudio = { supported: true, play, stop, voices, hasArabic };
+  // Stage 388 (extension) — playAudio() pakai HTML5 <audio> untuk MP3
+  // file pre-rendered (rekaman qori asli). Lebih baik dari TTS untuk
+  // pronunciation tartil yang benar. Falls back to TTS via callback
+  // kalau MP3 fetch gagal (404 / network error).
+  let currentAudio = null;
+  function playAudio(url, { onEnd, onError, fallback } = {}) {
+    return new Promise((resolve) => {
+      if (!url) {
+        if (typeof fallback === 'function') { fallback(); resolve({ ok: false, error: 'no url' }); return; }
+        resolve({ ok: false, error: 'no url' });
+        return;
+      }
+      // Cancel TTS + existing audio before starting new playback.
+      try { synth.cancel(); } catch (_e) {}
+      if (currentAudio) {
+        try { currentAudio.pause(); currentAudio.src = ''; } catch (_e) {}
+        currentAudio = null;
+      }
+      const audio = new Audio(url);
+      audio.preload = 'auto';
+      currentAudio = audio;
+      audio.addEventListener('ended', () => {
+        if (typeof onEnd === 'function') { try { onEnd(); } catch (_e) {} }
+        if (currentAudio === audio) currentAudio = null;
+        resolve({ ok: true, source: 'mp3' });
+      });
+      audio.addEventListener('error', () => {
+        const reason = audio.error ? `code ${audio.error.code}` : 'unknown';
+        if (currentAudio === audio) currentAudio = null;
+        // MP3 fetch failed (404 / decode error) — invoke TTS fallback
+        // if caller wired one. Common during dev when MP3 files not yet
+        // dropped into shared/audio/doa/.
+        if (typeof fallback === 'function') {
+          try { fallback(); } catch (_e) {}
+          resolve({ ok: false, error: reason, fellBack: true });
+          return;
+        }
+        if (typeof onError === 'function') { try { onError(reason); } catch (_e) {} }
+        resolve({ ok: false, error: reason });
+      });
+      audio.play().catch((err) => {
+        // Autoplay policy block etc. — surface as error, optional fallback.
+        if (currentAudio === audio) currentAudio = null;
+        if (typeof fallback === 'function') {
+          try { fallback(); } catch (_e) {}
+          resolve({ ok: false, error: err.message, fellBack: true });
+          return;
+        }
+        if (typeof onError === 'function') { try { onError(err.message); } catch (_e) {} }
+        resolve({ ok: false, error: err.message });
+      });
+    });
+  }
+
+  // Probe whether an audio URL is reachable. Lightweight HEAD request
+  // so UI can show "🎵 MP3" badge vs "🔊 TTS" badge before user taps.
+  // Cached per-URL since result doesn't change within session.
+  const probeCache = new Map();
+  async function probeAudio(url) {
+    if (!url) return false;
+    if (probeCache.has(url)) return probeCache.get(url);
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      const ok = res.ok;
+      probeCache.set(url, ok);
+      return ok;
+    } catch (_err) {
+      probeCache.set(url, false);
+      return false;
+    }
+  }
+
+  // Wrap original stop() to also cancel audio playback.
+  const stopBoth = () => {
+    try { synth.cancel(); } catch (_e) {}
+    if (currentAudio) {
+      try { currentAudio.pause(); currentAudio.src = ''; } catch (_e) {}
+      currentAudio = null;
+    }
+  };
+
+  global.DoaAudio = {
+    supported: true,
+    play, playAudio, probeAudio,
+    stop: stopBoth,
+    voices, hasArabic,
+  };
 })(window);

@@ -268,6 +268,21 @@
       checkArabicAvailability();
       setTimeout(checkArabicAvailability, 800);
 
+      // Probe MP3 availability — show "🎵 MP3" badge on Arab button when
+      // pre-recorded qori file exists, else fall back to TTS automatically.
+      const arBtn = bar.querySelector('.doa-play[data-source="arabic"]');
+      let mp3Available = false;
+      if (currentDoa.audioUrl && arBtn) {
+        window.DoaAudio.probeAudio(currentDoa.audioUrl).then((ok) => {
+          mp3Available = ok;
+          if (ok) {
+            const lbl = arBtn.querySelector('.lbl');
+            if (lbl) lbl.textContent = 'Arab 🎵';
+            arBtn.title = 'Rekaman qori asli';
+          }
+        });
+      }
+
       buttons.forEach((btn) => {
         btn.addEventListener('click', async () => {
           // If this button is currently playing → stop (toggle).
@@ -283,6 +298,26 @@
             : source === 'latin' ? currentDoa.latin
             : currentDoa.translation;
           markPlaying(btn);
+
+          // S388 ext — Arab button prefers MP3 (real qori recitation)
+          // when available, falls back to TTS on 404 / decode error.
+          // Latin + Arti stay TTS-only (no need for pre-recorded).
+          if (source === 'arabic' && currentDoa.audioUrl && mp3Available) {
+            const r = await window.DoaAudio.playAudio(currentDoa.audioUrl, {
+              onEnd: () => resetButton(btn),
+              fallback: () => {
+                // MP3 failed mid-flight — TTS as last resort.
+                window.DoaAudio.play(text, {
+                  lang, rate: 0.9,
+                  onEnd: () => resetButton(btn),
+                  onError: () => resetButton(btn),
+                });
+              },
+            });
+            if (!r.ok && !r.fellBack) resetButton(btn);
+            return;
+          }
+
           const result = await window.DoaAudio.play(text, {
             lang,
             // Latin transliteration not real Indonesian — slow it down so

@@ -6,66 +6,80 @@
 // trips). Index resets to 0 each year — fine since the set is short.
 
 (function (global) {
+  // Stage 388 — `audioUrl` optional. Kalau file MP3 ada di
+  // /shared/audio/doa/<slug>.mp3, set audioUrl ke path itu — DoaAudio
+  // playAudio() pakai HTML5 <audio> untuk pelafalan asli qori.
+  // Kalau null/missing, fallback ke TTS Web Speech API (synthesised).
   const DOA = [
     {
       title: 'Doa masuk Masjidil Haram',
       arabic: 'اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ',
       latin: "Allāhummaftaḥ lī abwāba raḥmatik",
       translation: 'Ya Allah, bukakanlah untukku pintu-pintu rahmat-Mu.',
+      audioUrl: '/shared/audio/doa/masuk-masjidil-haram.mp3',
     },
     {
       title: 'Doa melihat Ka\'bah',
       arabic: 'اللَّهُمَّ زِدْ هَذَا الْبَيْتَ تَشْرِيفًا وَتَعْظِيمًا وَتَكْرِيمًا وَمَهَابَةً',
       latin: 'Allāhumma zid hādzal-baita tasyrīfan wa ta\'dhīman wa takrīman wa mahābah',
       translation: 'Ya Allah, tambahkanlah kemuliaan, keagungan, kehormatan, dan kewibawaan pada rumah-Mu ini.',
+      audioUrl: '/shared/audio/doa/melihat-kabah.mp3',
     },
     {
       title: 'Doa sebelum minum air Zamzam',
       arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا وَرِزْقًا وَاسِعًا وَشِفَاءً مِنْ كُلِّ دَاءٍ',
       latin: "Allāhumma innī as'aluka 'ilman nāfi'an wa rizqan wāsi'an wa syifā'an min kulli dā'",
       translation: 'Ya Allah, aku mohon kepada-Mu ilmu yang bermanfaat, rezeki yang luas, dan kesembuhan dari segala penyakit.',
+      audioUrl: '/shared/audio/doa/minum-zamzam.mp3',
     },
     {
       title: 'Doa keluar Masjidil Haram',
       arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ',
       latin: "Allāhumma innī as'aluka min faḍlik",
       translation: 'Ya Allah, aku mohon kepada-Mu dari karunia-Mu.',
+      audioUrl: '/shared/audio/doa/keluar-masjidil-haram.mp3',
     },
     {
       title: 'Doa sapu jagat (di Multazam atau setelah thawaf)',
       arabic: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
       latin: "Rabbanā ātinā fid-dunyā ḥasanah, wa fil-ākhirati ḥasanah, wa qinā 'adzāban-nār",
       translation: 'Ya Tuhan kami, berikanlah kami kebaikan di dunia, kebaikan di akhirat, dan jauhkanlah kami dari azab neraka.',
+      audioUrl: '/shared/audio/doa/sapu-jagat.mp3',
     },
     {
       title: 'Doa masuk Masjid Nabawi',
       arabic: 'بِسْمِ اللَّهِ وَالصَّلَاةُ وَالسَّلَامُ عَلَى رَسُولِ اللَّهِ، اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ',
       latin: 'Bismillāhi wash-shalātu was-salāmu \'alā rasūlillāh, Allāhummaftaḥ lī abwāba raḥmatik',
       translation: 'Dengan nama Allah, semoga shalawat dan salam tercurah kepada Rasulullah. Ya Allah, bukakanlah untukku pintu-pintu rahmat-Mu.',
+      audioUrl: '/shared/audio/doa/masuk-masjid-nabawi.mp3',
     },
     {
       title: 'Doa ziarah ke makam Rasulullah',
       arabic: 'السَّلَامُ عَلَيْكَ يَا رَسُولَ اللَّهِ، السَّلَامُ عَلَيْكَ يَا نَبِيَّ اللَّهِ',
       latin: "As-salāmu 'alaika yā rasūlallāh, as-salāmu 'alaika yā nabiyyallāh",
       translation: 'Semoga salam tercurah atasmu wahai Rasulullah, semoga salam tercurah atasmu wahai Nabi Allah.',
+      audioUrl: '/shared/audio/doa/ziarah-makam-rasul.mp3',
     },
     {
       title: 'Doa di antara Rukun Yamani &amp; Hajar Aswad',
       arabic: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
       latin: "Rabbanā ātinā fid-dunyā ḥasanah, wa fil-ākhirati ḥasanah, wa qinā 'adzāban-nār",
       translation: 'Ya Tuhan kami, berikanlah kami kebaikan di dunia dan akhirat, jauhkan kami dari azab neraka.',
+      audioUrl: '/shared/audio/doa/antara-rukun-yamani.mp3',
     },
     {
       title: 'Doa selesai sai',
       arabic: 'رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ الْأَعَزُّ الْأَكْرَمُ',
       latin: 'Rabbighfir warḥam wa antal-a\'azzul-akram',
       translation: 'Ya Tuhan, ampunilah, sayangilah, Engkaulah Yang Maha Mulia dan Maha Pemurah.',
+      audioUrl: '/shared/audio/doa/selesai-sai.mp3',
     },
     {
       title: 'Doa keselamatan dalam perjalanan',
       arabic: 'سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ وَإِنَّا إِلَى رَبِّنَا لَمُنْقَلِبُونَ',
       latin: "Subḥānal-ladzī sakhkhara lanā hādzā wa mā kunnā lahū muqrinīn, wa innā ilā rabbinā lamunqalibūn",
       translation: 'Maha Suci Tuhan yang menundukkan ini untuk kami, padahal kami sebelumnya tidak mampu menguasainya. Sesungguhnya kami akan kembali kepada Tuhan kami.',
+      audioUrl: '/shared/audio/doa/keselamatan-perjalanan.mp3',
     },
   ];
 
