@@ -130,7 +130,7 @@
   <div class="topbar">
     <div>JEMAAH · <span class="who"><%= user.email %></span></div>
     <div class="nav">
-      <a href="/saya">← Dashboard</a>
+      <a class="btn-back" href="/saya">Dashboard</a>
       <a href="/saya/profile">Profil &amp; dokumen</a>
       <form method="POST" action="/logout" style="display:inline;margin:0;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">

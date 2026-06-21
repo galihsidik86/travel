@@ -90,7 +90,7 @@
   <div class="topbar">
     <div>CREW · <span class="who"><%= user.email %></span></div>
     <div class="nav">
-      <a href="/crew">← Dashboard</a>
+      <a class="btn-back" href="/crew">Dashboard</a>
       <form method="POST" action="/logout" style="display:inline;margin:0;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <button type="submit">Keluar</button>

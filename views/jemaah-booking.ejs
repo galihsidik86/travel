@@ -142,7 +142,7 @@
 <body data-screen-label="04 Portal Jemaah · Detail" class="has-m-tabs">
 <div class="wrap">
   <div class="crumb" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-    <a href="/saya">← KEMBALI KE PORTAL</a>
+    <a class="btn-back" href="/saya">Kembali ke Portal</a>
     <div style="display:flex;gap:8px;align-items:center;">
       <% if (b.paket.departureDate && b.status !== 'CANCELLED' && b.status !== 'REFUNDED') { %>
         <a href="/saya/bookings/<%= b.id %>/calendar.ics"
