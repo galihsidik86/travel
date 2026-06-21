@@ -113,6 +113,14 @@
         Arabic, Latin pronunciation, Indonesian translation). %>
     <div class="doa-card" style="margin-top:22px;">
       <div class="doa-eyebrow">✨ Doa hari ini</div>
+      <%# Nav prev/next + counter — allow browsing all doa, not just
+          today's rotation. Default index = day-of-year mod 10, user
+          can flip via arrow buttons. Stop any audio on navigation. %>
+      <div class="doa-nav">
+        <button type="button" id="doa-prev" class="doa-nav-btn" aria-label="Doa sebelumnya">⟨</button>
+        <span id="doa-counter" class="doa-counter">—</span>
+        <button type="button" id="doa-next" class="doa-nav-btn" aria-label="Doa berikutnya">⟩</button>
+      </div>
       <div id="doa-title" class="doa-title">—</div>
       <div id="doa-arabic" class="doa-arabic">—</div>
       <div id="doa-latin" class="doa-latin">—</div>
@@ -139,7 +147,7 @@
       <div id="doa-audio-credit" style="display:none;margin-top:6px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);letter-spacing:0.04em;font-style:italic;"></div>
 
       <div style="margin-top:12px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.06em;">
-        Doa berganti setiap hari · ada 11 doa dalam rotasi.
+        Default = doa hari ini. Tap ⟨ ⟩ untuk telusuri semua doa.
       </div>
     </div>
 
@@ -167,6 +175,30 @@
         color: var(--gold-300); letter-spacing: 0.16em;
         text-transform: uppercase; margin-bottom: 8px;
         position: relative; z-index: 1;
+      }
+      .doa-nav {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; margin: 4px 0 12px;
+        position: relative; z-index: 2;
+      }
+      .doa-nav-btn {
+        width: 36px; height: 36px; min-width: 36px;
+        display: grid; place-items: center;
+        background: transparent; border: 1px solid var(--gold-300);
+        border-radius: 50%; color: var(--gold-300);
+        font-family: var(--font-display); font-size: 18px; font-weight: 400;
+        line-height: 1; cursor: pointer; padding: 0;
+        transition: background 180ms ease, color 180ms ease, transform 120ms ease;
+      }
+      .doa-nav-btn:hover, .doa-nav-btn:focus-visible {
+        background: var(--gold-300); color: var(--ink-1000);
+        outline: none;
+      }
+      .doa-nav-btn:active { transform: scale(0.92); }
+      .doa-counter {
+        font-family: var(--font-mono); font-size: 11px;
+        color: var(--ink-200); letter-spacing: 0.14em;
+        text-transform: uppercase;
       }
       .doa-title { font-family: var(--font-display); font-size: 17px; color: var(--cream-100); margin-bottom: 10px; line-height: 1.3; position: relative; z-index: 1; }
       .doa-arabic { font-family: 'Amiri', serif; font-size: 22px; color: var(--cream-100); text-align: right; direction: rtl; line-height: 2; margin-bottom: 10px; position: relative; z-index: 1; }
@@ -225,24 +257,25 @@
   <script src="/shared/doa-audio.js"></script>
   <script>
     (function () {
-      let currentDoa = null;
-      try {
-        currentDoa = window.DoaHarian.getTodayDoa();
-        if (!currentDoa) return;
-        document.getElementById('doa-title').innerHTML = currentDoa.title;
-        document.getElementById('doa-arabic').textContent = currentDoa.arabic;
-        document.getElementById('doa-latin').textContent = '"' + currentDoa.latin + '"';
-        document.getElementById('doa-id').textContent = currentDoa.translation;
-      } catch (err) { console.warn('[doa-harian]', err); return; }
+      const all = (window.DoaHarian && window.DoaHarian.all) || [];
+      if (!all.length) return;
 
-      // Stage 388 — TTS audio playback (Web Speech API). Reveal audio
-      // bar only when supported; hide gracefully on older browsers.
-      if (!window.DoaAudio || !window.DoaAudio.supported) return;
+      // Compute today's index = day-of-year mod len. Used as default.
+      const todayIndex = window.DoaHarian.dayOfYear() % all.length;
+      let currentIndex = todayIndex;
+      let currentDoa = all[currentIndex];
+
+      const $title = document.getElementById('doa-title');
+      const $arabic = document.getElementById('doa-arabic');
+      const $latin = document.getElementById('doa-latin');
+      const $id = document.getElementById('doa-id');
+      const $counter = document.getElementById('doa-counter');
+      const $eyebrow = document.querySelector('.doa-eyebrow');
+      const credit = document.getElementById('doa-audio-credit');
       const bar = document.getElementById('doa-audio');
       const hint = document.getElementById('doa-audio-hint');
-      bar.style.display = 'flex';
-
-      const buttons = bar.querySelectorAll('.doa-play');
+      const ttsSupported = window.DoaAudio && window.DoaAudio.supported;
+      let mp3Available = false;
       let playingBtn = null;
 
       function resetButton(btn) {
@@ -257,41 +290,97 @@
         btn.classList.add('is-playing');
       }
 
+      function renderDoa(idx) {
+        // Stop any in-progress audio when switching doa.
+        if (ttsSupported) window.DoaAudio.stop();
+        if (playingBtn) { resetButton(playingBtn); playingBtn = null; }
+
+        currentIndex = ((idx % all.length) + all.length) % all.length;
+        currentDoa = all[currentIndex];
+
+        $title.innerHTML = currentDoa.title;
+        $arabic.textContent = currentDoa.arabic;
+        $latin.textContent = '"' + currentDoa.latin + '"';
+        $id.textContent = currentDoa.translation;
+        $counter.textContent = (currentIndex + 1) + ' / ' + all.length;
+        // Update eyebrow to indicate "doa hari ini" vs user-browsed.
+        if ($eyebrow) {
+          $eyebrow.innerHTML = currentIndex === todayIndex
+            ? '✨ Doa hari ini'
+            : '✨ Doa ' + (currentIndex + 1) + ' dari ' + all.length;
+        }
+
+        // Reset audio UI state for new doa.
+        if (bar) {
+          // Reset Arab button label + credit before re-probe.
+          const arBtn = bar.querySelector('.doa-play[data-source="arabic"]');
+          if (arBtn) {
+            const lbl = arBtn.querySelector('.lbl');
+            if (lbl) lbl.textContent = 'Arab';
+            arBtn.title = '';
+          }
+          if (credit) { credit.style.display = 'none'; credit.textContent = ''; }
+          if (hint) { hint.style.display = 'none'; hint.textContent = ''; }
+          mp3Available = false;
+
+          // Probe MP3 availability — show "🎵" badge when pre-recorded
+          // qori file exists, else fall back to TTS automatically.
+          if (currentDoa.audioUrl && arBtn) {
+            window.DoaAudio.probeAudio(currentDoa.audioUrl).then((ok) => {
+              // Race guard — kalau user keburu navigate ke doa lain,
+              // jangan apply hasil probe yg sudah stale.
+              if (all[currentIndex] !== currentDoa) return;
+              mp3Available = ok;
+              if (ok) {
+                const lbl = arBtn.querySelector('.lbl');
+                if (lbl) lbl.textContent = 'Arab 🎵';
+                arBtn.title = 'Rekaman qori asli';
+                if (credit && currentDoa.audioCredit) {
+                  credit.style.display = 'block';
+                  credit.textContent = '🎵 ' + currentDoa.audioCredit;
+                }
+              }
+            });
+          }
+
+          // Re-check Arabic voice availability (only matters for Arab btn).
+          if (arBtn && !window.DoaAudio.hasArabic()) {
+            arBtn.disabled = true;
+            arBtn.title = 'Voice Arabic belum tersedia di device ini';
+          } else if (arBtn) {
+            arBtn.disabled = false;
+          }
+        }
+      }
+
+      // Wire prev/next + initial render.
+      document.getElementById('doa-prev').addEventListener('click', () => {
+        renderDoa(currentIndex - 1);
+      });
+      document.getElementById('doa-next').addEventListener('click', () => {
+        renderDoa(currentIndex + 1);
+      });
+      renderDoa(todayIndex);
+
+      // Stage 388 — TTS audio playback wiring. Reveal audio bar only
+      // when supported; hide gracefully on older browsers.
+      if (!ttsSupported || !bar) return;
+      bar.style.display = 'flex';
+
+      const buttons = bar.querySelectorAll('.doa-play');
+
       // Voice availability check — Arabic TTS not always installed.
       function checkArabicAvailability() {
-        const arBtn = bar.querySelector('.doa-play[data-source="arabic"]');
-        if (!arBtn) return;
         if (!window.DoaAudio.hasArabic()) {
-          arBtn.disabled = true;
-          arBtn.title = 'Voice Arabic belum tersedia di device ini';
-          hint.style.display = 'block';
-          hint.textContent = '⚠ Voice Arabic belum terpasang di device ini — pakai Latin/Arti dulu, atau install bahasa Arab via OS Settings.';
+          if (hint) {
+            hint.style.display = 'block';
+            hint.textContent = '⚠ Voice Arabic belum terpasang di device ini — pakai Latin/Arti dulu, atau install bahasa Arab via OS Settings.';
+          }
         }
       }
       // Voices load async on some browsers — re-check after a delay.
       checkArabicAvailability();
       setTimeout(checkArabicAvailability, 800);
-
-      // Probe MP3 availability — show "🎵 MP3" badge on Arab button when
-      // pre-recorded qori file exists, else fall back to TTS automatically.
-      const arBtn = bar.querySelector('.doa-play[data-source="arabic"]');
-      const credit = document.getElementById('doa-audio-credit');
-      let mp3Available = false;
-      if (currentDoa.audioUrl && arBtn) {
-        window.DoaAudio.probeAudio(currentDoa.audioUrl).then((ok) => {
-          mp3Available = ok;
-          if (ok) {
-            const lbl = arBtn.querySelector('.lbl');
-            if (lbl) lbl.textContent = 'Arab 🎵';
-            arBtn.title = 'Rekaman qori asli';
-            // Show attribution credit (license compliance for redistributed audio)
-            if (credit && currentDoa.audioCredit) {
-              credit.style.display = 'block';
-              credit.textContent = '🎵 ' + currentDoa.audioCredit;
-            }
-          }
-        });
-      }
 
       buttons.forEach((btn) => {
         btn.addEventListener('click', async () => {
@@ -316,7 +405,6 @@
             const r = await window.DoaAudio.playAudio(currentDoa.audioUrl, {
               onEnd: () => resetButton(btn),
               fallback: () => {
-                // MP3 failed mid-flight — TTS as last resort.
                 window.DoaAudio.play(text, {
                   lang, rate: 0.9,
                   onEnd: () => resetButton(btn),
@@ -330,27 +418,23 @@
 
           const result = await window.DoaAudio.play(text, {
             lang,
-            // Latin transliteration not real Indonesian — slow it down so
-            // the synthesised pronunciation is followable.
             rate: source === 'latin' ? 0.78 : 0.9,
             onEnd: () => resetButton(btn),
             onError: (reason) => {
               resetButton(btn);
-              if (reason !== 'interrupted' && reason !== 'canceled') {
+              if (reason !== 'interrupted' && reason !== 'canceled' && hint) {
                 hint.style.display = 'block';
                 hint.textContent = '⚠ Gagal putar audio: ' + reason;
               }
             },
           });
-          // Defensive: result may resolve before onEnd in some browsers.
           if (!result.ok && result.error && result.error !== 'interrupted' && result.error !== 'canceled') {
             resetButton(btn);
           }
         });
       });
 
-      // Stop playback when user navigates away (otherwise voice keeps
-      // speaking after page change in PWA).
+      // Stop playback when user navigates away.
       window.addEventListener('pagehide', () => window.DoaAudio.stop());
     })();
   </script>
