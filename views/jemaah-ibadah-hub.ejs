@@ -133,6 +133,10 @@
         </button>
       </div>
       <div id="doa-audio-hint" style="display:none;margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--amber);letter-spacing:0.04em;"></div>
+      <%# Stage 388 ext — attribution credit untuk MP3 source. Hidden by
+          default; flipped visible by JS when probe MP3 berhasil + ada
+          audioCredit field. License compliance untuk redistributed audio. %>
+      <div id="doa-audio-credit" style="display:none;margin-top:6px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);letter-spacing:0.04em;font-style:italic;"></div>
 
       <div style="margin-top:12px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.06em;">
         Doa berganti setiap hari · ada 11 doa dalam rotasi.
@@ -271,6 +275,7 @@
       // Probe MP3 availability — show "🎵 MP3" badge on Arab button when
       // pre-recorded qori file exists, else fall back to TTS automatically.
       const arBtn = bar.querySelector('.doa-play[data-source="arabic"]');
+      const credit = document.getElementById('doa-audio-credit');
       let mp3Available = false;
       if (currentDoa.audioUrl && arBtn) {
         window.DoaAudio.probeAudio(currentDoa.audioUrl).then((ok) => {
@@ -279,6 +284,11 @@
             const lbl = arBtn.querySelector('.lbl');
             if (lbl) lbl.textContent = 'Arab 🎵';
             arBtn.title = 'Rekaman qori asli';
+            // Show attribution credit (license compliance for redistributed audio)
+            if (credit && currentDoa.audioCredit) {
+              credit.style.display = 'block';
+              credit.textContent = '🎵 ' + currentDoa.audioCredit;
+            }
           }
         });
       }

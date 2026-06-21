@@ -45,6 +45,7 @@
       latin: "Rabbanā ātinā fid-dunyā ḥasanah, wa fil-ākhirati ḥasanah, wa qinā 'adzāban-nār",
       translation: 'Ya Tuhan kami, berikanlah kami kebaikan di dunia, kebaikan di akhirat, dan jauhkanlah kami dari azab neraka.',
       audioUrl: '/shared/audio/doa/sapu-jagat.mp3',
+      audioCredit: 'QS Al-Baqarah 2:201 · qari Mishary Alafasy via everyayah.com',
     },
     {
       title: 'Doa masuk Masjid Nabawi',
@@ -66,6 +67,7 @@
       latin: "Rabbanā ātinā fid-dunyā ḥasanah, wa fil-ākhirati ḥasanah, wa qinā 'adzāban-nār",
       translation: 'Ya Tuhan kami, berikanlah kami kebaikan di dunia dan akhirat, jauhkan kami dari azab neraka.',
       audioUrl: '/shared/audio/doa/antara-rukun-yamani.mp3',
+      audioCredit: 'QS Al-Baqarah 2:201 · qari Mishary Alafasy via everyayah.com',
     },
     {
       title: 'Doa selesai sai',
