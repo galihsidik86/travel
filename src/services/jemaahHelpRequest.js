@@ -168,8 +168,14 @@ export async function submitJemaahHelpRequest({ req, actor, userId, message, loc
     '— sistem Religio Pro',
   ].join('\n');
 
+  // S148 — set recipientUserId for CREW recipients so the row surfaces in
+  // their /crew/notifications inbox (per-user filter). Admin rows keep
+  // recipientUserId=null because admin has no per-user inbox surface —
+  // they read SOS via /admin/help-requests queue + global notif viewer.
+  const adminIdSet = new Set(admins.map((a) => a.id));
   let enqueued = 0;
   for (const u of recipients) {
+    const isCrew = !adminIdSet.has(u.id);
     for (const channel of ['EMAIL', 'WA']) {
       const recipient = channel === 'EMAIL'
         ? (u.email ? { recipientEmail: u.email } : null)
@@ -179,7 +185,7 @@ export async function submitJemaahHelpRequest({ req, actor, userId, message, loc
         await enqueueNotification({
           type: 'JEMAAH_HELP_REQUEST', channel,
           ...recipient,
-          // Admin/crew-targeted — no recipientUserId per inbox rule
+          recipientUserId: isCrew ? u.id : null,
           subject, body,
           payload: {
             kind: 'jemaah_help_request',
