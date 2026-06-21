@@ -51,12 +51,13 @@ test('S363 — manifest-jemaah declares SOS Cepat shortcut', async () => {
   assert.match(sos.short_name, /sos/i);
 });
 
-test('S363 — /saya auto-opens SOS form when ?sos=1 query present', async () => {
+test('S363 — /saya auto-opens SOS modal when ?sos=1 query present', async () => {
   const src = await fs.readFile('./views/jemaah-portal.ejs', 'utf8');
-  // Reads the sos param + clicks the toggle if present
+  // Reads the sos param + opens the modal (post-refactor: was toggle.click() on
+  // inline expand-form; now openModal() on <dialog>-based FAB UX).
   assert.match(src, /URLSearchParams/);
   assert.match(src, /'sos'/);
-  assert.match(src, /toggle\.click\(\)/);
+  assert.match(src, /openModal\(\)|showModal\(\)/);
   // Strips ?sos=1 from URL after open so reload doesn't keep re-firing
   assert.match(src, /history\.replaceState/);
 });
