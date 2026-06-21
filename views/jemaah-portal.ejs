@@ -382,46 +382,119 @@
         })();
       </script>
 
-      <%# Stage 321 — SOS-light help request. Bottom sheet shown only
-          when jemaah is in-trip (rendered inside the inTrip block). %>
-      <div style="margin-top:16px;padding-top:14px;border-top:1px dashed rgba(212,175,107,0.2);">
-        <button type="button" id="rp-help-toggle" style="background:transparent;border:1px solid var(--ruby);color:var(--ruby);padding:10px 16px;border-radius:3px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;font-weight:600;">
-          🆘 Minta bantuan (SOS)
-        </button>
-        <div id="rp-help-form" style="display:none;margin-top:12px;padding:14px;background:rgba(212,89,89,0.06);border:1px solid var(--ruby);border-radius:var(--r-sm);">
-          <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-100);letter-spacing:0.04em;margin-bottom:10px;">
-            Pesan akan dikirim ke admin + crew yang dampingi. Tim akan menghubungi Anda via WA/telepon.
+      <%# SOS-light moved out of hero card into a floating FAB (crew-style) —
+          always visible at bottom-right when in-trip, no more scroll to find.
+          See <dialog id="rp-help-modal"> + <button.sos-fab-jemaah> below. %>
+    </div>
+
+    <%# Stage 321 — SOS-light FAB + modal. Mirrors crew sos-fab.ejs visually
+        but POSTs JSON to /api/saya/help-request (text-only, no photo). Same
+        in-trip gate as before; position:fixed escapes the hero panel so the
+        button floats over content regardless of scroll position. %>
+    <button class="sos-fab-jemaah" type="button" aria-label="Kirim SOS bantuan"
+            onclick="document.getElementById('rp-help-modal').showModal()">
+      <span class="sos-fab-jemaah__dot"></span>
+      <span class="sos-fab-jemaah__lbl">SOS</span>
+    </button>
+
+    <dialog id="rp-help-modal" class="sos-modal-jemaah">
+      <div class="sos-form-jemaah">
+        <div class="sos-modal-jemaah__head">
+          <div>
+            <div class="sos-modal-jemaah__eyebrow">Permintaan bantuan</div>
+            <h2>Kirim sinyal <em>SOS</em></h2>
+            <p class="sos-modal-jemaah__sub">Tim admin + crew yang dampingi akan menerima notif dalam hitungan detik. Lokasi GPS otomatis disertakan (kalau diizinkan).</p>
           </div>
-          <textarea id="rp-help-msg" rows="3" maxlength="1000" placeholder="Apa yang terjadi? Lokasi sekarang?" style="width:100%;padding:8px 10px;background:var(--ink-1000);border:1px solid var(--hairline-soft);border-radius:3px;color:var(--cream-100);font-family:var(--font-body);font-size:13px;box-sizing:border-box;resize:vertical;line-height:1.5;"></textarea>
-          <div style="display:flex;gap:8px;margin-top:10px;">
-            <button type="button" id="rp-help-submit" style="background:var(--ruby);color:var(--cream-100);border:0;padding:10px 16px;border-radius:3px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-weight:600;flex:1;">
-              Kirim SOS
-            </button>
-            <button type="button" id="rp-help-cancel" style="background:transparent;border:1px solid var(--ink-300);color:var(--ink-200);padding:10px 16px;border-radius:3px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">
-              Batal
-            </button>
-          </div>
-          <div id="rp-help-status" style="margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--ink-200);min-height:14px;"></div>
+          <button type="button" class="sos-modal-jemaah__close"
+                  onclick="document.getElementById('rp-help-modal').close()">×</button>
+        </div>
+        <label class="sos-field-jemaah">
+          <span>Apa yang terjadi? (singkat)</span>
+          <textarea id="rp-help-msg" rows="4" maxlength="1000"
+                    placeholder="Mis. 'Kepala pusing, butuh bantuan. Sekarang di gate 21 Masjid Nabawi.'"></textarea>
+        </label>
+        <div id="rp-help-status" class="sos-modal-jemaah__status"></div>
+        <div class="sos-modal-jemaah__actions">
+          <button type="button" id="rp-help-cancel" class="sos-modal-jemaah__cancel"
+                  onclick="document.getElementById('rp-help-modal').close()">Batal</button>
+          <button type="button" id="rp-help-submit" class="sos-modal-jemaah__send">KIRIM SOS</button>
         </div>
       </div>
-    </div>
+    </dialog>
+
+    <style>
+      .sos-fab-jemaah {
+        position: fixed; right: 18px; bottom: 84px; z-index: 60;
+        width: 64px; height: 64px; border-radius: 50%;
+        background: var(--ruby); color: var(--cream-100);
+        border: 2px solid rgba(255,255,255,0.18);
+        box-shadow: 0 14px 36px rgba(181,86,74,0.45), 0 4px 12px rgba(0,0,0,0.4);
+        cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+        animation: sos-pulse-jemaah 2.6s ease-out infinite;
+      }
+      .sos-fab-jemaah:hover { background: #C46259; }
+      .sos-fab-jemaah__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cream-100); margin-bottom: 4px; box-shadow: 0 0 8px rgba(255,255,255,0.7); }
+      .sos-fab-jemaah__lbl { letter-spacing: 0.2em; }
+      @keyframes sos-pulse-jemaah {
+        0%   { box-shadow: 0 14px 36px rgba(181,86,74,0.45), 0 0 0 0 rgba(181,86,74,0.6); }
+        70%  { box-shadow: 0 14px 36px rgba(181,86,74,0.45), 0 0 0 16px rgba(181,86,74,0); }
+        100% { box-shadow: 0 14px 36px rgba(181,86,74,0.45), 0 0 0 0 rgba(181,86,74,0); }
+      }
+      .sos-fab-jemaah__queued {
+        position: absolute; top: -4px; right: -4px;
+        min-width: 22px; height: 22px; padding: 0 6px;
+        background: var(--amber); color: var(--ink-1000);
+        border-radius: 11px; font-family: var(--font-mono); font-size: 11px;
+        font-weight: 700; line-height: 22px; text-align: center;
+        border: 2px solid var(--ink-1000);
+      }
+      .sos-modal-jemaah { width: min(440px, calc(100vw - 32px)); padding: 0; background: transparent; border: 0; }
+      .sos-modal-jemaah::backdrop { background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); }
+      .sos-form-jemaah {
+        background: var(--ink-900); border: 1px solid var(--ruby); border-radius: var(--r-lg);
+        padding: 22px 22px 18px; display: flex; flex-direction: column; gap: 14px; color: var(--cream-100);
+      }
+      .sos-modal-jemaah__head { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+      .sos-modal-jemaah__eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ruby); }
+      .sos-modal-jemaah__head h2 { font-family: var(--font-display); font-size: 24px; font-weight: 500; margin: 4px 0 6px; color: var(--cream-100); letter-spacing: -0.015em; }
+      .sos-modal-jemaah__head h2 em { font-style: italic; color: var(--ruby); }
+      .sos-modal-jemaah__sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-100); line-height: 1.55; margin: 0; }
+      .sos-modal-jemaah__close { background: transparent; border: 0; color: var(--ink-200); font-size: 24px; line-height: 1; cursor: pointer; padding: 0 4px; flex-shrink: 0; }
+      .sos-modal-jemaah__close:hover { color: var(--cream-100); }
+      .sos-field-jemaah { display: flex; flex-direction: column; gap: 6px; }
+      .sos-field-jemaah > span { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-200); }
+      .sos-field-jemaah textarea { background: var(--ink-1000); color: var(--cream-100); border: var(--hairline-soft); border-radius: var(--r-sm); padding: 10px 12px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 84px; line-height: 1.5; }
+      .sos-modal-jemaah__status { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); min-height: 14px; letter-spacing: 0.04em; }
+      .sos-modal-jemaah__actions { display: flex; gap: 10px; margin-top: 4px; }
+      .sos-modal-jemaah__cancel, .sos-modal-jemaah__send {
+        flex: 1; padding: 12px 16px; min-height: 46px; border-radius: var(--r-sm);
+        font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; cursor: pointer;
+      }
+      .sos-modal-jemaah__cancel { background: transparent; border: var(--hairline-soft); color: var(--ink-100); }
+      .sos-modal-jemaah__cancel:hover { color: var(--cream-100); border-color: var(--ink-100); }
+      .sos-modal-jemaah__send { background: var(--ruby); color: var(--cream-100); border: 0; }
+      .sos-modal-jemaah__send:hover { background: #C46259; }
+    </style>
+
     <script>
       (function () {
-        const toggle = document.getElementById('rp-help-toggle');
-        const form = document.getElementById('rp-help-form');
-        const cancel = document.getElementById('rp-help-cancel');
+        const fab = document.querySelector('.sos-fab-jemaah');
+        const modal = document.getElementById('rp-help-modal');
         const submit = document.getElementById('rp-help-submit');
         const msg = document.getElementById('rp-help-msg');
         const status = document.getElementById('rp-help-status');
-        if (!toggle || !form) return;
-        toggle.addEventListener('click', () => {
-          form.style.display = 'block'; toggle.style.display = 'none';
-          msg.focus();
-        });
-        cancel.addEventListener('click', () => {
-          form.style.display = 'none'; toggle.style.display = 'block';
-          status.textContent = '';
-        });
+        if (!fab || !modal || !submit) return;
+        // FAB tap opens modal (onclick attr handles it); auto-focus textarea
+        // when dialog is shown so jemaah can type one-handed in panic.
+        modal.addEventListener('close', () => { status.textContent = ''; });
+        function openModal() {
+          if (modal.open) return;
+          modal.showModal();
+          setTimeout(() => msg?.focus(), 100);
+        }
+        // Expose for deep-link (S363) auto-open below.
+        window.__rpJemaahSosOpen = openModal;
         // S358 — best-effort geolocation. Wait at most GEO_TIMEOUT_MS for
         // GPS lock; if the user denied permission OR the browser timed out,
         // resolve to null so the SOS still fires without blocking. We DON'T
@@ -500,7 +573,7 @@
                 + (location ? ' (📍 lokasi disertakan)' : '');
               status.style.color = 'var(--gold-300)';
               msg.value = '';
-              setTimeout(() => { form.style.display = 'none'; toggle.style.display = 'block'; status.textContent = ''; }, 5000);
+              setTimeout(() => { modal.close(); }, 5000);
             } catch (qErr) {
               status.textContent = '✕ Gagal queue: ' + (qErr.message || 'storage error');
               status.style.color = 'var(--ruby)';
@@ -516,7 +589,7 @@
                 + (location ? ' (📍 lokasi disertakan)' : '');
               status.style.color = 'var(--emerald)';
               msg.value = '';
-              setTimeout(() => { form.style.display = 'none'; toggle.style.display = 'block'; status.textContent = ''; }, 4000);
+              setTimeout(() => { modal.close(); }, 4000);
             } else {
               status.textContent = '✕ ' + (body.message || 'Gagal');
               status.style.color = 'var(--ruby)';
@@ -528,7 +601,7 @@
               status.textContent = '⏱ Gagal kirim langsung — queued, akan retry otomatis.';
               status.style.color = 'var(--gold-300)';
               msg.value = '';
-              setTimeout(() => { form.style.display = 'none'; toggle.style.display = 'block'; status.textContent = ''; }, 5000);
+              setTimeout(() => { modal.close(); }, 5000);
             } catch (qErr) {
               status.textContent = '✕ ' + (err.message || 'Network error');
               status.style.color = 'var(--ruby)';
@@ -538,32 +611,41 @@
           }
         });
         // S355 — auto-flush: replay queued SOS on `online` + every 30s tick.
+        // Pending count surfaces as an amber badge on the FAB (mirrors crew
+        // sos-fab S368 queued-incidents badge convention).
+        let queuedBadge = null;
+        function paintFabBadge(n) {
+          if (!fab) return;
+          if (n > 0) {
+            if (!queuedBadge) {
+              queuedBadge = document.createElement('span');
+              queuedBadge.className = 'sos-fab-jemaah__queued';
+              fab.appendChild(queuedBadge);
+            }
+            queuedBadge.textContent = String(n);
+          } else if (queuedBadge) {
+            queuedBadge.remove();
+            queuedBadge = null;
+          }
+        }
         if (window.SosLightQueue) {
           window.SosLightQueue.startAutoFlush({
             intervalMs: 30_000,
             onChange: async () => {
               const n = await window.SosLightQueue.countPending();
-              if (n > 0) {
-                // Surface a small badge on the toggle button so jemaah knows
-                // a previous queued SOS is still trying to deliver.
-                toggle.textContent = '🆘 Minta bantuan (SOS) · ' + n + ' queued';
-              } else {
-                toggle.textContent = '🆘 Minta bantuan (SOS)';
-              }
+              paintFabBadge(n);
             },
           });
         }
         // Stage 363 — PWA shortcut deep-link: when jemaah long-presses the
         // home icon and taps "🆘 SOS Cepat", browser opens /saya?sos=1.
-        // Auto-open the SOS bottom sheet + scroll into view + focus the
-        // textarea so jemaah can type one-handed in panic. Best-effort —
-        // pre-trip jemaah (no inTrip block rendered) just gets a no-op
-        // since the toggle button doesn't exist on the page.
+        // Auto-open the SOS modal + focus textarea so jemaah can type one-
+        // handed in panic. Best-effort — pre-trip jemaah (no inTrip block
+        // rendered) just gets a no-op since the FAB doesn't exist on page.
         try {
           const sosParam = new URLSearchParams(window.location.search).get('sos');
-          if (sosParam === '1' && toggle && form) {
-            toggle.click(); // mirrors a manual tap — reveals the form
-            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (sosParam === '1' && modal) {
+            openModal();
             // Strip ?sos=1 from URL so a reload doesn't keep re-opening.
             const url = new URL(window.location.href);
             url.searchParams.delete('sos');
