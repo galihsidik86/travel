@@ -27,6 +27,46 @@
           <% if (n.error && n.status !== 'SENT') { %>
             <div class="err"><%= n.error %></div>
           <% } %>
+          <%# SOS action strip — surface Maps + WhatsApp deep links inline
+              when JEMAAH_HELP_REQUEST so muthawwif (and admin viewing the
+              global queue) can act in one tap from the inbox itself, no
+              need to navigate to /admin/help-requests first. %>
+          <%
+            let sosPayload = null;
+            if (n.type === 'JEMAAH_HELP_REQUEST' && n.payload) {
+              try {
+                sosPayload = typeof n.payload === 'string' ? JSON.parse(n.payload) : n.payload;
+              } catch (_e) { sosPayload = null; }
+            }
+            const sosLoc = sosPayload && sosPayload.location;
+            const sosPhone = sosPayload && sosPayload.jemaahPhone;
+            const phoneDigits = sosPhone ? String(sosPhone).replace(/[^0-9]/g, '').replace(/^0/, '62') : '';
+          %>
+          <% if (sosPayload) { %>
+            <% if (sosLoc && sosLoc.latitude != null && sosLoc.longitude != null) { %>
+              <div style="margin-top:8px;padding:6px 10px;background:rgba(212,175,107,0.08);border-left:2px solid var(--gold-300);font-family:var(--font-mono);font-size:11px;border-radius:0 3px 3px 0;letter-spacing:0.03em;">
+                <span style="color:var(--gold-300);">📍 GPS:</span>
+                <%= Number(sosLoc.latitude).toFixed(6) %>, <%= Number(sosLoc.longitude).toFixed(6) %>
+                <% if (sosLoc.accuracyMeters) { %> · ±<%= sosLoc.accuracyMeters %>m<% } %>
+              </div>
+            <% } %>
+            <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
+              <% if (sosLoc && sosLoc.latitude != null && sosLoc.longitude != null) { %>
+                <a href="https://maps.google.com/?q=<%= sosLoc.latitude %>,<%= sosLoc.longitude %>"
+                   target="_blank" rel="noopener"
+                   style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:6px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;font-weight:600;">📍 Buka Maps</a>
+              <% } %>
+              <% if (phoneDigits.length >= 8) { %>
+                <a href="https://wa.me/<%= phoneDigits %>"
+                   target="_blank" rel="noopener"
+                   style="background:transparent;border:1px solid var(--emerald);color:var(--emerald);padding:6px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;font-weight:600;">📞 WA <%= sosPhone %></a>
+              <% } %>
+              <% if (phoneDigits.length >= 8) { %>
+                <a href="tel:+<%= phoneDigits %>"
+                   style="background:transparent;border:1px solid var(--sapphire);color:var(--sapphire);padding:6px 12px;border-radius:3px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;font-weight:600;">☎ Telp</a>
+              <% } %>
+            </div>
+          <% } %>
         </div>
         <div class="time">
           <%= fmt.dateShort(n.createdAt) %>

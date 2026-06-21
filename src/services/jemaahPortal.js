@@ -705,7 +705,7 @@ export async function listMyNotifications(userId, { limit = 50 } = {}) {
     take: limit,
     select: {
       id: true, type: true, channel: true, status: true,
-      subject: true, body: true,
+      subject: true, body: true, payload: true,
       relatedEntity: true, relatedEntityId: true,
       sentAt: true, createdAt: true, error: true,
       readAt: true,
@@ -734,7 +734,7 @@ export async function listMyNotificationsPaginated(userId, {
       skip, take: safeSize,
       select: {
         id: true, type: true, channel: true, status: true,
-        subject: true, body: true,
+        subject: true, body: true, payload: true,
         relatedEntity: true, relatedEntityId: true,
         sentAt: true, createdAt: true, error: true,
         readAt: true,
