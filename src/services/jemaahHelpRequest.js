@@ -20,12 +20,14 @@
 import { db } from '../lib/db.js';
 import { HttpError } from '../middleware/error.js';
 import { audit } from '../lib/audit.js';
+import { env } from '../env.js';
 
 const MIN_MESSAGE_LEN = 5;
 const MAX_MESSAGE_LEN = 1000;
-// 30-minute per-booking cooldown via Notification table query so the
-// admin desk isn't flooded by accidental double-tap.
-const COOLDOWN_MIN = 30;
+// Per-booking cooldown via Notification table query. Tunable via env var
+// SOS_COOLDOWN_MIN (default 5min, clamp 0..120). 0 = no cooldown — admin-
+// side push tag dedupe + queue page handle visual spam, so real-emergency
+// follow-up updates aren't blocked. See env.js for rationale.
 
 async function findInTripBooking(userId, now = new Date()) {
   const candidates = await db.booking.findMany({
@@ -56,7 +58,7 @@ async function findInTripBooking(userId, now = new Date()) {
  * Throws:
  *   400 BAD_MESSAGE — message too short / missing
  *   409 NOT_IN_TRIP — no active in-trip booking found for this user
- *   429 RATE_LIMITED — prior help request within COOLDOWN_MIN
+ *   429 RATE_LIMITED — prior help request within env.SOS_COOLDOWN_MIN window
  */
 // Stage 358 — sanitise a best-effort geolocation payload from the SOS form.
 // Browsers return { latitude, longitude, accuracy }; we accept the same
@@ -86,20 +88,24 @@ export async function submitJemaahHelpRequest({ req, actor, userId, message, loc
   if (!booking) {
     throw new HttpError(409, 'Hanya jemaah dalam perjalanan yang bisa kirim SOS', 'NOT_IN_TRIP');
   }
-  // Cooldown check — search prior JEMAAH_HELP_REQUEST notif for this booking
-  const cutoff = new Date(now.getTime() - COOLDOWN_MIN * 60_000);
-  const prior = await db.notification.findFirst({
-    where: {
-      type: 'JEMAAH_HELP_REQUEST',
-      relatedEntity: 'Booking', relatedEntityId: booking.id,
-      createdAt: { gte: cutoff },
-    },
-    select: { id: true, createdAt: true },
-  });
-  if (prior) {
-    const elapsedMin = Math.floor((now.getTime() - prior.createdAt.getTime()) / 60_000);
-    const waitMin = COOLDOWN_MIN - elapsedMin;
-    throw new HttpError(429, `Terlalu cepat — tunggu ${waitMin} menit sebelum SOS lagi`, 'RATE_LIMITED');
+  // Cooldown check — search prior JEMAAH_HELP_REQUEST notif for this booking.
+  // Skip entirely when SOS_COOLDOWN_MIN=0 (admin opted out of cooldown).
+  const cooldownMin = env.SOS_COOLDOWN_MIN;
+  if (cooldownMin > 0) {
+    const cutoff = new Date(now.getTime() - cooldownMin * 60_000);
+    const prior = await db.notification.findFirst({
+      where: {
+        type: 'JEMAAH_HELP_REQUEST',
+        relatedEntity: 'Booking', relatedEntityId: booking.id,
+        createdAt: { gte: cutoff },
+      },
+      select: { id: true, createdAt: true },
+    });
+    if (prior) {
+      const elapsedMin = Math.floor((now.getTime() - prior.createdAt.getTime()) / 60_000);
+      const waitMin = Math.max(1, cooldownMin - elapsedMin);
+      throw new HttpError(429, `Terlalu cepat — tunggu ${waitMin} menit sebelum SOS lagi`, 'RATE_LIMITED');
+    }
   }
 
   // Resolve recipients: ACTIVE admin tier + assigned MUTHAWWIF crew on paket
@@ -571,4 +577,4 @@ export async function listPendingHelpRequests({ limit = 100, now = new Date() } 
   };
 }
 
-export { MIN_MESSAGE_LEN, MAX_MESSAGE_LEN, COOLDOWN_MIN };
+export { MIN_MESSAGE_LEN, MAX_MESSAGE_LEN };

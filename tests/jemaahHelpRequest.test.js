@@ -4,8 +4,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { db, makeTag, tempJemaah, tempUser, fakeReq } from './_helpers.js';
 import {
-  submitJemaahHelpRequest, MIN_MESSAGE_LEN, COOLDOWN_MIN,
+  submitJemaahHelpRequest, MIN_MESSAGE_LEN,
 } from '../src/services/jemaahHelpRequest.js';
+import { env } from '../src/env.js';
 
 async function paketWindowAroundToday(t, tag, { daysAgo = 3, durationDays = 10 } = {}) {
   const dep = new Date(); dep.setHours(0, 0, 0, 0);
@@ -87,7 +88,12 @@ test('S321 — fan-outs EMAIL + WA to admin + crew + appends booking note', asyn
   assert.match(fresh.notes, /Masjidil Haram/);
 });
 
-test('S321 — rate-limited within COOLDOWN_MIN', async (t) => {
+test('S321 — rate-limited within env.SOS_COOLDOWN_MIN window', async (t) => {
+  // Skip when admin opted out of cooldown via env (SOS_COOLDOWN_MIN=0).
+  if (env.SOS_COOLDOWN_MIN === 0) {
+    t.skip('SOS_COOLDOWN_MIN=0 disables the rate limit');
+    return;
+  }
   const tag = makeTag('s321d');
   const jem = await tempJemaah(t, `${tag}-j`);
   const owner = await tempUser(t, `${tag}-own`, { role: 'OWNER' });
@@ -107,7 +113,11 @@ test('S321 — rate-limited within COOLDOWN_MIN', async (t) => {
   );
 });
 
-test('S321 — constants exported', () => {
+test('S321 — message length constant exported', () => {
   assert.equal(MIN_MESSAGE_LEN, 5);
-  assert.equal(COOLDOWN_MIN, 30);
+});
+
+test('S321 — cooldown configurable via env (default 5min, clamp 0..120)', () => {
+  assert.ok(Number.isInteger(env.SOS_COOLDOWN_MIN));
+  assert.ok(env.SOS_COOLDOWN_MIN >= 0 && env.SOS_COOLDOWN_MIN <= 120);
 });

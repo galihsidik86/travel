@@ -46,6 +46,13 @@ const Schema = z.object({
   SMTP_FROM: z.string().optional(), // e.g. "Religio Pro <noreply@religio.pro>"
   SMTP_SECURE: z.coerce.boolean().default(false), // true for port 465
 
+  // Jemaah SOS-light (S321) cooldown — minutes between consecutive SOS
+  // submissions per booking. Lowered default from 30 to 5 because real
+  // emergencies need follow-up info (kondisi memburuk, lokasi pindah);
+  // 30min blocked legitimate updates. 0 = no cooldown (admin-side dedup
+  // via push tag handles spam). Clamp [0..120].
+  SOS_COOLDOWN_MIN: z.coerce.number().int().min(0).max(120).default(5),
+
   // Stage 17 — Web Push. Generate VAPID keypair via the npm script
   //   npx web-push generate-vapid-keys
   // and drop the result into .env. When VAPID_PUBLIC is absent the push
