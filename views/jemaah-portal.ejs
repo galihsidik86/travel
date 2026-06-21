@@ -197,17 +197,73 @@
     })();
   </script>
 
-  <div class="hero">
-    <div class="eyebrow">Portal Jemaah · <%= bookings.length %> booking aktif</div>
-    <h1>Assalamu'alaikum,<br><em><%= user.fullName.split(' ')[0] %></em>.</h1>
-    <div class="sub">
-      <% if (bookings.length === 0) { %>
-        Anda belum punya booking ter-klaim. Gunakan form di bawah untuk klaim booking dengan nomor + nomor telepon.
-      <% } else { %>
-        Pantau status pembayaran, dokumen, dan kamar Anda di sini.
-      <% } %>
+  <%# Adaptive hero — cascade prioritas hero berdasarkan state:
+       1. inTrip → Hari Ini hero (sudah di-render di Stage 320 block di bawah)
+       2. Pre-trip dengan booking aktif → countdown hero H-N
+       3. No active booking → welcome hero + CTA klaim
+       Ini menggantikan generic hero yang selalu render. %>
+  <%
+    let nearestBooking = null;
+    let daysUntilDep = null;
+    if (typeof inTrip === 'undefined' || !inTrip) {
+      const futureActive = (bookings || []).filter((b) => {
+        if (['CANCELLED', 'REFUNDED', 'RESCHEDULED'].includes(b.status)) return false;
+        const dep = new Date(b.paket?.departureDate);
+        return !Number.isNaN(dep.getTime()) && dep.getTime() > Date.now();
+      }).sort((a, b) => new Date(a.paket.departureDate) - new Date(b.paket.departureDate));
+      nearestBooking = futureActive[0] || null;
+      if (nearestBooking) {
+        const dep = new Date(nearestBooking.paket.departureDate);
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        daysUntilDep = Math.ceil((dep.getTime() - today.getTime()) / 86_400_000);
+      }
+    }
+  %>
+  <% if (nearestBooking) { %>
+    <%# Countdown hero — H-N hingga keberangkatan paket terdekat %>
+    <% const tier = daysUntilDep <= 7 ? 'urgent' : (daysUntilDep <= 30 ? 'imminent' : 'planning'); %>
+    <% const tierColor = tier === 'urgent' ? 'var(--ruby)' : (tier === 'imminent' ? 'var(--amber)' : 'var(--gold-300)'); %>
+    <% const tierLabel = tier === 'urgent' ? '⏰ Sebentar lagi berangkat!' : (tier === 'imminent' ? '✈️ Mendekati keberangkatan' : '🕋 Persiapan keberangkatan'); %>
+    <a href="/saya/bookings/<%= nearestBooking.id %>" style="display:block;text-decoration:none;color:inherit;margin-bottom:24px;">
+      <div style="padding:28px 32px;background:linear-gradient(135deg,rgba(212,175,107,0.10),rgba(212,175,107,0.02));border:1px solid <%= tierColor %>;border-radius:var(--r-lg);position:relative;overflow:hidden;">
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:<%= tierColor %>;letter-spacing:0.16em;text-transform:uppercase;font-weight:600;">
+          <%= tierLabel %>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:14px;margin-top:8px;flex-wrap:wrap;">
+          <div style="font-family:var(--font-display);font-size:48px;color:<%= tierColor %>;font-weight:500;line-height:1;letter-spacing:-0.02em;">
+            H–<%= daysUntilDep %>
+          </div>
+          <div style="font-family:var(--font-display);font-size:22px;color:var(--cream-100);font-weight:500;font-style:italic;line-height:1.2;flex:1;min-width:200px;">
+            <%= nearestBooking.paket.title %>
+          </div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:11.5px;color:var(--ink-100);margin-top:10px;letter-spacing:0.04em;">
+          <span style="color:var(--gold-300);"><%= nearestBooking.bookingNo %></span>
+          · <%= nearestBooking.kelas %>
+          · DEP <%= fmt.dateShort(nearestBooking.paket.departureDate) %>
+          · <%= nearestBooking.status %>
+          <span style="margin-left:8px;color:var(--gold-300);">Buka detail →</span>
+        </div>
+      </div>
+    </a>
+  <% } else if (typeof inTrip === 'undefined' || !inTrip) { %>
+    <%# Welcome hero — 0 booking aktif, panggil klaim atau lihat paket %>
+    <div class="hero">
+      <div class="eyebrow">Assalamu'alaikum</div>
+      <h1><em><%= user.fullName.split(' ')[0] %></em></h1>
+      <div class="sub">
+        <% if ((bookings || []).length === 0) { %>
+          Anda belum punya booking ter-klaim. Klaim booking yang sudah ada via nomor + telepon, atau jelajahi paket baru.
+        <% } else { %>
+          Semua booking Anda sudah selesai atau di luar masa aktif. Lihat riwayat di bawah, atau pesan paket baru.
+        <% } %>
+      </div>
+      <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="/saya/paket" style="background:var(--gold-300);color:var(--ink-1000);border:0;padding:10px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;cursor:pointer;font-weight:600;text-transform:uppercase;text-decoration:none;">🕋 Jelajahi paket</a>
+        <a href="#claim-section" style="background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:10px 18px;border-radius:var(--r-sm);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;cursor:pointer;font-weight:600;text-transform:uppercase;text-decoration:none;">+ Klaim booking</a>
+      </div>
     </div>
-  </div>
+  <% } %>
 
   <%# Stage 379 — Onboarding welcome checklist. Renders only when jemaah
       has at least one incomplete item AND hasn't dismissed the card.
@@ -656,50 +712,13 @@
     </script>
   <% } %>
 
-  <!-- Stage 94 — push toggle. Hidden by JS when browser doesn't support PushManager. -->
-  <div class="panel push-panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-    <div id="rp-push-bar" style="display:none;align-items:center;gap:12px;flex:1;min-width:240px;">
-      <span style="font-size:24px;">🔔</span>
-      <span id="rp-push-status" style="font-family:var(--font-mono);font-size:11.5px;color:var(--ink-200);letter-spacing:0.04em;">…</span>
-    </div>
-    <div>
-      <button type="button" id="rp-push-enable" style="display:none;background:var(--gold-300);color:var(--ink-1000);border:0;padding:8px 18px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:600;">AKTIFKAN</button>
-      <button type="button" id="rp-push-disable" style="display:none;background:transparent;border:1px solid var(--ink-700);color:var(--ink-200);padding:8px 18px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;">MATIKAN</button>
-    </div>
-  </div>
-
-  <!-- Claim form -->
-  <div class="panel">
-    <h3>Klaim booking</h3>
-    <p class="sub">Masukkan nomor booking (mis. <code>RP-2026-00001</code>) + nomor telepon yang Anda pakai saat booking.</p>
-
-    <form id="claim-form" class="claim-form">
-      <div class="field">
-        <label class="label" for="cl-no">Nomor Booking *</label>
-        <input class="input" type="text" name="bookingNo" id="cl-no" required maxlength="50" placeholder="RP-2026-XXXXX">
-      </div>
-      <div class="field">
-        <label class="label" for="cl-phone">Telepon saat booking *</label>
-        <input class="input" type="text" name="phone" id="cl-phone" required maxlength="30" placeholder="0812-xxxx-xxxx">
-      </div>
-      <button type="submit">KLAIM</button>
-    </form>
-
-    <div class="claim-err" id="claim-err"></div>
-    <div class="claim-ok" id="claim-ok"></div>
-  </div>
-
-  <!-- Booking list -->
-  <div class="panel">
-    <h3>Booking saya</h3>
-    <p class="sub"><%= bookings.length %> booking ter-klaim di akun ini.</p>
-
-    <% if (bookings.length === 0) { %>
-      <div class="empty">
-        Belum ada booking yang ter-klaim.<br>
-        Klaim minimal 1 booking di atas untuk mulai melihat detail.
-      </div>
-    <% } else { %>
+  <%# Booking list — naik ke atas (primary content). Sebelumnya di paling
+      bawah; sekarang jadi panel pertama setelah hero karena ini yang user
+      cari dulu saat buka /saya. %>
+  <% if (bookings.length > 0) { %>
+    <div class="panel">
+      <h3 style="margin:0 0 4px;">Booking saya</h3>
+      <p class="sub" style="margin:0 0 18px;"><%= bookings.length %> booking ter-klaim di akun ini.</p>
       <div class="booking-list">
         <% bookings.forEach(function(b) { %>
           <%
@@ -734,7 +753,68 @@
           </div>
         <% }) %>
       </div>
+    </div>
+  <% } %>
+
+  <%# Claim form — collapsible kalau jemaah sudah punya booking (visual noise
+      reduction). Open default kalau 0 booking (panggilan utama untuk new user). %>
+  <div id="claim-section" class="panel" style="<%= bookings.length === 0 ? '' : 'padding:0;border-color:var(--hairline-soft);' %>">
+    <% if (bookings.length === 0) { %>
+      <%# Empty state — full panel + emoji untuk visual warmth %>
+      <div style="text-align:center;padding:8px 0 16px;">
+        <div style="font-size:42px;line-height:1;margin-bottom:8px;">🕋</div>
+        <h3 style="margin:0 0 6px;">Klaim booking pertama Anda</h3>
+        <p class="sub" style="margin:0 0 16px;">Masukkan nomor booking (mis. <code>RP-2026-00001</code>) + nomor telepon yang Anda pakai saat booking.</p>
+      </div>
+      <form id="claim-form" class="claim-form">
+        <div class="field">
+          <label class="label" for="cl-no">Nomor Booking *</label>
+          <input class="input" type="text" name="bookingNo" id="cl-no" required maxlength="50" placeholder="RP-2026-XXXXX">
+        </div>
+        <div class="field">
+          <label class="label" for="cl-phone">Telepon saat booking *</label>
+          <input class="input" type="text" name="phone" id="cl-phone" required maxlength="30" placeholder="0812-xxxx-xxxx">
+        </div>
+        <button type="submit">KLAIM</button>
+      </form>
+      <div class="claim-err" id="claim-err"></div>
+      <div class="claim-ok" id="claim-ok"></div>
+    <% } else { %>
+      <details style="padding:14px 22px;">
+        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-100);">
+          <span>+ Klaim booking lain</span>
+          <span style="color:var(--ink-300);font-size:10px;">tap untuk buka</span>
+        </summary>
+        <p class="sub" style="margin:14px 0 12px;">Nomor booking + telepon yang Anda pakai saat booking.</p>
+        <form id="claim-form" class="claim-form">
+          <div class="field">
+            <label class="label" for="cl-no">Nomor Booking *</label>
+            <input class="input" type="text" name="bookingNo" id="cl-no" required maxlength="50" placeholder="RP-2026-XXXXX">
+          </div>
+          <div class="field">
+            <label class="label" for="cl-phone">Telepon saat booking *</label>
+            <input class="input" type="text" name="phone" id="cl-phone" required maxlength="30" placeholder="0812-xxxx-xxxx">
+          </div>
+          <button type="submit">KLAIM</button>
+        </form>
+        <div class="claim-err" id="claim-err"></div>
+        <div class="claim-ok" id="claim-ok"></div>
+      </details>
     <% } %>
+  </div>
+
+  <%# Compact push toggle — dim strip di bawah, bukan panel full lagi. DOM
+      contract (#rp-push-bar, #rp-push-enable, #rp-push-disable) preserved
+      supaya push-jemaah.js logic tidak berubah. %>
+  <div id="rp-push-strip" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 16px;margin-top:14px;background:rgba(255,255,255,0.015);border:1px solid var(--hairline-soft);border-radius:var(--r-sm);">
+    <div id="rp-push-bar" style="display:none;align-items:center;gap:10px;flex:1;min-width:200px;">
+      <span style="font-size:16px;opacity:0.6;">🔔</span>
+      <span id="rp-push-status" style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);letter-spacing:0.04em;">…</span>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button type="button" id="rp-push-enable" style="display:none;background:transparent;border:1px solid var(--gold-300);color:var(--gold-300);padding:6px 14px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:600;">Aktifkan</button>
+      <button type="button" id="rp-push-disable" style="display:none;background:transparent;border:1px solid var(--ink-500);color:var(--ink-200);padding:6px 14px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;">Matikan</button>
+    </div>
   </div>
 </div>
 
