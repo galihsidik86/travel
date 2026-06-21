@@ -32,10 +32,11 @@ if [[ ! -d "$DEST_DIR" ]]; then
   exit 1
 fi
 
-# Map: filename → ayah URL (3-digit surah_3-digit verse pattern)
+# Map: filename → ayah URL. Pattern di everyayah.com: 6-digit gabungan
+# 3-digit surah + 3-digit verse, NO separator (mis. 002201.mp3 = QS 2:201).
 declare -A FILES=(
-  ["sapu-jagat.mp3"]="002_201.mp3"
-  ["antara-rukun-yamani.mp3"]="002_201.mp3"
+  ["sapu-jagat.mp3"]="002201.mp3"
+  ["antara-rukun-yamani.mp3"]="002201.mp3"
 )
 
 downloaded=0
