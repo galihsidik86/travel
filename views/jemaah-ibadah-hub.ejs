@@ -362,6 +362,20 @@
       });
       renderDoa(todayIndex);
 
+      // S389 — re-render saat doa list di-update dari API (initial load
+      // pakai cache/fallback, lalu fetch async → event ini fire kalau
+      // API return different data). Re-resolve `all` reference + restart
+      // rendering dari today's index pakai data baru.
+      window.addEventListener('rp:doa-updated', () => {
+        const fresh = window.DoaHarian.all;
+        if (!fresh.length) return;
+        all.length = 0;
+        for (const d of fresh) all.push(d);
+        // Recompute today's index — new array length means different cycle.
+        const newTodayIndex = window.DoaHarian.dayOfYear() % all.length;
+        renderDoa(newTodayIndex);
+      });
+
       // Stage 388 — TTS audio playback wiring. Reveal audio bar only
       // when supported; hide gracefully on older browsers.
       if (!ttsSupported || !bar) return;

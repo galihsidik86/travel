@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — Doa CMS</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+  h1 { font-family: var(--font-display); font-size: 32px; color: var(--cream-100); margin: 0; font-weight: 500; }
+  .btn-primary { background: var(--gold-300); color: var(--ink-1000); border: 0; padding: 10px 18px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; font-weight: 600; text-decoration: none; display: inline-block; }
+  .flash { background: rgba(74,143,109,0.08); border: 1px solid var(--emerald); color: var(--emerald); padding: 10px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+  th, td { padding: 12px 14px; text-align: left; border-bottom: var(--hairline-soft); font-family: var(--font-body); font-size: 13px; color: var(--cream-100); }
+  th { background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-200); }
+  tr:last-child td { border-bottom: 0; }
+  .badge { font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; border-radius: 3px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .badge.active { background: rgba(74,143,109,0.12); color: var(--emerald); border: 1px solid var(--emerald); }
+  .badge.inactive { background: rgba(110,110,110,0.12); color: var(--ink-200); border: 1px solid var(--ink-300); }
+  .audio-pill { font-family: var(--font-mono); font-size: 10px; color: var(--gold-300); }
+  .empty { padding: 60px 24px; text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--ink-200); }
+  a.row-edit { color: var(--gold-300); text-decoration: none; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; }
+  a.row-edit:hover { color: var(--gold-100); }
+</style>
+</head>
+<body data-screen-label="Admin · Doa CMS">
+<div class="wrap">
+  <div class="crumb"><a href="/admin">← /admin</a> · DOA CMS</div>
+  <div class="head">
+    <div>
+      <h1>Doa CMS</h1>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin-top:4px;letter-spacing:0.06em;"><%= doas.length %> total · admin-managed library yang jemaah PWA baca</div>
+    </div>
+    <a href="/admin/doa/new" class="btn-primary">+ Doa baru</a>
+  </div>
+
+  <% if (flash) { %>
+    <div class="flash">
+      <% if (flash === 'created') { %>✓ Doa baru dibuat.<% } %>
+      <% if (flash === 'saved') { %>✓ Perubahan tersimpan.<% } %>
+      <% if (flash === 'deleted') { %>✓ Doa dihapus.<% } %>
+      <% if (flash === 'audio_uploaded') { %>✓ Audio MP3 terpasang.<% } %>
+      <% if (flash === 'audio_removed') { %>✓ Audio dihapus.<% } %>
+    </div>
+  <% } %>
+
+  <% if (doas.length === 0) { %>
+    <div class="empty">
+      Belum ada doa. <a href="/admin/doa/new" style="color:var(--gold-300);">Tambah doa pertama →</a>
+    </div>
+  <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Kategori</th>
+          <th>Audio</th>
+          <th>Video</th>
+          <th>Status</th>
+          <th>Sort</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% doas.forEach(function(d) { %>
+          <tr>
+            <td><strong style="color:var(--cream-100);"><%= d.title %></strong>
+              <% if (d.arabic) { %><div style="font-family:'Amiri',serif;font-size:14px;color:var(--gold-200);direction:rtl;margin-top:4px;"><%= d.arabic.slice(0, 60) %><% if (d.arabic.length > 60) { %>…<% } %></div><% } %>
+            </td>
+            <td><% if (d.category) { %><span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;"><%= d.category %></span><% } else { %>—<% } %></td>
+            <td>
+              <% const audioSrc = effectiveAudioUrl(d); %>
+              <% if (audioSrc) { %>
+                <span class="audio-pill">
+                  <% if (d.audioPath) { %>📁 MP3 upload<% } else { %>🔗 URL<% } %>
+                </span>
+              <% } else { %>—<% } %>
+            </td>
+            <td><% if (d.videoUrl) { %><span class="audio-pill">🎬 embed</span><% } else { %>—<% } %></td>
+            <td>
+              <% if (d.isActive) { %>
+                <span class="badge active">Active</span>
+              <% } else { %>
+                <span class="badge inactive">Inactive</span>
+              <% } %>
+            </td>
+            <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);"><%= d.sortOrder %></span></td>
+            <td><a class="row-edit" href="/admin/doa/<%= d.id %>/edit">Edit →</a></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+</body>
+</html>

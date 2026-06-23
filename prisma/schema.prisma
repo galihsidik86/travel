@@ -323,6 +323,7 @@ model User {
   notifPrefs        AdminNotifPref[]   @relation("AdminNotifPref_user")
   crewJemaahNotes   CrewJemaahNote[]   @relation("CrewJemaahNoteAuthor")
   paketAnnouncements PaketAnnouncement[] @relation("PaketAnnouncementAuthor")
+  doaCreated        Doa[]              @relation("DoaCreator")
   incidentsCreated  Incident[]         @relation("IncidentCreator")
   incidentsAcked    Incident[]         @relation("IncidentAcker")
   incidentsResolved Incident[]         @relation("IncidentResolver")
@@ -2181,6 +2182,36 @@ model CrewJemaahNote {
 
   @@unique([paketId, jemaahId, crewUserId])
   @@index([paketId, jemaahId])
+}
+
+// Stage 389 — Doa CMS. Admin-managed library of doa (Arab + Latin +
+// terjemahan + optional MP3 upload OR external URL OR video embed).
+// Replaces the prior hardcoded list di shared/doa-harian.js — jemaah
+// PWA fetch dari /api/saya/doa, admin CRUD di /admin/doa.
+model Doa {
+  id          String  @id @default(cuid())
+  title       String  // mis. "Doa masuk Masjidil Haram"
+  arabic      String? @db.Text
+  latin       String? @db.Text  // transliterasi
+  translation String? @db.Text  // Indonesian translation
+  // Audio: pilih SALAH SATU — uploaded file ATAU external URL.
+  // audioPath = relative path under shared/audio/doa/ (mis. "masuk-masjidil-haram.mp3")
+  // audioUrl  = external link (CDN, YouTube direct mp3, Google Drive direct, dll)
+  audioPath   String?
+  audioUrl    String?
+  // Video: external embed URL ONLY (YouTube, Vimeo, etc — no upload).
+  videoUrl    String?
+  category    String? // mis. "umroh", "haji", "harian", "ziarah"
+  credit      String? // attribution (qori name, source URL, license)
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  createdBy   User?   @relation("DoaCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([isActive, sortOrder])
+  @@index([category, isActive])
 }
 
 // ─── Audit (permanent, no deletes) ───────────────────────────

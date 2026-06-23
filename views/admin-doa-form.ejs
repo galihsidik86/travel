@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>RELIGIO PRO — <%= title %></title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<script src="/shared/csrf.js"></script>
+<style>
+  body { background: var(--ink-1000); min-height: 100vh; }
+  .wrap { max-width: 800px; margin: 0 auto; padding: 32px 40px 80px; }
+  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .crumb a { color: var(--gold-300); text-decoration: none; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 6px; font-weight: 500; }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 24px; }
+  form { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 24px; }
+  .field { margin-bottom: 18px; }
+  .label { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px; }
+  .input, textarea, select { width: 100%; padding: 10px 12px; background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); color: var(--cream-100); font-family: var(--font-body); font-size: 13px; box-sizing: border-box; }
+  textarea { resize: vertical; min-height: 70px; line-height: 1.5; font-family: 'Amiri', serif; font-size: 18px; }
+  textarea.latin { font-family: var(--font-body); font-style: italic; font-size: 14px; min-height: 60px; }
+  textarea.translation { font-family: var(--font-body); font-style: normal; font-size: 14px; min-height: 80px; }
+  .hint { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-300); letter-spacing: 0.04em; margin-top: 4px; font-style: italic; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .actions { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .btn { padding: 10px 18px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; font-weight: 600; text-decoration: none; border: 0; display: inline-block; }
+  .btn-primary { background: var(--gold-300); color: var(--ink-1000); }
+  .btn-danger { background: transparent; border: 1px solid var(--ruby); color: var(--ruby); }
+  .btn-secondary { background: transparent; border: 1px solid var(--ink-300); color: var(--ink-100); }
+  .err { background: rgba(176,68,68,0.08); border: 1px solid var(--ruby); color: var(--ruby); padding: 10px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; margin-bottom: 16px; }
+  .ok { background: rgba(74,143,109,0.08); border: 1px solid var(--emerald); color: var(--emerald); padding: 10px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; margin-bottom: 16px; }
+  .audio-panel { background: var(--ink-1000); border: 1px solid var(--gold-300); border-radius: var(--r-sm); padding: 14px 16px; margin-top: 8px; }
+  .audio-panel h4 { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); margin: 0 0 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+  audio { width: 100%; }
+  .checkbox-row { display: flex; align-items: center; gap: 10px; }
+  .checkbox-row label { font-family: var(--font-mono); font-size: 12px; color: var(--cream-100); cursor: pointer; }
+</style>
+</head>
+<body data-screen-label="Admin · Doa form">
+<div class="wrap">
+  <div class="crumb"><a href="/admin/doa">← /admin/doa</a> · <%= doa ? 'EDIT' : 'BARU' %></div>
+  <h1><%= title %></h1>
+  <div class="sub"><% if (doa) { %>ID: <%= doa.id %><% } else { %>Doa baru — isi minimal title.<% } %></div>
+
+  <% if (err) { %><div class="err">⚠ <%= err %></div><% } %>
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <div class="ok">
+      <% if (flash === 'saved') { %>✓ Perubahan tersimpan.<% } %>
+      <% if (flash === 'created') { %>✓ Doa baru dibuat. Sekarang Anda bisa upload audio atau set URL.<% } %>
+      <% if (flash === 'audio_uploaded') { %>✓ Audio MP3 ter-upload. Jemaah PWA akan auto-pick saat probe.<% } %>
+      <% if (flash === 'audio_removed') { %>✓ Audio dihapus.<% } %>
+    </div>
+  <% } %>
+
+  <form method="POST" action="<%= doa ? '/admin/doa/' + doa.id : '/admin/doa' %>">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <div class="field">
+      <label class="label" for="title">Title *</label>
+      <input class="input" type="text" name="title" id="title" required maxlength="200" value="<%= doa?.title || '' %>" placeholder="Mis. Doa masuk Masjidil Haram">
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label class="label" for="category">Kategori</label>
+        <input class="input" type="text" name="category" id="category" maxlength="60" value="<%= doa?.category || '' %>" placeholder="umroh / haji / harian / ziarah">
+      </div>
+      <div class="field">
+        <label class="label" for="sortOrder">Sort Order</label>
+        <input class="input" type="number" name="sortOrder" id="sortOrder" value="<%= doa?.sortOrder ?? 0 %>" step="1">
+        <div class="hint">Lebih kecil = lebih dulu muncul.</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label" for="arabic">Teks Arab</label>
+      <textarea name="arabic" id="arabic" dir="rtl" lang="ar" maxlength="3000" placeholder="اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ"><%= doa?.arabic || '' %></textarea>
+    </div>
+
+    <div class="field">
+      <label class="label" for="latin">Latin (transliterasi)</label>
+      <textarea name="latin" id="latin" class="latin" maxlength="3000" placeholder="Allāhummaftaḥ lī abwāba raḥmatik"><%= doa?.latin || '' %></textarea>
+    </div>
+
+    <div class="field">
+      <label class="label" for="translation">Terjemahan Indonesia</label>
+      <textarea name="translation" id="translation" class="translation" maxlength="3000" placeholder="Ya Allah, bukakanlah untukku pintu-pintu rahmat-Mu."><%= doa?.translation || '' %></textarea>
+    </div>
+
+    <div class="field">
+      <label class="label" for="audioUrl">Audio URL (external link)</label>
+      <input class="input" type="url" name="audioUrl" id="audioUrl" maxlength="500" value="<%= doa?.audioUrl || '' %>" placeholder="https://example.com/path/to/audio.mp3">
+      <div class="hint">Atau upload file MP3 di panel bawah. URL & file salah satu saja — kalau upload file, URL otomatis di-clear.</div>
+    </div>
+
+    <div class="field">
+      <label class="label" for="videoUrl">Video URL (YouTube/Vimeo embed)</label>
+      <input class="input" type="url" name="videoUrl" id="videoUrl" maxlength="500" value="<%= doa?.videoUrl || '' %>" placeholder="https://youtube.com/watch?v=...">
+      <div class="hint">Embed-only — tidak ada upload video. Paste link YouTube/Vimeo/MP4 player.</div>
+    </div>
+
+    <div class="field">
+      <label class="label" for="credit">Credit / Attribution</label>
+      <input class="input" type="text" name="credit" id="credit" maxlength="255" value="<%= doa?.credit || '' %>" placeholder="Qari [name] · QS Al-Baqarah 2:201 · everyayah.com">
+    </div>
+
+    <div class="field checkbox-row">
+      <input type="checkbox" name="isActive" id="isActive" <%= (!doa || doa.isActive) ? 'checked' : '' %>>
+      <label for="isActive">Active (tampil di PWA jemaah)</label>
+    </div>
+
+    <div class="actions">
+      <div style="display:flex;gap:10px;">
+        <button type="submit" class="btn btn-primary"><%= doa ? 'SIMPAN' : 'BUAT DOA' %></button>
+        <a href="/admin/doa" class="btn btn-secondary">Batal</a>
+      </div>
+      <% if (doa && typeof canWrite !== 'undefined' && canWrite) { %>
+        <form method="POST" action="/admin/doa/<%= doa.id %>/delete" style="margin:0;" onsubmit="return confirm('Hapus doa ini? Audio file juga akan dihapus.')">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-danger">Hapus</button>
+        </form>
+      <% } %>
+    </div>
+  </form>
+
+  <% if (doa) { %>
+    <div class="audio-panel">
+      <h4>🎵 Upload audio MP3</h4>
+      <% const currentAudio = effectiveAudioUrl(doa); %>
+      <% if (currentAudio) { %>
+        <audio controls preload="metadata" src="<%= currentAudio %>"></audio>
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:6px;letter-spacing:0.04em;">
+          Sumber sekarang:
+          <% if (doa.audioPath) { %>
+            📁 file upload: <%= doa.audioPath %>
+          <% } else { %>
+            🔗 URL: <%= doa.audioUrl %>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-300);margin-bottom:10px;">
+          Belum ada audio. Upload MP3 di bawah, atau isi Audio URL di form atas.
+        </div>
+      <% } %>
+
+      <form method="POST" action="/admin/doa/<%= doa.id %>/upload-audio" enctype="multipart/form-data" style="margin-top:12px;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="file" name="audio" accept="audio/mpeg,audio/mp3,audio/mp4" required style="background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);border-radius:var(--r-sm);padding:8px 10px;font-family:inherit;font-size:12.5px;">
+        <button type="submit" class="btn btn-primary" style="margin-left:8px;vertical-align:middle;">Upload MP3</button>
+      </form>
+      <div class="hint" style="margin-top:8px;">Max 5MB. MP3 atau M4A. Upload akan replace audio sebelumnya + clear Audio URL field.</div>
+
+      <% if (doa.audioPath) { %>
+        <form method="POST" action="/admin/doa/<%= doa.id %>/remove-audio" style="margin-top:10px;" onsubmit="return confirm('Hapus file MP3 upload?')">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="btn btn-danger" style="padding:6px 12px;font-size:10px;">Hapus file upload</button>
+        </form>
+      <% } %>
+    </div>
+  <% } %>
+</div>
+</body>
+</html>

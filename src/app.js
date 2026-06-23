@@ -31,6 +31,8 @@ import notificationsRouter from './routes/notifications.js';
 import paymentIntentsRouter from './routes/paymentIntents.js';
 import incidentsRouter from './routes/incidents.js';
 import testimonialsRouter from './routes/testimonials.js';
+import doaAdminRouter from './routes/doaAdmin.js';
+import doaPublicRouter from './routes/doaPublic.js';
 import webhooksRouter from './routes/webhooks.js';
 import agentsAdminRouter from './routes/agentsAdmin.js';
 import groupsAdminRouter from './routes/groupsAdmin.js';
@@ -112,6 +114,7 @@ export function createApp() {
   app.use('/api/paket', paketChildrenRouter);
   app.use('/api/paket', paketJsonRouter);
   app.use('/api/booking', bookingRouter);
+  app.use('/api/doa', doaPublicRouter);
   app.use('/api', inquiryPublicRouter);
   app.use('/api/waitlist', waitlistRouter);
   app.use('/api/leads', leadsRouter);
@@ -173,6 +176,7 @@ export function createApp() {
   app.use('/admin/payment-intents', paymentIntentsRouter);
   app.use('/admin/incidents', incidentsRouter);
   app.use('/admin/testimonials', testimonialsRouter);
+  app.use('/admin/doa', doaAdminRouter);
   app.use('/admin/webhooks', webhooksRouter);
   app.use('/admin/inbound-webhooks', inboundWebhooksAdminRouter);
   app.use('/admin/api-keys', apiKeysRouter);
