@@ -41,6 +41,44 @@
     .grid { grid-template-columns: 1fr; }
     .card .desc { min-height: 0; }
   }
+
+  /* UUPM checklist — cursor-pointer + focus-visible + reduced-motion */
+  .card, button:not(:disabled), a.btn-back, .doa-nav-btn, .doa-play { cursor: pointer; }
+  .card:focus-visible,
+  button:focus-visible,
+  a:focus-visible,
+  .doa-nav-btn:focus-visible,
+  .doa-play:focus-visible {
+    outline: 2px solid var(--gold-300);
+    outline-offset: 3px;
+    border-radius: var(--r-sm);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001s !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001s !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* UUPM enhancement — card lift on hover (180ms, Apple-ish) */
+  .card { transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease; }
+  .card:hover {
+    border-color: var(--gold-300);
+    background: rgba(212,175,107,0.04);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25), 0 0 0 1px rgba(212,175,107,0.15);
+  }
+
+  /* Inline SVG icon sizing — uniform 1em, currentColor stroke */
+  .icon {
+    width: 1em; height: 1em; flex-shrink: 0;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    vertical-align: -0.125em;
+  }
+  .icon-lg { width: 1.4em; height: 1.4em; }
 </style>
 </head>
 <body class="has-m-tabs">
@@ -111,15 +149,33 @@
         day-of-year so the same jemaah sees a different doa each day.
         Stage 388 — audio playback via Web Speech TTS (3 lang buttons:
         Arabic, Latin pronunciation, Indonesian translation). %>
+    <%# Reusable inline SVG defs — Lucide-style strokes (UUPM no-emoji rule).
+        symbol id'd so we can use <use> instead of re-declaring SVG each time. %>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <symbol id="ic-sparkles" viewBox="0 0 24 24">
+        <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>
+        <circle cx="12" cy="12" r="2"/>
+      </symbol>
+      <symbol id="ic-chev-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+      <symbol id="ic-chev-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
+      <symbol id="ic-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" fill="currentColor" stroke="none" rx="1"/><rect x="14" y="5" width="4" height="14" fill="currentColor" stroke="none" rx="1"/></symbol>
+      <symbol id="ic-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+    </svg>
+
     <div class="doa-card" style="margin-top:22px;">
-      <div class="doa-eyebrow">✨ Doa hari ini</div>
+      <div class="doa-eyebrow"><svg class="icon"><use href="#ic-sparkles"/></svg> <span id="doa-eyebrow-text">Doa hari ini</span></div>
       <%# Nav prev/next + counter — allow browsing all doa, not just
           today's rotation. Default index = day-of-year mod 10, user
           can flip via arrow buttons. Stop any audio on navigation. %>
       <div class="doa-nav">
-        <button type="button" id="doa-prev" class="doa-nav-btn" aria-label="Doa sebelumnya">⟨</button>
+        <button type="button" id="doa-prev" class="doa-nav-btn" aria-label="Doa sebelumnya">
+          <svg class="icon"><use href="#ic-chev-left"/></svg>
+        </button>
         <span id="doa-counter" class="doa-counter">—</span>
-        <button type="button" id="doa-next" class="doa-nav-btn" aria-label="Doa berikutnya">⟩</button>
+        <button type="button" id="doa-next" class="doa-nav-btn" aria-label="Doa berikutnya">
+          <svg class="icon"><use href="#ic-chev-right"/></svg>
+        </button>
       </div>
       <div id="doa-title" class="doa-title">—</div>
       <div id="doa-arabic" class="doa-arabic">—</div>
@@ -131,13 +187,13 @@
       <div id="doa-audio" class="doa-audio-bar" style="display:none;">
         <span class="doa-audio-lbl">Dengarkan:</span>
         <button type="button" class="doa-play" data-lang="ar-SA" data-source="arabic" aria-label="Putar Arabic">
-          <span class="ic">▶</span><span class="lbl">Arab</span>
+          <svg class="icon ic"><use href="#ic-play"/></svg><span class="lbl">Arab</span>
         </button>
         <button type="button" class="doa-play" data-lang="id-ID" data-source="latin" aria-label="Putar latin">
-          <span class="ic">▶</span><span class="lbl">Latin</span>
+          <svg class="icon ic"><use href="#ic-play"/></svg><span class="lbl">Latin</span>
         </button>
         <button type="button" class="doa-play" data-lang="id-ID" data-source="translation" aria-label="Putar terjemahan">
-          <span class="ic">▶</span><span class="lbl">Arti</span>
+          <svg class="icon ic"><use href="#ic-play"/></svg><span class="lbl">Arti</span>
         </button>
       </div>
       <div id="doa-audio-hint" style="display:none;margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--amber);letter-spacing:0.04em;"></div>
@@ -147,7 +203,7 @@
       <div id="doa-audio-credit" style="display:none;margin-top:6px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-300);letter-spacing:0.04em;font-style:italic;"></div>
 
       <div style="margin-top:12px;font-family:var(--font-mono);font-size:10px;color:var(--ink-300);letter-spacing:0.06em;">
-        Default = doa hari ini. Tap ⟨ ⟩ untuk telusuri semua doa.
+        Default = doa hari ini. Tap panah untuk telusuri semua doa.
       </div>
     </div>
 
@@ -161,6 +217,15 @@
         padding: 20px;
         position: relative;
         overflow: hidden;
+        /* UUPM glassmorphism hybrid — frosted overlay + depth shadow */
+        box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(212,175,107,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
+      }
+      .doa-card::before {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, transparent 50%);
+        backdrop-filter: blur(0.5px);
+        -webkit-backdrop-filter: blur(0.5px);
+        pointer-events: none; z-index: 0;
       }
       .doa-card::after {
         content: ""; position: absolute;
@@ -182,17 +247,16 @@
         position: relative; z-index: 2;
       }
       .doa-nav-btn {
-        width: 36px; height: 36px; min-width: 36px;
+        width: 44px; height: 44px; min-width: 44px;
         display: grid; place-items: center;
         background: transparent; border: 1px solid var(--gold-300);
         border-radius: 50%; color: var(--gold-300);
-        font-family: var(--font-display); font-size: 18px; font-weight: 400;
-        line-height: 1; cursor: pointer; padding: 0;
-        transition: background 180ms ease, color 180ms ease, transform 120ms ease;
+        font-size: 18px; cursor: pointer; padding: 0;
+        transition: background 180ms ease, color 180ms ease, transform 120ms ease, box-shadow 180ms ease;
       }
-      .doa-nav-btn:hover, .doa-nav-btn:focus-visible {
+      .doa-nav-btn:hover {
         background: var(--gold-300); color: var(--ink-1000);
-        outline: none;
+        box-shadow: 0 4px 12px rgba(212,175,107,0.25);
       }
       .doa-nav-btn:active { transform: scale(0.92); }
       .doa-counter {
@@ -227,18 +291,15 @@
         font-weight: 600; min-height: 38px;
         transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
       }
-      .doa-play .ic { font-size: 11px; line-height: 1; }
-      .doa-play:hover, .doa-play:focus-visible {
+      .doa-play .ic { width: 1.05em; height: 1.05em; }
+      .doa-play:hover {
         background: var(--gold-300); color: var(--ink-1000);
         box-shadow: 0 4px 12px rgba(212,175,107,0.25);
-        outline: none;
       }
       .doa-play.is-playing {
         background: var(--gold-300); color: var(--ink-1000);
         animation: doa-pulse 1.4s ease-in-out infinite;
       }
-      .doa-play.is-playing .ic::before { content: "■"; }
-      .doa-play.is-playing .ic { font-size: 9px; }
       @keyframes doa-pulse {
         0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,107,0.5); }
         50%      { box-shadow: 0 0 0 6px rgba(212,175,107,0); }
@@ -278,16 +339,20 @@
       let mp3Available = false;
       let playingBtn = null;
 
+      function setBtnIcon(btn, name) {
+        const useEl = btn?.querySelector('.ic use');
+        if (useEl) useEl.setAttribute('href', '#ic-' + name);
+      }
       function resetButton(btn) {
         if (!btn) return;
         btn.classList.remove('is-playing');
-        const ic = btn.querySelector('.ic');
-        if (ic) ic.textContent = '▶';
+        setBtnIcon(btn, 'play');
       }
       function markPlaying(btn) {
         if (playingBtn && playingBtn !== btn) resetButton(playingBtn);
         playingBtn = btn;
         btn.classList.add('is-playing');
+        setBtnIcon(btn, 'pause');
       }
 
       function renderDoa(idx) {
@@ -303,11 +368,12 @@
         $latin.textContent = '"' + currentDoa.latin + '"';
         $id.textContent = currentDoa.translation;
         $counter.textContent = (currentIndex + 1) + ' / ' + all.length;
-        // Update eyebrow to indicate "doa hari ini" vs user-browsed.
-        if ($eyebrow) {
-          $eyebrow.innerHTML = currentIndex === todayIndex
-            ? '✨ Doa hari ini'
-            : '✨ Doa ' + (currentIndex + 1) + ' dari ' + all.length;
+        // Update eyebrow text only (SVG icon stays via static partial).
+        const eyebrowTextEl = document.getElementById('doa-eyebrow-text');
+        if (eyebrowTextEl) {
+          eyebrowTextEl.textContent = currentIndex === todayIndex
+            ? 'Doa hari ini'
+            : 'Doa ' + (currentIndex + 1) + ' dari ' + all.length;
         }
 
         // Reset audio UI state for new doa.
@@ -317,14 +383,15 @@
           if (arBtn) {
             const lbl = arBtn.querySelector('.lbl');
             if (lbl) lbl.textContent = 'Arab';
+            arBtn.classList.remove('has-mp3');
             arBtn.title = '';
           }
-          if (credit) { credit.style.display = 'none'; credit.textContent = ''; }
+          if (credit) { credit.style.display = 'none'; credit.innerHTML = ''; }
           if (hint) { hint.style.display = 'none'; hint.textContent = ''; }
           mp3Available = false;
 
-          // Probe MP3 availability — show "🎵" badge when pre-recorded
-          // qori file exists, else fall back to TTS automatically.
+          // Probe MP3 availability — render music-note SVG badge when
+          // pre-recorded qori file exists; fall back to TTS otherwise.
           if (currentDoa.audioUrl && arBtn) {
             window.DoaAudio.probeAudio(currentDoa.audioUrl).then((ok) => {
               // Race guard — kalau user keburu navigate ke doa lain,
@@ -333,11 +400,14 @@
               mp3Available = ok;
               if (ok) {
                 const lbl = arBtn.querySelector('.lbl');
-                if (lbl) lbl.textContent = 'Arab 🎵';
+                if (lbl) lbl.innerHTML = 'Arab <svg class="icon" style="width:0.85em;height:0.85em;margin-left:2px;"><use href="#ic-music"/></svg>';
+                arBtn.classList.add('has-mp3');
                 arBtn.title = 'Rekaman qori asli';
                 if (credit && currentDoa.audioCredit) {
-                  credit.style.display = 'block';
-                  credit.textContent = '🎵 ' + currentDoa.audioCredit;
+                  credit.style.display = 'flex';
+                  credit.style.alignItems = 'center';
+                  credit.style.gap = '6px';
+                  credit.innerHTML = '<svg class="icon" style="color:var(--gold-300);"><use href="#ic-music"/></svg><span>' + currentDoa.audioCredit + '</span>';
                 }
               }
             });
