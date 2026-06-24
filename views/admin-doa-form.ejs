@@ -2,157 +2,307 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — <%= title %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
 <script src="/shared/csrf.js"></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
-  .wrap { max-width: 800px; margin: 0 auto; padding: 32px 40px 80px; }
-  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
-  .crumb a { color: var(--gold-300); text-decoration: none; }
-  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 6px; font-weight: 500; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 40px 80px; }
+  h1 { font-family: var(--font-display); font-size: 28px; color: var(--cream-100); margin: 0 0 6px; font-weight: 500; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
   .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-bottom: 24px; }
-  form { background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); padding: 24px; }
-  .field { margin-bottom: 18px; }
-  .label { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px; }
-  .input, textarea, select { width: 100%; padding: 10px 12px; background: var(--ink-1000); border: var(--hairline-soft); border-radius: var(--r-sm); color: var(--cream-100); font-family: var(--font-body); font-size: 13px; box-sizing: border-box; }
-  textarea { resize: vertical; min-height: 70px; line-height: 1.5; font-family: 'Amiri', serif; font-size: 18px; }
-  textarea.latin { font-family: var(--font-body); font-style: italic; font-size: 14px; min-height: 60px; }
-  textarea.translation { font-family: var(--font-body); font-style: normal; font-size: 14px; min-height: 80px; }
-  .hint { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-300); letter-spacing: 0.04em; margin-top: 4px; font-style: italic; }
+
+  .card {
+    background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md);
+    padding: 28px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  .field { margin-bottom: 20px; }
+  .label {
+    display: block;
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--ink-200); letter-spacing: 0.14em; text-transform: uppercase;
+    margin-bottom: 6px; font-weight: 600;
+  }
+  .input, textarea, select {
+    width: 100%; padding: 12px 14px;
+    background: var(--ink-1000); border: 1px solid var(--ink-500);
+    border-radius: var(--r-sm); color: var(--cream-100);
+    font-family: var(--font-body); font-size: 13.5px;
+    box-sizing: border-box;
+    transition: border-color 180ms ease, box-shadow 180ms ease;
+  }
+  .input:focus, textarea:focus, select:focus {
+    outline: none; border-color: var(--gold-300);
+    box-shadow: 0 0 0 3px rgba(212,175,107,0.15);
+  }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
+  textarea.arabic { font-family: 'Amiri', serif; font-size: 20px; direction: rtl; min-height: 90px; }
+  textarea.latin { font-style: italic; font-size: 14px; min-height: 70px; }
+  textarea.translation { font-size: 14px; min-height: 90px; }
+
+  .hint {
+    display: flex; align-items: flex-start; gap: 6px;
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-300); letter-spacing: 0.04em;
+    margin-top: 6px; font-style: italic;
+  }
+
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .actions { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 8px; }
-  .btn { padding: 10px 18px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; font-weight: 600; text-decoration: none; border: 0; display: inline-block; }
+
+  .actions {
+    display: flex; gap: 10px; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; margin-top: 8px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; font-weight: 600; text-decoration: none;
+    border: 0; min-height: 44px; box-sizing: border-box;
+    transition: background 180ms ease, transform 120ms ease, box-shadow 180ms ease, color 180ms ease;
+  }
   .btn-primary { background: var(--gold-300); color: var(--ink-1000); }
-  .btn-danger { background: transparent; border: 1px solid var(--ruby); color: var(--ruby); }
+  .btn-primary:hover { background: var(--gold-200); box-shadow: 0 6px 18px rgba(212,175,107,0.3); transform: translateY(-1px); }
   .btn-secondary { background: transparent; border: 1px solid var(--ink-300); color: var(--ink-100); }
-  .err { background: rgba(176,68,68,0.08); border: 1px solid var(--ruby); color: var(--ruby); padding: 10px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; margin-bottom: 16px; }
-  .ok { background: rgba(74,143,109,0.08); border: 1px solid var(--emerald); color: var(--emerald); padding: 10px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; margin-bottom: 16px; }
-  .audio-panel { background: var(--ink-1000); border: 1px solid var(--gold-300); border-radius: var(--r-sm); padding: 14px 16px; margin-top: 8px; }
-  .audio-panel h4 { font-family: var(--font-mono); font-size: 11px; color: var(--gold-300); margin: 0 0 10px; letter-spacing: 0.14em; text-transform: uppercase; }
-  audio { width: 100%; }
-  .checkbox-row { display: flex; align-items: center; gap: 10px; }
-  .checkbox-row label { font-family: var(--font-mono); font-size: 12px; color: var(--cream-100); cursor: pointer; }
+  .btn-secondary:hover { border-color: var(--cream-100); color: var(--cream-100); }
+  .btn-danger { background: transparent; border: 1px solid var(--ruby); color: var(--ruby); }
+  .btn-danger:hover { background: var(--ruby); color: var(--cream-100); }
+  .btn:active { transform: translateY(0); }
+  .btn-sm { padding: 8px 14px; min-height: 36px; font-size: 10px; }
+
+  .err, .ok {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px; margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .err { background: rgba(176,68,68,0.08); border: 1px solid var(--ruby); color: var(--ruby); }
+  .ok { background: rgba(74,143,109,0.08); border: 1px solid var(--emerald); color: var(--emerald); }
+
+  /* Audio panel — frosted glass + gold accent */
+  .audio-panel {
+    background: linear-gradient(180deg, rgba(212,175,107,0.04) 0%, transparent 100%), var(--ink-1000);
+    border: 1px solid var(--gold-300); border-radius: var(--r-sm);
+    padding: 18px; margin-top: 16px;
+    box-shadow: inset 0 1px 0 rgba(212,175,107,0.1);
+  }
+  .audio-panel h4 {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--gold-300);
+    margin: 0 0 14px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600;
+  }
+  audio { width: 100%; height: 44px; }
+  audio::-webkit-media-controls-panel { background-color: var(--ink-900); }
+
+  .src-info {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--ink-200); margin-top: 8px; letter-spacing: 0.04em;
+  }
+  .src-info .icon { color: var(--gold-300); }
+
+  input[type="file"] {
+    background: var(--ink-1000); color: var(--cream-100);
+    border: 1px solid var(--ink-500); border-radius: var(--r-sm);
+    padding: 10px 12px; font-family: inherit; font-size: 12.5px;
+    cursor: pointer;
+  }
+  input[type="file"]:hover { border-color: var(--gold-300); }
+
+  .checkbox-row { display: flex; align-items: center; gap: 12px; }
+  .checkbox-row input[type="checkbox"] {
+    width: 18px; height: 18px; accent-color: var(--gold-300); cursor: pointer;
+  }
+  .checkbox-row label {
+    font-family: var(--font-mono); font-size: 12px; color: var(--cream-100);
+    cursor: pointer; letter-spacing: 0.04em;
+  }
+
+  /* UUPM checklist — focus rings, cursor, reduced-motion */
+  button:not(:disabled), a, input[type="file"] { cursor: pointer; }
+  button:focus-visible, a:focus-visible {
+    outline: 2px solid var(--gold-300); outline-offset: 3px;
+    border-radius: var(--r-sm);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001s !important;
+      transition-duration: 0.001s !important;
+    }
+  }
+
+  .icon {
+    width: 1em; height: 1em; flex-shrink: 0;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    vertical-align: -0.125em;
+  }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 20px 14px 80px; }
+    .row { grid-template-columns: 1fr; }
+    .card { padding: 20px; }
+  }
 </style>
 </head>
 <body data-screen-label="Admin · Doa form">
-<div class="wrap">
-  <div class="crumb"><a href="/admin/doa">← /admin/doa</a> · <%= doa ? 'EDIT' : 'BARU' %></div>
-  <h1><%= title %></h1>
-  <div class="sub"><% if (doa) { %>ID: <%= doa.id %><% } else { %>Doa baru — isi minimal title.<% } %></div>
 
-  <% if (err) { %><div class="err">⚠ <%= err %></div><% } %>
+<%# Inline SVG icon library %>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ic-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="ic-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></symbol>
+  <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></symbol>
+  <symbol id="ic-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+</svg>
+
+<div class="wrap">
+  <a class="btn-back" href="/admin/doa">Doa CMS</a>
+  <h1><%= title %></h1>
+  <div class="sub">
+    <% if (doa) { %>ID: <code style="color:var(--gold-300);"><%= doa.id %></code><% } else { %>Doa baru — isi minimal title.<% } %>
+  </div>
+
+  <% if (err) { %>
+    <div class="err"><svg class="icon"><use href="#ic-alert"/></svg><div><%= err %></div></div>
+  <% } %>
   <% if (typeof flash !== 'undefined' && flash) { %>
     <div class="ok">
-      <% if (flash === 'saved') { %>✓ Perubahan tersimpan.<% } %>
-      <% if (flash === 'created') { %>✓ Doa baru dibuat. Sekarang Anda bisa upload audio atau set URL.<% } %>
-      <% if (flash === 'audio_uploaded') { %>✓ Audio MP3 ter-upload. Jemaah PWA akan auto-pick saat probe.<% } %>
-      <% if (flash === 'audio_removed') { %>✓ Audio dihapus.<% } %>
+      <svg class="icon"><use href="#ic-check"/></svg>
+      <div>
+        <% if (flash === 'saved') { %>Perubahan tersimpan.<% } %>
+        <% if (flash === 'created') { %>Doa baru dibuat. Sekarang Anda bisa upload audio atau set URL di panel bawah.<% } %>
+        <% if (flash === 'audio_uploaded') { %>Audio MP3 ter-upload. Jemaah PWA akan auto-pick saat probe.<% } %>
+        <% if (flash === 'audio_removed') { %>Audio dihapus.<% } %>
+      </div>
     </div>
   <% } %>
 
-  <form method="POST" action="<%= doa ? '/admin/doa/' + doa.id : '/admin/doa' %>">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="card">
+    <form method="POST" action="<%= doa ? '/admin/doa/' + doa.id : '/admin/doa' %>">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-    <div class="field">
-      <label class="label" for="title">Title *</label>
-      <input class="input" type="text" name="title" id="title" required maxlength="200" value="<%= doa?.title || '' %>" placeholder="Mis. Doa masuk Masjidil Haram">
-    </div>
-
-    <div class="row">
       <div class="field">
-        <label class="label" for="category">Kategori</label>
-        <input class="input" type="text" name="category" id="category" maxlength="60" value="<%= doa?.category || '' %>" placeholder="umroh / haji / harian / ziarah">
+        <label class="label" for="title">Title *</label>
+        <input class="input" type="text" name="title" id="title" required maxlength="200" value="<%= doa?.title || '' %>" placeholder="Mis. Doa masuk Masjidil Haram">
       </div>
+
+      <div class="row">
+        <div class="field">
+          <label class="label" for="category">Kategori</label>
+          <input class="input" type="text" name="category" id="category" maxlength="60" value="<%= doa?.category || '' %>" placeholder="umroh / haji / harian / ziarah">
+        </div>
+        <div class="field">
+          <label class="label" for="sortOrder">Sort order</label>
+          <input class="input" type="number" name="sortOrder" id="sortOrder" value="<%= doa?.sortOrder ?? 0 %>" step="1">
+          <div class="hint"><svg class="icon"><use href="#ic-info"/></svg>Lebih kecil = lebih dulu muncul.</div>
+        </div>
+      </div>
+
       <div class="field">
-        <label class="label" for="sortOrder">Sort Order</label>
-        <input class="input" type="number" name="sortOrder" id="sortOrder" value="<%= doa?.sortOrder ?? 0 %>" step="1">
-        <div class="hint">Lebih kecil = lebih dulu muncul.</div>
+        <label class="label" for="arabic">Teks Arab</label>
+        <textarea name="arabic" id="arabic" class="arabic" dir="rtl" lang="ar" maxlength="3000" placeholder="اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ"><%= doa?.arabic || '' %></textarea>
       </div>
-    </div>
 
-    <div class="field">
-      <label class="label" for="arabic">Teks Arab</label>
-      <textarea name="arabic" id="arabic" dir="rtl" lang="ar" maxlength="3000" placeholder="اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ"><%= doa?.arabic || '' %></textarea>
-    </div>
-
-    <div class="field">
-      <label class="label" for="latin">Latin (transliterasi)</label>
-      <textarea name="latin" id="latin" class="latin" maxlength="3000" placeholder="Allāhummaftaḥ lī abwāba raḥmatik"><%= doa?.latin || '' %></textarea>
-    </div>
-
-    <div class="field">
-      <label class="label" for="translation">Terjemahan Indonesia</label>
-      <textarea name="translation" id="translation" class="translation" maxlength="3000" placeholder="Ya Allah, bukakanlah untukku pintu-pintu rahmat-Mu."><%= doa?.translation || '' %></textarea>
-    </div>
-
-    <div class="field">
-      <label class="label" for="audioUrl">Audio URL (external link)</label>
-      <input class="input" type="url" name="audioUrl" id="audioUrl" maxlength="500" value="<%= doa?.audioUrl || '' %>" placeholder="https://example.com/path/to/audio.mp3">
-      <div class="hint">Atau upload file MP3 di panel bawah. URL & file salah satu saja — kalau upload file, URL otomatis di-clear.</div>
-    </div>
-
-    <div class="field">
-      <label class="label" for="videoUrl">Video URL (YouTube/Vimeo embed)</label>
-      <input class="input" type="url" name="videoUrl" id="videoUrl" maxlength="500" value="<%= doa?.videoUrl || '' %>" placeholder="https://youtube.com/watch?v=...">
-      <div class="hint">Embed-only — tidak ada upload video. Paste link YouTube/Vimeo/MP4 player.</div>
-    </div>
-
-    <div class="field">
-      <label class="label" for="credit">Credit / Attribution</label>
-      <input class="input" type="text" name="credit" id="credit" maxlength="255" value="<%= doa?.credit || '' %>" placeholder="Qari [name] · QS Al-Baqarah 2:201 · everyayah.com">
-    </div>
-
-    <div class="field checkbox-row">
-      <input type="checkbox" name="isActive" id="isActive" <%= (!doa || doa.isActive) ? 'checked' : '' %>>
-      <label for="isActive">Active (tampil di PWA jemaah)</label>
-    </div>
-
-    <div class="actions">
-      <div style="display:flex;gap:10px;">
-        <button type="submit" class="btn btn-primary"><%= doa ? 'SIMPAN' : 'BUAT DOA' %></button>
-        <a href="/admin/doa" class="btn btn-secondary">Batal</a>
+      <div class="field">
+        <label class="label" for="latin">Latin (transliterasi)</label>
+        <textarea name="latin" id="latin" class="latin" maxlength="3000" placeholder="Allāhummaftaḥ lī abwāba raḥmatik"><%= doa?.latin || '' %></textarea>
       </div>
-      <% if (doa && typeof canWrite !== 'undefined' && canWrite) { %>
-        <form method="POST" action="/admin/doa/<%= doa.id %>/delete" style="margin:0;" onsubmit="return confirm('Hapus doa ini? Audio file juga akan dihapus.')">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-danger">Hapus</button>
-        </form>
-      <% } %>
-    </div>
-  </form>
+
+      <div class="field">
+        <label class="label" for="translation">Terjemahan Indonesia</label>
+        <textarea name="translation" id="translation" class="translation" maxlength="3000" placeholder="Ya Allah, bukakanlah untukku pintu-pintu rahmat-Mu."><%= doa?.translation || '' %></textarea>
+      </div>
+
+      <div class="field">
+        <label class="label" for="audioUrl">Audio URL (external link)</label>
+        <input class="input" type="url" name="audioUrl" id="audioUrl" maxlength="500" value="<%= doa?.audioUrl || '' %>" placeholder="https://example.com/path/to/audio.mp3">
+        <div class="hint"><svg class="icon"><use href="#ic-info"/></svg>Atau upload file MP3 di panel bawah. URL & file salah satu saja — kalau upload file, URL otomatis di-clear.</div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="videoUrl">Video URL (YouTube/Vimeo embed)</label>
+        <input class="input" type="url" name="videoUrl" id="videoUrl" maxlength="500" value="<%= doa?.videoUrl || '' %>" placeholder="https://youtube.com/watch?v=...">
+        <div class="hint"><svg class="icon"><use href="#ic-info"/></svg>Embed-only — tidak ada upload video. Paste link YouTube/Vimeo/MP4 player.</div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="credit">Credit / Attribution</label>
+        <input class="input" type="text" name="credit" id="credit" maxlength="255" value="<%= doa?.credit || '' %>" placeholder="Qari [name] · QS Al-Baqarah 2:201 · everyayah.com">
+      </div>
+
+      <div class="field checkbox-row">
+        <input type="checkbox" name="isActive" id="isActive" <%= (!doa || doa.isActive) ? 'checked' : '' %>>
+        <label for="isActive">Active (tampil di PWA jemaah)</label>
+      </div>
+
+      <div class="actions">
+        <div style="display:flex;gap:10px;">
+          <button type="submit" class="btn btn-primary">
+            <svg class="icon"><use href="#ic-save"/></svg>
+            <%= doa ? 'Simpan' : 'Buat Doa' %>
+          </button>
+          <a href="/admin/doa" class="btn btn-secondary">Batal</a>
+        </div>
+        <% if (doa && typeof canWrite !== 'undefined' && canWrite) { %>
+          <form method="POST" action="/admin/doa/<%= doa.id %>/delete" style="margin:0;" onsubmit="return confirm('Hapus doa ini? Audio file juga akan dihapus.')">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn-danger">
+              <svg class="icon"><use href="#ic-trash"/></svg>
+              Hapus
+            </button>
+          </form>
+        <% } %>
+      </div>
+    </form>
+  </div>
 
   <% if (doa) { %>
     <div class="audio-panel">
-      <h4>🎵 Upload audio MP3</h4>
+      <h4><svg class="icon"><use href="#ic-music"/></svg>Audio MP3 source</h4>
       <% const currentAudio = effectiveAudioUrl(doa); %>
       <% if (currentAudio) { %>
         <audio controls preload="metadata" src="<%= currentAudio %>"></audio>
-        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-200);margin-top:6px;letter-spacing:0.04em;">
-          Sumber sekarang:
+        <div class="src-info">
           <% if (doa.audioPath) { %>
-            📁 file upload: <%= doa.audioPath %>
+            <svg class="icon"><use href="#ic-folder"/></svg>
+            <span>File upload: <strong style="color:var(--cream-100);"><%= doa.audioPath %></strong></span>
           <% } else { %>
-            🔗 URL: <%= doa.audioUrl %>
+            <svg class="icon"><use href="#ic-link"/></svg>
+            <span>URL: <strong style="color:var(--cream-100);"><%= doa.audioUrl %></strong></span>
           <% } %>
         </div>
       <% } else { %>
-        <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-300);margin-bottom:10px;">
+        <div style="font-family:var(--font-mono);font-size:11.5px;color:var(--ink-300);margin-bottom:10px;line-height:1.6;">
           Belum ada audio. Upload MP3 di bawah, atau isi Audio URL di form atas.
         </div>
       <% } %>
 
-      <form method="POST" action="/admin/doa/<%= doa.id %>/upload-audio" enctype="multipart/form-data" style="margin-top:12px;">
+      <form method="POST" action="/admin/doa/<%= doa.id %>/upload-audio" enctype="multipart/form-data" style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="file" name="audio" accept="audio/mpeg,audio/mp3,audio/mp4" required style="background:var(--ink-1000);color:var(--cream-100);border:1px solid var(--hairline-soft);border-radius:var(--r-sm);padding:8px 10px;font-family:inherit;font-size:12.5px;">
-        <button type="submit" class="btn btn-primary" style="margin-left:8px;vertical-align:middle;">Upload MP3</button>
+        <input type="file" name="audio" accept="audio/mpeg,audio/mp3,audio/mp4" required>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <svg class="icon"><use href="#ic-upload"/></svg>
+          Upload MP3
+        </button>
       </form>
-      <div class="hint" style="margin-top:8px;">Max 5MB. MP3 atau M4A. Upload akan replace audio sebelumnya + clear Audio URL field.</div>
+      <div class="hint" style="margin-top:8px;"><svg class="icon"><use href="#ic-info"/></svg>Max 5MB. MP3 atau M4A. Upload akan replace audio sebelumnya + clear Audio URL field.</div>
 
       <% if (doa.audioPath) { %>
-        <form method="POST" action="/admin/doa/<%= doa.id %>/remove-audio" style="margin-top:10px;" onsubmit="return confirm('Hapus file MP3 upload?')">
+        <form method="POST" action="/admin/doa/<%= doa.id %>/remove-audio" style="margin-top:12px;" onsubmit="return confirm('Hapus file MP3 upload?')">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-danger" style="padding:6px 12px;font-size:10px;">Hapus file upload</button>
+          <button type="submit" class="btn btn-danger btn-sm">
+            <svg class="icon"><use href="#ic-trash"/></svg>
+            Hapus file upload
+          </button>
         </form>
       <% } %>
     </div>

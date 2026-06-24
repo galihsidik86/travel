@@ -2,98 +2,254 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Doa CMS</title>
 <link rel="stylesheet" href="/shared/tokens.css">
 <script src="/shared/csrf.js"></script>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
   .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 40px 80px; }
-  .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
-  .crumb a { color: var(--gold-300); text-decoration: none; }
   .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
-  h1 { font-family: var(--font-display); font-size: 32px; color: var(--cream-100); margin: 0; font-weight: 500; }
-  .btn-primary { background: var(--gold-300); color: var(--ink-1000); border: 0; padding: 10px 18px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; font-weight: 600; text-decoration: none; display: inline-block; }
-  .flash { background: rgba(74,143,109,0.08); border: 1px solid var(--emerald); color: var(--emerald); padding: 10px 14px; border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; margin-bottom: 16px; }
-  table { width: 100%; border-collapse: collapse; background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md); overflow: hidden; }
-  th, td { padding: 12px 14px; text-align: left; border-bottom: var(--hairline-soft); font-family: var(--font-body); font-size: 13px; color: var(--cream-100); }
-  th { background: var(--ink-1000); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-200); }
+  h1 { font-family: var(--font-display); font-size: 32px; color: var(--cream-100); margin: 0; font-weight: 500; letter-spacing: -0.01em; }
+  h1 em { font-style: italic; color: var(--gold-300); }
+  .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-200); letter-spacing: 0.06em; margin-top: 4px; }
+
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--gold-300); color: var(--ink-1000); border: 0;
+    padding: 12px 20px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; font-weight: 600; text-decoration: none;
+    min-height: 44px; box-sizing: border-box;
+    transition: background 180ms ease, transform 120ms ease, box-shadow 180ms ease;
+  }
+  .btn-primary:hover {
+    background: var(--gold-200);
+    box-shadow: 0 6px 18px rgba(212,175,107,0.3);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active { transform: translateY(0); }
+
+  .flash {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(74,143,109,0.08); border: 1px solid var(--emerald); color: var(--emerald);
+    padding: 12px 16px; border-radius: var(--r-sm);
+    font-family: var(--font-mono); font-size: 12px; margin-bottom: 16px;
+  }
+
+  /* UUPM Data-Dense Dashboard — sticky headers, row hover highlight,
+     compact 12px padding, 36px row height, smooth transitions. */
+  .table-card {
+    background: var(--ink-900); border: var(--hairline); border-radius: var(--r-md);
+    overflow: hidden;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--ink-1000); position: sticky; top: 0; z-index: 2; }
+  th {
+    padding: 14px; text-align: left;
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-200);
+    border-bottom: 1px solid var(--ink-700);
+    font-weight: 600;
+  }
+  td {
+    padding: 16px 14px; text-align: left;
+    border-bottom: var(--hairline-soft);
+    font-family: var(--font-body); font-size: 13px; color: var(--cream-100);
+    transition: background 120ms ease;
+  }
+  tr { transition: background 120ms ease; }
+  tr:hover td { background: rgba(212,175,107,0.04); }
   tr:last-child td { border-bottom: 0; }
-  .badge { font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; border-radius: 3px; letter-spacing: 0.08em; text-transform: uppercase; }
-  .badge.active { background: rgba(74,143,109,0.12); color: var(--emerald); border: 1px solid var(--emerald); }
-  .badge.inactive { background: rgba(110,110,110,0.12); color: var(--ink-200); border: 1px solid var(--ink-300); }
-  .audio-pill { font-family: var(--font-mono); font-size: 10px; color: var(--gold-300); }
-  .empty { padding: 60px 24px; text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--ink-200); }
-  a.row-edit { color: var(--gold-300); text-decoration: none; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; }
-  a.row-edit:hover { color: var(--gold-100); }
+
+  .doa-title { color: var(--cream-100); font-weight: 500; font-family: var(--font-display); font-size: 15px; }
+  .doa-preview { font-family: 'Amiri', serif; font-size: 14px; color: var(--gold-200); direction: rtl; margin-top: 6px; max-width: 280px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--font-mono); font-size: 10px;
+    padding: 4px 10px; border-radius: 12px;
+    letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600;
+  }
+  .badge.active { background: rgba(74,143,109,0.12); color: var(--emerald); border: 1px solid rgba(74,143,109,0.4); }
+  .badge.inactive { background: rgba(110,110,110,0.10); color: var(--ink-200); border: 1px solid var(--ink-500); }
+
+  .media-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--gold-300); letter-spacing: 0.04em;
+  }
+  .media-pill .icon { color: var(--gold-300); }
+  .none { color: var(--ink-300); }
+
+  .cat-pill {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--ink-100); letter-spacing: 0.08em; text-transform: uppercase;
+    background: rgba(255,255,255,0.04); padding: 3px 8px; border-radius: 3px;
+  }
+  .sort-num { font-family: var(--font-mono); font-size: 12px; color: var(--ink-200); font-weight: 600; }
+
+  a.row-edit {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--gold-300); text-decoration: none;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; font-weight: 600;
+    padding: 6px 10px; border-radius: var(--r-sm);
+    transition: background 150ms ease, transform 120ms ease;
+  }
+  a.row-edit:hover { background: rgba(212,175,107,0.08); transform: translateX(2px); }
+
+  .empty {
+    padding: 80px 24px; text-align: center;
+    font-family: var(--font-mono); font-size: 12px; color: var(--ink-200);
+    background: var(--ink-900); border: 1px dashed var(--ink-500);
+    border-radius: var(--r-md);
+  }
+  .empty a { color: var(--gold-300); text-decoration: none; font-weight: 600; }
+  .empty a:hover { color: var(--gold-200); }
+
+  /* UUPM checklist — focus rings, reduced-motion, cursor */
+  button:not(:disabled), a, .doa-nav-btn { cursor: pointer; }
+  button:focus-visible, a:focus-visible {
+    outline: 2px solid var(--gold-300); outline-offset: 3px;
+    border-radius: var(--r-sm);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001s !important;
+      transition-duration: 0.001s !important;
+    }
+  }
+
+  .icon {
+    width: 1em; height: 1em; flex-shrink: 0;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    vertical-align: -0.125em;
+  }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 20px 14px 80px; }
+    h1 { font-size: 24px; }
+    th, td { padding: 10px 8px; font-size: 12px; }
+    .doa-preview { max-width: 140px; font-size: 12px; }
+  }
 </style>
 </head>
 <body data-screen-label="Admin · Doa CMS">
+
+<%# Inline SVG icon library — Lucide-style strokes %>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="ic-video" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7" fill="currentColor" stroke="none"/><rect x="1" y="5" width="15" height="14" rx="2"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="ic-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+  <symbol id="ic-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></symbol>
+  <symbol id="ic-empty" viewBox="0 0 24 24"><path d="M3 3h18v18H3z" stroke-dasharray="3 3"/><path d="M9 12h6"/></symbol>
+</svg>
+
 <div class="wrap">
-  <div class="crumb"><a href="/admin">← /admin</a> · DOA CMS</div>
+  <a class="btn-back" href="/admin">Admin</a>
+
   <div class="head">
     <div>
-      <h1>Doa CMS</h1>
-      <div style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);margin-top:4px;letter-spacing:0.06em;"><%= doas.length %> total · admin-managed library yang jemaah PWA baca</div>
+      <h1>Doa <em>CMS</em></h1>
+      <div class="sub"><%= doas.length %> total · admin-managed library · jemaah PWA fetch via /api/doa</div>
     </div>
-    <a href="/admin/doa/new" class="btn-primary">+ Doa baru</a>
+    <a href="/admin/doa/new" class="btn-primary">
+      <svg class="icon"><use href="#ic-plus"/></svg>
+      Doa baru
+    </a>
   </div>
 
   <% if (flash) { %>
     <div class="flash">
-      <% if (flash === 'created') { %>✓ Doa baru dibuat.<% } %>
-      <% if (flash === 'saved') { %>✓ Perubahan tersimpan.<% } %>
-      <% if (flash === 'deleted') { %>✓ Doa dihapus.<% } %>
-      <% if (flash === 'audio_uploaded') { %>✓ Audio MP3 terpasang.<% } %>
-      <% if (flash === 'audio_removed') { %>✓ Audio dihapus.<% } %>
+      <svg class="icon"><use href="#ic-check"/></svg>
+      <% if (flash === 'created') { %>Doa baru dibuat.<% } %>
+      <% if (flash === 'saved') { %>Perubahan tersimpan.<% } %>
+      <% if (flash === 'deleted') { %>Doa dihapus.<% } %>
+      <% if (flash === 'audio_uploaded') { %>Audio MP3 terpasang.<% } %>
+      <% if (flash === 'audio_removed') { %>Audio dihapus.<% } %>
     </div>
   <% } %>
 
   <% if (doas.length === 0) { %>
     <div class="empty">
-      Belum ada doa. <a href="/admin/doa/new" style="color:var(--gold-300);">Tambah doa pertama →</a>
+      <svg class="icon" style="width:48px;height:48px;color:var(--ink-300);margin-bottom:12px;"><use href="#ic-empty"/></svg>
+      <div style="font-size:14px;color:var(--ink-100);margin-bottom:6px;">Belum ada doa</div>
+      <a href="/admin/doa/new">+ Tambah doa pertama</a>
     </div>
   <% } else { %>
-    <table>
-      <thead>
-        <tr>
-          <th>Title</th>
-          <th>Kategori</th>
-          <th>Audio</th>
-          <th>Video</th>
-          <th>Status</th>
-          <th>Sort</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <% doas.forEach(function(d) { %>
+    <div class="table-card">
+      <table>
+        <thead>
           <tr>
-            <td><strong style="color:var(--cream-100);"><%= d.title %></strong>
-              <% if (d.arabic) { %><div style="font-family:'Amiri',serif;font-size:14px;color:var(--gold-200);direction:rtl;margin-top:4px;"><%= d.arabic.slice(0, 60) %><% if (d.arabic.length > 60) { %>…<% } %></div><% } %>
-            </td>
-            <td><% if (d.category) { %><span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-200);letter-spacing:0.06em;text-transform:uppercase;"><%= d.category %></span><% } else { %>—<% } %></td>
-            <td>
-              <% const audioSrc = effectiveAudioUrl(d); %>
-              <% if (audioSrc) { %>
-                <span class="audio-pill">
-                  <% if (d.audioPath) { %>📁 MP3 upload<% } else { %>🔗 URL<% } %>
-                </span>
-              <% } else { %>—<% } %>
-            </td>
-            <td><% if (d.videoUrl) { %><span class="audio-pill">🎬 embed</span><% } else { %>—<% } %></td>
-            <td>
-              <% if (d.isActive) { %>
-                <span class="badge active">Active</span>
-              <% } else { %>
-                <span class="badge inactive">Inactive</span>
-              <% } %>
-            </td>
-            <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-200);"><%= d.sortOrder %></span></td>
-            <td><a class="row-edit" href="/admin/doa/<%= d.id %>/edit">Edit →</a></td>
+            <th>Title</th>
+            <th>Kategori</th>
+            <th>Audio</th>
+            <th>Video</th>
+            <th>Status</th>
+            <th>Sort</th>
+            <th></th>
           </tr>
-        <% }); %>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <% doas.forEach(function(d) { %>
+            <tr>
+              <td>
+                <div class="doa-title"><%= d.title %></div>
+                <% if (d.arabic) { %>
+                  <div class="doa-preview"><%= d.arabic.slice(0, 60) %><% if (d.arabic.length > 60) { %>…<% } %></div>
+                <% } %>
+              </td>
+              <td>
+                <% if (d.category) { %>
+                  <span class="cat-pill"><%= d.category %></span>
+                <% } else { %>
+                  <span class="none">—</span>
+                <% } %>
+              </td>
+              <td>
+                <% const audioSrc = effectiveAudioUrl(d); %>
+                <% if (audioSrc) { %>
+                  <% if (d.audioPath) { %>
+                    <span class="media-pill"><svg class="icon"><use href="#ic-folder"/></svg>MP3 file</span>
+                  <% } else { %>
+                    <span class="media-pill"><svg class="icon"><use href="#ic-link"/></svg>URL</span>
+                  <% } %>
+                <% } else { %>
+                  <span class="none">—</span>
+                <% } %>
+              </td>
+              <td>
+                <% if (d.videoUrl) { %>
+                  <span class="media-pill"><svg class="icon"><use href="#ic-video"/></svg>embed</span>
+                <% } else { %>
+                  <span class="none">—</span>
+                <% } %>
+              </td>
+              <td>
+                <% if (d.isActive) { %>
+                  <span class="badge active"><svg class="icon" style="width:0.85em;height:0.85em;"><use href="#ic-check"/></svg>Active</span>
+                <% } else { %>
+                  <span class="badge inactive">Inactive</span>
+                <% } %>
+              </td>
+              <td><span class="sort-num"><%= d.sortOrder %></span></td>
+              <td>
+                <a class="row-edit" href="/admin/doa/<%= d.id %>/edit">
+                  Edit <svg class="icon"><use href="#ic-arrow-right"/></svg>
+                </a>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
   <% } %>
 </div>
 </body>
