@@ -84,16 +84,27 @@ jobs:
           command_timeout: 10m
           script_stop: true
           script: |
-            set -euo pipefail
+            set -e
             cd /opt/religio-pro
 
             echo "═══ git pull ═══"
             sudo -u religio git pull --ff-only origin main
+            echo "→ git pull done"
 
-            # Conditional: install deps + regenerate prisma client kalau package atau schema berubah
+            # Flags dari steps.changes — quoted defaults supaya empty string aman
             DEPS_CHANGED="${{ steps.changes.outputs.deps_changed }}"
-            if [[ "$DEPS_CHANGED" == "true" ]]; then
-              echo "═══ npm ci (deps changed) ═══"
+            MIGRATIONS_CHANGED="${{ steps.changes.outputs.migrations_changed }}"
+            RUN_MIGRATION="${{ github.event.inputs.run_migration }}"
+            RUN_SEED="${{ github.event.inputs.run_seed }}"
+            # Defaults kalau workflow_dispatch tidak kirim input (mis. push trigger)
+            [ -z "$RUN_MIGRATION" ] && RUN_MIGRATION="auto"
+            [ -z "$RUN_SEED" ] && RUN_SEED="no"
+
+            echo "→ deps_changed=$DEPS_CHANGED migrations_changed=$MIGRATIONS_CHANGED run_migration=$RUN_MIGRATION run_seed=$RUN_SEED"
+
+            # Conditional: install deps + regenerate prisma client
+            if [ "$DEPS_CHANGED" = "true" ]; then
+              echo "═══ npm ci ═══"
               sudo -u religio npm ci --omit=dev 2>&1 | tail -5
               echo "═══ prisma generate ═══"
               sudo -u religio npx prisma generate 2>&1 | tail -3
@@ -101,19 +112,22 @@ jobs:
               echo "→ skip npm ci + prisma generate (no deps change)"
             fi
 
-            # Conditional: run migrations
-            RUN_MIGRATION="${{ github.event.inputs.run_migration || 'auto' }}"
-            MIGRATIONS_CHANGED="${{ steps.changes.outputs.migrations_changed }}"
-            if [[ "$RUN_MIGRATION" == "yes" ]] || ([[ "$RUN_MIGRATION" == "auto" ]] && [[ "$MIGRATIONS_CHANGED" == "true" ]]); then
+            # Conditional: run migrations — POSIX-style avoid subshell + set -e issue
+            should_migrate="false"
+            if [ "$RUN_MIGRATION" = "yes" ]; then
+              should_migrate="true"
+            elif [ "$RUN_MIGRATION" = "auto" ] && [ "$MIGRATIONS_CHANGED" = "true" ]; then
+              should_migrate="true"
+            fi
+            if [ "$should_migrate" = "true" ]; then
               echo "═══ prisma migrate deploy ═══"
               sudo -u religio npx prisma migrate deploy 2>&1 | tail -10
             else
-              echo "→ skip prisma migrate (no migration change or disabled)"
+              echo "→ skip prisma migrate"
             fi
 
-            # Manual seed (opt-in via workflow_dispatch input)
-            RUN_SEED="${{ github.event.inputs.run_seed || 'no' }}"
-            if [[ "$RUN_SEED" == "yes" ]]; then
+            # Manual seed (opt-in)
+            if [ "$RUN_SEED" = "yes" ]; then
               echo "═══ npm run db:seed (manual opt-in) ═══"
               sudo -u religio npm run db:seed 2>&1 | tail -15
             fi
@@ -121,14 +135,18 @@ jobs:
             echo "═══ systemctl restart religio-pro-web ═══"
             sudo systemctl restart religio-pro-web
             sleep 3
-            sudo systemctl status religio-pro-web --no-pager | head -3
+            sudo systemctl status religio-pro-web --no-pager | head -3 || true
 
             echo ""
             echo "═══ health check ═══"
-            curl -sf https://religio.sosmartpro.com/api/health -o /tmp/health.json && {
-              STATUS=$(grep -o '"status":"[^"]*"' /tmp/health.json | head -1)
-              echo "→ /api/health $STATUS"
-            } || echo "⚠ health endpoint did not respond ok (HTTP error)"
+            HTTP_STATUS=$(curl -s -o /tmp/health.json -w "%{http_code}" https://religio.sosmartpro.com/api/health || echo "000")
+            echo "→ /api/health HTTP $HTTP_STATUS"
+            if [ "$HTTP_STATUS" = "200" ]; then
+              head -c 200 /tmp/health.json
+              echo ""
+            else
+              echo "⚠ unexpected HTTP status from health endpoint"
+            fi
 
             echo ""
             echo "✓ Deploy complete: $(git log -1 --pretty='%h %s')"
