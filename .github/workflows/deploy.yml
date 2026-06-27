@@ -96,9 +96,14 @@ jobs:
             MIGRATIONS_CHANGED="${{ steps.changes.outputs.migrations_changed }}"
             RUN_MIGRATION="${{ github.event.inputs.run_migration }}"
             RUN_SEED="${{ github.event.inputs.run_seed }}"
-            # Defaults kalau workflow_dispatch tidak kirim input (mis. push trigger)
-            [ -z "$RUN_MIGRATION" ] && RUN_MIGRATION="auto"
-            [ -z "$RUN_SEED" ] && RUN_SEED="no"
+            # Defaults via POSIX param expansion — set kalau unset ATAU empty.
+            # NOTE: `[ -z X ] && Y` is unsafe under `set -e` karena saat X
+            # non-empty, [ -z ] exits 1, && short-circuits, statement
+            # propagates exit 1, set -e kills script. Pakai := instead.
+            : "${RUN_MIGRATION:=auto}"
+            : "${RUN_SEED:=no}"
+            : "${DEPS_CHANGED:=false}"
+            : "${MIGRATIONS_CHANGED:=false}"
 
             echo "→ deps_changed=$DEPS_CHANGED migrations_changed=$MIGRATIONS_CHANGED run_migration=$RUN_MIGRATION run_seed=$RUN_SEED"
 
