@@ -94,6 +94,7 @@
 </style>
 </head>
 <body class="has-m-tabs">
+  <%- include('partials/ibadah-icons') %>
   <div class="wrap">
     <a class="btn-back" href="/saya/ibadah">Ibadah</a>
     <h1>Pelontaran <em>jumrah</em></h1>
@@ -120,7 +121,7 @@
       Sughra (yang dekat masjid Khaif) → Wustha → Aqaba. Tiap jamarat
       dilempar 7 batu dengan takbir.
     </div>
-    <div class="offline-hint">✓ Bekerja offline — data tersimpan lokal di perangkat Anda</div>
+    <div class="offline-hint"><svg class="icon"><use href="#ic-check"/></svg> Bekerja offline — data tersimpan lokal di perangkat Anda</div>
   </div>
 
   <script src="/shared/ibadah-counter.js"></script>
@@ -218,9 +219,9 @@
             </div>
             <div class="jamarat-pips">${pipsHtml}</div>
             <div class="btn-row">
-              <button type="button" class="btn primary" data-action="throw" ${isLocked || s.putaran >= MAX ? 'disabled' : ''}>+ Lempar batu</button>
-              <button type="button" class="btn ghost" data-action="undo" ${s.putaran <= 0 ? 'disabled' : ''}>↶ Undo</button>
-              <button type="button" class="btn ghost" data-action="reset">Reset</button>
+              <button type="button" class="btn primary" data-action="throw" ${isLocked || s.putaran >= MAX ? 'disabled' : ''}><svg class="icon"><use href="#ic-plus"/></svg> Lempar batu</button>
+              <button type="button" class="btn ghost" data-action="undo" ${s.putaran <= 0 ? 'disabled' : ''}><svg class="icon"><use href="#ic-undo"/></svg> Undo</button>
+              <button type="button" class="btn ghost" data-action="reset"><svg class="icon"><use href="#ic-reset"/></svg> Reset</button>
             </div>
           `;
           card.querySelector('[data-action="throw"]').addEventListener('click', async () => {

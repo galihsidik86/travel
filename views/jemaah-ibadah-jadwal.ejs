@@ -72,6 +72,7 @@
 </style>
 </head>
 <body class="has-m-tabs">
+  <%- include('partials/ibadah-icons') %>
   <div class="wrap">
     <a class="btn-back" href="/saya/ibadah">Ibadah</a>
     <h1>Jadwal <em>shalat</em></h1>
@@ -90,7 +91,7 @@
 
     <div class="panel" id="setup-panel">
       <div class="helper" id="status-text">Mengambil lokasi…</div>
-      <button type="button" class="btn" id="refresh-btn" style="display:none;">↻ Refresh lokasi</button>
+      <button type="button" class="btn" id="refresh-btn" style="display:none;"><svg class="icon"><use href="#ic-reset"/></svg> Refresh lokasi</button>
     </div>
 
     <div class="schedule" id="schedule" style="display:none;"></div>

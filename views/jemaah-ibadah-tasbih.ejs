@@ -91,6 +91,7 @@
 </style>
 </head>
 <body class="has-m-tabs">
+  <%- include('partials/ibadah-icons') %>
   <div class="wrap">
     <a class="btn-back" href="/saya/ibadah">Ibadah</a>
     <h1>Penghitung <em>tasbih</em></h1>
@@ -128,7 +129,7 @@
         </div>
       </div>
       <div class="btn-row">
-        <button type="button" class="btn" id="std-undo">↶ Undo</button>
+        <button type="button" class="btn" id="std-undo"><svg class="icon"><use href="#ic-undo"/></svg> Undo</button>
         <button type="button" class="btn" id="std-reset">Reset semua</button>
       </div>
     </div>
@@ -147,12 +148,12 @@
         <div class="of" id="free-of">of 100</div>
       </div>
       <div class="btn-row">
-        <button type="button" class="btn" id="free-undo">↶ Undo</button>
+        <button type="button" class="btn" id="free-undo"><svg class="icon"><use href="#ic-undo"/></svg> Undo</button>
         <button type="button" class="btn" id="free-reset">Reset</button>
       </div>
     </div>
 
-    <div class="offline-hint">✓ Bekerja offline — data tersimpan lokal di perangkat Anda</div>
+    <div class="offline-hint"><svg class="icon"><use href="#ic-check"/></svg> Bekerja offline — data tersimpan lokal di perangkat Anda</div>
   </div>
 
   <script src="/shared/ibadah-counter.js"></script>
