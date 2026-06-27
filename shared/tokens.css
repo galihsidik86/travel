@@ -617,3 +617,57 @@ body {
 @media (max-width: 720px) {
   .btn-back { font-size: 10.5px; padding: 12px 18px 12px 14px; }
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   UUPM (UI/UX Pro Max) — shared a11y + interaction primitives.
+   Applied site-wide via shared/tokens.css so semua views otomatis
+   pickup tanpa per-page CSS duplication.
+   ────────────────────────────────────────────────────────────────── */
+
+/* Cursor-pointer on every clickable element (UUPM CRITICAL rule). */
+button:not(:disabled),
+a[href],
+[role="button"],
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+input[type="file"],
+label[for] { cursor: pointer; }
+
+/* Focus-visible gold ring for keyboard nav (UUPM CRITICAL — visible
+   focus states). Skipped via :focus-visible (not :focus) so mouse
+   clicks don't show ring, only keyboard tab does. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--gold-300);
+  outline-offset: 3px;
+  border-radius: var(--r-sm);
+}
+
+/* prefers-reduced-motion — disable all animations/transitions for
+   users who have set their OS to reduce motion. UUPM CRITICAL. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Inline SVG icon utility — universal sizing + currentColor stroke.
+   Use as: <svg class="icon"><use href="#ic-name"/></svg> */
+.icon {
+  width: 1em; height: 1em; flex-shrink: 0;
+  stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  vertical-align: -0.125em;
+  display: inline-block;
+}
+.icon-sm { width: 0.85em; height: 0.85em; }
+.icon-lg { width: 1.4em; height: 1.4em; }
+.icon-xl { width: 2em; height: 2em; }
