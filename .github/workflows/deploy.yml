@@ -1,0 +1,148 @@
+name: Deploy to VPS
+
+# Auto-deploy ke server Religio Pro setelah push ke main.
+#
+# Triggered by:
+#   - Push ke branch `main` (otomatis)
+#   - Manual via Actions UI (workflow_dispatch)
+#
+# Skip auto-deploy via:
+#   - Tag commit dengan "[skip deploy]" di message
+#   - Atau path-ignore (lihat below) untuk file yang tidak butuh deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      # File yang tidak perlu trigger redeploy
+      - '**.md'
+      - 'memory/**'
+      - 'docs/**'
+      - '.claude/**'
+      - 'tests/**'
+      - 'screens/**'        # static design mockups, tidak masuk runtime
+      - 'android-app/**'    # APK build separate, tidak deploy ke server
+      - '.github/workflows/**'  # workflow self-update tidak butuh server deploy
+  workflow_dispatch:
+    inputs:
+      run_migration:
+        description: 'Run prisma migrate deploy?'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto       # auto-detect dari git diff
+          - yes        # paksa run migrate
+          - no         # skip migrate
+      run_seed:
+        description: 'Run npm run db:seed?'
+        required: false
+        default: 'no'
+        type: choice
+        options:
+          - 'no'
+          - 'yes'
+
+jobs:
+  deploy:
+    name: SSH deploy ke VPS
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip deploy]')"
+
+    steps:
+      - name: Checkout (untuk diff detection)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes
+        id: changes
+        run: |
+          # Sebelum vs sesudah commit — apa yang berubah?
+          if git diff --name-only HEAD~1 HEAD | grep -qE '^prisma/migrations/'; then
+            echo "migrations_changed=true" >> "$GITHUB_OUTPUT"
+            echo "→ prisma/migrations/ changed"
+          else
+            echo "migrations_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if git diff --name-only HEAD~1 HEAD | grep -qE '^(package(-lock)?\.json|prisma/schema\.prisma)$'; then
+            echo "deps_changed=true" >> "$GITHUB_OUTPUT"
+            echo "→ package.json / lock / schema.prisma changed"
+          else
+            echo "deps_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          # Long timeout supaya migrate yang panjang tidak diputus
+          command_timeout: 10m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/religio-pro
+
+            echo "═══ git pull ═══"
+            sudo -u religio git pull --ff-only origin main
+
+            # Conditional: install deps + regenerate prisma client kalau package atau schema berubah
+            DEPS_CHANGED="${{ steps.changes.outputs.deps_changed }}"
+            if [[ "$DEPS_CHANGED" == "true" ]]; then
+              echo "═══ npm ci (deps changed) ═══"
+              sudo -u religio npm ci --omit=dev 2>&1 | tail -5
+              echo "═══ prisma generate ═══"
+              sudo -u religio npx prisma generate 2>&1 | tail -3
+            else
+              echo "→ skip npm ci + prisma generate (no deps change)"
+            fi
+
+            # Conditional: run migrations
+            RUN_MIGRATION="${{ github.event.inputs.run_migration || 'auto' }}"
+            MIGRATIONS_CHANGED="${{ steps.changes.outputs.migrations_changed }}"
+            if [[ "$RUN_MIGRATION" == "yes" ]] || ([[ "$RUN_MIGRATION" == "auto" ]] && [[ "$MIGRATIONS_CHANGED" == "true" ]]); then
+              echo "═══ prisma migrate deploy ═══"
+              sudo -u religio npx prisma migrate deploy 2>&1 | tail -10
+            else
+              echo "→ skip prisma migrate (no migration change or disabled)"
+            fi
+
+            # Manual seed (opt-in via workflow_dispatch input)
+            RUN_SEED="${{ github.event.inputs.run_seed || 'no' }}"
+            if [[ "$RUN_SEED" == "yes" ]]; then
+              echo "═══ npm run db:seed (manual opt-in) ═══"
+              sudo -u religio npm run db:seed 2>&1 | tail -15
+            fi
+
+            echo "═══ systemctl restart religio-pro-web ═══"
+            sudo systemctl restart religio-pro-web
+            sleep 3
+            sudo systemctl status religio-pro-web --no-pager | head -3
+
+            echo ""
+            echo "═══ health check ═══"
+            curl -sf https://religio.sosmartpro.com/api/health -o /tmp/health.json && {
+              STATUS=$(grep -o '"status":"[^"]*"' /tmp/health.json | head -1)
+              echo "→ /api/health $STATUS"
+            } || echo "⚠ health endpoint did not respond ok (HTTP error)"
+
+            echo ""
+            echo "✓ Deploy complete: $(git log -1 --pretty='%h %s')"
+
+      - name: Notify on success
+        if: success()
+        run: echo "✓ Deploy succeeded → https://religio.sosmartpro.com"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "✗ Deploy failed. Check log di atas untuk error details."
+          echo "Recovery options:"
+          echo "  1. Fix issue + push again (auto-deploy)"
+          echo "  2. Manual deploy via SSH"
+          echo "  3. Rollback: revert commit + push"
+          exit 1
