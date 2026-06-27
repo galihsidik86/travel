@@ -82,9 +82,10 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           # Long timeout supaya migrate yang panjang tidak diputus
           command_timeout: 10m
-          script_stop: true
+          # script_stop: true        # disabled — set -e cukup, dan
+          # script_stop kadang line-split bash multi-line constructs
           script: |
-            set -e
+            set -ex
             cd /opt/religio-pro
 
             echo "═══ git pull ═══"
