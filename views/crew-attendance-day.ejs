@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Absensi Hari <%= day.dayNumber %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/crew-readable.css">
 <%- include('partials/pwa-head', { pwaRole: 'crew' }) %>
 <script src="/shared/attendance-queue.js" defer></script>
 <!-- Stage 367 — persistent storage opt-in (IDB durability) -->
@@ -139,7 +140,7 @@
 <script src="/shared/csrf.js"></script>
 </head>
 <body data-screen-label="05 Crew · Attendance Day"
-      class="has-m-tabs"
+      class="has-m-tabs crew-app"
       data-user-name="<%= user.fullName || user.email %>"
       data-paket-slug="<%= paket.slug %>"
       data-day-id="<%= day.id %>">

@@ -1,0 +1,150 @@
+/* ──────────────────────────────────────────────────────────────────
+   Religio Pro — Crew (muthawwif) readability overrides.
+
+   Applied via body class `crew-app` di semua /crew views. Bumps font
+   sizes + touch targets supaya readable di field condition (panas
+   silau, gerakan, gloves, glasses, usia 40-60+).
+
+   Reference: UUPM CRITICAL rules
+   - `readable-font-size`: minimum 16px body text on mobile
+   - `touch-target-size`: minimum 44x44px (kita pakai 48x48 untuk extra
+     safety buffer untuk seniors + gloved fingers)
+   - `color-contrast`: 4.5:1 minimum — bump muted text dari ink-200
+     ke cream-100 di context body
+   ────────────────────────────────────────────────────────────────── */
+
+body.crew-app {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Headings — already large, just ensure crew tier sizes */
+body.crew-app h1 { font-size: 32px; line-height: 1.2; }
+body.crew-app h2 { font-size: 24px; line-height: 1.3; }
+body.crew-app h3 { font-size: 19px; line-height: 1.4; }
+
+/* Subtitle + meta text — bump from 11-12px to 14px */
+body.crew-app .sub,
+body.crew-app .summary,
+body.crew-app .crumb,
+body.crew-app .meta-line,
+body.crew-app .head .sub {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+/* Topbar nav text — bump from 11px to 13px so easier to scan */
+body.crew-app .topbar { font-size: 13px; }
+
+/* Tables — body cells 15px (was 12.5px), comfortable row height */
+body.crew-app .tbl tbody td,
+body.crew-app .tbl tbody tr {
+  font-size: 15px;
+  padding: 16px 14px;
+}
+body.crew-app .tbl thead th { font-size: 12px; padding: 14px; }
+body.crew-app .tbl .sx { font-size: 13px; }
+body.crew-app .tbl .id { font-size: 12.5px; }
+
+/* Buttons — 48px min touch target (UUPM CRITICAL bumped from 44) */
+body.crew-app button,
+body.crew-app .btn,
+body.crew-app .search-bar button,
+body.crew-app input[type="submit"],
+body.crew-app input[type="button"] {
+  min-height: 48px;
+  font-size: 13px;
+  padding: 14px 22px;
+  letter-spacing: 0.08em;
+}
+
+/* Form inputs — 16px supaya iOS Safari tidak auto-zoom saat focus */
+body.crew-app input[type="text"],
+body.crew-app input[type="email"],
+body.crew-app input[type="tel"],
+body.crew-app input[type="number"],
+body.crew-app input[type="password"],
+body.crew-app input[type="search"],
+body.crew-app input[type="url"],
+body.crew-app textarea,
+body.crew-app select {
+  font-size: 16px;
+  padding: 14px 16px;
+  min-height: 48px;
+}
+body.crew-app textarea { min-height: 96px; line-height: 1.5; }
+
+/* Search bar input — keep visual hierarchy */
+body.crew-app .search-bar input { font-size: 16px; padding: 14px 16px; }
+
+/* Card titles + labels — readable */
+body.crew-app .card-title,
+body.crew-app .card .title {
+  font-size: 18px;
+}
+body.crew-app .card .desc,
+body.crew-app .card-body {
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Status pills + badges — bump from 9.5-10px to 11-12px */
+body.crew-app .badge,
+body.crew-app .status-tag {
+  font-size: 11.5px;
+  padding: 5px 11px;
+}
+
+/* Inline empty states */
+body.crew-app .empty {
+  font-size: 14px;
+  padding: 60px 32px;
+  line-height: 1.6;
+}
+
+/* Contrast bump — muted body text from ink-200 to cream-100/200 */
+body.crew-app .meta-line,
+body.crew-app .card .desc {
+  color: var(--cream-200);
+}
+
+/* SOS-fab khusus crew — sudah cukup besar (64px), tinggal pastikan
+   label text "SOS" readable */
+body.crew-app .sos-fab__lbl { font-size: 12.5px; letter-spacing: 0.2em; }
+
+/* Notification list rows — bigger touch targets + readable subjects */
+body.crew-app .list .row {
+  padding: 16px 18px;
+  font-size: 15px;
+}
+body.crew-app .list .row .subject {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+body.crew-app .list .row .body {
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+/* Action buttons inside notif rows (Maps / WA / Telp) — bump padding
+   supaya thumb-friendly */
+body.crew-app .list .row a[href*="maps.google.com"],
+body.crew-app .list .row a[href*="wa.me"],
+body.crew-app .list .row a[href*="tel:"] {
+  padding: 10px 16px !important;
+  font-size: 12px !important;
+}
+
+/* Mobile-tabs nav (bottom) — larger labels */
+body.crew-app .m-tabs a {
+  font-size: 11px;
+}
+body.crew-app .m-tabs a svg,
+body.crew-app .m-tabs a span:first-child { font-size: 22px; }
+
+/* Print-style explicit dialog modals — bigger close + send buttons */
+body.crew-app dialog button {
+  font-size: 13px;
+  min-height: 48px;
+}

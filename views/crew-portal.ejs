@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Crew · <%= user.fullName %></title>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/crew-readable.css">
 <%- include('partials/pwa-head', { pwaRole: 'crew' }) %>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
@@ -104,7 +105,7 @@
 </style>
 <script src="/shared/csrf.js"></script>
 </head>
-<body data-screen-label="05 Crew · Home" class="has-m-tabs">
+<body data-screen-label="05 Crew · Home" class="has-m-tabs crew-app">
 <div class="wrap">
 
   <div class="topbar">

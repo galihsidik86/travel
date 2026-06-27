@@ -1,0 +1,13 @@
+node_modules/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/.idea/
+android/captures/
+android/*.iml
+android/app/release/
+android/app/debug/
+*.keystore
+!app-debug-keystore.example
+release-config.json
