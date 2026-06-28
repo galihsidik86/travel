@@ -1,0 +1,25 @@
+{
+  "appId": "pro.religio.jemaah",
+  "appName": "Religio Jemaah",
+  "webDir": "www",
+  "server": {
+    "url": "https://religio.sosmartpro.com/saya",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "backgroundColor": "#050403",
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#050403",
+      "showSpinner": true,
+      "androidSpinnerStyle": "small",
+      "spinnerColor": "#D4AF37"
+    }
+  }
+}
