@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RELIGIO PRO — Testimoni perjalanan</title>
 <link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/jemaah-readable.css">
 <%- include('partials/pwa-head') %>
 <style>
   body { background: var(--ink-1000); min-height: 100vh; }
@@ -38,7 +39,7 @@
   .stars { flex-direction: row-reverse; justify-content: flex-end; }
 </style>
 </head>
-<body data-screen-label="03 Jemaah · Testimoni">
+<body class="jemaah-app" data-screen-label="03 Jemaah · Testimoni">
 <div class="wrap">
   <a class="btn-back" href="/saya/bookings/<%= booking.id %>">Kembali ke Booking</a>
   <h1>Bagikan <em>cerita Anda</em></h1>
