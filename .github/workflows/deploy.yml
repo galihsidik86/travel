@@ -145,17 +145,33 @@ jobs:
 
             echo ""
             echo "═══ health check ═══"
-            HTTP_STATUS=$(curl -s -o /tmp/health.json -w "%{http_code}" https://religio.sosmartpro.com/api/health || echo "000")
+            # Retry a few times — first tick after `systemctl restart` can be
+            # a beat slow (prisma client warmup, cron bootstrap) even on a
+            # healthy boot, so don't fail on the very first miss.
+            HTTP_STATUS="000"
+            for attempt in 1 2 3 4 5; do
+              HTTP_STATUS=$(curl -s -o /tmp/health.json -w "%{http_code}" https://religio.sosmartpro.com/api/health || echo "000")
+              if [ "$HTTP_STATUS" = "200" ]; then
+                break
+              fi
+              echo "→ attempt $attempt: HTTP $HTTP_STATUS, retrying in 3s…"
+              sleep 3
+            done
             echo "→ /api/health HTTP $HTTP_STATUS"
             if [ "$HTTP_STATUS" = "200" ]; then
               head -c 200 /tmp/health.json
               echo ""
             else
-              echo "⚠ unexpected HTTP status from health endpoint"
+              echo "✗ health check failed after 5 attempts — service did not come back up cleanly"
+              echo "─── last known systemd status ───"
+              sudo systemctl status religio-pro-web --no-pager | head -10 || true
+              echo "─── last 30 lines of web.log ───"
+              sudo tail -n 30 /var/log/religio/web.log || true
+              exit 1
             fi
 
             echo ""
-            echo "✓ Deploy complete: $(git log -1 --pretty='%h %s')"
+            echo "✓ Deploy complete: $(sudo -u religio git log -1 --pretty='%h %s')"
 
       - name: Notify on success
         if: success()
