@@ -91,13 +91,16 @@ if (isProd) {
   if (!env.COOKIE_SECURE) {
     prodIssues.push('COOKIE_SECURE must be true behind HTTPS');
   }
-  // MIDTRANS_SERVER_KEY absent → isMidtransFakeMode() is true → the
-  // unauthenticated GET /payments/midtrans/fake endpoint goes live, letting
-  // anyone settle any booking as PAID for free (and trigger agent komisi on
-  // phantom money). A production deploy must ALWAYS have a real server key,
-  // regardless of the MIDTRANS_PRODUCTION (sandbox vs live) toggle.
+  // MIDTRANS_SERVER_KEY absent → isMidtransFakeMode() is true. The actual
+  // exploit this used to enable — GET /payments/midtrans/fake settling any
+  // booking for free — is independently closed at the route layer
+  // (src/routes/paymentGateway.js 403s that endpoint whenever
+  // NODE_ENV=production, key or no key), so this is a WARNING, not a boot
+  // blocker: a deploy that hasn't wired real Midtrans credentials yet still
+  // runs (online payment collection just won't work — bookings fall back to
+  // manual/cash recording), instead of crash-looping the entire site.
   if (!env.MIDTRANS_SERVER_KEY) {
-    prodIssues.push('MIDTRANS_SERVER_KEY is required in production — without it the payment gateway runs in fake mode and exposes an unauthenticated "settle booking for free" endpoint');
+    console.warn('[env] WARNING: MIDTRANS_SERVER_KEY not set — online payment gateway is in fake mode. The fake-settlement endpoint is still blocked in production (route-level guard), but real online payments will not work until a server key is configured.');
   }
   if (env.MIDTRANS_PRODUCTION && (!env.MIDTRANS_SERVER_KEY || !env.MIDTRANS_CLIENT_KEY)) {
     prodIssues.push('MIDTRANS_PRODUCTION=true requires both MIDTRANS_SERVER_KEY and MIDTRANS_CLIENT_KEY');
