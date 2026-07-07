@@ -91,6 +91,14 @@ if (isProd) {
   if (!env.COOKIE_SECURE) {
     prodIssues.push('COOKIE_SECURE must be true behind HTTPS');
   }
+  // MIDTRANS_SERVER_KEY absent → isMidtransFakeMode() is true → the
+  // unauthenticated GET /payments/midtrans/fake endpoint goes live, letting
+  // anyone settle any booking as PAID for free (and trigger agent komisi on
+  // phantom money). A production deploy must ALWAYS have a real server key,
+  // regardless of the MIDTRANS_PRODUCTION (sandbox vs live) toggle.
+  if (!env.MIDTRANS_SERVER_KEY) {
+    prodIssues.push('MIDTRANS_SERVER_KEY is required in production — without it the payment gateway runs in fake mode and exposes an unauthenticated "settle booking for free" endpoint');
+  }
   if (env.MIDTRANS_PRODUCTION && (!env.MIDTRANS_SERVER_KEY || !env.MIDTRANS_CLIENT_KEY)) {
     prodIssues.push('MIDTRANS_PRODUCTION=true requires both MIDTRANS_SERVER_KEY and MIDTRANS_CLIENT_KEY');
   }

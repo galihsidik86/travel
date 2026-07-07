@@ -144,19 +144,49 @@ export async function handleMidtransNotification({ req, payload }) {
   if (newStatus === 'SETTLED' && intent.status !== 'SETTLED') {
     const method = mapMidtransMethod(payload.payment_type);
     const gatewayRef = payload.transaction_id || `MT-${orderId}`;
-    const amt = Number(payload.gross_amount) || toNumber(intent.amount) || 0;
+    // The intent amount is what WE asked the customer to pay; gross_amount is
+    // what the gateway reports. Both are signature-covered, but if they ever
+    // disagree (partial capture, currency edge cases, gateway quirk) we must
+    // NOT silently book the gateway figure — record against the intent amount
+    // and raise an audit flag for finance to reconcile.
+    const intentAmt = toNumber(intent.amount) ?? 0;
+    const gatewayAmt = Number(payload.gross_amount);
+    const amountMismatch = Number.isFinite(gatewayAmt) && Math.abs(gatewayAmt - intentAmt) >= 0.01;
+    const amt = intentAmt > 0 ? intentAmt : (Number.isFinite(gatewayAmt) ? gatewayAmt : 0);
+    if (amountMismatch) {
+      await audit({
+        req, actor: { email: 'midtrans-webhook', role: null },
+        action: 'AMOUNT_MISMATCH', entity: 'PaymentIntent', entityId: intent.id,
+        after: { orderId, intentAmount: intentAmt, gatewayAmount: gatewayAmt, booked: amt },
+      });
+    }
 
-    const { payment } = await recordPayment({
-      req,
-      actor: { email: 'midtrans-webhook', role: null }, // system actor (audit lib accepts null role)
-      bookingId: intent.bookingId,
-      amount: amt,
-      method,
-      currency: payload.currency || 'IDR',
-      gatewayRef,
-      vaNumber: payload.va_numbers?.[0]?.va_number || null,
-      notes: `Midtrans ${payload.payment_type || ''} · ${payload.transaction_status}`.trim(),
-    });
+    let payment;
+    try {
+      ({ payment } = await recordPayment({
+        req,
+        actor: { email: 'midtrans-webhook', role: null }, // system actor (audit lib accepts null role)
+        bookingId: intent.bookingId,
+        amount: amt,
+        method,
+        currency: payload.currency || 'IDR',
+        gatewayRef,
+        vaNumber: payload.va_numbers?.[0]?.va_number || null,
+        notes: `Midtrans ${payload.payment_type || ''} · ${payload.transaction_status}`.trim(),
+      }));
+    } catch (err) {
+      // Concurrent duplicate webhook: two SETTLED notifications for the same
+      // order can both pass the `intent.paymentId == null` guard before either
+      // writes it. The Payment.gatewayRef @unique constraint is the real
+      // backstop — the loser hits P2002. That means the payment WAS already
+      // recorded by the winner, so ack Midtrans with a NOOP instead of a 500
+      // (a 500 would trigger endless retries).
+      if (err?.code === 'P2002') {
+        const settled = await db.paymentIntent.findUnique({ where: { id: intent.id } });
+        return { intent: settled ?? intent, payment: null, action: 'NOOP' };
+      }
+      throw err;
+    }
 
     const updated = await db.paymentIntent.update({
       where: { id: intent.id },

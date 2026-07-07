@@ -412,7 +412,7 @@ Tests run via Node's built-in `node:test` (zero deps, ships with Node ≥ 18). `
 
 Older `scripts/smoke-*.js` are ad-hoc smoke runners predating `node:test` — they still work standalone (`node scripts/smoke-XX.js`) but new coverage should be written as `tests/*.test.js`. Migrating the legacy smokes is incremental, not a flag-day.
 
-The static design package is still served — visit `/`, `/screens/paket-detail.html`, etc. — but Express now sits in front of it and blocks sensitive files (`.env`, `package.json`, `src/`, `prisma/`, `.claude/`, `memory/`). The `uploads/` directory is intentionally **public** (it's part of the static design package — currently holds `Proposal_Religio_Pro.docx`), so never drop secrets or unredacted user data there.
+The static design package is still served — visit `/`, `/screens/paket-detail.html`, etc. Static serving is **allow-listed by directory**, not "serve the whole repo root and denylist the bad parts": `src/app.js` mounts only `/screens`, `/shared`, `/uploads` (each via its own `express.static`) plus two explicit root files (`index.html`, `design-system.html`) and `/`. Nothing else at repo root is reachable through the static layer — a new top-level file (business doc, `deploy/`, `tests/`, a stray `.docx`) is private by default, with zero action needed. (Earlier this served `express.static(projectRoot, …)` with a `blockSensitive` denylist in front of it — that pattern was replaced because it meant any new root-level file was public unless someone remembered to blocklist it; `blockSensitive` still runs as defense-in-depth for the mounted directories and non-static routes.) The `uploads/` directory is intentionally **public** (it's part of the static design package — currently holds `Proposal_Religio_Pro.docx`), so never drop secrets or unredacted user data there.
 
 **Windows file-lock gotcha**: `prisma generate` will fail with `EPERM rename query_engine-windows.dll.node` if the dev server is running (`node --watch` holds the file open). Stop the dev process before running migrate/generate, then restart. Killing one npm/node PID isn't enough — the watch parent spawns a child worker; check `tasklist | grep node` and kill all three (npm wrapper, watcher, child) with `taskkill //F //PID …`.
 
@@ -446,7 +446,7 @@ Mount **nested admin sub-paths BEFORE** the generic `/admin` router, otherwise E
 
 ### Sensitive-path block
 
-`src/app.js` defines `SENSITIVE_FILES` + `SENSITIVE_PREFIXES`. Any new top-level file or directory containing secrets/code must be added there — `express.static` would otherwise expose it.
+`src/app.js` defines `SENSITIVE_FILES` + `SENSITIVE_PREFIXES` and a `blockSensitive` middleware that 404s them before any router (including static) sees the request. This is defense-in-depth on top of the allow-listed static mounts (`/screens`, `/shared`, `/uploads` — see above) — those prefixes matter most for non-static routes (e.g. an admin route that might `sendFile` from an unexpected path) and as a second layer should the static allow-list ever be loosened. When adding a new private directory (uploads, generated exports, etc.), it still must go through an authenticated download route, not a static mount.
 
 ## Auth & RBAC
 

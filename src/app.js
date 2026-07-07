@@ -185,24 +185,44 @@ export function createApp() {
   app.use('/admin/data-deletion-requests', dataDeletionRequestsRouter);
   app.use('/admin', adminRouter);
 
-  // Static — existing design package (index.html, screens/, shared/, uploads/).
+  // Static — public design package only. Previously this served the ENTIRE
+  // project root via `express.static(projectRoot, ...)`, which meant any
+  // file dropped at repo root (business docs, deploy/, tests/, node_modules/
+  // sourcemaps, etc.) was reachable unless explicitly added to the
+  // blockSensitive() prefix list above. `blockSensitive` covers known-sensitive
+  // paths, but it's a denylist that has to be kept in sync by hand — a new
+  // top-level file (e.g. a proposal .docx) is public-by-default until someone
+  // remembers to block it. Allow-listing only the directories that are
+  // genuinely public assets removes that footgun entirely.
+  //
   // setHeaders adds `Service-Worker-Allowed: /` to shared/sw.js so the PWA SW
   // can claim root scope despite living under /shared/ — without this, push
   // notifications, offline cache, and stale-while-revalidate all silently fail
   // because the SW only controls /shared/* URLs.
-  app.use(
-    express.static(projectRoot, {
-      dotfiles: 'deny',
-      index: 'index.html',
-      extensions: ['html'],
-      maxAge: isDev ? 0 : '1d',
-      setHeaders: (res, filePath) => {
-        if (filePath.endsWith('sw.js')) {
-          res.setHeader('Service-Worker-Allowed', '/');
-        }
-      },
-    }),
-  );
+  const staticOpts = {
+    dotfiles: 'deny',
+    maxAge: isDev ? 0 : '1d',
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('sw.js')) {
+        res.setHeader('Service-Worker-Allowed', '/');
+      }
+    },
+  };
+  // Public asset subdirectories mounted under their own path prefixes so
+  // nothing outside them is reachable.
+  for (const dir of ['screens', 'shared', 'uploads']) {
+    app.use(`/${dir}`, express.static(path.join(projectRoot, dir), staticOpts));
+  }
+  // Root-level public files, served individually (not the whole root).
+  for (const file of ['index.html', 'design-system.html']) {
+    app.get(`/${file}`, (_req, res, next) => {
+      res.sendFile(path.join(projectRoot, file), (err) => { if (err) next(); });
+    });
+  }
+  // Landing page at "/".
+  app.get('/', (_req, res, next) => {
+    res.sendFile(path.join(projectRoot, 'index.html'), (err) => { if (err) next(); });
+  });
 
   app.use(notFoundHandler);
   app.use(errorHandler);

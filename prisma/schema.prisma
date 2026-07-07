@@ -283,6 +283,7 @@ enum AuditAction {
   PERMISSION_GRANT
   PERMISSION_REVOKE
   EXPORT
+  AMOUNT_MISMATCH
 }
 
 // ─── Identity ────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { db } from '../lib/db.js';
+import { env } from '../env.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
@@ -93,6 +94,12 @@ router.post(
 router.get(
   '/payments/midtrans/fake',
   asyncHandler(async (req, res) => {
+    // Belt-and-suspenders: this endpoint settles bookings without auth, so it
+    // must NEVER be reachable in production even if fake mode were somehow
+    // active (env guard already blocks that path at boot).
+    if (env.NODE_ENV === 'production') {
+      throw new HttpError(403, 'Endpoint tidak tersedia di produksi', 'NOT_AVAILABLE');
+    }
     if (!isMidtransFakeMode()) throw new HttpError(403, 'Fake redirect dimatikan (kredensial Midtrans ter-set)', 'NOT_FAKE_MODE');
     const orderId = String(req.query.order_id || '');
     if (!orderId) throw new HttpError(400, 'order_id wajib', 'ORDER_ID_REQUIRED');
